@@ -1,6 +1,7 @@
 #include "kvm/cpu.h"
 
 #include <linux/kvm.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <fcntl.h>
 
@@ -8,6 +9,17 @@ struct kvm {
 	int			fd;		/* /dev/kvm */
 	int			vmfd;
 };
+
+static inline bool kvm__supports_extension(struct kvm *self, unsigned int extension)
+{
+	int ret;
+
+	ret = ioctl(self->fd, KVM_CHECK_EXTENSION, extension);
+	if (ret < 0)
+		return false;
+
+	return ret;
+}
 
 static void die(const char *s)
 {
@@ -43,6 +55,9 @@ int main(int argc, char *argv[])
 	kvm.vmfd = ioctl(kvm.fd, KVM_CREATE_VM, 0);
 	if (kvm.vmfd < 0)
 		die("open");
+
+	if (!kvm__supports_extension(&kvm, KVM_CAP_USER_MEMORY))
+		die("KVM_CAP_USER_MEMORY");
 
 	cpu = cpu__new();
 
