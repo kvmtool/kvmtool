@@ -1,5 +1,6 @@
 #include "kvm/cpu.h"
 
+#include <linux/kvm.h>
 #include <stdlib.h>
 #include <fcntl.h>
 
@@ -23,11 +24,15 @@ static struct cpu *cpu__new(void)
 int main(int argc, char *argv[])
 {
 	struct cpu *cpu;
-	int fd;
+	int fd, ret;
 
 	fd = open("/dev/kvm", O_RDWR);
 	if (fd < 0)
 		die("open");
+
+	ret = ioctl(fd, KVM_GET_API_VERSION, 0);
+	if (ret != KVM_API_VERSION)
+		die("ioctl");
 
 	cpu = cpu__new();
 
