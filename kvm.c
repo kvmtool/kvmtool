@@ -10,17 +10,6 @@ struct kvm {
 	int			vmfd;
 };
 
-static inline bool kvm__supports_extension(struct kvm *self, unsigned int extension)
-{
-	int ret;
-
-	ret = ioctl(self->fd, KVM_CHECK_EXTENSION, extension);
-	if (ret < 0)
-		return false;
-
-	return ret;
-}
-
 static void die(const char *s)
 {
 	perror(s);
@@ -38,26 +27,59 @@ static struct cpu *cpu__new(void)
 	return calloc(1, sizeof(struct cpu));
 }
 
-int main(int argc, char *argv[])
+static inline bool kvm__supports_extension(struct kvm *self, unsigned int extension)
 {
-	struct cpu *cpu;
-	struct kvm kvm;
 	int ret;
 
-	kvm.fd = open("/dev/kvm", O_RDWR);
-	if (kvm.fd < 0)
+	ret = ioctl(self->fd, KVM_CHECK_EXTENSION, extension);
+	if (ret < 0)
+		return false;
+
+	return ret;
+}
+
+static struct kvm *kvm__new(void)
+{
+	struct kvm *self = calloc(1, sizeof *self);
+
+	if (!self)
+		die("out of memory");
+
+	return self;
+}
+
+static struct kvm *kvm__init(void)
+{
+	struct kvm *self;
+	int ret;
+
+	self = kvm__new();
+
+	self->fd = open("/dev/kvm", O_RDWR);
+	if (self->fd < 0)
 		die("open");
 
-	ret = ioctl(kvm.fd, KVM_GET_API_VERSION, 0);
+	ret = ioctl(self->fd, KVM_GET_API_VERSION, 0);
 	if (ret != KVM_API_VERSION)
 		die("ioctl");
 
-	kvm.vmfd = ioctl(kvm.fd, KVM_CREATE_VM, 0);
-	if (kvm.vmfd < 0)
+	self->vmfd = ioctl(self->fd, KVM_CREATE_VM, 0);
+	if (self->vmfd < 0)
 		die("open");
 
-	if (!kvm__supports_extension(&kvm, KVM_CAP_USER_MEMORY))
+	if (!kvm__supports_extension(self, KVM_CAP_USER_MEMORY))
 		die("KVM_CAP_USER_MEMORY");
+
+	return self;
+}
+
+int main(int argc, char *argv[])
+{
+	struct cpu *cpu;
+	struct kvm *kvm;
+	int ret;
+
+	kvm = kvm__init();
 
 	cpu = cpu__new();
 
