@@ -4,6 +4,11 @@
 #include <stdlib.h>
 #include <fcntl.h>
 
+struct kvm {
+	int			fd;		/* /dev/kvm */
+	int			vmfd;
+};
+
 static void die(const char *s)
 {
 	perror(s);
@@ -24,20 +29,19 @@ static struct cpu *cpu__new(void)
 int main(int argc, char *argv[])
 {
 	struct cpu *cpu;
-	int vmfd;
+	struct kvm kvm;
 	int ret;
-	int fd;
 
-	fd = open("/dev/kvm", O_RDWR);
-	if (fd < 0)
+	kvm.fd = open("/dev/kvm", O_RDWR);
+	if (kvm.fd < 0)
 		die("open");
 
-	ret = ioctl(fd, KVM_GET_API_VERSION, 0);
+	ret = ioctl(kvm.fd, KVM_GET_API_VERSION, 0);
 	if (ret != KVM_API_VERSION)
 		die("ioctl");
 
-	vmfd = ioctl(fd, KVM_CREATE_VM, 0);
-	if (vmfd < 0)
+	kvm.vmfd = ioctl(kvm.fd, KVM_CREATE_VM, 0);
+	if (kvm.vmfd < 0)
 		die("open");
 
 	cpu = cpu__new();
