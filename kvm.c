@@ -24,7 +24,9 @@ static struct cpu *cpu__new(void)
 int main(int argc, char *argv[])
 {
 	struct cpu *cpu;
-	int fd, ret;
+	int vmfd;
+	int ret;
+	int fd;
 
 	fd = open("/dev/kvm", O_RDWR);
 	if (fd < 0)
@@ -33,6 +35,10 @@ int main(int argc, char *argv[])
 	ret = ioctl(fd, KVM_GET_API_VERSION, 0);
 	if (ret != KVM_API_VERSION)
 		die("ioctl");
+
+	vmfd = ioctl(fd, KVM_CREATE_VM, 0);
+	if (vmfd < 0)
+		die("open");
 
 	cpu = cpu__new();
 
