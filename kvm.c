@@ -28,17 +28,6 @@ static void die(const char *s)
 	exit(1);
 }
 
-static void cpu__reset(struct cpu *self)
-{
-	self->regs.eip		= 0x000fff0UL;
-	self->regs.eflags	= 0x0000002UL;
-}
-
-static struct cpu *cpu__new(void)
-{
-	return calloc(1, sizeof(struct cpu));
-}
-
 static inline bool kvm__supports_extension(struct kvm *self, unsigned int extension)
 {
 	int ret;

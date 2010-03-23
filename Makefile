@@ -1,13 +1,16 @@
 PROGRAM	= kvm
 
 OBJS	+= kvm.o
+OBJS	+= cpu.o
 
 CFLAGS	+= -Iinclude
 
 all: $(PROGRAM)
 
-$(PRORAM): $(OBJS)
+$(PROGRAM): $(OBJS)
 	$(CC) $(OBJS) -o $@
+
+$(OBJS):
 
 clean:
 	rm -f $(OBJS) $(PROGRAM)

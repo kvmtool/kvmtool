@@ -39,4 +39,7 @@ struct cpu {
 	struct cpu_registers	regs;	
 };
 
+struct cpu *cpu__new(void);
+void cpu__reset(struct cpu *self);
+
 #endif /* KVM__CPU_H */
