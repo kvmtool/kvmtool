@@ -1,14 +1,25 @@
 #include "kvm/cpu.h"
 
 #include <linux/kvm.h>
+#include <inttypes.h>
+#include <sys/mman.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <fcntl.h>
+
+/*
+ * Compatibility code. Remove this when we move to tools/kvm.
+ */
+#ifndef KVM_EXIT_INTERNAL_ERROR
+# define KVM_EXIT_INTERNAL_ERROR		17
+#endif
 
 struct kvm {
 	int			sys_fd;		/* For system ioctls(), i.e. /dev/kvm */
 	int			vm_fd;		/* For VM ioctls() */
 	int			vcpu_fd;	/* For VCPU ioctls() */
+	struct kvm_run		*kvm_run;
 };
 
 static void die(const char *s)
@@ -53,6 +64,7 @@ static struct kvm *kvm__init(void)
 {
 	struct kvm_userspace_memory_region mem;
 	struct kvm *self;
+	int mmap_size;
 	int ret;
 
 	self = kvm__new();
@@ -93,6 +105,14 @@ static struct kvm *kvm__init(void)
 	if (self->vcpu_fd < 0)
 		die("ioctl(KVM_CREATE_VCPU)");
 
+	mmap_size = ioctl(self->sys_fd, KVM_GET_VCPU_MMAP_SIZE, 0);
+	if (mmap_size < 0)
+		die("KVM_GET_VCPU_MMAP_SIZE ioctl() failed");
+
+	self->kvm_run = mmap(NULL, mmap_size, PROT_READ|PROT_WRITE, MAP_SHARED, self->vcpu_fd, 0);
+	if (self->kvm_run == MAP_FAILED)
+		die("unable to mmap vcpu fd");
+
 	return self;
 }
 
@@ -104,6 +124,27 @@ static void kvm__run(struct kvm *self)
 	if (ret < 0)
 		die("KVM_RUN");
 }
+
+static const char *exit_reasons[] = {
+	[KVM_EXIT_UNKNOWN]		= "unknown",
+	[KVM_EXIT_EXCEPTION]		= "exception",
+	[KVM_EXIT_IO]			= "io",
+	[KVM_EXIT_HYPERCALL]		= "hypercall",
+	[KVM_EXIT_DEBUG]		= "debug",
+	[KVM_EXIT_HLT]			= "hlt",
+	[KVM_EXIT_MMIO]			= "mmio",
+	[KVM_EXIT_IRQ_WINDOW_OPEN]	= "irq window open",
+	[KVM_EXIT_SHUTDOWN]		= "shutdown",
+	[KVM_EXIT_FAIL_ENTRY]		= "fail entry",
+	[KVM_EXIT_INTR]			= "intr",
+	[KVM_EXIT_SET_TPR]		= "set tpr",
+	[KVM_EXIT_TPR_ACCESS]		= "trp access",
+	[KVM_EXIT_S390_SIEIC]		= "s390 sieic",
+	[KVM_EXIT_S390_RESET]		= "s390 reset",
+	[KVM_EXIT_DCR]			= "dcr",
+	[KVM_EXIT_NMI]			= "dmi",
+	[KVM_EXIT_INTERNAL_ERROR]	= "internal error",
+};
 
 int main(int argc, char *argv[])
 {
@@ -118,6 +159,9 @@ int main(int argc, char *argv[])
 	cpu__reset(cpu);
 
 	kvm__run(kvm);
+
+	fprintf(stderr, "KVM exit reason: %" PRIu32 " (\"%s\")\n",
+		kvm->kvm_run->exit_reason, exit_reasons[kvm->kvm_run->exit_reason]);
 
 	return 0;
 }
