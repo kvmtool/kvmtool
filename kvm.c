@@ -6,9 +6,9 @@
 #include <fcntl.h>
 
 struct kvm {
-	int			fd;		/* /dev/kvm */
-	int			vmfd;
-	int			vcpu_fd;
+	int			sys_fd;		/* For system ioctls(), i.e. /dev/kvm */
+	int			vm_fd;		/* For VM ioctls() */
+	int			vcpu_fd;	/* For VCPU ioctls() */
 };
 
 static void die(const char *s)
@@ -32,7 +32,7 @@ static inline bool kvm__supports_extension(struct kvm *self, unsigned int extens
 {
 	int ret;
 
-	ret = ioctl(self->fd, KVM_CHECK_EXTENSION, extension);
+	ret = ioctl(self->sys_fd, KVM_CHECK_EXTENSION, extension);
 	if (ret < 0)
 		return false;
 
@@ -57,16 +57,16 @@ static struct kvm *kvm__init(void)
 
 	self = kvm__new();
 
-	self->fd = open("/dev/kvm", O_RDWR);
-	if (self->fd < 0)
+	self->sys_fd = open("/dev/kvm", O_RDWR);
+	if (self->sys_fd < 0)
 		die("open");
 
-	ret = ioctl(self->fd, KVM_GET_API_VERSION, 0);
+	ret = ioctl(self->sys_fd, KVM_GET_API_VERSION, 0);
 	if (ret != KVM_API_VERSION)
 		die("ioctl");
 
-	self->vmfd = ioctl(self->fd, KVM_CREATE_VM, 0);
-	if (self->vmfd < 0)
+	self->vm_fd = ioctl(self->sys_fd, KVM_CREATE_VM, 0);
+	if (self->vm_fd < 0)
 		die("open");
 
 	if (!kvm__supports_extension(self, KVM_CAP_USER_MEMORY))
@@ -78,18 +78,18 @@ static struct kvm *kvm__init(void)
 		.memory_size		= 64UL * 1024UL * 1024UL,
 	};
 
-	ret = ioctl(self->vmfd, KVM_SET_USER_MEMORY_REGION, &mem, 1);
+	ret = ioctl(self->vm_fd, KVM_SET_USER_MEMORY_REGION, &mem, 1);
 	if (ret < 0)
 		die("ioctl(KVM_SET_USER_MEMORY_REGION)");
 
 	if (!kvm__supports_extension(self, KVM_CAP_SET_TSS_ADDR))
 		die("KVM_CAP_SET_TSS_ADDR");
 
-	ret = ioctl(self->vmfd, KVM_SET_TSS_ADDR, 0xfffbd000);
+	ret = ioctl(self->vm_fd, KVM_SET_TSS_ADDR, 0xfffbd000);
 	if (ret < 0)
 		die("ioctl(KVM_SET_TSS_ADDR)");
 
-	self->vcpu_fd = ioctl(self->vmfd, KVM_CREATE_VCPU, 0);
+	self->vcpu_fd = ioctl(self->vm_fd, KVM_CREATE_VCPU, 0);
 	if (self->vcpu_fd < 0)
 		die("ioctl(KVM_CREATE_VCPU)");
 
