@@ -8,6 +8,7 @@
 struct kvm {
 	int			fd;		/* /dev/kvm */
 	int			vmfd;
+	int			vcpu_fd;
 };
 
 static void die(const char *s)
@@ -50,6 +51,7 @@ static struct kvm *kvm__new(void)
 
 static struct kvm *kvm__init(void)
 {
+	struct kvm_userspace_memory_region mem;
 	struct kvm *self;
 	int ret;
 
@@ -70,7 +72,30 @@ static struct kvm *kvm__init(void)
 	if (!kvm__supports_extension(self, KVM_CAP_USER_MEMORY))
 		die("KVM_CAP_USER_MEMORY");
 
+	mem = (struct kvm_userspace_memory_region) {
+		.slot			= 0,
+		.guest_phys_addr	= 0x0UL,
+		.memory_size		= 64UL * 1024UL * 1024UL,
+	};
+
+	ret = ioctl(self->vmfd, KVM_SET_USER_MEMORY_REGION, &mem, 1);
+	if (ret < 0)
+		die("ioctl(KVM_SET_USER_MEMORY_REGION)");
+
+	self->vcpu_fd = ioctl(self->vmfd, KVM_CREATE_VCPU, 0);
+	if (self->vcpu_fd < 0)
+		die("ioctl(KVM_CREATE_VCPU)");
+
 	return self;
+}
+
+static void kvm__run(struct kvm *self)
+{
+	int ret;
+
+	ret = ioctl(self->vcpu_fd, KVM_RUN, 0);
+	if (ret < 0)
+		die("KVM_RUN");
 }
 
 int main(int argc, char *argv[])
@@ -84,6 +109,8 @@ int main(int argc, char *argv[])
 	cpu = cpu__new();
 
 	cpu__reset(cpu);
+
+	kvm__run(kvm);
 
 	return 0;
 }
