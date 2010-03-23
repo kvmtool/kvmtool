@@ -1,8 +1,13 @@
 #include <linux/kvm.h>
+
+#include <asm/bootparam.h>
+
 #include <inttypes.h>
 #include <sys/mman.h>
 #include <stdbool.h>
+#include <stdarg.h>
 #include <stdlib.h>
+#include <string.h>
 #include <stdio.h>
 #include <fcntl.h>
 
@@ -20,9 +25,21 @@ struct kvm {
 	struct kvm_run		*kvm_run;
 };
 
-static void die(const char *s)
+static void die_perror(const char *s)
 {
 	perror(s);
+	exit(1);
+}
+
+static void die(const char *format, ...)
+{
+        va_list ap;
+
+        va_start(ap, format);
+        vprintf(format, ap);
+        va_end(ap);
+
+        printf("\n");
 	exit(1);
 }
 
@@ -58,18 +75,18 @@ static struct kvm *kvm__init(void)
 
 	self->sys_fd = open("/dev/kvm", O_RDWR);
 	if (self->sys_fd < 0)
-		die("open");
+		die_perror("open");
 
 	ret = ioctl(self->sys_fd, KVM_GET_API_VERSION, 0);
 	if (ret != KVM_API_VERSION)
-		die("ioctl");
+		die_perror("KVM_API_VERSION ioctl");
 
 	self->vm_fd = ioctl(self->sys_fd, KVM_CREATE_VM, 0);
 	if (self->vm_fd < 0)
-		die("open");
+		die_perror("KVM_CREATE_VM ioctl");
 
 	if (!kvm__supports_extension(self, KVM_CAP_USER_MEMORY))
-		die("KVM_CAP_USER_MEMORY");
+		die("KVM_CAP_USER_MEMORY is not supported");
 
 	mem = (struct kvm_userspace_memory_region) {
 		.slot			= 0,
@@ -79,22 +96,22 @@ static struct kvm *kvm__init(void)
 
 	ret = ioctl(self->vm_fd, KVM_SET_USER_MEMORY_REGION, &mem, 1);
 	if (ret < 0)
-		die("ioctl(KVM_SET_USER_MEMORY_REGION)");
+		die_perror("KVM_SET_USER_MEMORY_REGION ioctl");
 
 	if (!kvm__supports_extension(self, KVM_CAP_SET_TSS_ADDR))
-		die("KVM_CAP_SET_TSS_ADDR");
+		die("KVM_CAP_SET_TSS_ADDR is not supported");
 
 	ret = ioctl(self->vm_fd, KVM_SET_TSS_ADDR, 0xfffbd000);
 	if (ret < 0)
-		die("ioctl(KVM_SET_TSS_ADDR)");
+		die_perror("KVM_SET_TSS_ADDR ioctl");
 
 	self->vcpu_fd = ioctl(self->vm_fd, KVM_CREATE_VCPU, 0);
 	if (self->vcpu_fd < 0)
-		die("ioctl(KVM_CREATE_VCPU)");
+		die_perror("KVM_CREATE_VCPU ioctl");
 
 	mmap_size = ioctl(self->sys_fd, KVM_GET_VCPU_MMAP_SIZE, 0);
 	if (mmap_size < 0)
-		die("KVM_GET_VCPU_MMAP_SIZE ioctl() failed");
+		die_perror("KVM_GET_VCPU_MMAP_SIZE ioctl");
 
 	self->kvm_run = mmap(NULL, mmap_size, PROT_READ|PROT_WRITE, MAP_SHARED, self->vcpu_fd, 0);
 	if (self->kvm_run == MAP_FAILED)
@@ -109,11 +126,33 @@ static void kvm__run(struct kvm *self)
 
 	ret = ioctl(self->vcpu_fd, KVM_RUN, 0);
 	if (ret < 0)
-		die("KVM_RUN");
+		die_perror("KVM_RUN ioctl");
+}
+
+static const char *BZIMAGE_MAGIC	= "HdrS";
+
+static int load_bzimage(struct kvm *kvm, int fd)
+{
+	struct boot_params boot;
+
+	read(fd, &boot, sizeof(boot));
+
+        if (memcmp(&boot.hdr.header, BZIMAGE_MAGIC, strlen(BZIMAGE_MAGIC)) != 0)
+		return -1;
+
+	return 0;
 }
 
 static void kvm__load_kernel(struct kvm *kvm, const char *kernel_filename)
 {
+	int fd;
+
+	fd = open(kernel_filename, O_RDONLY);
+	if (fd < 0)
+		die("unable to open kernel");
+
+	if (load_bzimage(kvm, fd) < 0)
+		die("%s is not a valid bzImage", kernel_filename);
 }
 
 static const char *exit_reasons[] = {
