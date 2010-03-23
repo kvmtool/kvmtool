@@ -82,6 +82,13 @@ static struct kvm *kvm__init(void)
 	if (ret < 0)
 		die("ioctl(KVM_SET_USER_MEMORY_REGION)");
 
+	if (!kvm__supports_extension(self, KVM_CAP_SET_TSS_ADDR))
+		die("KVM_CAP_SET_TSS_ADDR");
+
+	ret = ioctl(self->vmfd, KVM_SET_TSS_ADDR, 0xfffbd000);
+	if (ret < 0)
+		die("ioctl(KVM_SET_TSS_ADDR)");
+
 	self->vcpu_fd = ioctl(self->vmfd, KVM_CREATE_VCPU, 0);
 	if (self->vcpu_fd < 0)
 		die("ioctl(KVM_CREATE_VCPU)");
