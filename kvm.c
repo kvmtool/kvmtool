@@ -167,8 +167,7 @@ static void kvm__show_registers(struct kvm *self)
 	r13 = regs.r13; r14 = regs.r14; r15 = regs.r15;
 
 	printf("Registers:\n");
-	printf(" rflags: %016lx", rflags);
-	printf(" rip: %016lx   rsp: %016lx\n", rip, rsp);
+	printf(" rip: %016lx   rsp: %016lx flags: %016lx\n", rip, rsp, rflags);
 	printf(" rax: %016lx   ebx: %016lx   ecx: %016lx\n", rax, rbx, rcx);
 	printf(" rdx: %016lx   rsi: %016lx   rdi: %016lx\n", rdx, rsi, rdi);
 	printf(" rbp: %016lx   r8:  %016lx   r9:  %016lx\n", rbp, r8,  r9);
