@@ -151,10 +151,13 @@ static void kvm__show_registers(struct kvm *self)
 	unsigned long r10, r11, r12;
 	unsigned long r13, r14, r15;
 	unsigned long rip, rsp;
+	unsigned long rflags;
 	struct kvm_regs regs;
 
 	if (ioctl(self->vcpu_fd, KVM_GET_REGS, &regs) < 0)
 		die("KVM_GET_REGS failed");
+
+	rflags = regs.rflags;
 
 	rip = regs.rip; rsp = regs.rsp;
 	rax = regs.rax; rbx = regs.rbx; rcx = regs.rcx;
@@ -164,6 +167,7 @@ static void kvm__show_registers(struct kvm *self)
 	r13 = regs.r13; r14 = regs.r14; r15 = regs.r15;
 
 	printf("Registers:\n");
+	printf(" rflags: %016lx", rflags);
 	printf(" rip: %016lx   rsp: %016lx\n", rip, rsp);
 	printf(" rax: %016lx   ebx: %016lx   ecx: %016lx\n", rax, rbx, rcx);
 	printf(" rdx: %016lx   rsi: %016lx   rdi: %016lx\n", rdx, rsi, rdi);
@@ -273,9 +277,16 @@ static void usage(char *argv[])
 	exit(1);
 }
 
+static void kvm__reset_vcpu(struct kvm *self, uint64_t rip)
+{
+	self->regs.rip		= rip;
+	self->regs.rflags	= 0x0000000000000002ULL;
+}
+
 int main(int argc, char *argv[])
 {
 	const char *kernel_filename;
+	uint64_t kernel_start;
 	struct kvm *kvm;
 	int ret;
 
@@ -286,7 +297,9 @@ int main(int argc, char *argv[])
 
 	kvm = kvm__init();
 
-	kvm->regs.rip	= kvm__load_kernel(kvm, kernel_filename);
+	kernel_start = kvm__load_kernel(kvm, kernel_filename);
+
+	kvm__reset_vcpu(kvm, kernel_start);
 
 	kvm__run(kvm);
 
