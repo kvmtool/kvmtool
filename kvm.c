@@ -131,7 +131,7 @@ static void kvm__enable_singlestep(struct kvm *self)
 	};
 
 	if (ioctl(self->vcpu_fd, KVM_SET_GUEST_DEBUG, &debug) < 0)
-		die("KVM_SET_GUEST_DEBUG failed");
+		warning("KVM_SET_GUEST_DEBUG failed");
 }
 
 static void kvm__show_registers(struct kvm *self)
