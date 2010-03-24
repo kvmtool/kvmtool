@@ -141,30 +141,51 @@ static void kvm__run(struct kvm *self)
 		die_perror("KVM_RUN ioctl");
 }
 
+static inline void *guest_addr_to_host(struct kvm *self, unsigned long offset)
+{
+	return self->ram_start + offset;
+}
+
+/* bzImages are loaded at 1 MB by default.  */
+#define KERNEL_START_ADDR	(1024ULL * 1024ULL)
+
 static const char *BZIMAGE_MAGIC	= "HdrS";
 
-static int load_bzimage(struct kvm *kvm, int fd)
+static uint32_t load_bzimage(struct kvm *kvm, int fd)
 {
 	struct boot_params boot;
+	void *p;
+	int nr;
 
 	read(fd, &boot, sizeof(boot));
 
         if (memcmp(&boot.hdr.header, BZIMAGE_MAGIC, strlen(BZIMAGE_MAGIC)) != 0)
-		return -1;
+		return 0;
 
-	return 0;
+	lseek(fd, (boot.hdr.setup_sects+1) * 512, SEEK_SET);
+
+	p = guest_addr_to_host(kvm, KERNEL_START_ADDR);
+
+	while ((nr = read(fd, p, 65536)) > 0)
+		p += nr;
+
+	return boot.hdr.code32_start;
 }
 
-static void kvm__load_kernel(struct kvm *kvm, const char *kernel_filename)
+static uint32_t kvm__load_kernel(struct kvm *kvm, const char *kernel_filename)
 {
+	uint32_t ret;
 	int fd;
 
 	fd = open(kernel_filename, O_RDONLY);
 	if (fd < 0)
 		die("unable to open kernel");
 
-	if (load_bzimage(kvm, fd) < 0)
+	ret = load_bzimage(kvm, fd);
+	if (!ret)
 		die("%s is not a valid bzImage", kernel_filename);
+
+	return ret;
 }
 
 static const char *exit_reasons[] = {
