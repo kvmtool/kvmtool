@@ -136,9 +136,6 @@ static struct kvm *kvm__init(void)
 
 static void kvm__run(struct kvm *self)
 {
-	if (ioctl(self->vcpu_fd, KVM_SET_REGS, &self->regs) < 0)
-		die_perror("KVM_SET_REGS failed");
-
 	if (ioctl(self->vcpu_fd, KVM_RUN, 0) < 0)
 		die_perror("KVM_RUN failed");
 }
@@ -280,6 +277,9 @@ static void kvm__reset_vcpu(struct kvm *self, uint64_t rip)
 {
 	self->regs.rip		= rip;
 	self->regs.rflags	= 0x0000000000000002ULL;
+
+	if (ioctl(self->vcpu_fd, KVM_SET_REGS, &self->regs) < 0)
+		die_perror("KVM_SET_REGS failed");
 }
 
 static void kvm__emulate_io_out(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
