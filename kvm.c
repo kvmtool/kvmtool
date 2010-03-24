@@ -191,6 +191,8 @@ static void kvm__show_code(struct kvm *self)
 	printf("Code: ");
 
 	for (i = 0; i < code_len; i++, ip++) {
+		c = *ip;
+
 		if (ip == guest_addr_to_host(self, self->regs.rip))
 			printf("<%02x> ", c);
 		else
