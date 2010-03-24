@@ -27,6 +27,8 @@ struct kvm {
 
 	uint64_t		ram_size;
 	void			*ram_start;
+
+	struct kvm_regs		regs;
 };
 
 static void die_perror(const char *s)
@@ -134,11 +136,11 @@ static struct kvm *kvm__init(void)
 
 static void kvm__run(struct kvm *self)
 {
-	int ret;
+	if (ioctl(self->vcpu_fd, KVM_SET_REGS, &self->regs) < 0)
+		die_perror("KVM_SET_REGS failed");
 
-	ret = ioctl(self->vcpu_fd, KVM_RUN, 0);
-	if (ret < 0)
-		die_perror("KVM_RUN ioctl");
+	if (ioctl(self->vcpu_fd, KVM_RUN, 0) < 0)
+		die_perror("KVM_RUN failed");
 }
 
 static void kvm__show_registers(struct kvm *self)
@@ -257,7 +259,7 @@ int main(int argc, char *argv[])
 
 	kvm = kvm__init();
 
-	kvm__load_kernel(kvm, kernel_filename);
+	kvm->regs.rip	= kvm__load_kernel(kvm, kernel_filename);
 
 	kvm__run(kvm);
 
