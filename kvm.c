@@ -177,6 +177,29 @@ static inline void *guest_addr_to_host(struct kvm *self, unsigned long offset)
 	return self->ram_start + offset;
 }
 
+static void kvm__show_code(struct kvm *self)
+{
+	unsigned int code_bytes = 64;
+	unsigned int code_prologue = code_bytes * 43 / 64;
+	unsigned int code_len = code_bytes;
+	unsigned char c;
+	uint8_t *ip;
+	int i;
+
+	ip = guest_addr_to_host(self, self->regs.rip - code_prologue);
+
+	printf("Code: ");
+
+	for (i = 0; i < code_len; i++, ip++) {
+		if (ip == guest_addr_to_host(self, self->regs.rip))
+			printf("<%02x> ", c);
+		else
+			printf("%02x ", c);
+	}
+
+	printf("\n");
+}
+
 /* bzImages are loaded at 1 MB by default.  */
 #define KERNEL_START_ADDR	(1024ULL * 1024ULL)
 
@@ -269,6 +292,7 @@ int main(int argc, char *argv[])
 		kvm->kvm_run->exit_reason, exit_reasons[kvm->kvm_run->exit_reason]);
 
 	kvm__show_registers(kvm);
+	kvm__show_code(kvm);
 
 	return 0;
 }
