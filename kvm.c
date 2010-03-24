@@ -140,6 +140,16 @@ static void kvm__run(struct kvm *self)
 		die_perror("KVM_RUN failed");
 }
 
+static void kvm__enable_singlestep(struct kvm *self)
+{
+	struct kvm_guest_debug debug = {
+		.control	= KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_SINGLESTEP,
+	};
+
+	if (ioctl(self->vcpu_fd, KVM_SET_GUEST_DEBUG, &debug) < 0)
+		die("KVM_SET_GUEST_DEBUG failed");
+}
+
 static void kvm__show_registers(struct kvm *self)
 {
 	unsigned long rax, rbx, rcx;
@@ -317,6 +327,8 @@ int main(int argc, char *argv[])
 	kernel_start = kvm__load_kernel(kvm, kernel_filename);
 
 	kvm__reset_vcpu(kvm, kernel_start);
+
+	kvm__enable_singlestep(kvm);
 
 	for (;;) {
 		kvm__run(kvm);
