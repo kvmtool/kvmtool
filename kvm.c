@@ -8,6 +8,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <stdio.h>
 #include <fcntl.h>
 
@@ -23,6 +24,9 @@ struct kvm {
 	int			vm_fd;		/* For VM ioctls() */
 	int			vcpu_fd;	/* For VCPU ioctls() */
 	struct kvm_run		*kvm_run;
+
+	uint64_t		ram_size;
+	void			*ram_start;
 };
 
 static void die_perror(const char *s)
@@ -68,6 +72,7 @@ static struct kvm *kvm__init(void)
 {
 	struct kvm_userspace_memory_region mem;
 	struct kvm *self;
+	long page_size;
 	int mmap_size;
 	int ret;
 
@@ -88,10 +93,17 @@ static struct kvm *kvm__init(void)
 	if (!kvm__supports_extension(self, KVM_CAP_USER_MEMORY))
 		die("KVM_CAP_USER_MEMORY is not supported");
 
+	self->ram_size		= 64UL * 1024UL * 1024UL;
+
+	page_size	= sysconf(_SC_PAGESIZE);
+	if (posix_memalign(&self->ram_start, page_size, self->ram_size) != 0)
+		die("out of memory");
+
 	mem = (struct kvm_userspace_memory_region) {
 		.slot			= 0,
 		.guest_phys_addr	= 0x0UL,
-		.memory_size		= 64UL * 1024UL * 1024UL,
+		.memory_size		= self->ram_size,
+		.userspace_addr		= (unsigned long) self->ram_start,
 	};
 
 	ret = ioctl(self->vm_fd, KVM_SET_USER_MEMORY_REGION, &mem, 1);
