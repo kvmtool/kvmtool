@@ -282,6 +282,24 @@ static void kvm__reset_vcpu(struct kvm *self, uint64_t rip)
 	self->regs.rflags	= 0x0000000000000002ULL;
 }
 
+static void kvm__emulate_io_out(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
+{
+	fprintf(stderr, "%s port=%x, size=%d, count=%" PRIu32 "\n", __func__, port, size, count);
+}
+
+static void kvm__emulate_io_in(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
+{
+	fprintf(stderr, "%s port=%x, size=%d, count=%" PRIu32 "\n", __func__, port, size, count);
+}
+
+static void kvm__emulate_io(struct kvm *self, uint16_t port, void *data, int direction, int size, uint32_t count)
+{
+	if (direction == KVM_EXIT_IO_IN)
+		kvm__emulate_io_in(self, port, data, size, count);
+	else
+		kvm__emulate_io_out(self, port, data, size, count);
+}
+
 int main(int argc, char *argv[])
 {
 	const char *kernel_filename;
@@ -300,8 +318,25 @@ int main(int argc, char *argv[])
 
 	kvm__reset_vcpu(kvm, kernel_start);
 
-	kvm__run(kvm);
+	for (;;) {
+		kvm__run(kvm);
 
+		switch (kvm->kvm_run->exit_reason) {
+		case KVM_EXIT_IO:
+			kvm__emulate_io(kvm,
+					kvm->kvm_run->io.port,
+					(uint8_t *)kvm->kvm_run + kvm->kvm_run->io.data_offset,
+					kvm->kvm_run->io.direction,
+					kvm->kvm_run->io.size,
+					kvm->kvm_run->io.count);
+			goto exit_kvm;
+			break;
+		default:
+			goto exit_kvm;
+		}
+	}
+
+exit_kvm:
 	fprintf(stderr, "KVM exit reason: %" PRIu32 " (\"%s\")\n",
 		kvm->kvm_run->exit_reason, exit_reasons[kvm->kvm_run->exit_reason]);
 
