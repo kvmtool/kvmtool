@@ -253,7 +253,7 @@ void kvm__reset_vcpu(struct kvm *self, uint64_t rip)
 		.ldt		= (struct kvm_segment) {
 			.limit		= 0xffffU,
 			.present	= 1,
-			.type		= 0x03U,
+			.type		= 0x02U,
 		},
 		.gdt		= (struct kvm_dtable) {
 			.limit		= 0xffffU,
