@@ -1,10 +1,29 @@
 PROGRAM	= kvm
 
-OBJS	+= kvm.o
 OBJS	+= cpu.o
+OBJS	+= kvm.o
+OBJS	+= main.o
 OBJS	+= util.o
 
 CFLAGS	+= -Iinclude
+
+WARNINGS += -Wall
+WARNINGS += -Wcast-align
+WARNINGS += -Wformat=2
+WARNINGS += -Winit-self
+WARNINGS += -Wmissing-declarations
+WARNINGS += -Wmissing-prototypes
+WARNINGS += -Wnested-externs
+WARNINGS += -Wno-system-headers
+WARNINGS += -Wold-style-definition
+WARNINGS += -Wredundant-decls
+WARNINGS += -Wsign-compare
+WARNINGS += -Wstrict-prototypes
+WARNINGS += -Wundef
+WARNINGS += -Wvolatile-register-var
+WARNINGS += -Wwrite-strings
+
+CFLAGS	+= $(WARNINGS)
 
 all: $(PROGRAM)
 
