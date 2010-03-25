@@ -293,7 +293,7 @@ void kvm__emulate_io(struct kvm *self, uint16_t port, void *data, int direction,
 
 static void print_segment(const char *name, struct kvm_segment *seg)
 {
-	printf(" %s        %04" PRIx16 "      %016" PRIx64 "  %08" PRIx32 "  %02" PRIx8 "    %x %x   %x  %x %x %x\n",
+	printf(" %s       %04" PRIx16 "      %016" PRIx64 "  %08" PRIx32 "  %02" PRIx8 "    %x %x   %x  %x %x %x\n",
 		name, (uint16_t) seg->selector, (uint64_t) seg->base, (uint32_t) seg->limit,
 		(uint8_t) seg->type, seg->present, seg->dpl, seg->db, seg->s, seg->l, seg->g);
 }
@@ -311,6 +311,7 @@ void kvm__show_registers(struct kvm *self)
 	struct kvm_sregs sregs;
 	unsigned long rflags;
 	struct kvm_regs regs;
+	int i;
 
 	if (ioctl(self->vcpu_fd, KVM_GET_REGS, &regs) < 0)
 		die("KVM_GET_REGS failed");
@@ -338,16 +339,24 @@ void kvm__show_registers(struct kvm *self)
 	cr0 = sregs.cr0; cr2 = sregs.cr2; cr3 = sregs.cr3;
 	cr4 = sregs.cr4; cr8 = sregs.cr8;
 
-	printf("Segment registers:\n");
 	printf(" cr0: %016lx   cr2: %016lx   cr3: %016lx\n", cr0, cr2, cr3);
 	printf(" cr4: %016lx   cr8: %016lx\n", cr4, cr8);
+	printf("Segment registers:\n");
 	printf(" register  selector  base              limit     type  p dpl db s l g\n");
-	print_segment("cs", &sregs.cs);
-	print_segment("ss", &sregs.ss);
-	print_segment("ds", &sregs.ds);
-	print_segment("es", &sregs.es);
-	print_segment("fs", &sregs.fs);
-	print_segment("gs", &sregs.gs);
+	print_segment("cs ", &sregs.cs);
+	print_segment("ss ", &sregs.ss);
+	print_segment("ds ", &sregs.ds);
+	print_segment("es ", &sregs.es);
+	print_segment("fs ", &sregs.fs);
+	print_segment("gs ", &sregs.gs);
+	print_segment("tr ", &sregs.tr);
+	print_segment("ldt", &sregs.ldt);
+	printf(" [ efer: %016lx  apic base: %016lx ]\n", (uint64_t) sregs.efer, (uint64_t) sregs.apic_base);
+	printf("Interrupt bitmap:\n");
+	printf(" ");
+	for (i = 0; i < (KVM_NR_INTERRUPTS + 63) / 64; i++)
+		printf("%016lx ", (uint64_t) sregs.interrupt_bitmap[i]);
+	printf("\n");
 }
 
 void kvm__show_code(struct kvm *self)
