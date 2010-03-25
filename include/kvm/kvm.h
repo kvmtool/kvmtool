@@ -16,6 +16,7 @@ struct kvm {
 	void			*ram_start;
 
 	struct kvm_regs		regs;
+	struct kvm_sregs	sregs;
 };
 
 struct kvm *kvm__init(void);
