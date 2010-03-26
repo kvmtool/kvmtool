@@ -1,0 +1,16 @@
+Compiling
+---------
+
+You can simply type:
+
+  $ make
+
+to build a 16-bit binary that uses the i8086 instruction set.
+
+Disassembling
+-------------
+
+Use the "-m i8086" command line option with objdump to make sure it knows we're
+dealing with i8086 instruction set:
+
+  $ objdump -d -m i8086 i8086.elf
