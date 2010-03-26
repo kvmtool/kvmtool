@@ -318,9 +318,9 @@ void kvm__emulate_io(struct kvm *self, uint16_t port, void *data, int direction,
 
 static void print_segment(const char *name, struct kvm_segment *seg)
 {
-	printf(" %s       %04" PRIx16 "      %016" PRIx64 "  %08" PRIx32 "  %02" PRIx8 "    %x %x   %x  %x %x %x\n",
+	printf(" %s       %04" PRIx16 "      %016" PRIx64 "  %08" PRIx32 "  %02" PRIx8 "    %x %x   %x  %x %x %x %x\n",
 		name, (uint16_t) seg->selector, (uint64_t) seg->base, (uint32_t) seg->limit,
-		(uint8_t) seg->type, seg->present, seg->dpl, seg->db, seg->s, seg->l, seg->g);
+		(uint8_t) seg->type, seg->present, seg->dpl, seg->db, seg->s, seg->l, seg->g, seg->avl);
 }
 
 void kvm__show_registers(struct kvm *self)
@@ -367,7 +367,7 @@ void kvm__show_registers(struct kvm *self)
 	printf(" cr0: %016lx   cr2: %016lx   cr3: %016lx\n", cr0, cr2, cr3);
 	printf(" cr4: %016lx   cr8: %016lx\n", cr4, cr8);
 	printf("Segment registers:\n");
-	printf(" register  selector  base              limit     type  p dpl db s l g\n");
+	printf(" register  selector  base              limit     type  p dpl db s l g avl\n");
 	print_segment("cs ", &sregs.cs);
 	print_segment("ss ", &sregs.ss);
 	print_segment("ds ", &sregs.ds);
