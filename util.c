@@ -27,6 +27,11 @@ static void warn_builtin(const char *warn, va_list params)
 	report(" Warning: ", warn, params);
 }
 
+static void info_builtin(const char *info, va_list params)
+{
+	report(" Info: ", info, params);
+}
+
 void die(const char *err, ...)
 {
 	va_list params;
@@ -52,6 +57,15 @@ void warning(const char *warn, ...)
 
 	va_start(params, warn);
 	warn_builtin(warn, params);
+	va_end(params);
+}
+
+void info(const char *info, ...)
+{
+	va_list params;
+
+	va_start(params, info);
+	info_builtin(info, params);
 	va_end(params);
 }
 
