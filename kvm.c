@@ -153,8 +153,9 @@ static inline uint32_t segment_to_flat(uint16_t selector, uint16_t offset)
 	return ((uint32_t)selector << 4) + (uint32_t) offset;
 }
 
-#define BOOT_LOADER_CS		0x0100
+#define BOOT_LOADER_SELECTOR	0x0100
 #define BOOT_LOADER_IP		0x0000
+#define BOOT_LOADER_SP		0x8000
 
 static int load_flat_binary(struct kvm *self, int fd)
 {
@@ -164,13 +165,14 @@ static int load_flat_binary(struct kvm *self, int fd)
 	if (lseek(fd, 0, SEEK_SET) < 0)
 		die_perror("lseek");
 
-	p = guest_addr_to_host(self, segment_to_flat(BOOT_LOADER_CS, BOOT_LOADER_IP));
+	p = guest_addr_to_host(self, segment_to_flat(BOOT_LOADER_SELECTOR, BOOT_LOADER_IP));
 
 	while ((nr = read(fd, p, 65536)) > 0)
 		p += nr;
 
-	self->boot_cs		= BOOT_LOADER_CS;
+	self->boot_selector	= BOOT_LOADER_SELECTOR;
 	self->boot_ip		= BOOT_LOADER_IP;
+	self->boot_sp		= BOOT_LOADER_SP;
 
 	return true;
 }
@@ -214,7 +216,7 @@ static bool load_bzimage(struct kvm *self, int fd)
 		setup_sects	 = BZ_DEFAULT_SETUP_SECTS;
 
 	setup_size = setup_sects << 9;
-	p = guest_addr_to_host(self, segment_to_flat(BOOT_LOADER_CS, BOOT_LOADER_IP));
+	p = guest_addr_to_host(self, segment_to_flat(BOOT_LOADER_SELECTOR, BOOT_LOADER_IP));
 
 	if (read(fd, p, setup_size) != setup_size)
 		die_perror("read");
@@ -224,12 +226,13 @@ static bool load_bzimage(struct kvm *self, int fd)
 	while ((nr = read(fd, p, 65536)) > 0)
 		p += nr;
 
-	self->boot_cs		= BOOT_LOADER_CS;
+	self->boot_selector	= BOOT_LOADER_SELECTOR;
 	/*
 	 * The real-mode setup code starts at offset 0x200 of a bzImage. See
 	 * Documentation/x86/boot.txt for details.
 	 */
 	self->boot_ip		= BOOT_LOADER_IP + 0x200;
+	self->boot_sp		= BOOT_LOADER_SP;
 
 	return true;
 }
@@ -271,17 +274,21 @@ static inline uint64_t ip_real_to_flat(struct kvm *self, uint64_t ip)
 	return ip + (cs << 4);
 }
 
+static inline uint32_t selector_to_base(uint16_t selector)
+{
+	/*
+	 * KVM on Intel requires 'base' to be 'selector * 16' in real mode.
+	 */
+	return (uint32_t)selector * 16;
+}
+
 void kvm__reset_vcpu(struct kvm *self)
 {
 	self->sregs = (struct kvm_sregs) {
 		.cr0		= 0x60000010ULL,
 		.cs		= (struct kvm_segment) {
-			/*
-			 * KVM on Intel requires 'base' to be 'selector * 16' in
-			 * real mode.
-			 */
-			.selector	= self->boot_cs,
-			.base		= self->boot_cs * 16,
+			.selector	= self->boot_selector,
+			.base		= selector_to_base(self->boot_selector),
 			.limit		= 0xffffU,
 			.type		= 0x0bU,
 			.present	= 1,
@@ -289,6 +296,8 @@ void kvm__reset_vcpu(struct kvm *self)
 			.s		= 1,
 		},
 		.ss		= (struct kvm_segment) {
+			.selector	= self->boot_selector,
+			.base		= selector_to_base(self->boot_selector),
 			.limit		= 0xffffU,
 			.type		= 0x03U,
 			.present	= 1,
@@ -296,6 +305,8 @@ void kvm__reset_vcpu(struct kvm *self)
 			.s		= 1,
 		},
 		.ds		= (struct kvm_segment) {
+			.selector	= self->boot_selector,
+			.base		= selector_to_base(self->boot_selector),
 			.limit		= 0xffffU,
 			.type		= 0x03U,
 			.present	= 1,
@@ -303,6 +314,8 @@ void kvm__reset_vcpu(struct kvm *self)
 			.s		= 1,
 		},
 		.es		= (struct kvm_segment) {
+			.selector	= self->boot_selector,
+			.base		= selector_to_base(self->boot_selector),
 			.limit		= 0xffffU,
 			.type		= 0x03U,
 			.present	= 1,
@@ -310,6 +323,8 @@ void kvm__reset_vcpu(struct kvm *self)
 			.s		= 1,
 		},
 		.fs		= (struct kvm_segment) {
+			.selector	= self->boot_selector,
+			.base		= selector_to_base(self->boot_selector),
 			.limit		= 0xffffU,
 			.type		= 0x03U,
 			.present	= 1,
@@ -317,6 +332,8 @@ void kvm__reset_vcpu(struct kvm *self)
 			.s		= 1,
 		},
 		.gs		= (struct kvm_segment) {
+			.selector	= self->boot_selector,
+			.base		= selector_to_base(self->boot_selector),
 			.limit		= 0xffffU,
 			.type		= 0x03U,
 			.present	= 1,
@@ -345,9 +362,12 @@ void kvm__reset_vcpu(struct kvm *self)
 		die_perror("KVM_SET_SREGS failed");
 
 	self->regs = (struct kvm_regs) {
-		.rip		= self->boot_ip,
 		/* We start the guest in 16-bit real mode  */
 		.rflags		= 0x0000000000000002ULL,
+
+		.rip		= self->boot_ip,
+		.rsp		= self->boot_sp,
+		.rbp		= self->boot_sp,
 	};
 
 	if (self->regs.rip > USHRT_MAX)
