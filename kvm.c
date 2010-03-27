@@ -153,27 +153,6 @@ static inline uint32_t segment_to_flat(uint16_t selector, uint16_t offset)
 	return ((uint32_t)selector << 4) + (uint32_t) offset;
 }
 
-/*
- * HACK ALERT! KVM seems to be unable to run 16-bit real mode if 'cs' selector
- * does not equal to 0xf000 at the beginning. To work around that, we need a
- * 'reset vector' at 0xf000:0xfff0 that has an hard-coded jump to 0x000:0x7c000
- * where we also load the Linux kernel boot sector and setup code.
- */
-
-#define RESET_VECTOR_CS		0xf000
-#define RESET_VECTOR_IP		0xfff0
-
-static unsigned char reset_vector_code[] = { 0xea, 0x00, 0x7c, 0x00, 0x00 };
-
-static void load_reset_vector(struct kvm *self)
-{
-	void *p;
-
-	p	= guest_addr_to_host(self, segment_to_flat(RESET_VECTOR_CS, RESET_VECTOR_IP));
-
-	memcpy(p, reset_vector_code, ARRAY_SIZE(reset_vector_code));
-}
-
 #define BOOT_LOADER_CS		0x0000
 #define BOOT_LOADER_IP		0x7c00
 
@@ -284,13 +263,15 @@ static inline uint64_t ip_real_to_flat(struct kvm *self, uint64_t ip)
 
 void kvm__reset_vcpu(struct kvm *self)
 {
-	load_reset_vector(self);
-
 	self->sregs = (struct kvm_sregs) {
 		.cr0		= 0x60000010ULL,
 		.cs		= (struct kvm_segment) {
-			.selector	= RESET_VECTOR_CS,
-			.base		= 0xffff0000UL,
+			/*
+			 * KVM on Intel requires 'base' to be 'selector * 16' in
+			 * real mode.
+			 */
+			.selector	= BOOT_LOADER_CS,
+			.base		= BOOT_LOADER_CS * 16,
 			.limit		= 0xffffU,
 			.type		= 0x0bU,
 			.present	= 1,
@@ -354,7 +335,7 @@ void kvm__reset_vcpu(struct kvm *self)
 		die_perror("KVM_SET_SREGS failed");
 
 	self->regs = (struct kvm_regs) {
-		.rip		= RESET_VECTOR_IP,
+		.rip		= BOOT_LOADER_IP,
 		/* We start the guest in 16-bit real mode  */
 		.rflags		= 0x0000000000000002ULL,
 	};
