@@ -231,7 +231,7 @@ static bool load_bzimage(struct kvm *kvm, int fd)
 	if (setup_sects == 0)
 		setup_sects	 = BZ_DEFAULT_SETUP_SECTS;
 
-	setup_size = setup_sects << 4;
+	setup_size = setup_sects << 9;
 	p = guest_addr_to_host(kvm, segment_to_flat(BOOT_LOADER_CS, BOOT_LOADER_IP));
 
 	if (read(fd, p, setup_size) != setup_size)
