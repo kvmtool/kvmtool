@@ -153,6 +153,13 @@ static inline uint32_t segment_to_flat(uint16_t selector, uint16_t offset)
 	return ((uint32_t)selector << 4) + (uint32_t) offset;
 }
 
+/*
+ * HACK ALERT! KVM seems to be unable to run 16-bit real mode if 'cs' selector
+ * does not equal to 0xf000 at the beginning. To work around that, we need a
+ * 'reset vector' at 0xf000:0xfff0 that has an hard-coded jump to 0x000:0x7c000
+ * where we also load the Linux kernel boot sector and setup code.
+ */
+
 #define RESET_VECTOR_CS		0xf000
 #define RESET_VECTOR_IP		0xfff0
 
