@@ -15,9 +15,6 @@ struct kvm {
 	uint64_t		ram_size;
 	void			*ram_start;
 
-	uint16_t		boot_cs;	/* 16-bit code segment selector */
-	uint16_t		boot_ip;	/* 16-bit code offset */
-
 	struct kvm_regs		regs;
 	struct kvm_sregs	sregs;
 };

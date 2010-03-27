@@ -153,13 +153,22 @@ static inline uint32_t segment_to_flat(uint16_t selector, uint16_t offset)
 	return ((uint32_t)selector << 4) + (uint32_t) offset;
 }
 
-#define RESET_CS		0xf000
-#define RESET_IP		0xfff0
+#define RESET_VECTOR_CS		0xf000
+#define RESET_VECTOR_IP		0xfff0
 
-#define BIN_BOOT_LOADER_CS	0x0000
-#define BIN_BOOT_LOADER_IP	0x7c00
+static unsigned char reset_vector_code[] = { 0xea, 0x00, 0x7c, 0x00, 0x00 };
 
-static unsigned char reset_code[] = { 0xea, 0x00, 0x7c, 0x00, 0x00 };
+static void load_reset_vector(struct kvm *self)
+{
+	void *p;
+
+	p	= guest_addr_to_host(self, segment_to_flat(RESET_VECTOR_CS, RESET_VECTOR_IP));
+
+	memcpy(p, reset_vector_code, ARRAY_SIZE(reset_vector_code));
+}
+
+#define BOOT_LOADER_CS		0x0000
+#define BOOT_LOADER_IP		0x7c00
 
 static int load_flat_binary(struct kvm *kvm, int fd)
 {
@@ -169,31 +178,13 @@ static int load_flat_binary(struct kvm *kvm, int fd)
 	if (lseek(fd, 0, SEEK_SET) < 0)
 		die_perror("lseek");
 
-	p = guest_addr_to_host(kvm, segment_to_flat(BIN_BOOT_LOADER_CS, BIN_BOOT_LOADER_IP));
+	p = guest_addr_to_host(kvm, segment_to_flat(BOOT_LOADER_CS, BOOT_LOADER_IP));
 
 	while ((nr = read(fd, p, 65536)) > 0)
 		p += nr;
 
-	p = guest_addr_to_host(kvm, segment_to_flat(RESET_CS, RESET_IP));
-
-	memcpy(p, reset_code, ARRAY_SIZE(reset_code));
-
-	kvm->boot_cs	= RESET_CS;
-	kvm->boot_ip	= RESET_IP;
-
 	return true;
 }
-
-/*
- * See Documentation/x86/boot.txt for details no how a bzImage is laid out in
- * memory.
- */
-
-/*
- * As we emulate the boot loader, we can load kernel boot sector and setup code
- * at the address which usually has the boot loader.
- */
-#define BZ_BOOT_LOADER_START		0x007c00UL
 
 /*
  * The protected mode kernel part of a modern bzImage is loaded at 1 MB by
@@ -213,6 +204,11 @@ static bool load_bzimage(struct kvm *kvm, int fd)
 	void *p;
 	int nr;
 
+	/*
+	 * See Documentation/x86/boot.txt for details no bzImage on-disk and
+	 * memory layout.
+	 */
+
 	if (lseek(fd, 0, SEEK_SET) < 0)
 		die_perror("lseek");
 
@@ -229,7 +225,7 @@ static bool load_bzimage(struct kvm *kvm, int fd)
 		setup_sects	 = BZ_DEFAULT_SETUP_SECTS;
 
 	setup_size = setup_sects << 4;
-	p = guest_addr_to_host(kvm, BZ_BOOT_LOADER_START);
+	p = guest_addr_to_host(kvm, segment_to_flat(BOOT_LOADER_CS, BOOT_LOADER_IP));
 
 	if (read(fd, p, setup_size) != setup_size)
 		die_perror("read");
@@ -238,13 +234,6 @@ static bool load_bzimage(struct kvm *kvm, int fd)
 
 	while ((nr = read(fd, p, 65536)) > 0)
 		p += nr;
-
-	p = guest_addr_to_host(kvm, segment_to_flat(RESET_CS, RESET_IP));
-
-	memcpy(p, reset_code, ARRAY_SIZE(reset_code));
-
-	kvm->boot_cs	= RESET_CS;
-	kvm->boot_ip	= RESET_IP;
 
 	return true;
 }
@@ -288,10 +277,12 @@ static inline uint64_t ip_real_to_flat(struct kvm *self, uint64_t ip)
 
 void kvm__reset_vcpu(struct kvm *self)
 {
+	load_reset_vector(self);
+
 	self->sregs = (struct kvm_sregs) {
 		.cr0		= 0x60000010ULL,
 		.cs		= (struct kvm_segment) {
-			.selector	= self->boot_cs,
+			.selector	= RESET_VECTOR_CS,
 			.base		= 0xffff0000UL,
 			.limit		= 0xffffU,
 			.type		= 0x0bU,
@@ -356,7 +347,7 @@ void kvm__reset_vcpu(struct kvm *self)
 		die_perror("KVM_SET_SREGS failed");
 
 	self->regs = (struct kvm_regs) {
-		.rip		= self->boot_ip,
+		.rip		= RESET_VECTOR_IP,
 		/* We start the guest in 16-bit real mode  */
 		.rflags		= 0x0000000000000002ULL,
 	};
