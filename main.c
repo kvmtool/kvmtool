@@ -36,6 +36,10 @@ int main(int argc, char *argv[])
 		kvm__run(kvm);
 
 		switch (kvm->kvm_run->exit_reason) {
+		case KVM_EXIT_DEBUG:
+			kvm__show_registers(kvm);
+			kvm__show_code(kvm);
+			break;
 		case KVM_EXIT_IO:
 			kvm__emulate_io(kvm,
 					kvm->kvm_run->io.port,
