@@ -445,7 +445,7 @@ void kvm__show_registers(struct kvm *self)
 
 	printf("Registers:\n");
 	printf(" rip: %016lx   rsp: %016lx flags: %016lx\n", rip, rsp, rflags);
-	printf(" rax: %016lx   ebx: %016lx   ecx: %016lx\n", rax, rbx, rcx);
+	printf(" rax: %016lx   rbx: %016lx   rcx: %016lx\n", rax, rbx, rcx);
 	printf(" rdx: %016lx   rsi: %016lx   rdi: %016lx\n", rdx, rsi, rdi);
 	printf(" rbp: %016lx   r8:  %016lx   r9:  %016lx\n", rbp, r8,  r9);
 	printf(" r10: %016lx   r11: %016lx   r12: %016lx\n", r10, r11, r12);
