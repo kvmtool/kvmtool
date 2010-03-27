@@ -153,8 +153,13 @@ static inline uint32_t segment_to_flat(uint16_t selector, uint16_t offset)
 	return ((uint32_t)selector << 4) + (uint32_t) offset;
 }
 
-#define BIN_BOOT_LOADER_CS	0xf000
-#define BIN_BOOT_LOADER_IP	0xfff0
+#define RESET_CS		0xf000
+#define RESET_IP		0xfff0
+
+#define BIN_BOOT_LOADER_CS	0x0000
+#define BIN_BOOT_LOADER_IP	0x7c00
+
+static unsigned char reset_code[] = { 0xea, 0x00, 0x7c, 0x00, 0x00 };
 
 static int load_flat_binary(struct kvm *kvm, int fd)
 {
@@ -169,8 +174,12 @@ static int load_flat_binary(struct kvm *kvm, int fd)
 	while ((nr = read(fd, p, 65536)) > 0)
 		p += nr;
 
-	kvm->boot_cs	= BIN_BOOT_LOADER_CS;
-	kvm->boot_ip	= BIN_BOOT_LOADER_IP;
+	p = guest_addr_to_host(kvm, segment_to_flat(RESET_CS, RESET_IP));
+
+	memcpy(p, reset_code, ARRAY_SIZE(reset_code));
+
+	kvm->boot_cs	= RESET_CS;
+	kvm->boot_ip	= RESET_IP;
 
 	return true;
 }
@@ -230,8 +239,12 @@ static bool load_bzimage(struct kvm *kvm, int fd)
 	while ((nr = read(fd, p, 65536)) > 0)
 		p += nr;
 
-	kvm->boot_cs	= 0;
-	kvm->boot_ip	= BZ_BOOT_LOADER_START;
+	p = guest_addr_to_host(kvm, segment_to_flat(RESET_CS, RESET_IP));
+
+	memcpy(p, reset_code, ARRAY_SIZE(reset_code));
+
+	kvm->boot_cs	= RESET_CS;
+	kvm->boot_ip	= RESET_IP;
 
 	return true;
 }
@@ -456,6 +469,12 @@ void kvm__show_code(struct kvm *self)
 	unsigned char c;
 	unsigned int i;
 	uint8_t *ip;
+
+	if (ioctl(self->vcpu_fd, KVM_GET_REGS, &self->regs) < 0)
+		die("KVM_GET_REGS failed");
+
+	if (ioctl(self->vcpu_fd, KVM_GET_SREGS, &self->sregs) < 0)
+		die("KVM_GET_SREGS failed");
 
 	ip = guest_addr_to_host(self, ip_real_to_flat(self, self->regs.rip) - code_prologue);
 

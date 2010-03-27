@@ -1,6 +1,8 @@
 #ifndef UTIL_H_
 #define UTIL_H_
 
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+
 /*
  * Some bits are stolen from perf tool :)
  */
