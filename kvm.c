@@ -218,9 +218,9 @@ static bool load_bzimage(struct kvm *self, int fd)
 	if (lseek(fd, 0, SEEK_SET) < 0)
 		die_perror("lseek");
 
+	if (!boot.hdr.setup_sects)
+		boot.hdr.setup_sects = BZ_DEFAULT_SETUP_SECTS;
 	setup_sects = boot.hdr.setup_sects + 1;
-	if (setup_sects == 0)
-		setup_sects	 = BZ_DEFAULT_SETUP_SECTS;
 
 	setup_size = setup_sects << 9;
 	p = guest_real_to_host(self, BOOT_LOADER_SELECTOR, BOOT_LOADER_IP);
