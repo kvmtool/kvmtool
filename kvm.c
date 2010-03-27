@@ -369,8 +369,6 @@ void kvm__reset_vcpu(struct kvm *self)
 
 void kvm__run(struct kvm *self)
 {
-	self->kvm_run->request_interrupt_window	= 1;
-
 	if (ioctl(self->vcpu_fd, KVM_RUN, 0) < 0)
 		die_perror("KVM_RUN failed");
 }
