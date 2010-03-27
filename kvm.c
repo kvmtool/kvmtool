@@ -156,7 +156,7 @@ static inline uint32_t segment_to_flat(uint16_t selector, uint16_t offset)
 #define BOOT_LOADER_CS		0x0000
 #define BOOT_LOADER_IP		0x7c00
 
-static int load_flat_binary(struct kvm *kvm, int fd)
+static int load_flat_binary(struct kvm *self, int fd)
 {
 	void *p;
 	int nr;
@@ -164,10 +164,13 @@ static int load_flat_binary(struct kvm *kvm, int fd)
 	if (lseek(fd, 0, SEEK_SET) < 0)
 		die_perror("lseek");
 
-	p = guest_addr_to_host(kvm, segment_to_flat(BOOT_LOADER_CS, BOOT_LOADER_IP));
+	p = guest_addr_to_host(self, segment_to_flat(BOOT_LOADER_CS, BOOT_LOADER_IP));
 
 	while ((nr = read(fd, p, 65536)) > 0)
 		p += nr;
+
+	self->boot_cs		= BOOT_LOADER_CS;
+	self->boot_ip		= BOOT_LOADER_IP;
 
 	return true;
 }
@@ -182,7 +185,7 @@ static const char *BZIMAGE_MAGIC	= "HdrS";
 
 #define BZ_DEFAULT_SETUP_SECTS		4
 
-static bool load_bzimage(struct kvm *kvm, int fd)
+static bool load_bzimage(struct kvm *self, int fd)
 {
 	unsigned long setup_sects;
 	struct boot_params boot;
@@ -211,15 +214,22 @@ static bool load_bzimage(struct kvm *kvm, int fd)
 		setup_sects	 = BZ_DEFAULT_SETUP_SECTS;
 
 	setup_size = setup_sects << 9;
-	p = guest_addr_to_host(kvm, segment_to_flat(BOOT_LOADER_CS, BOOT_LOADER_IP));
+	p = guest_addr_to_host(self, segment_to_flat(BOOT_LOADER_CS, BOOT_LOADER_IP));
 
 	if (read(fd, p, setup_size) != setup_size)
 		die_perror("read");
 
-	p = guest_addr_to_host(kvm, BZ_KERNEL_START);
+	p = guest_addr_to_host(self, BZ_KERNEL_START);
 
 	while ((nr = read(fd, p, 65536)) > 0)
 		p += nr;
+
+	self->boot_cs		= BOOT_LOADER_CS;
+	/*
+	 * The real-mode setup code starts at offset 0x200 of a bzImage. See
+	 * Documentation/x86/boot.txt for details.
+	 */
+	self->boot_ip		= BOOT_LOADER_IP + 0x200;
 
 	return true;
 }
@@ -270,8 +280,8 @@ void kvm__reset_vcpu(struct kvm *self)
 			 * KVM on Intel requires 'base' to be 'selector * 16' in
 			 * real mode.
 			 */
-			.selector	= BOOT_LOADER_CS,
-			.base		= BOOT_LOADER_CS * 16,
+			.selector	= self->boot_cs,
+			.base		= self->boot_cs * 16,
 			.limit		= 0xffffU,
 			.type		= 0x0bU,
 			.present	= 1,
@@ -335,7 +345,7 @@ void kvm__reset_vcpu(struct kvm *self)
 		die_perror("KVM_SET_SREGS failed");
 
 	self->regs = (struct kvm_regs) {
-		.rip		= BOOT_LOADER_IP,
+		.rip		= self->boot_ip,
 		/* We start the guest in 16-bit real mode  */
 		.rflags		= 0x0000000000000002ULL,
 	};
