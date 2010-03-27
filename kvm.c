@@ -153,9 +153,10 @@ static inline uint32_t segment_to_flat(uint16_t selector, uint16_t offset)
 	return ((uint32_t)selector << 4) + (uint32_t) offset;
 }
 
-#define KERNEL_BIN_START_ADDR	segment_to_flat(0xf000, 0xfff0)
+#define BIN_BOOT_LOADER_CS	0xf000
+#define BIN_BOOT_LOADER_IP	0xfff0
 
-static uint32_t load_flat_binary(struct kvm *kvm, int fd)
+static int load_flat_binary(struct kvm *kvm, int fd)
 {
 	void *p;
 	int nr;
@@ -163,22 +164,40 @@ static uint32_t load_flat_binary(struct kvm *kvm, int fd)
 	if (lseek(fd, 0, SEEK_SET) < 0)
 		die_perror("lseek");
 
-	p = guest_addr_to_host(kvm, KERNEL_BIN_START_ADDR);
+	p = guest_addr_to_host(kvm, segment_to_flat(BIN_BOOT_LOADER_CS, BIN_BOOT_LOADER_IP));
 
 	while ((nr = read(fd, p, 65536)) > 0)
 		p += nr;
 
-	return KERNEL_BIN_START_ADDR;
+	kvm->boot_cs	= BIN_BOOT_LOADER_CS;
+	kvm->boot_ip	= BIN_BOOT_LOADER_IP;
+
+	return true;
 }
 
-/* bzImages are loaded at 1 MB by default.  */
-#define KERNEL_BZ_START_ADDR	(1024ULL * 1024ULL)
+/*
+ * See Documentation/x86/boot.txt for details no how a bzImage is laid out in
+ * memory.
+ */
+
+/*
+ * As we emulate the boot loader, we can load kernel boot sector and setup code
+ * at the address which usually has the boot loader.
+ */
+#define BZ_BOOT_LOADER_START		0x007c00UL
+
+/*
+ * The protected mode kernel part of a modern bzImage is loaded at 1 MB by
+ * default.
+ */
+#define BZ_KERNEL_START			0x100000UL
 
 static const char *BZIMAGE_MAGIC	= "HdrS";
 
-static uint32_t load_bzimage(struct kvm *kvm, int fd)
+static bool load_bzimage(struct kvm *kvm, int fd)
 {
 	struct boot_params boot;
+	ssize_t setup_size;
 	void *p;
 	int nr;
 
@@ -188,21 +207,28 @@ static uint32_t load_bzimage(struct kvm *kvm, int fd)
 	read(fd, &boot, sizeof(boot));
 
         if (memcmp(&boot.hdr.header, BZIMAGE_MAGIC, strlen(BZIMAGE_MAGIC)) != 0)
-		return 0;
+		return false;
 
-	lseek(fd, (boot.hdr.setup_sects+1) * 512, SEEK_SET);
+	setup_size = (boot.hdr.setup_sects + 1) * 512;
+	p = guest_addr_to_host(kvm, BZ_BOOT_LOADER_START);
 
-	p = guest_addr_to_host(kvm, KERNEL_BZ_START_ADDR);
+	if (read(fd, p, setup_size) != setup_size)
+		die_perror("read");
+
+	p = guest_addr_to_host(kvm, BZ_KERNEL_START);
 
 	while ((nr = read(fd, p, 65536)) > 0)
 		p += nr;
 
-	return boot.hdr.code32_start;
+	kvm->boot_cs	= 0;
+	kvm->boot_ip	= BZ_BOOT_LOADER_START;
+
+	return true;
 }
 
-uint32_t kvm__load_kernel(struct kvm *kvm, const char *kernel_filename)
+bool kvm__load_kernel(struct kvm *kvm, const char *kernel_filename)
 {
-	uint32_t ret;
+	bool ret;
 	int fd;
 
 	fd = open(kernel_filename, O_RDONLY);
@@ -237,17 +263,12 @@ static inline uint64_t ip_real_to_flat(struct kvm *self, uint64_t ip)
 	return ip + (cs << 4);
 }
 
-void kvm__reset_vcpu(struct kvm *self, uint64_t rip)
+void kvm__reset_vcpu(struct kvm *self)
 {
-	/*
-	 * First set up segmentation because we need to translate the flat
-	 * 'rip' to segmented 16-bit cs:ip address.
-	 */
-
 	self->sregs = (struct kvm_sregs) {
 		.cr0		= 0x60000010ULL,
 		.cs		= (struct kvm_segment) {
-			.selector	= 0xf000UL,
+			.selector	= self->boot_cs,
 			.base		= 0xffff0000UL,
 			.limit		= 0xffffU,
 			.type		= 0x0bU,
@@ -312,8 +333,8 @@ void kvm__reset_vcpu(struct kvm *self, uint64_t rip)
 		die_perror("KVM_SET_SREGS failed");
 
 	self->regs = (struct kvm_regs) {
+		.rip		= self->boot_ip,
 		/* We start the guest in 16-bit real mode  */
-		.rip		= ip_flat_to_real(self, rip),
 		.rflags		= 0x0000000000000002ULL,
 	};
 

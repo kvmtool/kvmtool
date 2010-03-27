@@ -1,5 +1,7 @@
 #include "kvm/kvm.h"
 
+#include "util.h"
+
 #include <inttypes.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -14,7 +16,6 @@ static void usage(char *argv[])
 int main(int argc, char *argv[])
 {
 	const char *kernel_filename;
-	uint64_t kernel_start;
 	struct kvm *kvm;
 
 	if (argc < 2)
@@ -24,9 +25,10 @@ int main(int argc, char *argv[])
 
 	kvm = kvm__init();
 
-	kernel_start = kvm__load_kernel(kvm, kernel_filename);
+	if (!kvm__load_kernel(kvm, kernel_filename))
+		die("unable to load kernel %s", kernel_filename);
 
-	kvm__reset_vcpu(kvm, kernel_start);
+	kvm__reset_vcpu(kvm);
 
 	kvm__enable_singlestep(kvm);
 
