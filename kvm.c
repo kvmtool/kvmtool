@@ -153,8 +153,8 @@ static inline uint32_t segment_to_flat(uint16_t selector, uint16_t offset)
 	return ((uint32_t)selector << 4) + (uint32_t) offset;
 }
 
-#define BOOT_LOADER_CS		0x0000
-#define BOOT_LOADER_IP		0x7c00
+#define BOOT_LOADER_CS		0x0100
+#define BOOT_LOADER_IP		0x0000
 
 static int load_flat_binary(struct kvm *self, int fd)
 {
