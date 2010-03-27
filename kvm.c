@@ -48,9 +48,21 @@ const char *kvm_exit_reasons[] = {
 	DEFINE_KVM_EXIT_REASON(KVM_EXIT_INTERNAL_ERROR),
 };
 
-static inline void *guest_addr_to_host(struct kvm *self, unsigned long offset)
+static inline uint32_t segment_to_flat(uint16_t selector, uint16_t offset)
+{
+	return ((uint32_t)selector << 4) + (uint32_t) offset;
+}
+
+static inline void *guest_flat_to_host(struct kvm *self, unsigned long offset)
 {
 	return self->ram_start + offset;
+}
+
+static inline void *guest_real_to_host(struct kvm *self, uint16_t selector, uint16_t offset)
+{
+	unsigned long flat = segment_to_flat(selector, offset);
+
+	return guest_flat_to_host(self, flat);
 }
 
 static bool kvm__supports_extension(struct kvm *self, unsigned int extension)
@@ -148,11 +160,6 @@ void kvm__enable_singlestep(struct kvm *self)
 		warning("KVM_SET_GUEST_DEBUG failed");
 }
 
-static inline uint32_t segment_to_flat(uint16_t selector, uint16_t offset)
-{
-	return ((uint32_t)selector << 4) + (uint32_t) offset;
-}
-
 #define BOOT_LOADER_SELECTOR	0x0100
 #define BOOT_LOADER_IP		0x0000
 #define BOOT_LOADER_SP		0x8000
@@ -165,7 +172,7 @@ static int load_flat_binary(struct kvm *self, int fd)
 	if (lseek(fd, 0, SEEK_SET) < 0)
 		die_perror("lseek");
 
-	p = guest_addr_to_host(self, segment_to_flat(BOOT_LOADER_SELECTOR, BOOT_LOADER_IP));
+	p = guest_real_to_host(self, BOOT_LOADER_SELECTOR, BOOT_LOADER_IP);
 
 	while ((nr = read(fd, p, 65536)) > 0)
 		p += nr;
@@ -216,12 +223,12 @@ static bool load_bzimage(struct kvm *self, int fd)
 		setup_sects	 = BZ_DEFAULT_SETUP_SECTS;
 
 	setup_size = setup_sects << 9;
-	p = guest_addr_to_host(self, segment_to_flat(BOOT_LOADER_SELECTOR, BOOT_LOADER_IP));
+	p = guest_real_to_host(self, BOOT_LOADER_SELECTOR, BOOT_LOADER_IP);
 
 	if (read(fd, p, setup_size) != setup_size)
 		die_perror("read");
 
-	p = guest_addr_to_host(self, BZ_KERNEL_START);
+	p = guest_flat_to_host(self, BZ_KERNEL_START);
 
 	while ((nr = read(fd, p, 65536)) > 0)
 		p += nr;
@@ -485,14 +492,14 @@ void kvm__show_code(struct kvm *self)
 	if (ioctl(self->vcpu_fd, KVM_GET_SREGS, &self->sregs) < 0)
 		die("KVM_GET_SREGS failed");
 
-	ip = guest_addr_to_host(self, ip_real_to_flat(self, self->regs.rip) - code_prologue);
+	ip = guest_flat_to_host(self, ip_real_to_flat(self, self->regs.rip) - code_prologue);
 
 	printf("Code: ");
 
 	for (i = 0; i < code_len; i++, ip++) {
 		c = *ip;
 
-		if (ip == guest_addr_to_host(self, ip_real_to_flat(self, self->regs.rip)))
+		if (ip == guest_flat_to_host(self, ip_real_to_flat(self, self->regs.rip)))
 			printf("<%02x> ", c);
 		else
 			printf("%02x ", c);
