@@ -212,6 +212,9 @@ static bool load_bzimage(struct kvm *kvm, int fd)
         if (memcmp(&boot.hdr.header, BZIMAGE_MAGIC, strlen(BZIMAGE_MAGIC)) != 0)
 		return false;
 
+	if (lseek(fd, 0, SEEK_SET) < 0)
+		die_perror("lseek");
+
 	setup_sects = boot.hdr.setup_sects + 1;
 	if (setup_sects == 0)
 		setup_sects	 = BZ_DEFAULT_SETUP_SECTS;
