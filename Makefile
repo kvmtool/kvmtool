@@ -4,6 +4,7 @@ OBJS	+= cpu.o
 OBJS	+= kvm.o
 OBJS	+= main.o
 OBJS	+= util.o
+OBJS	+= ivt.o
 
 CFLAGS	+= $(CPPFLAGS) -Iinclude
 
