@@ -1,3 +1,5 @@
+#include "kvm/interrupt.h"
+
 #include <stdbool.h>
 #include <limits.h>
 #include <stdarg.h>
@@ -7,7 +9,6 @@
 #include <stdio.h>
 
 #include "util.h"
-#include "ivt.h"
 
 static struct ivt_entry ivt_table[IVT_VECTORS];
 

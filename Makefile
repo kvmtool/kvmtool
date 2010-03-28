@@ -1,10 +1,10 @@
 PROGRAM	= kvm
 
 OBJS	+= cpu.o
+OBJS	+= interrupt.o
 OBJS	+= kvm.o
 OBJS	+= main.o
 OBJS	+= util.o
-OBJS	+= ivt.o
 
 CFLAGS	+= $(CPPFLAGS) -Iinclude
 

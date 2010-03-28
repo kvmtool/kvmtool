@@ -1,5 +1,7 @@
 #include "kvm/kvm.h"
 
+#include "kvm/interrupt.h"
+
 #include <linux/kvm.h>
 
 #include <asm/bootparam.h>
@@ -16,7 +18,6 @@
 #include <stdio.h>
 #include <fcntl.h>
 
-#include "ivt.h"
 #include "util.h"
 
 /*
