@@ -198,9 +198,9 @@ static const char *BZIMAGE_MAGIC	= "HdrS";
 
 static bool load_bzimage(struct kvm *self, int fd, const char *kernel_cmdline)
 {
-	unsigned long setup_sects;
-	struct boot_params boot, *t;
 	struct ivt_entry real_mode_irq;
+	struct boot_params boot, *t;
+	unsigned long setup_sects;
 	ssize_t setup_size;
 	void *p, *v;
 	int nr;
@@ -252,7 +252,7 @@ static bool load_bzimage(struct kvm *self, int fd, const char *kernel_cmdline)
 	 * we need a place for 2 bytes so lets do
 	 * a hack and use spare place in bootparams
 	 */
-	t = (struct boot_params *)guest_real_to_host(self, BOOT_LOADER_SELECTOR, BOOT_LOADER_IP);
+	t = guest_real_to_host(self, BOOT_LOADER_SELECTOR, BOOT_LOADER_IP);
 	v = guest_flat_to_host(self, 0);
 	t->hdr._pad2[0] = 0xfb;	/* sti */
 	t->hdr._pad2[1] = 0xcf;	/* iret */
@@ -261,7 +261,7 @@ static bool load_bzimage(struct kvm *self, int fd, const char *kernel_cmdline)
 		.segment	= nr >> 4,
 		.offset		= (nr - (nr & ~0xf)),
 	};
-	interrupt_table__setup(&self->interrupt_table, real_mode_irq);
+	interrupt_table__setup(&self->interrupt_table, &real_mode_irq);
 	p = guest_flat_to_host(self, 0);
 	interrupt_table__copy(&self->interrupt_table, p, IVT_VECTORS * sizeof(real_mode_irq));
 

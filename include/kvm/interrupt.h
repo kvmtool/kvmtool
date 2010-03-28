@@ -16,6 +16,6 @@ struct interrupt_table {
 };
 
 void interrupt_table__copy(struct interrupt_table *self, void *dst, unsigned int size);
-void interrupt_table__setup(struct interrupt_table *self, struct ivt_entry e);
+void interrupt_table__setup(struct interrupt_table *self, struct ivt_entry *entry);
 
 #endif /* KVM__INTERRUPT_H */
