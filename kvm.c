@@ -261,9 +261,9 @@ static bool load_bzimage(struct kvm *self, int fd, const char *kernel_cmdline)
 		.segment	= nr >> 4,
 		.offset		= (nr - (nr & ~0xf)),
 	};
-	ivt_set_all(real_mode_irq);
+	interrupt_table__setup(&self->interrupt_table, real_mode_irq);
 	p = guest_flat_to_host(self, 0);
-	ivt_copy_table(p, IVT_VECTORS * sizeof(real_mode_irq));
+	interrupt_table__copy(&self->interrupt_table, p, IVT_VECTORS * sizeof(real_mode_irq));
 
 	return true;
 }

@@ -1,6 +1,8 @@
 #ifndef KVM__KVM_H
 #define KVM__KVM_H
 
+#include "kvm/interrupt.h"
+
 #include <linux/kvm.h>	/* for struct kvm_regs */
 
 #include <stdbool.h>
@@ -21,6 +23,8 @@ struct kvm {
 
 	struct kvm_regs		regs;
 	struct kvm_sregs	sregs;
+
+	struct interrupt_table	interrupt_table;
 };
 
 struct kvm *kvm__init(void);
