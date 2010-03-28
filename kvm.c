@@ -160,7 +160,7 @@ void kvm__enable_singlestep(struct kvm *self)
 		warning("KVM_SET_GUEST_DEBUG failed");
 }
 
-#define BOOT_LOADER_SELECTOR	0x0100
+#define BOOT_LOADER_SELECTOR	0x1000
 #define BOOT_LOADER_IP		0x0000
 #define BOOT_LOADER_SP		0x8000
 
