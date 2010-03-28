@@ -36,3 +36,11 @@ void ivt_set_entry(struct ivt_entry e, unsigned int n)
 	if (n < IVT_VECTORS)
 		ivt_table[n] = e;
 }
+
+void ivt_set_all(struct ivt_entry e)
+{
+	unsigned int i;
+
+	for (i = 0; i < IVT_VECTORS; i++)
+		ivt_table[i] = e;
+}

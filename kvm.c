@@ -16,6 +16,7 @@
 #include <stdio.h>
 #include <fcntl.h>
 
+#include "ivt.h"
 #include "util.h"
 
 /*
@@ -198,6 +199,7 @@ static bool load_bzimage(struct kvm *self, int fd, const char *kernel_cmdline)
 {
 	unsigned long setup_sects;
 	struct boot_params boot;
+	struct ivt_entry real_mode_irq;
 	ssize_t setup_size;
 	void *p;
 	int nr;
@@ -240,6 +242,20 @@ static bool load_bzimage(struct kvm *self, int fd, const char *kernel_cmdline)
 	 */
 	self->boot_ip		= BOOT_LOADER_IP + 0x200;
 	self->boot_sp		= BOOT_LOADER_SP;
+
+	/*
+	 * Setup a *fake* real mode IVT, it has only one real
+	 * hadler which does just iret
+	 */
+	real_mode_irq = (struct ivt_entry) {
+		.segment	= 0,
+		.offset		= 0x400 + 1,
+	};
+	ivt_set_all(real_mode_irq);
+	p = guest_flat_to_host(self, 0);
+	ivt_copy_table(p, IVT_VECTORS * sizeof(real_mode_irq));
+	p += IVT_VECTORS * sizeof(real_mode_irq) + 1;
+	*(char *)p = 0xcf; /* iret here */
 
 	return true;
 }
