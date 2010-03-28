@@ -1,6 +1,7 @@
 #include "kvm/kvm.h"
 
 #include "kvm/interrupt.h"
+#include "kvm/util.h"
 
 #include <linux/kvm.h>
 
@@ -17,8 +18,6 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <fcntl.h>
-
-#include "util.h"
 
 /*
  * Compatibility code. Remove this when we move to tools/kvm.

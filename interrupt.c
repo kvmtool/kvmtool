@@ -1,6 +1,6 @@
 #include "kvm/interrupt.h"
 
-#include "util.h"
+#include "kvm/util.h"
 
 #include <string.h>
 

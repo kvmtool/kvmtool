@@ -1,5 +1,5 @@
-#ifndef UTIL_H_
-#define UTIL_H_
+#ifndef KVM__UTIL_H
+#define KVM__UTIL_H
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
@@ -44,4 +44,4 @@ do {								\
 		__stringify(cnd) "\n");				\
 } while (0)
 
-#endif /* UTIL_H_ */
+#endif /* KVM__UTIL_H */
