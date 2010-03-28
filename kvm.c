@@ -194,7 +194,7 @@ static const char *BZIMAGE_MAGIC	= "HdrS";
 
 #define BZ_DEFAULT_SETUP_SECTS		4
 
-static bool load_bzimage(struct kvm *self, int fd)
+static bool load_bzimage(struct kvm *self, int fd, const char *kernel_cmdline)
 {
 	unsigned long setup_sects;
 	struct boot_params boot;
@@ -244,7 +244,8 @@ static bool load_bzimage(struct kvm *self, int fd)
 	return true;
 }
 
-bool kvm__load_kernel(struct kvm *kvm, const char *kernel_filename)
+bool kvm__load_kernel(struct kvm *kvm, const char *kernel_filename,
+			const char *kernel_cmdline)
 {
 	bool ret;
 	int fd;
@@ -253,7 +254,7 @@ bool kvm__load_kernel(struct kvm *kvm, const char *kernel_filename)
 	if (fd < 0)
 		die("unable to open kernel");
 
-	ret = load_bzimage(kvm, fd);
+	ret = load_bzimage(kvm, fd, kernel_cmdline);
 	if (ret)
 		goto found_kernel;
 
