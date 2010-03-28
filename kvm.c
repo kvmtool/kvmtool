@@ -198,10 +198,10 @@ static const char *BZIMAGE_MAGIC	= "HdrS";
 static bool load_bzimage(struct kvm *self, int fd, const char *kernel_cmdline)
 {
 	unsigned long setup_sects;
-	struct boot_params boot;
+	struct boot_params boot, *t;
 	struct ivt_entry real_mode_irq;
 	ssize_t setup_size;
-	void *p;
+	void *p, *v;
 	int nr;
 
 	/*
@@ -247,15 +247,22 @@ static bool load_bzimage(struct kvm *self, int fd, const char *kernel_cmdline)
 	 * Setup a *fake* real mode IVT, it has only one real
 	 * hadler which does just iret
 	 */
+	/*
+	 * we need a place for 2 bytes so lets do
+	 * a hack and use spare place in bootparams
+	 */
+	t = (struct boot_params *)guest_real_to_host(self, BOOT_LOADER_SELECTOR, BOOT_LOADER_IP);
+	v = guest_flat_to_host(self, 0);
+	t->hdr._pad2[0] = 0xfb;	/* sti */
+	t->hdr._pad2[1] = 0xcf;	/* iret */
+	nr = (void *)&t->hdr._pad2[0] - v;
 	real_mode_irq = (struct ivt_entry) {
-		.segment	= 0,
-		.offset		= 0x400 + 1,
+		.segment	= nr >> 4,
+		.offset		= (nr - (nr & ~0xf)),
 	};
 	ivt_set_all(real_mode_irq);
 	p = guest_flat_to_host(self, 0);
 	ivt_copy_table(p, IVT_VECTORS * sizeof(real_mode_irq));
-	p += IVT_VECTORS * sizeof(real_mode_irq) + 1;
-	*(char *)p = 0xcf; /* iret here */
 
 	return true;
 }
