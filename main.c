@@ -9,19 +9,33 @@
 
 static void usage(char *argv[])
 {
-	fprintf(stderr, "  usage: %s <kernel-image>\n", argv[0]);
+	fprintf(stderr, "  usage: %s [--kernel=]<kernel-image>\n",
+		argv[0]);
 	exit(1);
 }
 
 int main(int argc, char *argv[])
 {
-	const char *kernel_filename;
+	const char *kernel_filename = NULL;
 	struct kvm *kvm;
+	int i;
 
-	if (argc < 2)
+	for (i = 1; i < argc; i++) {
+		if (!strncmp("--kernel=", argv[i], 9)) {
+			kernel_filename = &argv[i][9];
+			continue;
+		} else {
+			/* any unspecified arg is kernel image */
+			if (argv[i][0] != '-')
+				kernel_filename = argv[i];
+			else
+				warning("Unknown option: %s", argv[i]);
+		}
+	}
+
+	/* at least we should have kernel image passed */
+	if (!kernel_filename)
 		usage(argv);
-
-	kernel_filename = argv[1];
 
 	kvm = kvm__init();
 
