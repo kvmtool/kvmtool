@@ -197,7 +197,7 @@ static const char *BZIMAGE_MAGIC	= "HdrS";
 
 static bool load_bzimage(struct kvm *self, int fd, const char *kernel_cmdline)
 {
-	struct ivt_entry real_mode_irq;
+	struct real_intr_desc intr;
 	struct boot_params boot, *t;
 	unsigned long setup_sects;
 	ssize_t setup_size;
@@ -256,13 +256,13 @@ static bool load_bzimage(struct kvm *self, int fd, const char *kernel_cmdline)
 	t->hdr._pad2[0] = 0xfb;	/* sti */
 	t->hdr._pad2[1] = 0xcf;	/* iret */
 	nr = (void *)&t->hdr._pad2[0] - v;
-	real_mode_irq = (struct ivt_entry) {
+	intr = (struct real_intr_desc) {
 		.segment	= nr >> 4,
 		.offset		= (nr - (nr & ~0xf)),
 	};
-	interrupt_table__setup(&self->interrupt_table, &real_mode_irq);
 	p = guest_flat_to_host(self, 0);
-	interrupt_table__copy(&self->interrupt_table, p, IVT_VECTORS * sizeof(real_mode_irq));
+	interrupt_table__setup(&self->interrupt_table, &intr);
+	interrupt_table__copy(&self->interrupt_table, p, REAL_INTR_SIZE);
 
 	return true;
 }

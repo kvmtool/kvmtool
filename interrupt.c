@@ -12,10 +12,10 @@ void interrupt_table__copy(struct interrupt_table *self, void *dst, unsigned int
 	memcpy(dst, self->entries, sizeof(self->entries));
 }
 
-void interrupt_table__setup(struct interrupt_table *self, struct ivt_entry *entry)
+void interrupt_table__setup(struct interrupt_table *self, struct real_intr_desc *entry)
 {
 	unsigned int i;
 
-	for (i = 0; i < IVT_VECTORS; i++)
+	for (i = 0; i < REAL_INTR_VECTORS; i++)
 		self->entries[i] = *entry;
 }
