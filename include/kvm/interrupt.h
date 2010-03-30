@@ -3,6 +3,13 @@
 
 #include <inttypes.h>
 
+/*
+ * BIOS data area
+ */
+#define BDA_START		0xf0000
+#define BDA_END			0xfffff
+#define BDA_SIZE		(BDA_END - BDA_START)
+
 #define REAL_INTR_BASE		0x0000
 #define REAL_INTR_VECTORS	256
 

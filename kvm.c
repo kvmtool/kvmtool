@@ -192,16 +192,17 @@ static int load_flat_binary(struct kvm *self, int fd)
 #define BZ_KERNEL_START			0x100000UL
 
 static const char *BZIMAGE_MAGIC	= "HdrS";
+static const char fakebios_vector[]	= { 0xcf };
 
 #define BZ_DEFAULT_SETUP_SECTS		4
 
 static bool load_bzimage(struct kvm *self, int fd, const char *kernel_cmdline)
 {
 	struct real_intr_desc intr;
-	struct boot_params boot, *t;
+	struct boot_params boot;
 	unsigned long setup_sects;
 	ssize_t setup_size;
-	void *p, *v;
+	void *p;
 	int nr;
 
 	/*
@@ -244,21 +245,17 @@ static bool load_bzimage(struct kvm *self, int fd, const char *kernel_cmdline)
 	self->boot_sp		= BOOT_LOADER_SP;
 
 	/*
-	 * Setup a *fake* real mode IVT, it has only one real
-	 * hadler which does just iret
+	 * Setup a *fake* real mode vector table, it has only
+	 * one real hadler which does just iret
+	 *
+	 * we need a place for 1 byte so lets put
+	 * it where the BIOS lives -- BDA area
 	 */
-	/*
-	 * we need a place for 2 bytes so lets do
-	 * a hack and use spare place in bootparams
-	 */
-	t = guest_real_to_host(self, BOOT_LOADER_SELECTOR, BOOT_LOADER_IP);
-	v = guest_flat_to_host(self, 0);
-	t->hdr._pad2[0] = 0xfb;	/* sti */
-	t->hdr._pad2[1] = 0xcf;	/* iret */
-	nr = (void *)&t->hdr._pad2[0] - v;
+	p = guest_flat_to_host(self, BDA_START);
+	memcpy(p, fakebios_vector, sizeof(fakebios_vector));
 	intr = (struct real_intr_desc) {
-		.segment	= nr >> 4,
-		.offset		= (nr - (nr & ~0xf)),
+		.segment	= BDA_START >> 4,
+		.offset		= 0,
 	};
 	p = guest_flat_to_host(self, 0);
 	interrupt_table__setup(&self->interrupt_table, &intr);
