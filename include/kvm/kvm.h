@@ -44,6 +44,7 @@ bool kvm__emulate_io(struct kvm *self, uint16_t port, void *data, int direction,
  */
 void kvm__show_code(struct kvm *self);
 void kvm__show_registers(struct kvm *self);
+void kvm__dump_mem(struct kvm *self, unsigned long addr, unsigned long size);
 
 extern const char *kvm_exit_reasons[];
 
