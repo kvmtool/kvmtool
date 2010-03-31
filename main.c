@@ -10,7 +10,7 @@
 
 static void usage(char *argv[])
 {
-	fprintf(stderr, "  usage: %s [--kernel=]<kernel-image>\n",
+	fprintf(stderr, "  usage: %s [--single-step] [--kernel=]<kernel-image>\n",
 		argv[0]);
 	exit(1);
 }
@@ -19,6 +19,7 @@ int main(int argc, char *argv[])
 {
 	const char *kernel_filename = NULL;
 	const char *kernel_cmdline = NULL;
+	bool single_step = false;
 	struct kvm *kvm;
 	int i;
 
@@ -28,6 +29,9 @@ int main(int argc, char *argv[])
 			continue;
 		} else if (!strncmp("--params=", argv[i], 9)) {
 			kernel_cmdline = &argv[i][9];
+			continue;
+		} else if (!strncmp("--single-step", argv[i], 13)) {
+			single_step = true;
 			continue;
 		} else {
 			/* any unspecified arg is kernel image */
@@ -49,7 +53,8 @@ int main(int argc, char *argv[])
 
 	kvm__reset_vcpu(kvm);
 
-	kvm__enable_singlestep(kvm);
+	if (single_step)
+		kvm__enable_singlestep(kvm);
 
 	for (;;) {
 		kvm__run(kvm);
