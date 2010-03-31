@@ -1,6 +1,5 @@
 PROGRAM	= kvm
 
-OBJS	+= cpu.o
 OBJS	+= cpuid.o
 OBJS	+= interrupt.o
 OBJS	+= ioport.o
