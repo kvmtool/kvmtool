@@ -73,7 +73,6 @@ int main(int argc, char *argv[])
 					kvm->kvm_run->io.direction,
 					kvm->kvm_run->io.size,
 					kvm->kvm_run->io.count);
-			goto exit_kvm;
 			break;
 		default:
 			goto exit_kvm;

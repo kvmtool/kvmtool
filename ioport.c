@@ -4,12 +4,18 @@
 
 static void kvm__emulate_io_out(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
 {
-	fprintf(stderr, "%s port=%x, size=%d, count=%" PRIu32 "\n", __func__, port, size, count);
+	fprintf(stderr, "IO error: OUT port=%x, size=%d, count=%" PRIu32 "\n", port, size, count);
+
+	kvm__show_registers(self);
+	kvm__show_code(self);
 }
 
 static void kvm__emulate_io_in(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
 {
-	fprintf(stderr, "%s port=%x, size=%d, count=%" PRIu32 "\n", __func__, port, size, count);
+	fprintf(stderr, "IO error: IN port=%x, size=%d, count=%" PRIu32 "\n", port, size, count);
+
+	kvm__show_registers(self);
+	kvm__show_code(self);
 }
 
 void kvm__emulate_io(struct kvm *self, uint16_t port, void *data, int direction, int size, uint32_t count)
