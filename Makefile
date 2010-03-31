@@ -6,7 +6,7 @@ OBJS	+= kvm.o
 OBJS	+= main.o
 OBJS	+= util.o
 
-CFLAGS	+= $(CPPFLAGS) -Iinclude
+CFLAGS	+= $(CPPFLAGS) -Iinclude -g
 
 WARNINGS += -Wall
 WARNINGS += -Wcast-align
