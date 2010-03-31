@@ -28,6 +28,7 @@ struct kvm {
 };
 
 struct kvm *kvm__init(void);
+void kvm__setup_cpuid(struct kvm *self);
 void kvm__enable_singlestep(struct kvm *self);
 bool kvm__load_kernel(struct kvm *kvm, const char *kernel_filename, const char *kernel_cmdline);
 void kvm__reset_vcpu(struct kvm *self);

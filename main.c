@@ -48,6 +48,8 @@ int main(int argc, char *argv[])
 
 	kvm = kvm__init();
 
+	kvm__setup_cpuid(kvm);
+
 	if (!kvm__load_kernel(kvm, kernel_filename, kernel_cmdline))
 		die("unable to load kernel %s", kernel_filename);
 
