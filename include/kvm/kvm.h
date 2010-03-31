@@ -17,6 +17,8 @@ struct kvm {
 	uint64_t		ram_size;
 	void			*ram_start;
 
+	bool			nmi_disabled;
+
 	uint16_t		boot_selector;
 	uint16_t		boot_ip;
 	uint16_t		boot_sp;
@@ -33,7 +35,7 @@ void kvm__enable_singlestep(struct kvm *self);
 bool kvm__load_kernel(struct kvm *kvm, const char *kernel_filename, const char *kernel_cmdline);
 void kvm__reset_vcpu(struct kvm *self);
 void kvm__run(struct kvm *self);
-void kvm__emulate_io(struct kvm *self, uint16_t port, void *data, int direction, int size, uint32_t count);
+bool kvm__emulate_io(struct kvm *self, uint16_t port, void *data, int direction, int size, uint32_t count);
 
 /*
  * Debugging

@@ -1,27 +1,77 @@
 #include "kvm/kvm.h"
 
+#include <limits.h>
 #include <stdio.h>
 
-static void kvm__emulate_io_out(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
-{
-	fprintf(stderr, "IO error: OUT port=%x, size=%d, count=%" PRIu32 "\n", port, size, count);
+struct ioport_operations {
+	bool (*io_in)(struct kvm *self, uint16_t port, void *data, int size, uint32_t count);
+	bool (*io_out)(struct kvm *self, uint16_t port, void *data, int size, uint32_t count);
+};
 
-	kvm__show_registers(self);
-	kvm__show_code(self);
+static uint8_t ioport_to_uint8(void *data)
+{
+	uint8_t *p = data;
+
+	return *p;
 }
 
-static void kvm__emulate_io_in(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
+static bool cmos_ram_rtc_io_out(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
 {
-	fprintf(stderr, "IO error: IN port=%x, size=%d, count=%" PRIu32 "\n", port, size, count);
+	uint8_t value;
 
-	kvm__show_registers(self);
-	kvm__show_code(self);
+	value	= ioport_to_uint8(data);
+
+	self->nmi_disabled	= value & (1UL << 7);
+
+	return true;
 }
 
-void kvm__emulate_io(struct kvm *self, uint16_t port, void *data, int direction, int size, uint32_t count)
+static struct ioport_operations cmos_ram_rtc_ops = {
+	.io_out		= cmos_ram_rtc_io_out,
+};
+
+static struct ioport_operations *ioport_ops[USHRT_MAX] = {
+	[0x70]		= &cmos_ram_rtc_ops,
+};
+
+static const char *to_direction(int direction)
 {
 	if (direction == KVM_EXIT_IO_IN)
-		kvm__emulate_io_in(self, port, data, size, count);
+		return "IN";
 	else
-		kvm__emulate_io_out(self, port, data, size, count);
+		return "OUT";
+}
+
+static void ioport_error(uint16_t port, void *data, int direction, int size, uint32_t count)
+{
+	fprintf(stderr, "IO error: %s port=%x, size=%d, count=%" PRIu32 "\n", to_direction(direction), port, size, count);
+}
+
+bool kvm__emulate_io(struct kvm *self, uint16_t port, void *data, int direction, int size, uint32_t count)
+{
+	struct ioport_operations *ops = ioport_ops[port];
+	bool ret;
+
+	if (!ops)
+		goto error;
+
+	if (direction == KVM_EXIT_IO_IN) {
+		if (!ops->io_in)
+			goto error;
+
+		ret = ops->io_in(self, port, data, size, count);
+		if (!ret)
+			goto error;
+	} else {
+		if (!ops->io_out)
+			goto error;
+
+		ret = ops->io_out(self, port, data, size, count);
+		if (!ret)
+			goto error;
+	}
+	return true;
+error:
+	ioport_error(port, data, direction, size, count);
+	return false;
 }

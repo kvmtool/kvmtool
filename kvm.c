@@ -473,7 +473,8 @@ void kvm__show_registers(struct kvm *self)
 	print_segment("gs ", &sregs.gs);
 	print_segment("tr ", &sregs.tr);
 	print_segment("ldt", &sregs.ldt);
-	printf(" [ efer: %016lx  apic base: %016lx ]\n", (uint64_t) sregs.efer, (uint64_t) sregs.apic_base);
+	printf(" [ efer: %016lx  apic base: %016lx  nmi: %s ]\n", (uint64_t) sregs.efer, (uint64_t) sregs.apic_base,
+		(self->nmi_disabled ? "disabled" : "enabled"));
 	printf("Interrupt bitmap:\n");
 	printf(" ");
 	for (i = 0; i < (KVM_NR_INTERRUPTS + 63) / 64; i++)

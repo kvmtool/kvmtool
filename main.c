@@ -66,14 +66,20 @@ int main(int argc, char *argv[])
 			kvm__show_registers(kvm);
 			kvm__show_code(kvm);
 			break;
-		case KVM_EXIT_IO:
-			kvm__emulate_io(kvm,
+		case KVM_EXIT_IO: {
+			bool ret;
+
+			ret = kvm__emulate_io(kvm,
 					kvm->kvm_run->io.port,
 					(uint8_t *)kvm->kvm_run + kvm->kvm_run->io.data_offset,
 					kvm->kvm_run->io.direction,
 					kvm->kvm_run->io.size,
 					kvm->kvm_run->io.count);
+
+			if (!ret)
+				goto exit_kvm;
 			break;
+		}
 		default:
 			goto exit_kvm;
 		}
