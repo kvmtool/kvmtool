@@ -42,6 +42,12 @@ static struct ioport_operations dummy_write_only_ioport_ops = {
 static struct ioport_operations *ioport_ops[USHRT_MAX] = {
 	[0x70]		= &cmos_ram_rtc_ops,
 
+	/* 0x0020 - 0x003F - 8259A PIC 1 */
+	[0x21]		= &dummy_write_only_ioport_ops,
+
+	/* 0x00A0 - 0x00AF - 8259A PIC 2 */
+	[0xA1]		= &dummy_write_only_ioport_ops,
+
 	/* 0x00F0 - 0x00FF - Math co-processor */
 	[0xF0]		= &dummy_write_only_ioport_ops,
 	[0xF1]		= &dummy_write_only_ioport_ops,
