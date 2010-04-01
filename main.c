@@ -92,5 +92,7 @@ exit_kvm:
 	kvm__show_registers(kvm);
 	kvm__show_code(kvm);
 
+	kvm__delete(kvm);
+
 	return 0;
 }

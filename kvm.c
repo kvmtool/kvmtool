@@ -88,6 +88,12 @@ static struct kvm *kvm__new(void)
 	return self;
 }
 
+void kvm__delete(struct kvm *self)
+{
+	free(self->ram_start);
+	free(self);
+}
+
 struct kvm *kvm__init(void)
 {
 	struct kvm_userspace_memory_region mem;
