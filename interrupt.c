@@ -19,3 +19,9 @@ void interrupt_table__setup(struct interrupt_table *self, struct real_intr_desc 
 	for (i = 0; i < REAL_INTR_VECTORS; i++)
 		self->entries[i] = *entry;
 }
+
+void interrupt_table__set(struct interrupt_table *self, struct real_intr_desc *entry, unsigned int num)
+{
+	if (num < REAL_INTR_VECTORS)
+		self->entries[num] = *entry;
+}
