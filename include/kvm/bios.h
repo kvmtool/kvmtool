@@ -18,7 +18,7 @@
 
 #define BIOS_STACK		0xFFF70
 #define BIOS_STACK_SEG		0xFFF7
-#define BIOS_STACK		128
+#define BIOS_STACK_SIZE		128
 
 #define ALIGN(x, a)		(((x)+((a)-1))&~((a)-1))
 
