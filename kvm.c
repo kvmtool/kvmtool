@@ -405,6 +405,14 @@ void kvm__reset_vcpu(struct kvm *self)
 	if (ioctl(self->vcpu_fd, KVM_SET_REGS, &self->regs) < 0)
 		die_perror("KVM_SET_REGS failed");
 
+	self->fpu = (struct kvm_fpu) {
+		.fcw		= 0x37f,
+		.mxcsr		= 0x1f80,
+	};
+
+	if (ioctl(self->vcpu_fd, KVM_SET_FPU, &self->fpu) < 0)
+		die_perror("KVM_SET_FPU failed");
+
 }
 
 void kvm__run(struct kvm *self)

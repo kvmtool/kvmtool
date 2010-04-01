@@ -25,6 +25,7 @@ struct kvm {
 
 	struct kvm_regs		regs;
 	struct kvm_sregs	sregs;
+	struct kvm_fpu		fpu;
 
 	struct interrupt_table	interrupt_table;
 };
