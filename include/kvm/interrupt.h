@@ -2,16 +2,7 @@
 #define KVM__INTERRUPT_H
 
 #include <inttypes.h>
-
-/*
- * BIOS data area
- */
-#define BDA_START		0xf0000
-#define BDA_END			0xfffff
-#define BDA_SIZE		(BDA_END - BDA_START)
-
-#define REAL_INTR_BASE		0x0000
-#define REAL_INTR_VECTORS	256
+#include "kvm/bios.h"
 
 struct real_intr_desc {
 	uint16_t offset;
