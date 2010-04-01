@@ -296,9 +296,18 @@ static inline uint64_t ip_flat_to_real(struct kvm *self, uint64_t ip)
 	return ip - (cs << 4);
 }
 
-static inline uint64_t ip_real_to_flat(struct kvm *self, uint64_t ip)
+static inline uint64_t ip_to_flat(struct kvm *self, uint64_t ip)
 {
-	uint64_t cs = self->sregs.cs.selector;
+	uint64_t cs;
+
+	/*
+	 * NOTE! We should take code segment base address into account here.
+	 * Luckily it's usually zero because Linux uses flat memory model.
+	 */
+	if (self->sregs.cr0 & 0x01)
+		return ip;
+
+	cs = self->sregs.cs.selector;
 
 	return ip + (cs << 4);
 }
@@ -505,14 +514,14 @@ void kvm__show_code(struct kvm *self)
 	if (ioctl(self->vcpu_fd, KVM_GET_SREGS, &self->sregs) < 0)
 		die("KVM_GET_SREGS failed");
 
-	ip = guest_flat_to_host(self, ip_real_to_flat(self, self->regs.rip) - code_prologue);
+	ip = guest_flat_to_host(self, ip_to_flat(self, self->regs.rip) - code_prologue);
 
 	printf("Code: ");
 
 	for (i = 0; i < code_len; i++, ip++) {
 		c = *ip;
 
-		if (ip == guest_flat_to_host(self, ip_real_to_flat(self, self->regs.rip)))
+		if (ip == guest_flat_to_host(self, ip_to_flat(self, self->regs.rip)))
 			printf("<%02x> ", c);
 		else
 			printf("%02x ", c);
