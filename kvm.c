@@ -208,6 +208,7 @@ static bool load_bzimage(struct kvm *self, int fd, const char *kernel_cmdline)
 	struct boot_params boot;
 	unsigned long setup_sects;
 	unsigned int intr_addr;
+	size_t cmdline_size, cmdline_offset;
 	ssize_t setup_size;
 	void *p;
 	int nr;
@@ -242,6 +243,25 @@ static bool load_bzimage(struct kvm *self, int fd, const char *kernel_cmdline)
 
 	while ((nr = read(fd, p, 65536)) > 0)
 		p += nr;
+
+	if (boot.hdr.version < 0x0202 || !(boot.hdr.loadflags & 0x01))
+		cmdline_offset = (0x9ff0 - cmdline_size) & ~15;
+	else
+		cmdline_offset = 0x10000;
+
+	if (boot.hdr.version < 0x0206)
+		boot.hdr.cmdline_size = 256;
+
+	if (kernel_cmdline) {
+		cmdline_size = 0;
+		cmdline_size = strlen(kernel_cmdline) + 1;
+		if (cmdline_size > boot.hdr.cmdline_size)
+			cmdline_size = boot.hdr.cmdline_size;
+
+		p = guest_flat_to_host(self, cmdline_offset);
+		memset(p, 0, cmdline_size);
+		strcpy(p, kernel_cmdline);
+	}
 
 	self->boot_selector	= BOOT_LOADER_SELECTOR;
 	/*
