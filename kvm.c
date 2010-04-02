@@ -226,6 +226,11 @@ static bool load_bzimage(struct kvm *self, int fd, const char *kernel_cmdline)
         if (memcmp(&boot.hdr.header, BZIMAGE_MAGIC, strlen(BZIMAGE_MAGIC)) != 0)
 		return false;
 
+	if (boot.hdr.version < 0x0200) {
+		warning("Too old kernel");
+		return false;
+	}
+
 	if (lseek(fd, 0, SEEK_SET) < 0)
 		die_perror("lseek");
 
@@ -253,7 +258,6 @@ static bool load_bzimage(struct kvm *self, int fd, const char *kernel_cmdline)
 		boot.hdr.cmdline_size = 256;
 
 	if (kernel_cmdline) {
-		cmdline_size = 0;
 		cmdline_size = strlen(kernel_cmdline) + 1;
 		if (cmdline_size > boot.hdr.cmdline_size)
 			cmdline_size = boot.hdr.cmdline_size;
@@ -261,6 +265,24 @@ static bool load_bzimage(struct kvm *self, int fd, const char *kernel_cmdline)
 		p = guest_flat_to_host(self, cmdline_offset);
 		memset(p, 0, cmdline_size);
 		strcpy(p, kernel_cmdline);
+	} else
+		cmdline_size = 0;
+		
+
+	if (boot.hdr.version < 0x0202 || !(boot.hdr.loadflags & 0x01))
+		cmdline_offset = (0x9ff0 - cmdline_size) & ~15;
+	else
+		cmdline_offset = 0x10000;
+
+	if (boot.hdr.version >= 0x0200) {
+		if (boot.hdr.version >= 0x0202) {
+			boot.hdr.cmd_line_ptr =
+				(BOOT_LOADER_SELECTOR << 4) + cmdline_offset;
+		} else if (boot.hdr.version >= 0x0201) {
+			boot.hdr.heap_end_ptr = cmdline_offset - 0x0200;
+			boot.hdr.loadflags |= CAN_USE_HEAP;
+		}
+
 	}
 
 	self->boot_selector	= BOOT_LOADER_SELECTOR;
