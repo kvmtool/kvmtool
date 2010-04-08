@@ -378,7 +378,36 @@ static inline uint32_t selector_to_base(uint16_t selector)
 	return (uint32_t)selector * 16;
 }
 
-void kvm__reset_vcpu(struct kvm *self)
+static void kvm__setup_fpu(struct kvm *self)
+{
+	self->fpu = (struct kvm_fpu) {
+		.fcw		= 0x37f,
+		.mxcsr		= 0x1f80,
+	};
+
+	if (ioctl(self->vcpu_fd, KVM_SET_FPU, &self->fpu) < 0)
+		die_perror("KVM_SET_FPU failed");
+}
+
+static void kvm__setup_regs(struct kvm *self)
+{
+	self->regs = (struct kvm_regs) {
+		/* We start the guest in 16-bit real mode  */
+		.rflags		= 0x0000000000000002ULL,
+
+		.rip		= self->boot_ip,
+		.rsp		= self->boot_sp,
+		.rbp		= self->boot_sp,
+	};
+
+	if (self->regs.rip > USHRT_MAX)
+		die("ip 0x%" PRIx64 " is too high for real mode", (uint64_t) self->regs.rip);
+
+	if (ioctl(self->vcpu_fd, KVM_SET_REGS, &self->regs) < 0)
+		die_perror("KVM_SET_REGS failed");
+}
+
+static void kvm__setup_sregs(struct kvm *self)
 {
 	self->sregs = (struct kvm_sregs) {
 		.cr0		= 0x60000010ULL,
@@ -456,30 +485,15 @@ void kvm__reset_vcpu(struct kvm *self)
 
 	if (ioctl(self->vcpu_fd, KVM_SET_SREGS, &self->sregs) < 0)
 		die_perror("KVM_SET_SREGS failed");
+}
 
-	self->regs = (struct kvm_regs) {
-		/* We start the guest in 16-bit real mode  */
-		.rflags		= 0x0000000000000002ULL,
+void kvm__reset_vcpu(struct kvm *self)
+{
+	kvm__setup_sregs(self);
 
-		.rip		= self->boot_ip,
-		.rsp		= self->boot_sp,
-		.rbp		= self->boot_sp,
-	};
+	kvm__setup_regs(self);
 
-	if (self->regs.rip > USHRT_MAX)
-		die("ip 0x%" PRIx64 " is too high for real mode", (uint64_t) self->regs.rip);
-
-	if (ioctl(self->vcpu_fd, KVM_SET_REGS, &self->regs) < 0)
-		die_perror("KVM_SET_REGS failed");
-
-	self->fpu = (struct kvm_fpu) {
-		.fcw		= 0x37f,
-		.mxcsr		= 0x1f80,
-	};
-
-	if (ioctl(self->vcpu_fd, KVM_SET_FPU, &self->fpu) < 0)
-		die_perror("KVM_SET_FPU failed");
-
+	kvm__setup_fpu(self);
 }
 
 void kvm__run(struct kvm *self)
