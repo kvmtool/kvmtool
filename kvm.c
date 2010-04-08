@@ -548,6 +548,12 @@ void kvm__run(struct kvm *self)
 		die_perror("KVM_RUN failed");
 }
 
+static void print_dtable(const char *name, struct kvm_dtable *dtable)
+{
+	printf(" %s                 %016" PRIx64 "  %08" PRIx16 "\n",
+		name, (uint64_t) dtable->base, (uint16_t) dtable->limit);
+}
+
 static void print_segment(const char *name, struct kvm_segment *seg)
 {
 	printf(" %s       %04" PRIx16 "      %016" PRIx64 "  %08" PRIx32 "  %02" PRIx8 "    %x %x   %x  %x %x %x %x\n",
@@ -608,6 +614,8 @@ void kvm__show_registers(struct kvm *self)
 	print_segment("gs ", &sregs.gs);
 	print_segment("tr ", &sregs.tr);
 	print_segment("ldt", &sregs.ldt);
+	print_dtable("gdt", &sregs.gdt);
+	print_dtable("idt", &sregs.idt);
 	printf(" [ efer: %016lx  apic base: %016lx  nmi: %s ]\n", (uint64_t) sregs.efer, (uint64_t) sregs.apic_base,
 		(self->nmi_disabled ? "disabled" : "enabled"));
 	printf("Interrupt bitmap:\n");
