@@ -249,11 +249,6 @@ static bool load_bzimage(struct kvm *self, int fd, const char *kernel_cmdline)
 	while ((nr = read(fd, p, 65536)) > 0)
 		p += nr;
 
-	if (boot.hdr.version < 0x0202 || !(boot.hdr.loadflags & 0x01))
-		cmdline_offset = (0x9ff0 - cmdline_size) & ~15;
-	else
-		cmdline_offset = 0x10000;
-
 	if (boot.hdr.version < 0x0206)
 		boot.hdr.cmdline_size = 256;
 
@@ -261,10 +256,6 @@ static bool load_bzimage(struct kvm *self, int fd, const char *kernel_cmdline)
 		cmdline_size = strlen(kernel_cmdline) + 1;
 		if (cmdline_size > boot.hdr.cmdline_size)
 			cmdline_size = boot.hdr.cmdline_size;
-
-		p = guest_flat_to_host(self, cmdline_offset);
-		memset(p, 0, cmdline_size);
-		strcpy(p, kernel_cmdline);
 	} else
 		cmdline_size = 0;
 		
@@ -273,6 +264,12 @@ static bool load_bzimage(struct kvm *self, int fd, const char *kernel_cmdline)
 		cmdline_offset = (0x9ff0 - cmdline_size) & ~15;
 	else
 		cmdline_offset = 0x10000;
+
+	if (kernel_cmdline) {
+		p = guest_flat_to_host(self, cmdline_offset);
+		memset(p, 0, cmdline_size);
+		strcpy(p, kernel_cmdline);
+	}
 
 	if (boot.hdr.version >= 0x0200) {
 		if (boot.hdr.version >= 0x0202) {
