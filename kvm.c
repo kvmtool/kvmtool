@@ -378,6 +378,53 @@ static inline uint32_t selector_to_base(uint16_t selector)
 	return (uint32_t)selector * 16;
 }
 
+static struct kvm_msrs *kvm_msrs__new(size_t nmsrs)
+{
+	struct kvm_msrs *self = calloc(1, sizeof(*self) + (sizeof(struct kvm_msr_entry) * nmsrs));
+
+	if (!self)
+		die("out of memory");
+
+	return self;
+}
+
+#define MSR_IA32_TIME_STAMP_COUNTER	0x10
+
+#define MSR_IA32_SYSENTER_CS		0x174
+#define MSR_IA32_SYSENTER_ESP		0x175
+#define MSR_IA32_SYSENTER_EIP		0x176
+
+#define MSR_IA32_STAR			0xc0000081
+#define MSR_IA32_LSTAR			0xc0000082
+#define MSR_IA32_CSTAR			0xc0000083
+#define MSR_IA32_FMASK			0xc0000084
+#define MSR_IA32_KERNEL_GS_BASE		0xc0000102
+
+#define KVM_MSR_ENTRY(_index, _data)	\
+	(struct kvm_msr_entry) { .index = _index, .data = _data }
+
+static void kvm__setup_msrs(struct kvm *self)
+{
+	unsigned long ndx = 0;
+
+	self->msrs = kvm_msrs__new(100);
+
+	self->msrs->entries[ndx++] = KVM_MSR_ENTRY(MSR_IA32_SYSENTER_CS,	0x0);
+	self->msrs->entries[ndx++] = KVM_MSR_ENTRY(MSR_IA32_SYSENTER_ESP,	0x0);
+	self->msrs->entries[ndx++] = KVM_MSR_ENTRY(MSR_IA32_SYSENTER_EIP,	0x0);
+	self->msrs->entries[ndx++] = KVM_MSR_ENTRY(MSR_IA32_STAR,		0x0);
+	self->msrs->entries[ndx++] = KVM_MSR_ENTRY(MSR_IA32_CSTAR,		0x0);
+	self->msrs->entries[ndx++] = KVM_MSR_ENTRY(MSR_IA32_KERNEL_GS_BASE,	0x0);
+	self->msrs->entries[ndx++] = KVM_MSR_ENTRY(MSR_IA32_FMASK,		0x0);
+	self->msrs->entries[ndx++] = KVM_MSR_ENTRY(MSR_IA32_LSTAR,		0x0);
+	self->msrs->entries[ndx++] = KVM_MSR_ENTRY(MSR_IA32_TIME_STAMP_COUNTER,	0x0);
+
+	self->msrs->nmsrs	= ndx;
+
+	if (ioctl(self->vcpu_fd, KVM_SET_MSRS, self->msrs) < 0)
+		die_perror("KVM_SET_MSRS failed");
+}
+
 static void kvm__setup_fpu(struct kvm *self)
 {
 	self->fpu = (struct kvm_fpu) {
@@ -494,6 +541,8 @@ void kvm__reset_vcpu(struct kvm *self)
 	kvm__setup_regs(self);
 
 	kvm__setup_fpu(self);
+
+	kvm__setup_msrs(self);
 }
 
 void kvm__run(struct kvm *self)

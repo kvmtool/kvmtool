@@ -26,6 +26,7 @@ struct kvm {
 	struct kvm_regs		regs;
 	struct kvm_sregs	sregs;
 	struct kvm_fpu		fpu;
+	struct kvm_msrs		*msrs;	/* dynamically allocated */
 
 	struct interrupt_table	interrupt_table;
 };
