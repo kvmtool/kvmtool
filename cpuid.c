@@ -84,7 +84,7 @@ void kvm__setup_cpuid(struct kvm *self)
 
 	highest		= cpuid_highest_func();
 
-	for (function = 0; function < highest; function++) {
+	for (function = 0; function <= highest; function++) {
 		/*
 		 * NOTE NOTE NOTE! Functions 0x0b and 0x0d seem to need special
 		 * treatment as per qemu sources but we treat them as regular
@@ -176,7 +176,7 @@ void kvm__setup_cpuid(struct kvm *self)
 
 	highest_ext	= cpuid_highest_ext_func();
 
-	for (function = CPUID_GET_HIGHEST_EXT_FUNCTION; function < highest_ext; function++) {
+	for (function = CPUID_GET_HIGHEST_EXT_FUNCTION; function <= highest_ext; function++) {
 		struct cpuid_regs regs;
 
 		regs	= (struct cpuid_regs) {
@@ -192,17 +192,6 @@ void kvm__setup_cpuid(struct kvm *self)
 			.ebx		= regs.ebx,
 			.ecx		= regs.ecx,
 			.edx		= regs.edx,
-		};
-	}
-
-	/*
-	 * We need to set up MAXPHYADDR; otherwise switching to long mode in the
-	 * guest will triple fault.
-	 */
-	if (highest_ext <= 0x80000008) {
-		kvm_cpuid->entries[ndx++]	= (struct kvm_cpuid_entry2) {
-			.function	= 0x80000008,
-			.eax		= 0x00003028,	/* 64-bit CPU */
 		};
 	}
 
