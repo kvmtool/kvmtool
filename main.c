@@ -52,9 +52,11 @@ int main(int argc, char *argv[])
 
 	kvm__setup_cpuid(kvm);
 
-	strcpy(real_cmdline, "notsc earlyprintk=serial,keep ");
-	if (kernel_cmdline)
-		strcat(real_cmdline, kernel_cmdline);
+	strcpy(real_cmdline, "notsc nolapic nosmp noacpi earlyprintk=serial,keep");
+	if (kernel_cmdline) {
+		strncat(real_cmdline, kernel_cmdline, sizeof(real_cmdline));
+		real_cmdline[sizeof(real_cmdline)-1] = '\0';
+	}
 
 	if (!kvm__load_kernel(kvm, kernel_filename, real_cmdline))
 		die("unable to load kernel %s", kernel_filename);
