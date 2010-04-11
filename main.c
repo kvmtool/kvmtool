@@ -1,5 +1,6 @@
 #include "kvm/kvm.h"
 
+#include "kvm/early_printk.h"
 #include "kvm/util.h"
 
 #include <inttypes.h>
@@ -57,6 +58,8 @@ int main(int argc, char *argv[])
 
 	if (single_step)
 		kvm__enable_singlestep(kvm);
+
+	early_printk__init();
 
 	for (;;) {
 		kvm__run(kvm);

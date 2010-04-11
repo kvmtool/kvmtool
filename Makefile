@@ -10,6 +10,7 @@ export E Q
 PROGRAM	= kvm
 
 OBJS	+= cpuid.o
+OBJS	+= early_printk.o
 OBJS	+= interrupt.o
 OBJS	+= ioport.o
 OBJS	+= kvm.o
