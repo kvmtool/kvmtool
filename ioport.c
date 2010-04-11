@@ -50,7 +50,9 @@ static struct ioport_operations dummy_write_only_ioport_ops = {
 };
 
 static struct ioport_operations *ioport_ops[USHRT_MAX] = {
+	/* PORT 0070-007F - CMOS RAM/RTC (REAL TIME CLOCK) */
 	[0x70]		= &cmos_ram_rtc_ops,
+	[0x71]		= &dummy_read_write_ioport_ops,
 
 	/* 0x0020 - 0x003F - 8259A PIC 1 */
 	[0x20]		= &dummy_read_write_ioport_ops,
