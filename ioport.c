@@ -57,8 +57,10 @@ static struct ioport_operations *ioport_ops[USHRT_MAX] = {
 	[0x21]		= &dummy_read_write_ioport_ops,
 
 	/* PORT 0040-005F - PIT - PROGRAMMABLE INTERVAL TIMER (8253, 8254) */
-	[0x0040]	= &dummy_read_write_ioport_ops,
-	[0x0043]	= &dummy_read_write_ioport_ops,
+	[0x0040]	= &dummy_read_write_ioport_ops,	/* Ch 0 */
+	[0x0041]	= &dummy_read_write_ioport_ops,	/* Ch 1 */
+	[0x0042]	= &dummy_read_write_ioport_ops,	/* Ch 2 */
+	[0x0043]	= &dummy_read_write_ioport_ops,	/* Mod/Cmd */
 
 	/* PORT 0060-006F - KEYBOARD CONTROLLER 804x (8041, 8042) (or PPI (8255) on PC,XT) */
 	[0x0060]	= &dummy_read_write_ioport_ops,
