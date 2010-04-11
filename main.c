@@ -21,6 +21,7 @@ int main(int argc, char *argv[])
 	const char *kernel_filename = NULL;
 	const char *kernel_cmdline = NULL;
 	bool single_step = false;
+	char real_cmdline[128];
 	struct kvm *kvm;
 	int i;
 
@@ -51,7 +52,11 @@ int main(int argc, char *argv[])
 
 	kvm__setup_cpuid(kvm);
 
-	if (!kvm__load_kernel(kvm, kernel_filename, kernel_cmdline))
+	strcpy(real_cmdline, "notsc earlyprintk=serial,keep ");
+	if (kernel_cmdline)
+		strcat(real_cmdline, kernel_cmdline);
+
+	if (!kvm__load_kernel(kvm, kernel_filename, real_cmdline))
 		die("unable to load kernel %s", kernel_filename);
 
 	kvm__reset_vcpu(kvm);
