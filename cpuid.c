@@ -195,6 +195,17 @@ void kvm__setup_cpuid(struct kvm *self)
 		};
 	}
 
+	/*
+	 * We need to set up MAXPHYADDR; otherwise switching to long mode in the
+	 * guest will triple fault.
+	 */
+	if (highest_ext <= 0x80000008) {
+		kvm_cpuid->entries[ndx++]	= (struct kvm_cpuid_entry2) {
+			.function	= 0x80000008,
+			.eax		= 0x00003028,	/* 64-bit CPU */
+		};
+	}
+
 	assert(ndx < MAX_KVM_CPUID_ENTRIES);
 
 	kvm_cpuid->nent		= ndx;
