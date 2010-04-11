@@ -62,6 +62,9 @@ static struct ioport_operations *ioport_ops[USHRT_MAX] = {
 	[0xA0]		= &dummy_read_write_ioport_ops,
 	[0xA1]		= &dummy_read_write_ioport_ops,
 
+	/* PORT 00ED - DUMMY PORT FOR DELAY??? */
+	[0xED]		= &dummy_write_only_ioport_ops,
+
 	/* 0x00F0 - 0x00FF - Math co-processor */
 	[0xF0]		= &dummy_write_only_ioport_ops,
 	[0xF1]		= &dummy_write_only_ioport_ops,
