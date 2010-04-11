@@ -30,10 +30,20 @@ static struct ioport_operations cmos_ram_rtc_ops = {
 	.io_out		= cmos_ram_rtc_io_out,
 };
 
+static bool dummy_io_in(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
+{
+	return true;
+}
+
 static bool dummy_io_out(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
 {
 	return true;
 }
+
+static struct ioport_operations dummy_read_write_ioport_ops = {
+	.io_in		= dummy_io_in,
+	.io_out		= dummy_io_out,
+};
 
 static struct ioport_operations dummy_write_only_ioport_ops = {
 	.io_out		= dummy_io_out,
@@ -51,6 +61,11 @@ static struct ioport_operations *ioport_ops[USHRT_MAX] = {
 	/* 0x00F0 - 0x00FF - Math co-processor */
 	[0xF0]		= &dummy_write_only_ioport_ops,
 	[0xF1]		= &dummy_write_only_ioport_ops,
+
+	/* PORT 0CF8-0CFF - PCI Configuration Mechanism 1 - Configuration Registers */
+	[0x0CF8]	= &dummy_write_only_ioport_ops,
+	[0x0CFC]	= &dummy_read_write_ioport_ops,
+	[0x0CFE]	= &dummy_read_write_ioport_ops,
 };
 
 static const char *to_direction(int direction)
