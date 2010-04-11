@@ -50,6 +50,11 @@ const char *kvm_exit_reasons[] = {
 	DEFINE_KVM_EXIT_REASON(KVM_EXIT_INTERNAL_ERROR),
 };
 
+static inline bool host_ptr_in_ram(struct kvm *self, void *p)
+{
+	return self->ram_start <= p && p < (self->ram_start + self->ram_size);
+}
+
 static inline uint32_t segment_to_flat(uint16_t selector, uint16_t offset)
 {
 	return ((uint32_t)selector << 4) + (uint32_t) offset;
@@ -650,6 +655,9 @@ void kvm__show_code(struct kvm *self)
 	printf("Code: ");
 
 	for (i = 0; i < code_len; i++, ip++) {
+		if (!host_ptr_in_ram(self, ip))
+			break;
+
 		c = *ip;
 
 		if (ip == guest_flat_to_host(self, ip_to_flat(self, self->regs.rip)))
@@ -678,9 +686,20 @@ void kvm__show_page_tables(struct kvm *self)
 		die("KVM_GET_SREGS failed");
 
 	pte4	= guest_flat_to_host(self, self->sregs.cr3);
+	if (!host_ptr_in_ram(self, pte4))
+		return;
+
 	pte3	= guest_flat_to_host(self, (*pte4 & ~0xfff));
+	if (!host_ptr_in_ram(self, pte3))
+		return;
+
 	pte2	= guest_flat_to_host(self, (*pte3 & ~0xfff));
+	if (!host_ptr_in_ram(self, pte2))
+		return;
+
 	pte1	= guest_flat_to_host(self, (*pte2 & ~0xfff));
+	if (!host_ptr_in_ram(self, pte1))
+		return;
 
 	printf("Page Tables:\n");
 	if (*pte2 & (1 << 7))
@@ -700,8 +719,12 @@ void kvm__dump_mem(struct kvm *self, unsigned long addr, unsigned long size)
 
 	p = guest_flat_to_host(self, addr);
 
-	for (n = 0; n < size; n+=8)
+	for (n = 0; n < size; n+=8) {
+		if (!host_ptr_in_ram(self, p + n))
+			break;
+
 		printf("  0x%08lx: %02x %02x %02x %02x  %02x %02x %02x %02x\n",
 			addr + n, p[n + 0], p[n + 1], p[n + 2], p[n + 3],
 				  p[n + 4], p[n + 5], p[n + 6], p[n + 7]);
+	}
 }
