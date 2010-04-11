@@ -58,6 +58,10 @@ static struct ioport_operations *ioport_ops[USHRT_MAX] = {
 	[0x20]		= &dummy_read_write_ioport_ops,
 	[0x21]		= &dummy_read_write_ioport_ops,
 
+	/* PORT 0040-005F - PIT - PROGRAMMABLE INTERVAL TIMER (8253, 8254) */
+	[0x0040]	= &dummy_read_write_ioport_ops,
+	[0x0043]	= &dummy_read_write_ioport_ops,
+
 	/* 0x00A0 - 0x00AF - 8259A PIC 2 */
 	[0xA0]		= &dummy_read_write_ioport_ops,
 	[0xA1]		= &dummy_read_write_ioport_ops,
