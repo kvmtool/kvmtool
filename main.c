@@ -80,6 +80,20 @@ int main(int argc, char *argv[])
 				goto exit_kvm;
 			break;
 		}
+		case KVM_EXIT_MMIO: {
+			bool ret;
+
+			ret = kvm__emulate_mmio(kvm,
+					kvm->kvm_run->mmio.phys_addr,
+					kvm->kvm_run->mmio.data,
+					kvm->kvm_run->mmio.len,
+					kvm->kvm_run->mmio.is_write);
+
+			if (!ret)
+				goto exit_kvm;
+			break;
+
+		}
 		default:
 			goto exit_kvm;
 		}

@@ -14,9 +14,10 @@ OBJS	+= interrupt.o
 OBJS	+= ioport.o
 OBJS	+= kvm.o
 OBJS	+= main.o
+OBJS	+= mmio.o
 OBJS	+= util.o
-OBJS	+= bios/c-intfake.o
 OBJS	+= bios/c-int10.o
+OBJS	+= bios/c-intfake.o
 
 CFLAGS	+= $(CPPFLAGS) -Iinclude -g
 
