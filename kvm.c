@@ -176,6 +176,9 @@ void kvm__enable_singlestep(struct kvm *self)
 #define BOOT_LOADER_SELECTOR	0x1000
 #define BOOT_LOADER_IP		0x0000
 #define BOOT_LOADER_SP		0x8000
+#define BOOT_CMDLINE_OFFSET	0x20000
+
+#define BOOT_PROTOCOL_REQUIRED	0x202
 
 static int load_flat_binary(struct kvm *self, int fd)
 {
@@ -213,7 +216,7 @@ static bool load_bzimage(struct kvm *self, int fd, const char *kernel_cmdline)
 	struct boot_params boot;
 	unsigned long setup_sects;
 	unsigned int intr_addr;
-	size_t cmdline_size, cmdline_offset;
+	size_t cmdline_size;
 	ssize_t setup_size;
 	void *p;
 	int nr;
@@ -231,7 +234,7 @@ static bool load_bzimage(struct kvm *self, int fd, const char *kernel_cmdline)
         if (memcmp(&boot.hdr.header, BZIMAGE_MAGIC, strlen(BZIMAGE_MAGIC)) != 0)
 		return false;
 
-	if (boot.hdr.version < 0x0200) {
+	if (boot.hdr.version < BOOT_PROTOCOL_REQUIRED) {
 		warning("Too old kernel");
 		return false;
 	}
@@ -254,37 +257,17 @@ static bool load_bzimage(struct kvm *self, int fd, const char *kernel_cmdline)
 	while ((nr = read(fd, p, 65536)) > 0)
 		p += nr;
 
-	if (boot.hdr.version < 0x0206)
-		boot.hdr.cmdline_size = 256;
-
 	if (kernel_cmdline) {
 		cmdline_size = strlen(kernel_cmdline) + 1;
 		if (cmdline_size > boot.hdr.cmdline_size)
 			cmdline_size = boot.hdr.cmdline_size;
-	} else
-		cmdline_size = 0;
-		
 
-	if (boot.hdr.version < 0x0202 || !(boot.hdr.loadflags & 0x01))
-		cmdline_offset = (0x9ff0 - cmdline_size) & ~15;
-	else
-		cmdline_offset = 0x10000;
+		p = guest_flat_to_host(self, BOOT_CMDLINE_OFFSET);
+		memset(p, 0, boot.hdr.cmdline_size);
+		memcpy(p, kernel_cmdline, cmdline_size - 1);
 
-	if (kernel_cmdline) {
-		p = guest_flat_to_host(self, cmdline_offset);
-		memset(p, 0, cmdline_size);
-		strcpy(p, kernel_cmdline);
-	}
-
-	if (boot.hdr.version >= 0x0200) {
-		if (boot.hdr.version >= 0x0202) {
-			boot.hdr.cmd_line_ptr =
-				(BOOT_LOADER_SELECTOR << 4) + cmdline_offset;
-		} else if (boot.hdr.version >= 0x0201) {
-			boot.hdr.heap_end_ptr = cmdline_offset - 0x0200;
-			boot.hdr.loadflags |= CAN_USE_HEAP;
-		}
-
+		p = guest_real_to_host(self, BOOT_LOADER_SELECTOR, 0x228);
+		*(unsigned long *)p = BOOT_CMDLINE_OFFSET;
 	}
 
 	self->boot_selector	= BOOT_LOADER_SELECTOR;
