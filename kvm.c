@@ -351,6 +351,11 @@ static inline uint64_t ip_flat_to_real(struct kvm *self, uint64_t ip)
 	return ip - (cs << 4);
 }
 
+static inline bool is_in_protected_mode(struct kvm *self)
+{
+	return self->sregs.cr0 & 0x01;
+}
+
 static inline uint64_t ip_to_flat(struct kvm *self, uint64_t ip)
 {
 	uint64_t cs;
@@ -359,7 +364,7 @@ static inline uint64_t ip_to_flat(struct kvm *self, uint64_t ip)
 	 * NOTE! We should take code segment base address into account here.
 	 * Luckily it's usually zero because Linux uses flat memory model.
 	 */
-	if (self->sregs.cr0 & 0x01)
+	if (is_in_protected_mode(self))
 		return ip;
 
 	cs = self->sregs.cs.selector;
@@ -657,6 +662,31 @@ void kvm__show_code(struct kvm *self)
 
 	printf("Stack:\n");
 	kvm__dump_mem(self, self->regs.rsp, 32);
+}
+
+void kvm__show_page_tables(struct kvm *self)
+{
+	uint64_t *pte1;
+	uint64_t *pte2;
+	uint64_t *pte3;
+	uint64_t *pte4;
+
+	if (!is_in_protected_mode(self))
+		return;
+
+	if (ioctl(self->vcpu_fd, KVM_GET_SREGS, &self->sregs) < 0)
+		die("KVM_GET_SREGS failed");
+
+	pte4	= guest_flat_to_host(self, self->sregs.cr3);
+	pte3	= guest_flat_to_host(self, (*pte4 & ~0xfff));
+	pte2	= guest_flat_to_host(self, (*pte3 & ~0xfff));
+	pte1	= guest_flat_to_host(self, (*pte2 & ~0xfff));
+
+	printf("Page Tables:\n");
+	if (*pte2 & (1 << 7))
+		printf(" pte4: %016lx   pte3: %016lx   pte2: %016lx\n", *pte4, *pte3, *pte2);
+	else
+		printf(" pte4: %016lx   pte3: %016lx   pte2: %016lx   pte1: %016lx\n", *pte4, *pte3, *pte2, *pte1);
 }
 
 void kvm__dump_mem(struct kvm *self, unsigned long addr, unsigned long size)
