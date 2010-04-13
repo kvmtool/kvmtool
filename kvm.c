@@ -286,16 +286,16 @@ static bool load_bzimage(struct kvm *self, int fd, const char *kernel_cmdline)
 	 */
 	intr_addr = BIOS_INTR_NEXT(BDA_START + 0, 16);
 	p = guest_flat_to_host(self, intr_addr);
-	memcpy(p, intfake, intfake_size);
+	memcpy(p, intfake, intfake_end - intfake);
 	intr = (struct real_intr_desc) {
 		.segment	= REAL_SEGMENT(intr_addr),
 		.offset		= 0,
 	};
 	interrupt_table__setup(&self->interrupt_table, &intr);
 
-	intr_addr = BIOS_INTR_NEXT(BDA_START + intfake_size, 16);
+	intr_addr = BIOS_INTR_NEXT(BDA_START + (intfake_end - intfake), 16);
 	p = guest_flat_to_host(self, intr_addr);
-	memcpy(p, int10, int10_size);
+	memcpy(p, int10, int10_end - int10);
 	intr = (struct real_intr_desc) {
 		.segment	= REAL_SEGMENT(intr_addr),
 		.offset		= 0,

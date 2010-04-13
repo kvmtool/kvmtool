@@ -7,6 +7,10 @@
 	.globl name;	\
 	name:
 
+#define GLOBAL(name)	\
+	.globl name;	\
+	name:
+
 #define ENTRY_END(name)
 
 /*

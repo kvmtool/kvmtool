@@ -17,8 +17,8 @@ OBJS	+= kvm.o
 OBJS	+= main.o
 OBJS	+= mmio.o
 OBJS	+= util.o
-OBJS	+= bios/c-int10.o
-OBJS	+= bios/c-intfake.o
+OBJS	+= bios/intfake.o
+OBJS	+= bios/int10.o
 
 CFLAGS	+= $(CPPFLAGS) -Iinclude -g
 
@@ -55,44 +55,24 @@ $(OBJS):
 #
 # BIOS assembly weirdness
 #
-BIOS=-D__ASSEMBLY__ -m32 -march=i386 -Os -fno-strict-aliasing -fomit-frame-pointer
-
-bios/c-intfake.o: bios/c-intfake.c
+bios/intfake.o: bios/intfake.S bios/intfake-real.S
 	$(E) "  CC      " $@
-	$(Q) $(CC) $(CFLAGS) -c bios/c-intfake.c -o bios/c-intfake.o
-
-bios/c-intfake.c: bios/intfake.bin
-	$(E) "  BIN2C   " $@
-	$(Q) python bios/bin2c.py -i bios/intfake.bin -o bios/c-intfake.c -n intfake
-
-bios/intfake.o: bios/intfake.S
-	$(E) "  CC      " $@
-	$(Q) $(CC) $(CFLAGS) $(BIOS) -c -o bios/intfake.o bios/intfake.S
-
-bios/intfake.bin: bios/intfake.o
+	$(Q) $(CC) $(CFLAGS) -c bios/intfake-real.S -o bios/intfake-real.o
 	$(E) "  OBJCOPY " $@
-	$(Q) objcopy -O binary -j .text bios/intfake.o bios/intfake.bin
+	$(Q) objcopy -O binary -j .text bios/intfake-real.o bios/intfake-real.bin
+	$(Q) $(CC) $(CFLAGS) -c bios/intfake.S -o bios/intfake.o
 
-bios/c-int10.o: bios/c-int10.c
+bios/int10.o: bios/int10.S bios/int10-real.S
 	$(E) "  CC      " $@
-	$(Q) $(CC) $(CFLAGS) -c bios/c-int10.c -o bios/c-int10.o
-
-bios/c-int10.c: bios/int10.bin
-	$(E) "  BIN2C   " $@
-	$(Q) python bios/bin2c.py -i bios/int10.bin -o bios/c-int10.c -n int10
-
-bios/int10.o: bios/int10.S
-	$(E) "  CC      " $@
-	$(Q) $(CC) $(CFLAGS)  $(BIOS) -c -o bios/int10.o bios/int10.S
-
-bios/int10.bin: bios/int10.o
+	$(Q) $(CC) $(CFLAGS) -c bios/int10-real.S -o bios/int10-real.o
 	$(E) "  OBJCOPY " $@
-	$(Q) objcopy -O binary -j .text bios/int10.o bios/int10.bin
+	$(Q) objcopy -O binary -j .text bios/int10-real.o bios/int10-real.bin
+	$(Q) $(CC) $(CFLAGS) -c bios/int10.S -o bios/int10.o
+
 
 clean:
 	$(E) "  CLEAN"
 	$(Q) rm -f bios/*.bin
 	$(Q) rm -f bios/*.o
-	$(Q) rm -f bios/*.c
 	$(Q) rm -f $(OBJS) $(PROGRAM)
 .PHONY: clean

@@ -3,6 +3,7 @@
 
 #include <inttypes.h>
 #include "kvm/bios.h"
+#include "kvm/bios-export.h"
 
 struct real_intr_desc {
 	uint16_t offset;
@@ -20,13 +21,5 @@ struct interrupt_table {
 void interrupt_table__copy(struct interrupt_table *self, void *dst, unsigned int size);
 void interrupt_table__setup(struct interrupt_table *self, struct real_intr_desc *entry);
 void interrupt_table__set(struct interrupt_table *self, struct real_intr_desc *entry, unsigned int num);
-
-/*
- * BIOS stubs
- */
-extern unsigned char intfake[];
-extern unsigned int intfake_size;
-extern unsigned char int10[];
-extern unsigned int int10_size;
 
 #endif /* KVM__INTERRUPT_H */
