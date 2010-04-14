@@ -20,7 +20,15 @@ OBJS	+= util.o
 OBJS	+= bios/intfake.o
 OBJS	+= bios/int10.o
 
-CFLAGS	+= $(CPPFLAGS) -Iinclude -g
+uname_M      := $(shell uname -m | sed -e s/i.86/i386/)
+ifeq ($(uname_M),i386)
+DEFINES      += -D__x86_32__
+ifeq ($(uname_M),x86_64)
+DEFINES      += -D__x86_64__
+endif
+endif
+
+CFLAGS	+= $(CPPFLAGS) $(DEFINES) -Iinclude -g
 
 WARNINGS += -Wall
 WARNINGS += -Wcast-align
