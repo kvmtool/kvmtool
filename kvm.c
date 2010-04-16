@@ -267,7 +267,7 @@ static bool load_bzimage(struct kvm *self, int fd, const char *kernel_cmdline)
 		memcpy(p, kernel_cmdline, cmdline_size - 1);
 
 		p = guest_real_to_host(self, BOOT_LOADER_SELECTOR, 0x228);
-		*(unsigned long *)p = BOOT_CMDLINE_OFFSET;
+		*(uint32_t *)p = BOOT_CMDLINE_OFFSET;
 	}
 
 	self->boot_selector	= BOOT_LOADER_SELECTOR;
