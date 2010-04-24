@@ -15,7 +15,8 @@ static bool early_serial_txr_out(struct kvm *self, uint16_t port, void *data, in
 {
 	char *p = data;
 
-	printf("%c", *p);
+	fprintf(stderr, "%c", *p);
+	fflush(stderr);
 
 	return true;
 }
