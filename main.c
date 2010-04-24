@@ -4,6 +4,7 @@
 #include "kvm/util.h"
 
 #include <inttypes.h>
+#include <signal.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,14 +17,28 @@ static void usage(char *argv[])
 	exit(1);
 }
 
+static struct kvm *kvm;
+
+static void handle_sigquit(int sig)
+{
+	kvm__show_registers(kvm);
+	kvm__show_code(kvm);
+	kvm__show_page_tables(kvm);
+
+	kvm__delete(kvm);
+
+	exit(1);
+}
+
 int main(int argc, char *argv[])
 {
 	const char *kernel_filename = NULL;
 	const char *kernel_cmdline = NULL;
 	bool single_step = false;
 	char real_cmdline[128];
-	struct kvm *kvm;
 	int i;
+
+	signal(SIGQUIT, handle_sigquit);
 
 	for (i = 1; i < argc; i++) {
 		if (!strncmp("--kernel=", argv[i], 9)) {
