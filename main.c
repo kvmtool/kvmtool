@@ -127,6 +127,9 @@ int main(int argc, char *argv[])
 exit_kvm:
 	fprintf(stderr, "KVM exit reason: %" PRIu32 " (\"%s\")\n",
 		kvm->kvm_run->exit_reason, kvm_exit_reasons[kvm->kvm_run->exit_reason]);
+	if (kvm->kvm_run->exit_reason == KVM_EXIT_UNKNOWN)
+		fprintf(stderr, "KVM exit code: 0x%016llx\n",
+			kvm->kvm_run->hw.hardware_exit_reason);
 
 	kvm__show_registers(kvm);
 	kvm__show_code(kvm);
