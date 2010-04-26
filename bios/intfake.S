@@ -2,7 +2,7 @@
 #include <kvm/assembly.h>
 
 	.org 0
-#ifdef __x86_64__
+#ifdef CONFIG_X86_64
 	.code64
 #else
 	.code32
