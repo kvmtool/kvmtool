@@ -630,12 +630,13 @@ void kvm__show_registers(struct kvm *self)
 	print_segment("ldt", &sregs.ldt);
 	print_dtable("gdt", &sregs.gdt);
 	print_dtable("idt", &sregs.idt);
-	printf(" [ efer: %016lx  apic base: %016lx  nmi: %s ]\n", (uint64_t) sregs.efer, (uint64_t) sregs.apic_base,
+	printf(" [ efer: %016" PRIx64 "  apic base: %016" PRIx64 "  nmi: %s ]\n",
+		(uint64_t) sregs.efer, (uint64_t) sregs.apic_base,
 		(self->nmi_disabled ? "disabled" : "enabled"));
 	printf("Interrupt bitmap:\n");
 	printf(" ");
 	for (i = 0; i < (KVM_NR_INTERRUPTS + 63) / 64; i++)
-		printf("%016lx ", (uint64_t) sregs.interrupt_bitmap[i]);
+		printf("%016" PRIx64 " ", (uint64_t) sregs.interrupt_bitmap[i]);
 	printf("\n");
 }
 
@@ -707,9 +708,13 @@ void kvm__show_page_tables(struct kvm *self)
 
 	printf("Page Tables:\n");
 	if (*pte2 & (1 << 7))
-		printf(" pte4: %016lx   pte3: %016lx   pte2: %016lx\n", *pte4, *pte3, *pte2);
+		printf(" pte4: %016" PRIx64 "   pte3: %016" PRIx64
+			"   pte2: %016" PRIx64 "\n",
+			*pte4, *pte3, *pte2);
 	else
-		printf(" pte4: %016lx   pte3: %016lx   pte2: %016lx   pte1: %016lx\n", *pte4, *pte3, *pte2, *pte1);
+		printf(" pte4: %016" PRIx64 "   pte3: %016" PRIx64 "   pte2: %016"
+			PRIx64 "   pte1: %016" PRIx64 "\n",
+			*pte4, *pte3, *pte2, *pte1);
 }
 
 void kvm__dump_mem(struct kvm *self, unsigned long addr, unsigned long size)
