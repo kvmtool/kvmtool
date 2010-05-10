@@ -69,7 +69,7 @@ int main(int argc, char *argv[])
 
 	strcpy(real_cmdline, "notsc nolapic nosmp noacpi earlyprintk=serial,keep");
 	if (kernel_cmdline) {
-		strncat(real_cmdline, kernel_cmdline, sizeof(real_cmdline));
+		strlcat(real_cmdline, kernel_cmdline, sizeof(real_cmdline));
 		real_cmdline[sizeof(real_cmdline)-1] = '\0';
 	}
 

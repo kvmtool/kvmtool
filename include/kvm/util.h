@@ -44,4 +44,6 @@ do {								\
 		__stringify(cnd) "\n");				\
 } while (0)
 
+extern size_t strlcat(char *dest, const char *src, size_t count);
+
 #endif /* KVM__UTIL_H */
