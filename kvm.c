@@ -137,7 +137,7 @@ struct kvm *kvm__init(void)
 		.userspace_addr		= (unsigned long) self->ram_start,
 	};
 
-	ret = ioctl(self->vm_fd, KVM_SET_USER_MEMORY_REGION, &mem, 1);
+	ret = ioctl(self->vm_fd, KVM_SET_USER_MEMORY_REGION, &mem);
 	if (ret < 0)
 		die_perror("KVM_SET_USER_MEMORY_REGION ioctl");
 
