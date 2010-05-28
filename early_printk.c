@@ -14,8 +14,12 @@ static int early_serial_base = 0x3f8;  /* ttyS0 */
 static bool early_serial_txr_out(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
 {
 	char *p = data;
+	uint32_t i;
 
-	fprintf(stderr, "%c", *p);
+	for (i = 0; i < count; i++) {
+		fprintf(stderr, "%c", *p);
+		p += size;
+	}
 	fflush(stderr);
 
 	return true;
