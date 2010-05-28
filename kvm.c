@@ -491,80 +491,11 @@ static void kvm__setup_regs(struct kvm *self)
 
 static void kvm__setup_sregs(struct kvm *self)
 {
-	self->sregs = (struct kvm_sregs) {
-		.cr0		= 0x60000010ULL,
-		.cs		= (struct kvm_segment) {
-			.selector	= self->boot_selector,
-			.base		= selector_to_base(self->boot_selector),
-			.limit		= 0xffffU,
-			.type		= 0x0bU,
-			.present	= 1,
-			.dpl		= 0x03,
-			.s		= 1,
-		},
-		.ss		= (struct kvm_segment) {
-			.selector	= self->boot_selector,
-			.base		= selector_to_base(self->boot_selector),
-			.limit		= 0xffffU,
-			.type		= 0x03U,
-			.present	= 1,
-			.dpl		= 0x03,
-			.s		= 1,
-		},
-		.ds		= (struct kvm_segment) {
-			.selector	= self->boot_selector,
-			.base		= selector_to_base(self->boot_selector),
-			.limit		= 0xffffU,
-			.type		= 0x03U,
-			.present	= 1,
-			.dpl		= 0x03,
-			.s		= 1,
-		},
-		.es		= (struct kvm_segment) {
-			.selector	= self->boot_selector,
-			.base		= selector_to_base(self->boot_selector),
-			.limit		= 0xffffU,
-			.type		= 0x03U,
-			.present	= 1,
-			.dpl		= 0x03,
-			.s		= 1,
-		},
-		.fs		= (struct kvm_segment) {
-			.selector	= self->boot_selector,
-			.base		= selector_to_base(self->boot_selector),
-			.limit		= 0xffffU,
-			.type		= 0x03U,
-			.present	= 1,
-			.dpl		= 0x03,
-			.s		= 1,
-		},
-		.gs		= (struct kvm_segment) {
-			.selector	= self->boot_selector,
-			.base		= selector_to_base(self->boot_selector),
-			.limit		= 0xffffU,
-			.type		= 0x03U,
-			.present	= 1,
-			.dpl		= 0x03,
-			.s		= 1,
-		},
-		.tr		= (struct kvm_segment) {
-			.limit		= 0xffffU,
-			.present	= 1,
-			.type		= 0x03U,
-		},
-		.ldt		= (struct kvm_segment) {
-			.limit		= 0xffffU,
-			.present	= 1,
-			.type		= 0x02U,
-		},
-		.gdt		= (struct kvm_dtable) {
-			.limit		= 0xffffU,
-		},
-		.idt		= (struct kvm_dtable) {
-			.limit		= 0xffffU,
-		},
-	};
 
+	if (ioctl(self->vcpu_fd, KVM_GET_SREGS, &self->sregs) < 0)
+		die_perror("KVM_GET_SREGS failed");
+	self->sregs.cs.selector = self->boot_selector;
+	self->sregs.cs.base = selector_to_base(self->boot_selector);
 	if (ioctl(self->vcpu_fd, KVM_SET_SREGS, &self->sregs) < 0)
 		die_perror("KVM_SET_SREGS failed");
 }
