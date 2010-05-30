@@ -50,6 +50,23 @@ const char *kvm_exit_reasons[] = {
 	DEFINE_KVM_EXIT_REASON(KVM_EXIT_INTERNAL_ERROR),
 };
 
+#define DEFINE_KVM_EXT(ext)		\
+	.name = #ext,			\
+	.code = ext
+
+struct {
+	const char *name;
+	int code;
+} kvm_req_ext[] = {
+	{ DEFINE_KVM_EXT(KVM_CAP_COALESCED_MMIO) },
+	{ DEFINE_KVM_EXT(KVM_CAP_SET_TSS_ADDR) },
+	{ DEFINE_KVM_EXT(KVM_CAP_PIT2) },
+	{ DEFINE_KVM_EXT(KVM_CAP_USER_MEMORY) },
+	{ DEFINE_KVM_EXT(KVM_CAP_IRQ_ROUTING) },
+	{ DEFINE_KVM_EXT(KVM_CAP_IRQCHIP) },
+	{ DEFINE_KVM_EXT(KVM_CAP_IRQ_INJECT_STATUS) },
+};
+
 static inline bool host_ptr_in_ram(struct kvm *self, void *p)
 {
 	return self->ram_start <= p && p < (self->ram_start + self->ram_size);
@@ -81,6 +98,21 @@ static bool kvm__supports_extension(struct kvm *self, unsigned int extension)
 		return false;
 
 	return ret;
+}
+
+static int kvm__check_extensions(struct kvm *self)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(kvm_req_ext); i++) {
+		if (!kvm__supports_extension(self, kvm_req_ext[i].code)) {
+			error("Unsuppored KVM extension detected: %s",
+				kvm_req_ext[i].name);
+			return (int)-i;
+		}
+	}
+
+	return 0;
 }
 
 static struct kvm *kvm__new(void)
@@ -122,25 +154,16 @@ struct kvm *kvm__init(void)
 	if (self->vm_fd < 0)
 		die_perror("KVM_CREATE_VM ioctl");
 
-	if (!kvm__supports_extension(self, KVM_CAP_COALESCED_MMIO))
-		die("KVM_CAP_COALESCED_MMIO is not supported");
-
-	if (!kvm__supports_extension(self, KVM_CAP_SET_TSS_ADDR))
-		die("KVM_CAP_SET_TSS_ADDR is not supported");
+	if (kvm__check_extensions(self))
+		die("A required KVM extention is not supported by OS");
 
 	ret = ioctl(self->vm_fd, KVM_SET_TSS_ADDR, 0xfffbd000);
 	if (ret < 0)
 		die_perror("KVM_SET_TSS_ADDR ioctl");
 
-	if (!kvm__supports_extension(self, KVM_CAP_PIT2))
-		die("KVM_CAP_PIT2 is not supported");
-
 	ret = ioctl(self->vm_fd, KVM_CREATE_PIT2, &pit_config);
 	if (ret < 0)
 		die_perror("KVM_CREATE_PIT2 ioctl");
-
-	if (!kvm__supports_extension(self, KVM_CAP_USER_MEMORY))
-		die("KVM_CAP_USER_MEMORY is not supported");
 
 	self->ram_size		= 64UL * 1024UL * 1024UL;
 
@@ -159,18 +182,9 @@ struct kvm *kvm__init(void)
 	if (ret < 0)
 		die_perror("KVM_SET_USER_MEMORY_REGION ioctl");
 
-	if (!kvm__supports_extension(self, KVM_CAP_IRQ_ROUTING))
-		die("KVM_CAP_IRQ_ROUTING is not supported");
-
-	if (!kvm__supports_extension(self, KVM_CAP_IRQCHIP))
-		die("KVM_CAP_IRQCHIP is not supported");
-
 	ret = ioctl(self->vm_fd, KVM_CREATE_IRQCHIP);
 	if (ret < 0)
 		die_perror("KVM_CREATE_IRQCHIP ioctl");
-
-	if (!kvm__supports_extension(self, KVM_CAP_IRQ_INJECT_STATUS))
-		die("KVM_KVM_CAP_IRQ_INJECT_STATUS is not supported");
 
 	self->vcpu_fd = ioctl(self->vm_fd, KVM_CREATE_VCPU, 0);
 	if (self->vcpu_fd < 0)
