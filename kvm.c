@@ -508,18 +508,20 @@ static void kvm__setup_sregs(struct kvm *self)
 
 	if (ioctl(self->vcpu_fd, KVM_GET_SREGS, &self->sregs) < 0)
 		die_perror("KVM_GET_SREGS failed");
-	self->sregs.cs.selector = self->boot_selector;
-	self->sregs.cs.base = selector_to_base(self->boot_selector);
-	self->sregs.ss.selector = self->boot_selector;
-	self->sregs.ss.base = selector_to_base(self->boot_selector);
-	self->sregs.ds.selector = self->boot_selector;
-	self->sregs.ds.base = selector_to_base(self->boot_selector);
-	self->sregs.es.selector = self->boot_selector;
-	self->sregs.es.base = selector_to_base(self->boot_selector);
-	self->sregs.fs.selector = self->boot_selector;
-	self->sregs.fs.base = selector_to_base(self->boot_selector);
-	self->sregs.gs.selector = self->boot_selector;
-	self->sregs.gs.base = selector_to_base(self->boot_selector);
+
+	self->sregs.cs.selector	= self->boot_selector;
+	self->sregs.cs.base	= selector_to_base(self->boot_selector);
+	self->sregs.ss.selector	= self->boot_selector;
+	self->sregs.ss.base	= selector_to_base(self->boot_selector);
+	self->sregs.ds.selector	= self->boot_selector;
+	self->sregs.ds.base	= selector_to_base(self->boot_selector);
+	self->sregs.es.selector	= self->boot_selector;
+	self->sregs.es.base	= selector_to_base(self->boot_selector);
+	self->sregs.fs.selector	= self->boot_selector;
+	self->sregs.fs.base	= selector_to_base(self->boot_selector);
+	self->sregs.gs.selector	= self->boot_selector;
+	self->sregs.gs.base	= selector_to_base(self->boot_selector);
+
 	if (ioctl(self->vcpu_fd, KVM_SET_SREGS, &self->sregs) < 0)
 		die_perror("KVM_SET_SREGS failed");
 }
