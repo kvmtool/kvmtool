@@ -4,14 +4,16 @@
 #define TIMER_FREQ	1193182
 #define TIMER_DIV(x)	((TIMER_FREQ+(x)/2)/(x))
 
+#define TEST_COUNT	0x0200
+
 	.code16gcc
 	.text
 	.globl	_start
 	.type	_start, @function
 _start:
 	mov	$0x3f8,%dx
-	cs lea	msg, %si
-	mov	$(msg_end-msg), %cx
+	cs lea	msg1, %si
+	mov	$(msg1_end-msg1), %cx
 	cs rep/outsb
 
 set_idt:
@@ -59,8 +61,16 @@ loop:
 	1:
 	jmp	1b
 
+test_ok:
+	mov	$0x3f8,%dx
+	cs lea	msg2, %si
+	mov	$(msg2_end-msg2), %cx
+	cs rep/outsb
+	hlt
+
 timer_isr:
 	pushaw
+	pushfw
 	mov	$0x3f8,%dx
 	mov	$0x49, %al	# I
 	out	%al,%dx
@@ -70,10 +80,18 @@ timer_isr:
 	out	%al,%dx
 	mov	$0x0a, %al	# \n
 	out	%al, %dx
+	decw	count
+	jz	test_ok
+	popfw
 	popaw
 	iretw
-
-msg:
+count:
+	.word	TEST_COUNT
+msg1:
 	.ascii "This is PVM.\nPIC 8259 and PIT 8254 test.\n"
 	.asciz "---------------------------------------------------\n"
-msg_end:
+msg1_end:
+
+msg2:
+	.asciz "TEST OK\n"
+msg2_end:
