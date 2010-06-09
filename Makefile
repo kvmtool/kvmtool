@@ -77,6 +77,10 @@ bios/int10.o: bios/int10.S bios/int10-real.S
 	$(Q) objcopy -O binary -j .text bios/int10-real.o bios/int10-real.bin
 	$(Q) $(CC) $(CFLAGS) -c bios/int10.S -o bios/int10.o
 
+check: $(PROGRAM)
+	$(MAKE) -C tests
+	./$(PROGRAM) tests/pit/tick.bin
+.PHONY: check
 
 clean:
 	$(E) "  CLEAN"
