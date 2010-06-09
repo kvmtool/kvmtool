@@ -11,11 +11,6 @@
 	.globl	_start
 	.type	_start, @function
 _start:
-	mov	$0x3f8,%dx
-	cs lea	msg1, %si
-	mov	$(msg1_end-msg1), %cx
-	cs rep/outsb
-
 /*
  * fill up noop handlers
  */
@@ -84,14 +79,8 @@ timer_isr:
 	pushaw
 	pushfw
 	mov	$0x3f8,%dx
-	mov	$0x49, %al	# I
+	mov	$0x2e, %al	# .
 	out	%al,%dx
-	mov	$0x53, %al	# S
-	out	%al,%dx
-	mov	$0x52, %al	# R
-	out	%al,%dx
-	mov	$0x0a, %al	# \n
-	out	%al, %dx
 	decw	count
 	jz	test_ok
 	popfw
@@ -103,11 +92,7 @@ noop_handler:
 
 count:
 	.word	TEST_COUNT
-msg1:
-	.ascii "This is PVM.\nPIC 8259 and PIT 8254 test.\n"
-	.asciz "---------------------------------------------------\n"
-msg1_end:
 
 msg2:
-	.asciz "TEST OK\n"
+	.asciz "\nTest OK\n"
 msg2_end:
