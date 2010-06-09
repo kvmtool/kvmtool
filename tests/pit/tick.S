@@ -69,6 +69,7 @@ test_ok:
 	hlt
 
 timer_isr:
+	cli
 	pushaw
 	pushfw
 	mov	$0x3f8,%dx
