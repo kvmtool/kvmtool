@@ -16,9 +16,20 @@ _start:
 	mov	$(msg1_end-msg1), %cx
 	cs rep/outsb
 
-set_idt:
-	xor	%ax, %ax
+/*
+ * fill up noop handlers
+ */
+	xorw	%ax, %ax
+	xorw	%di, %di
 	movw	%ax, %es
+	movw	$256, %cx
+fill_noop_idt:
+	movw	$noop_handler, %es:(%di)
+	movw	%cs, %es:2(%di)
+	add	$4, %di
+	loop	fill_noop_idt
+
+set_idt:
 	movw	$timer_isr, %es:(IRQ_OFFSET*4)
 	movw	%cs, %es:(IRQ_OFFSET*4+2)
 
@@ -86,6 +97,10 @@ timer_isr:
 	popfw
 	popaw
 	iretw
+
+noop_handler:
+	iretw
+
 count:
 	.word	TEST_COUNT
 msg1:
