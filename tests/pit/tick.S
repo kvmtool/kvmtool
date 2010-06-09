@@ -51,11 +51,11 @@ set_pit:
 	mov	$(IO_PIT+3), %dx
 	mov	$0x34, %al
 	outb	%al, %dx
-	# set 8254 freq 100Hz
+	# set 8254 freq 1KHz
 	mov	$(IO_PIT), %dx
-	movb	$(TIMER_DIV(100) % 256), %al
+	movb	$(TIMER_DIV(1000) % 256), %al
 	outb	%al, %dx
-	movb	$(TIMER_DIV(100) / 256), %al
+	movb	$(TIMER_DIV(1000) / 256), %al
 	outb	%al, %dx
 
 enable_irq0:
