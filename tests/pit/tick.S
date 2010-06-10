@@ -4,7 +4,14 @@
 #define TIMER_FREQ	1193182
 #define TIMER_DIV(x)	((TIMER_FREQ+(x)/2)/(x))
 
-#define DBG_PORT	0
+/*
+ * hpa noted:
+ *
+ * 0xe0..0xef are "motherboard specific", but 0xe9 is
+ * used for Bochs debugging and 0xed is the Phoenix-reserved
+ * delay port
+ */
+#define DBG_PORT	0xe0
 
 #define TEST_COUNT	0x0200
 

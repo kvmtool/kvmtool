@@ -134,7 +134,7 @@ exit_kvm:
 
 	if (dbgtest_mode) {
 		if (kvm->kvm_run->exit_reason == KVM_EXIT_IO &&
-			kvm->kvm_run->io.port == 0)
+			kvm->kvm_run->io.port == 0xe0)
 			fprintf(stderr, "KVM: this is an expected IO error\n");
 			goto out;
 	}
