@@ -4,6 +4,8 @@
 #define TIMER_FREQ	1193182
 #define TIMER_DIV(x)	((TIMER_FREQ+(x)/2)/(x))
 
+#define DBG_PORT	0
+
 #define TEST_COUNT	0x0200
 
 	.code16gcc
@@ -72,7 +74,9 @@ test_ok:
 	cs lea	msg2, %si
 	mov	$(msg2_end-msg2), %cx
 	cs rep/outsb
-	hlt
+
+	/* not a valid port to force exit */
+	outb	%al, $DBG_PORT
 
 timer_isr:
 	cli
