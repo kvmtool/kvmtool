@@ -14,23 +14,21 @@ struct cpuid_regs {
 	uint32_t	edx;
 };
 
-static inline void
-cpuid(struct cpuid_regs *regs)
+static inline void host_cpuid(struct cpuid_regs *regs)
 {
-	asm("cpuid"
-	    : "=a" (regs->eax),
-	      "=b" (regs->ebx),
-	      "=c" (regs->ecx),
-	      "=d" (regs->edx)
-	    : "0" (regs->eax), "2" (regs->ecx));
+	asm volatile("cpuid"
+		: "=a" (regs->eax),
+		  "=b" (regs->ebx),
+		  "=c" (regs->ecx),
+		  "=d" (regs->edx)
+		: "0" (regs->eax), "2" (regs->ecx));
 }
 
 static struct kvm_cpuid2 *kvm_cpuid__new(unsigned long nent)
 {
 	struct kvm_cpuid2 *self;
 
-	self		= calloc(1, sizeof(*self) + (sizeof(struct kvm_cpuid_entry2) * nent));
-
+	self = calloc(1, sizeof(*self) + (sizeof(struct kvm_cpuid_entry2) * nent));
 	if (!self)
 		die("out of memory");
 
@@ -56,7 +54,7 @@ static uint32_t cpuid_highest_ext_func(void)
 	regs	= (struct cpuid_regs) {
 		.eax		= CPUID_GET_HIGHEST_EXT_FUNCTION,
 	};
-	cpuid(&regs);
+	host_cpuid(&regs);
 
 	return regs.eax;
 }
@@ -68,7 +66,7 @@ static uint32_t cpuid_highest_func(void)
 	regs	= (struct cpuid_regs) {
 		.eax		= CPUID_GET_VENDOR_ID,
 	};
-	cpuid(&regs);
+	host_cpuid(&regs);
 
 	return regs.eax;
 }
@@ -82,7 +80,6 @@ void kvm__setup_cpuid(struct kvm *self)
 	uint32_t ndx = 0;
 
 	kvm_cpuid	= kvm_cpuid__new(MAX_KVM_CPUID_ENTRIES);
-
 	highest		= cpuid_highest_func();
 
 	for (function = 0; function <= highest; function++) {
@@ -93,13 +90,25 @@ void kvm__setup_cpuid(struct kvm *self)
 		 * Linux kernel is not interested in them during boot up.
 		 */
 		switch (function) {
+		case 0x00: {	/* Vendor-ID and Largest Standard Function */
+			kvm_cpuid->entries[ndx++]	= (struct kvm_cpuid_entry2) {
+				.function	= 0,
+				.index		= 0,
+				.flags		= 0,
+				.eax		= 4,
+				.ebx		= CPUID_VENDOR_INTEL_1,
+				.ecx		= CPUID_VENDOR_INTEL_3,
+				.edx		= CPUID_VENDOR_INTEL_2,
+			};
+			break;
+		}
 		case 0x01: {	/* Feature Information */
 			struct cpuid_regs regs;
 
 			regs	= (struct cpuid_regs) {
 				.eax		= function,
 			};
-			cpuid(&regs);
+			host_cpuid(&regs);
 
 			kvm_cpuid->entries[ndx++]	= (struct kvm_cpuid_entry2) {
 				.function	= function,
@@ -121,7 +130,7 @@ void kvm__setup_cpuid(struct kvm *self)
 			regs	= (struct cpuid_regs) {
 				.eax		= function,
 			};
-			cpuid(&regs);
+			host_cpuid(&regs);
 
 			kvm_cpuid->entries[ndx++]	= (struct kvm_cpuid_entry2) {
 				.function	= function,
@@ -139,7 +148,7 @@ void kvm__setup_cpuid(struct kvm *self)
 				regs	= (struct cpuid_regs) {
 					.eax		= function,
 				};
-				cpuid(&regs);
+				host_cpuid(&regs);
 
 				kvm_cpuid->entries[ndx++]	= (struct kvm_cpuid_entry2) {
 					.function	= function,
@@ -153,26 +162,60 @@ void kvm__setup_cpuid(struct kvm *self)
 			}
 			break;
 		}
-		case 0x04: {
-			uint32_t index;
+		case 0x04: { /* Deterministic Cache Parameters */
+			uint32_t eax;
+			/*
+			 * eax for n cores
+			 *     eax = (n - 1) << 26
+			 * eax for k threads
+			 *     eax = (k - 1) << 14
+			 * they could be OR'ified
+			 */
+			eax = 0;
 
-			for (index = 0; index < 2; index++) {
-				struct cpuid_regs regs = {
-					.eax		= function,
-					.ecx		= index,
-				};
-				cpuid(&regs);
+			/* L1 dcache info */
+			kvm_cpuid->entries[ndx++]	= (struct kvm_cpuid_entry2) {
+				.function	= function,
+				.index		= 0,
+				.flags		= KVM_CPUID_FLAG_SIGNIFCANT_INDEX | KVM_CPUID_FLAG_STATE_READ_NEXT,
+				.eax		= eax | 0x0000121,
+				.ebx		= 0x1c0003f,
+				.ecx		= 0x000003f,
+				.edx		= 0x0000001,
+			};
 
-				kvm_cpuid->entries[ndx++]	= (struct kvm_cpuid_entry2) {
-					.function	= function,
-					.index		= index,
-					.flags		= KVM_CPUID_FLAG_SIGNIFCANT_INDEX,
-					.eax		= regs.eax,
-					.ebx		= regs.ebx,
-					.ecx		= regs.ecx,
-					.edx		= regs.edx,
-				};
-			}
+			/* L1 icache info */
+			kvm_cpuid->entries[ndx++]	= (struct kvm_cpuid_entry2) {
+				.function	= function,
+				.index		= 1,
+				.flags		= KVM_CPUID_FLAG_SIGNIFCANT_INDEX | KVM_CPUID_FLAG_STATE_READ_NEXT,
+				.eax		= eax | 0x0000122,
+				.ebx		= 0x1c0003f,
+				.ecx		= 0x000003f,
+				.edx		= 0x0000001,
+			};
+
+			/* L2 cache info */
+			kvm_cpuid->entries[ndx++]	= (struct kvm_cpuid_entry2) {
+				.function	= function,
+				.index		= 2,
+				.flags		= KVM_CPUID_FLAG_SIGNIFCANT_INDEX | KVM_CPUID_FLAG_STATE_READ_NEXT,
+				.eax		= eax | 0x0000143,
+				.ebx		= 0x3c0003f,
+				.ecx		= 0x0000fff,
+				.edx		= 0x0000001,
+			};
+
+			/* End of list */
+			kvm_cpuid->entries[ndx++]	= (struct kvm_cpuid_entry2) {
+				.function	= function,
+				.index		= 3,
+				.flags		= 0,
+				.eax		= 0,
+				.ebx		= 0,
+				.ecx		= 0,
+				.edx		= 0,
+			};
 			break;
 		}
 		default: {
@@ -181,7 +224,7 @@ void kvm__setup_cpuid(struct kvm *self)
 			regs	= (struct cpuid_regs) {
 				.eax		= function,
 			};
-			cpuid(&regs);
+			host_cpuid(&regs);
 
 			kvm_cpuid->entries[ndx++]	= (struct kvm_cpuid_entry2) {
 				.function	= function,
@@ -204,7 +247,7 @@ void kvm__setup_cpuid(struct kvm *self)
 		regs	= (struct cpuid_regs) {
 			.eax		= function,
 		};
-		cpuid(&regs);
+		host_cpuid(&regs);
 
 		kvm_cpuid->entries[ndx++]	= (struct kvm_cpuid_entry2) {
 			.function	= function,
