@@ -1,5 +1,6 @@
 #include "kvm/kvm.h"
 
+#include "kvm/cpufeature.h"
 #include "kvm/util.h"
 
 #include <sys/ioctl.h>
@@ -92,6 +93,27 @@ void kvm__setup_cpuid(struct kvm *self)
 		 * Linux kernel is not interested in them during boot up.
 		 */
 		switch (function) {
+		case 0x01: {	/* Feature Information */
+			struct cpuid_regs regs;
+
+			regs	= (struct cpuid_regs) {
+				.eax		= function,
+			};
+			cpuid(&regs);
+
+			kvm_cpuid->entries[ndx++]	= (struct kvm_cpuid_entry2) {
+				.function	= function,
+				.index		= 0,
+				.flags		= 0,
+				.eax		= regs.eax,
+				.ebx		= regs.ebx,
+				.ecx		=
+					cpu_feature_disable(regs.ecx, KVM__X86_FEATURE_XSAVE) |
+					cpu_feature_disable(regs.ecx, KVM__X86_FEATURE_VMX),
+				.edx		= regs.edx,
+			};
+			break;
+		}
 		case 0x02: {	/* Processor configuration descriptor */
 			struct cpuid_regs regs;
 			uint32_t times;
