@@ -66,6 +66,7 @@ struct {
 	{ DEFINE_KVM_EXT(KVM_CAP_IRQCHIP) },
 	{ DEFINE_KVM_EXT(KVM_CAP_HLT) },
 	{ DEFINE_KVM_EXT(KVM_CAP_IRQ_INJECT_STATUS) },
+	{ DEFINE_KVM_EXT(KVM_CAP_EXT_CPUID) },
 };
 
 static inline bool host_ptr_in_ram(struct kvm *self, void *p)
