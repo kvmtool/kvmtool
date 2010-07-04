@@ -12,7 +12,7 @@
 
 static void usage(char *argv[])
 {
-	fprintf(stderr, "  usage: %s [--single-step] [--kernel=]<kernel-image>\n",
+	fprintf(stderr, "  usage: %s [--single-step] [--params=<kernel-params>] [--kernel=]<kernel-image>\n",
 		argv[0]);
 	exit(1);
 }
