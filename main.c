@@ -34,6 +34,11 @@ static void handle_sigquit(int sig)
 
 static char real_cmdline[2048];
 
+static bool option_matches(char *arg, const char *option)
+{
+	return !strncmp(arg, option, strlen(option));
+}
+
 int main(int argc, char *argv[])
 {
 	const char *kernel_filename = NULL;
@@ -44,16 +49,16 @@ int main(int argc, char *argv[])
 	signal(SIGQUIT, handle_sigquit);
 
 	for (i = 1; i < argc; i++) {
-		if (!strncmp("--kernel=", argv[i], 9)) {
+		if (option_matches(argv[i], "--kernel=")) {
 			kernel_filename = &argv[i][9];
 			continue;
-		} else if (!strncmp("--params=", argv[i], 9)) {
+		} else if (option_matches(argv[i], "--params=")) {
 			kernel_cmdline = &argv[i][9];
 			continue;
-		} else if (!strncmp("--dbgtest", argv[i], 9)) {
+		} else if (option_matches(argv[i], "--dbgtest")) {
 			dbgtest_mode = 1;
 			continue;
-		} else if (!strncmp("--single-step", argv[i], 13)) {
+		} else if (option_matches(argv[i], "--single-step")) {
 			single_step = true;
 			continue;
 		} else {
