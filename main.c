@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
 
 	kvm__setup_cpuid(kvm);
 
-	strcpy(real_cmdline, "notsc nolapic nosmp noacpi earlyprintk=serial,keep ");
+	strcpy(real_cmdline, "notsc nolapic nosmp noacpi nopci pci=off earlyprintk=serial,keep ");
 	if (kernel_cmdline) {
 		strlcat(real_cmdline, kernel_cmdline, sizeof(real_cmdline));
 		real_cmdline[sizeof(real_cmdline)-1] = '\0';
