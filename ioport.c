@@ -48,13 +48,9 @@ static struct ioport_operations dummy_write_only_ioport_ops = {
 };
 
 static struct ioport_operations *ioport_ops[USHRT_MAX] = {
-	/* PORT 0070-007F - CMOS RAM/RTC (REAL TIME CLOCK) */
-	[0x70]		= &cmos_ram_rtc_ops,
-	[0x71]		= &dummy_read_write_ioport_ops,
-
 	/* 0x0020 - 0x003F - 8259A PIC 1 */
-	[0x20]		= &dummy_read_write_ioport_ops,
-	[0x21]		= &dummy_read_write_ioport_ops,
+	[0x0020]	= &dummy_read_write_ioport_ops,
+	[0x0021]	= &dummy_read_write_ioport_ops,
 
 	/* PORT 0040-005F - PIT - PROGRAMMABLE INTERVAL TIMER (8253, 8254) */
 	[0x0040]	= &dummy_read_write_ioport_ops,	/* Ch 0 */
@@ -66,20 +62,24 @@ static struct ioport_operations *ioport_ops[USHRT_MAX] = {
 	[0x0060]	= &dummy_read_write_ioport_ops,
 	[0x0061]	= &dummy_read_write_ioport_ops,
 
+	/* PORT 0070-007F - CMOS RAM/RTC (REAL TIME CLOCK) */
+	[0x0070]	= &cmos_ram_rtc_ops,
+	[0x0071]	= &dummy_read_write_ioport_ops,
+
 	/* 0x00A0 - 0x00AF - 8259A PIC 2 */
-	[0xA0]		= &dummy_read_write_ioport_ops,
-	[0xA1]		= &dummy_read_write_ioport_ops,
+	[0x00A0]	= &dummy_read_write_ioport_ops,
+	[0x00A1]	= &dummy_read_write_ioport_ops,
 
 	/* PORT 00ED - DUMMY PORT FOR DELAY??? */
-	[0xED]		= &dummy_write_only_ioport_ops,
+	[0x00ED]	= &dummy_write_only_ioport_ops,
 
 	/* 0x00F0 - 0x00FF - Math co-processor */
-	[0xF0]		= &dummy_write_only_ioport_ops,
-	[0xF1]		= &dummy_write_only_ioport_ops,
+	[0x00F0]	= &dummy_write_only_ioport_ops,
+	[0x00F1]	= &dummy_write_only_ioport_ops,
 
 	/* PORT 03D4-03D5 - COLOR VIDEO - CRT CONTROL REGISTERS */
-	[0x3D4]		= &dummy_read_write_ioport_ops,
-	[0x3D5]		= &dummy_write_only_ioport_ops,
+	[0x03D4]	= &dummy_read_write_ioport_ops,
+	[0x03D5]	= &dummy_write_only_ioport_ops,
 
 	/* PORT 03F8-03FF - Serial port (8250,8250A,8251,16450,16550,16550A,etc.) COM1 */
 	[0x03F9]	= &dummy_read_write_ioport_ops,
