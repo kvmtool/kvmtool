@@ -79,7 +79,7 @@ bios/int10.o: bios/int10.S bios/int10-real.S
 
 check: $(PROGRAM)
 	$(MAKE) -C tests
-	./$(PROGRAM) --dbgtest tests/pit/tick.bin
+	./$(PROGRAM) tests/pit/tick.bin
 .PHONY: check
 
 clean:
