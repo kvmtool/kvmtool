@@ -133,7 +133,7 @@ void kvm__delete(struct kvm *self)
 	free(self);
 }
 
-struct kvm *kvm__init(void)
+struct kvm *kvm__init(const char *kvm_dev)
 {
 	struct kvm_userspace_memory_region mem;
 	struct kvm_pit_config pit_config = { .flags = 0, };
@@ -144,9 +144,13 @@ struct kvm *kvm__init(void)
 
 	self = kvm__new();
 
-	self->sys_fd = open("/dev/kvm", O_RDWR);
-	if (self->sys_fd < 0)
+	self->sys_fd = open(kvm_dev, O_RDWR);
+	if (self->sys_fd < 0) {
+		if (errno == ENOENT)
+			die("'%s' not found. Please make sure you have CONFIG_KVM enabled.", kvm_dev);
+
 		die_perror("open");
+	}
 
 	ret = ioctl(self->sys_fd, KVM_GET_API_VERSION, 0);
 	if (ret != KVM_API_VERSION)

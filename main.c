@@ -43,6 +43,7 @@ int main(int argc, char *argv[])
 {
 	const char *kernel_filename = NULL;
 	const char *kernel_cmdline = NULL;
+	const char *kvm_dev = "/dev/kvm";
 	bool single_step = false;
 	int i;
 
@@ -54,6 +55,9 @@ int main(int argc, char *argv[])
 			continue;
 		} else if (option_matches(argv[i], "--params=")) {
 			kernel_cmdline	= &argv[i][9];
+			continue;
+		} else if (option_matches(argv[i], "--kvm-dev=")) {
+			kvm_dev		= &argv[i][10];
 			continue;
 		} else if (option_matches(argv[i], "--single-step")) {
 			single_step	= true;
@@ -74,7 +78,7 @@ int main(int argc, char *argv[])
 	if (!kernel_filename)
 		usage(argv);
 
-	kvm = kvm__init();
+	kvm = kvm__init(kvm_dev);
 
 	kvm__setup_cpuid(kvm);
 
