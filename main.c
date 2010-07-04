@@ -146,7 +146,6 @@ exit_kvm:
 	kvm__show_registers(kvm);
 	kvm__show_code(kvm);
 	kvm__show_page_tables(kvm);
-out:
 	kvm__delete(kvm);
 
 	return 0;
