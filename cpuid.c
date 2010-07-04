@@ -117,7 +117,7 @@ void kvm__setup_cpuid(struct kvm *self)
 				.eax		= regs.eax,
 				.ebx		= regs.ebx,
 				.ecx		=
-					cpu_feature_disable(regs.ecx, KVM__X86_FEATURE_XSAVE) |
+					cpu_feature_disable(regs.ecx, KVM__X86_FEATURE_XSAVE) &
 					cpu_feature_disable(regs.ecx, KVM__X86_FEATURE_VMX),
 				.edx		= regs.edx,
 			};
