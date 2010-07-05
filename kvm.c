@@ -1,6 +1,7 @@
 #include "kvm/kvm.h"
 
 #include "kvm/interrupt.h"
+#include "kvm/cpufeature.h"
 #include "kvm/util.h"
 
 #include <linux/kvm.h>
@@ -133,6 +134,18 @@ void kvm__delete(struct kvm *self)
 	free(self);
 }
 
+static bool kvm__cpu_supports_vm(void)
+{
+	struct cpuid_regs regs;
+
+	regs	= (struct cpuid_regs) {
+		.eax		= 1,
+	};
+	host_cpuid(&regs);
+
+	return regs.ecx & (1 << KVM__X86_FEATURE_VMX);
+}
+
 struct kvm *kvm__init(const char *kvm_dev)
 {
 	struct kvm_userspace_memory_region mem;
@@ -141,6 +154,9 @@ struct kvm *kvm__init(const char *kvm_dev)
 	long page_size;
 	int mmap_size;
 	int ret;
+
+	if (!kvm__cpu_supports_vm())
+		die("Your CPU does not support hardware virtualization");
 
 	self = kvm__new();
 

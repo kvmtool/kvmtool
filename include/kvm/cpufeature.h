@@ -20,4 +20,21 @@
 #define cpu_feature_enable(reg, feature)	\
 	((reg) |  (1 << (feature)))
 
+struct cpuid_regs {
+	uint32_t	eax;
+	uint32_t	ebx;
+	uint32_t	ecx;
+	uint32_t	edx;
+};
+
+static inline void host_cpuid(struct cpuid_regs *regs)
+{
+	asm volatile("cpuid"
+		: "=a" (regs->eax),
+		  "=b" (regs->ebx),
+		  "=c" (regs->ecx),
+		  "=d" (regs->edx)
+		: "0" (regs->eax), "2" (regs->ecx));
+}
+
 #endif /* KVM__CPUFEATURE_H */

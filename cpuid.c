@@ -7,23 +7,6 @@
 #include <stdlib.h>
 #include <assert.h>
 
-struct cpuid_regs {
-	uint32_t	eax;
-	uint32_t	ebx;
-	uint32_t	ecx;
-	uint32_t	edx;
-};
-
-static inline void host_cpuid(struct cpuid_regs *regs)
-{
-	asm volatile("cpuid"
-		: "=a" (regs->eax),
-		  "=b" (regs->ebx),
-		  "=c" (regs->ecx),
-		  "=d" (regs->edx)
-		: "0" (regs->eax), "2" (regs->ecx));
-}
-
 static struct kvm_cpuid2 *kvm_cpuid__new(unsigned long nent)
 {
 	struct kvm_cpuid2 *self;
