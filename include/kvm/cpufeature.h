@@ -13,6 +13,7 @@
  * CPUID flags we need to deal with
  */
 #define KVM__X86_FEATURE_VMX		5	/* Hardware virtualization */
+#define KVM__X86_FEATURE_SVM		2	/* Secure virtual machine */
 #define KVM__X86_FEATURE_XSAVE		26	/* XSAVE/XRSTOR/XSETBV/XGETBV */
 
 #define cpu_feature_disable(reg, feature)	\

@@ -137,13 +137,35 @@ void kvm__delete(struct kvm *self)
 static bool kvm__cpu_supports_vm(void)
 {
 	struct cpuid_regs regs;
+	bool ret = false;
 
 	regs	= (struct cpuid_regs) {
-		.eax		= 1,
+		.eax		= 0,
 	};
 	host_cpuid(&regs);
 
-	return regs.ecx & (1 << KVM__X86_FEATURE_VMX);
+	switch (regs.ebx) {
+	case CPUID_VENDOR_INTEL_1:
+		if (regs.eax < 1)
+			return false;
+		regs = (struct cpuid_regs) { .eax = 1 };
+		host_cpuid(&regs);
+		if (regs.ecx & (1 << KVM__X86_FEATURE_VMX))
+			ret = true;
+		break;
+	case CPUID_VENDOR_AMD_1:
+		regs = (struct cpuid_regs) { .eax = 0x80000000 };
+		host_cpuid(&regs);
+		if (regs.eax < 0x80000001)
+			return false;
+		regs = (struct cpuid_regs) { .eax = 0x80000001 };
+		host_cpuid(&regs);
+		if (regs.ecx & (1 << KVM__X86_FEATURE_SVM))
+			ret = true;
+		break;
+	}
+
+	return ret;
 }
 
 struct kvm *kvm__init(const char *kvm_dev)
