@@ -137,35 +137,39 @@ void kvm__delete(struct kvm *self)
 static bool kvm__cpu_supports_vm(void)
 {
 	struct cpuid_regs regs;
-	bool ret = false;
+	uint32_t eax_base;
+	int feature;
 
 	regs	= (struct cpuid_regs) {
-		.eax		= 0,
+		.eax		= 0x00,
 	};
 	host_cpuid(&regs);
 
 	switch (regs.ebx) {
 	case CPUID_VENDOR_INTEL_1:
-		if (regs.eax < 1)
-			return false;
-		regs = (struct cpuid_regs) { .eax = 1 };
-		host_cpuid(&regs);
-		if (regs.ecx & (1 << KVM__X86_FEATURE_VMX))
-			ret = true;
+		eax_base	= 0x00;
+		feature		= KVM__X86_FEATURE_VMX;
 		break;
 	case CPUID_VENDOR_AMD_1:
-		regs = (struct cpuid_regs) { .eax = 0x80000000 };
-		host_cpuid(&regs);
-		if (regs.eax < 0x80000001)
-			return false;
-		regs = (struct cpuid_regs) { .eax = 0x80000001 };
-		host_cpuid(&regs);
-		if (regs.ecx & (1 << KVM__X86_FEATURE_SVM))
-			ret = true;
+		eax_base	= 0x80000000;
+		feature		= KVM__X86_FEATURE_SVM;
 		break;
 	}
 
-	return ret;
+	regs	= (struct cpuid_regs) {
+		.eax		= eax_base,
+	};
+	host_cpuid(&regs);
+
+	if (regs.eax < eax_base + 0x01)
+		return false;
+
+	regs	= (struct cpuid_regs) {
+		.eax		= eax_base + 0x01
+	};
+	host_cpuid(&regs);
+
+	return regs.ecx & (1 << feature);
 }
 
 struct kvm *kvm__init(const char *kvm_dev)
