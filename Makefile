@@ -18,7 +18,6 @@ OBJS	+= main.o
 OBJS	+= mmio.o
 OBJS	+= util.o
 OBJS	+= bios/intfake.o
-OBJS	+= bios/int10.o
 
 uname_M      := $(shell uname -m | sed -e s/i.86/i386/)
 ifeq ($(uname_M),i386)
@@ -69,13 +68,6 @@ bios/intfake.o: bios/intfake.S bios/intfake-real.S
 	$(E) "  OBJCOPY " $@
 	$(Q) objcopy -O binary -j .text bios/intfake-real.o bios/intfake-real.bin
 	$(Q) $(CC) $(CFLAGS) -c bios/intfake.S -o bios/intfake.o
-
-bios/int10.o: bios/int10.S bios/int10-real.S
-	$(E) "  CC      " $@
-	$(Q) $(CC) $(CFLAGS) -c bios/int10-real.S -o bios/int10-real.o
-	$(E) "  OBJCOPY " $@
-	$(Q) objcopy -O binary -j .text bios/int10-real.o bios/int10-real.bin
-	$(Q) $(CC) $(CFLAGS) -c bios/int10.S -o bios/int10.o
 
 check: $(PROGRAM)
 	$(MAKE) -C tests

@@ -373,10 +373,8 @@ static bool load_bzimage(struct kvm *self, int fd, const char *kernel_cmdline)
 	/*
 	 * Setup a *fake* real mode vector table, it has only
 	 * one real hadler which does just iret
-	 *
-	 * This is where the BIOS lives -- BDA area
 	 */
-	intr_addr = BIOS_INTR_NEXT(BDA_START + 0, 16);
+	intr_addr = KVM_BIOS_START;
 	p = guest_flat_to_host(self, intr_addr);
 	memcpy(p, intfake, intfake_end - intfake);
 	intr = (struct real_intr_desc) {
@@ -384,15 +382,6 @@ static bool load_bzimage(struct kvm *self, int fd, const char *kernel_cmdline)
 		.offset		= 0,
 	};
 	interrupt_table__setup(&self->interrupt_table, &intr);
-
-	intr_addr = BIOS_INTR_NEXT(BDA_START + (intfake_end - intfake), 16);
-	p = guest_flat_to_host(self, intr_addr);
-	memcpy(p, int10, int10_end - int10);
-	intr = (struct real_intr_desc) {
-		.segment	= REAL_SEGMENT(intr_addr),
-		.offset		= 0,
-	};
-	interrupt_table__set(&self->interrupt_table, &intr, 0x10);
 
 	p = guest_flat_to_host(self, 0);
 	interrupt_table__copy(&self->interrupt_table, p, REAL_INTR_SIZE);
