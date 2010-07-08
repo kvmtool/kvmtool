@@ -1,2 +1,4 @@
 /kvm
 *.o
+.cscope
+
