@@ -51,4 +51,26 @@ void kvm__dump_mem(struct kvm *self, unsigned long addr, unsigned long size);
 
 extern const char *kvm_exit_reasons[];
 
+static inline bool host_ptr_in_ram(struct kvm *self, void *p)
+{
+	return self->ram_start <= p && p < (self->ram_start + self->ram_size);
+}
+
+static inline uint32_t segment_to_flat(uint16_t selector, uint16_t offset)
+{
+	return ((uint32_t)selector << 4) + (uint32_t) offset;
+}
+
+static inline void *guest_flat_to_host(struct kvm *self, unsigned long offset)
+{
+	return self->ram_start + offset;
+}
+
+static inline void *guest_real_to_host(struct kvm *self, uint16_t selector, uint16_t offset)
+{
+	unsigned long flat = segment_to_flat(selector, offset);
+
+	return guest_flat_to_host(self, flat);
+}
+
 #endif /* KVM__KVM_H */

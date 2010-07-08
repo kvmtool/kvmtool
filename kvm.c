@@ -70,28 +70,6 @@ struct {
 	{ DEFINE_KVM_EXT(KVM_CAP_EXT_CPUID) },
 };
 
-static inline bool host_ptr_in_ram(struct kvm *self, void *p)
-{
-	return self->ram_start <= p && p < (self->ram_start + self->ram_size);
-}
-
-static inline uint32_t segment_to_flat(uint16_t selector, uint16_t offset)
-{
-	return ((uint32_t)selector << 4) + (uint32_t) offset;
-}
-
-static inline void *guest_flat_to_host(struct kvm *self, unsigned long offset)
-{
-	return self->ram_start + offset;
-}
-
-static inline void *guest_real_to_host(struct kvm *self, uint16_t selector, uint16_t offset)
-{
-	unsigned long flat = segment_to_flat(selector, offset);
-
-	return guest_flat_to_host(self, flat);
-}
-
 static bool kvm__supports_extension(struct kvm *self, unsigned int extension)
 {
 	int ret;
@@ -300,10 +278,8 @@ static const char *BZIMAGE_MAGIC	= "HdrS";
 static bool load_bzimage(struct kvm *self, int fd, const char *kernel_cmdline)
 {
 	struct boot_params *kern_boot;
-	struct real_intr_desc intr;
 	unsigned long setup_sects;
 	struct boot_params boot;
-	unsigned int intr_addr;
 	size_t cmdline_size;
 	ssize_t setup_size;
 	void *p;
@@ -371,20 +347,9 @@ static bool load_bzimage(struct kvm *self, int fd, const char *kernel_cmdline)
 	self->boot_sp		= BOOT_LOADER_SP;
 
 	/*
-	 * Setup a *fake* real mode vector table, it has only
-	 * one real hadler which does just iret
+	 * Drum roll, BIOS is coming to live, oh dear...
 	 */
-	intr_addr = KVM_BIOS_START;
-	p = guest_flat_to_host(self, intr_addr);
-	memcpy(p, intfake, intfake_end - intfake);
-	intr = (struct real_intr_desc) {
-		.segment	= REAL_SEGMENT(intr_addr),
-		.offset		= 0,
-	};
-	interrupt_table__setup(&self->interrupt_table, &intr);
-
-	p = guest_flat_to_host(self, 0);
-	interrupt_table__copy(&self->interrupt_table, p, REAL_INTR_SIZE);
+	setup_bios(self);
 
 	return true;
 }

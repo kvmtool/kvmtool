@@ -7,6 +7,6 @@
 #else
 	.code32
 #endif
-GLOBAL(bios_int10)
-	.incbin "bios/int10-real.bin"
-GLOBAL(bios_int10_end)
+GLOBAL(bios_int15)
+	.incbin "bios/int15-real.bin"
+GLOBAL(bios_int15_end)

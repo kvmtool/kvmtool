@@ -17,13 +17,16 @@ OBJS	+= kvm.o
 OBJS	+= main.o
 OBJS	+= mmio.o
 OBJS	+= util.o
+OBJS	+= bios.o
 OBJS	+= bios/intfake.o
+OBJS	+= bios/int10.o
+OBJS	+= bios/int15.o
 
 uname_M      := $(shell uname -m | sed -e s/i.86/i386/)
 ifeq ($(uname_M),i386)
-DEFINES      += -DCONFIG_X86_32
+	DEFINES      += -DCONFIG_X86_32
 ifeq ($(uname_M),x86_64)
-DEFINES      += -DCONFIG_X86_64
+	DEFINES      += -DCONFIG_X86_64
 endif
 endif
 
@@ -62,12 +65,35 @@ $(OBJS):
 #
 # BIOS assembly weirdness
 #
+BIOS_CFLAGS += -m32
+BIOS_CFLAGS += -march=i386
+BIOS_CFLAGS += -mregparm=3
 bios/intfake.o: bios/intfake.S bios/intfake-real.S
 	$(E) "  CC      " $@
-	$(Q) $(CC) $(CFLAGS) -c bios/intfake-real.S -o bios/intfake-real.o
+	$(Q) $(CC) $(CFLAGS) $(BIOS_CFLAGS) -c -s bios/intfake-real.S -o bios/intfake-real.o
+	$(E) "  LD      " $@
+	$(Q) ld -T bios/bios-strip.ld.S -o bios/intfake-real.bin.elf bios/intfake-real.o
 	$(E) "  OBJCOPY " $@
-	$(Q) objcopy -O binary -j .text bios/intfake-real.o bios/intfake-real.bin
+	$(Q) objcopy -O binary -j .text bios/intfake-real.bin.elf bios/intfake-real.bin
 	$(Q) $(CC) $(CFLAGS) -c bios/intfake.S -o bios/intfake.o
+
+bios/int10.o: bios/int10.S bios/int10-real.S
+	$(E) "  CC      " $@
+	$(Q) $(CC) $(CFLAGS) $(BIOS_CFLAGS) -c -s bios/int10-real.S -o bios/int10-real.o
+	$(E) "  LD      " $@
+	$(Q) ld -T bios/bios-strip.ld.S -o bios/int10-real.bin.elf bios/int10-real.o
+	$(E) "  OBJCOPY " $@
+	$(Q) objcopy -O binary -j .text bios/int10-real.bin.elf bios/int10-real.bin
+	$(Q) $(CC) $(CFLAGS) -c bios/int10.S -o bios/int10.o
+
+bios/int15.o: bios/int10.S bios/int15-real.S
+	$(E) "  CC      " $@
+	$(Q) $(CC) $(CFLAGS) $(BIOS_CFLAGS) -c -s bios/int15-real.S -o bios/int15-real.o
+	$(E) "  LD      " $@
+	$(Q) ld -T bios/bios-strip.ld.S -o bios/int15-real.bin.elf bios/int15-real.o
+	$(E) "  OBJCOPY " $@
+	$(Q) objcopy -O binary -j .text bios/int15-real.bin.elf bios/int15-real.bin
+	$(Q) $(CC) $(CFLAGS) -c bios/int15.S -o bios/int15.o
 
 check: $(PROGRAM)
 	$(MAKE) -C tests
@@ -77,6 +103,7 @@ check: $(PROGRAM)
 clean:
 	$(E) "  CLEAN"
 	$(Q) rm -f bios/*.bin
+	$(Q) rm -f bios/*.elf
 	$(Q) rm -f bios/*.o
 	$(Q) rm -f $(OBJS) $(PROGRAM)
 .PHONY: clean
