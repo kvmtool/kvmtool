@@ -2,6 +2,7 @@
 
 #include "kvm/interrupt.h"
 #include "kvm/cpufeature.h"
+#include "kvm/e820.h"
 #include "kvm/util.h"
 
 #include <linux/kvm.h>
@@ -524,6 +525,38 @@ void kvm__reset_vcpu(struct kvm *self)
 	kvm__setup_fpu(self);
 
 	kvm__setup_msrs(self);
+}
+
+void kvm__setup_mem(struct kvm *self)
+{
+	struct e820_entry *mem_map;
+	unsigned char *size;
+
+	size		= guest_flat_to_host(self, E820_MAP_SIZE);
+	mem_map		= guest_flat_to_host(self, E820_MAP_START);
+
+	*size		= 4;
+
+	mem_map[0]	= (struct e820_entry) {
+		.addr		= REAL_MODE_IVT_BEGIN,
+		.size		= BDA_END - REAL_MODE_IVT_BEGIN,
+		.type		= E820_MEM_RESERVED,
+	};
+	mem_map[1]	= (struct e820_entry) {
+		.addr		= BDA_END,
+		.size		= EBDA_END - BDA_END,
+		.type		= E820_MEM_USABLE,
+	};
+	mem_map[2]	= (struct e820_entry) {
+		.addr		= EBDA_END,
+		.size		= BZ_KERNEL_START - EBDA_END,
+		.type		= E820_MEM_RESERVED,
+	};
+	mem_map[3]	= (struct e820_entry) {
+		.addr		= BZ_KERNEL_START,
+		.size		= self->ram_size - BZ_KERNEL_START,
+		.type		= E820_MEM_USABLE,
+	};
 }
 
 void kvm__run(struct kvm *self)

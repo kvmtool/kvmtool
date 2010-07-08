@@ -18,6 +18,15 @@
 #define REAL_MODE_IVT_BEGIN		0x00000000
 #define REAL_MODE_IVT_END		0x000003ff
 
+#define BDA_START			0x00000400UL
+#define BDA_END				0x000004FFUL
+
+#define EBDA_START			0x0009FC00UL
+#define EBDA_END			0x0009FFFFUL
+
+#define E820_MAP_SIZE			EBDA_START
+#define E820_MAP_START			(EBDA_START + 0x01)
+
 #define MB_BIOS_BEGIN			0x000f0000
 #define MB_BIOS_END			0x000fffff
 
@@ -38,14 +47,6 @@
  */
 #define MB_BIOS_SS			0xFFF7
 #define MB_BIOS_SP			0x40
-
-#define E820_RAM	1
-#define E820_RESERVED	2
-#define E820_ACPI	3
-#define E820_NVS	4
-#define E820_UNUSABLE	5
-
-#define E820_MAP_OFFSET	64
 
 #define ALIGN(x, a)	\
 	(((x) + ((a) - 1)) & ~((a) - 1))

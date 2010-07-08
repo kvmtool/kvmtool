@@ -88,9 +88,11 @@ bios/int10.o: bios/int10.S bios/int10-real.S
 
 bios/int15.o: bios/int10.S bios/int15-real.S
 	$(E) "  CC      " $@
+	$(Q) $(CC) -include code16gcc.h $(CFLAGS) $(BIOS_CFLAGS) -c -s bios/e820.c -o bios/e820.o
+	$(E) "  CC      " $@
 	$(Q) $(CC) $(CFLAGS) $(BIOS_CFLAGS) -c -s bios/int15-real.S -o bios/int15-real.o
 	$(E) "  LD      " $@
-	$(Q) ld -T bios/bios-strip.ld.S -o bios/int15-real.bin.elf bios/int15-real.o
+	$(Q) ld -T bios/bios-strip.ld.S -o bios/int15-real.bin.elf bios/int15-real.o bios/e820.o
 	$(E) "  OBJCOPY " $@
 	$(Q) objcopy -O binary -j .text bios/int15-real.bin.elf bios/int15-real.bin
 	$(Q) $(CC) $(CFLAGS) -c bios/int15.S -o bios/int15.o

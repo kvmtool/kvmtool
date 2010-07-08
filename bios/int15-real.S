@@ -10,28 +10,39 @@
 
 #include "macro.S"
 
+#define EFLAGS_CF	(1 << 0)
+
 ENTRY(___int15)
-	jmp out
+	cmp $0xE820, %eax
+	jne out
 
-#	movl %cs, %eax
-#	movl %eax, %es
-#	movl $0x534D4150, %eax	# 'SMAP'
-#	movl $0, %ebx		# end of map
-#	movl $20, %ecx
-#	mov e820entry_start, %di
-#	mov $(e820entry_end - e820entry_start), %ecx
+	pushw	%fs
 
+	pushl	%edx
+	pushl	%ecx
+	pushl	%edi
+	pushl	%ebx
+	pushl	%eax
+
+	xor	%ax, %ax
+	mov	%ax, %fs
+
+	movl	%esp, %eax
+	call	e820_query_map
+
+	popl	%eax
+	popl	%ebx
+	popl	%edi
+	popl	%ecx
+	popl	%edx
+
+	popw	%fs
+
+	/* Clear CF */
+	andl	$~EFLAGS_CF, 0x4(%esp)
 out:
 	sti
 	IRET
-/*
- * private IRQ data
- */
-GLOBAL(e820entry_start)
-	e820entry_addr:	.quad 0
-	e820entry_size:	.quad 0
-	e820entry_type:	.long 0
-GLOBAL(e820entry_end)
 
 /*
  * must be last in this file
