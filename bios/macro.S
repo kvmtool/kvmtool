@@ -6,20 +6,20 @@
  * switch to BIOS stack
  */
 .macro stack_swap
-	mov %ss, %cs:(__CALLER_SS)
-	mov %sp, %cs:(__CALLER_SP)
-	mov %dx, %cs:(__CALLER_CLOBBER)
-	mov $MB_BIOS_SS, %dx
-	mov %dx, %ss
-	mov $MB_BIOS_SP, %sp
-	mov %cs:(__CALLER_CLOBBER), %dx
+	movw %ss, %cs:(__CALLER_SS)
+	movl %esp, %cs:(__CALLER_SP)
+	movl %edx, %cs:(__CALLER_CLOBBER)
+	movw $MB_BIOS_SS, %dx
+	movw %dx, %ss
+	movw $MB_BIOS_SP, %sp
+	movl %cs:(__CALLER_CLOBBER), %edx
 .endm
 
 /*
  * restore the original stack
  */
 .macro stack_restore
-	mov %cs:(__CALLER_SP), %sp
-	mov %cs:(__CALLER_SS), %ss
+	movl %cs:(__CALLER_SP), %esp
+	movw %cs:(__CALLER_SS), %ss
 .endm
 
