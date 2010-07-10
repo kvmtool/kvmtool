@@ -41,7 +41,6 @@ ENTRY(___int15)
 	/* Clear CF */
 	andl	$~EFLAGS_CF, 0x4(%esp)
 out:
-	sti
 	IRET
 
 /*
