@@ -14,7 +14,10 @@ extern bool ioport_debug;
 
 static void usage(char *argv[])
 {
-	fprintf(stderr, "  usage: %s [--single-step] [--ioport-debug] [--params=<kernel-params>] [--kernel=]<kernel-image>\n",
+	fprintf(stderr, "  usage: %s "
+		"[--single-step] [--ioport-debug] "
+		"[--kvm-dev=device] [--mem=MB] [--params=<kernel-params>] "
+		"[--kernel=]<kernel-image>\n",
 		argv[0]);
 	exit(1);
 }
@@ -44,6 +47,7 @@ int main(int argc, char *argv[])
 	const char *kernel_filename = NULL;
 	const char *kernel_cmdline = NULL;
 	const char *kvm_dev = "/dev/kvm";
+	unsigned long ram_size = 64UL << 20;
 	bool single_step = false;
 	int i;
 
@@ -62,6 +66,13 @@ int main(int argc, char *argv[])
 		} else if (option_matches(argv[i], "--single-step")) {
 			single_step	= true;
 			continue;
+		} else if (option_matches(argv[i], "--mem=")) {
+			unsigned long val = atol(&argv[i][6]) << 20;
+			if (val < ram_size)
+				die("Not enough memory specified: %sMB (min %luMB)",
+					argv[i], ram_size >> 20);
+			ram_size = val;
+			continue;
 		} else if (option_matches(argv[i], "--ioport-debug")) {
 			ioport_debug	= true;
 			continue;
@@ -78,7 +89,7 @@ int main(int argc, char *argv[])
 	if (!kernel_filename)
 		usage(argv);
 
-	kvm = kvm__init(kvm_dev);
+	kvm = kvm__init(kvm_dev, ram_size);
 
 	kvm__setup_cpuid(kvm);
 

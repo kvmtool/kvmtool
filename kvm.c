@@ -151,7 +151,7 @@ static bool kvm__cpu_supports_vm(void)
 	return regs.ecx & (1 << feature);
 }
 
-struct kvm *kvm__init(const char *kvm_dev)
+struct kvm *kvm__init(const char *kvm_dev, unsigned long ram_size)
 {
 	struct kvm_userspace_memory_region mem;
 	struct kvm_pit_config pit_config = { .flags = 0, };
@@ -192,7 +192,7 @@ struct kvm *kvm__init(const char *kvm_dev)
 	if (ret < 0)
 		die_perror("KVM_CREATE_PIT2 ioctl");
 
-	self->ram_size		= 64UL * 1024UL * 1024UL;
+	self->ram_size		= ram_size;
 
 	page_size	= sysconf(_SC_PAGESIZE);
 	if (posix_memalign(&self->ram_start, page_size, self->ram_size) != 0)

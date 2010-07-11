@@ -31,7 +31,7 @@ struct kvm {
 	struct interrupt_table	interrupt_table;
 };
 
-struct kvm *kvm__init(const char *kvm_dev);
+struct kvm *kvm__init(const char *kvm_dev, unsigned long ram_size);
 void kvm__delete(struct kvm *self);
 void kvm__setup_cpuid(struct kvm *self);
 void kvm__enable_singlestep(struct kvm *self);
