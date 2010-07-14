@@ -11,7 +11,8 @@
 	.globl name;	\
 	name:
 
-#define ENTRY_END(name)
+#define ENTRY_END(name)	GLOBAL(name##_end)
+#define END(name)	GLOBAL(name##_end)
 
 /*
  * gas produces size override prefix with which

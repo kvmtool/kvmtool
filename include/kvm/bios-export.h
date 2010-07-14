@@ -3,18 +3,10 @@
 
 struct kvm;
 
-extern char bios_intfake[0];
-extern char bios_intfake_end[0];
+extern char bios_rom[0];
+extern char bios_rom_end[0];
 
-extern char bios_int10[0];
-extern char bios_int10_end[0];
-
-extern char bios_int15[0];
-extern char bios_int15_end[0];
-
-#define bios_intfake_size	(bios_intfake_end - bios_intfake)
-#define bios_int10_size		(bios_int10_end - bios_int10)
-#define bios_int15_size		(bios_int15_end - bios_int15)
+#define bios_rom_size		(bios_rom_end - bios_rom)
 
 extern void setup_bios(struct kvm *kvm);
 

@@ -1,5 +1,5 @@
 /*
- * IRQ 0x10 handler - output in video memory
+ * Our pretty trivial BIOS emulation
  */
 
 #include <kvm/bios.h>
@@ -11,6 +11,13 @@
 #include "macro.S"
 
 /*
+ * fake interrupt handler, nothing can be faster ever
+ */
+ENTRY(bios_intfake)
+	IRET
+ENTRY_END(bios_intfake)
+
+/*
  * int 10 - video - write character and advance cursor (tty write)
  *	ah = 0eh
  *	al = character
@@ -19,10 +26,10 @@
  *
  * We ignore bx settings
  */
-ENTRY(___int10)
+ENTRY(bios_int10)
 	cli
 	test $0x0e, %ah
-	jne out
+	jne 1f
 
 /*
  * put char in AL at current cursor and
@@ -49,16 +56,51 @@ putchar_new:
 	pop %fs
 
 	stack_restore
-out:
+1:
 	sti
 	IRET
 /*
  * private IRQ data
  */
 cursor:		.long 0
+ENTRY_END(bios_int10)
 
-/*
- * must be last in this file
- */
+#define EFLAGS_CF	(1 << 0)
+
+ENTRY(bios_int15)
+	cmp $0xE820, %eax
+	jne 1f
+
+	pushw	%fs
+
+	pushl	%edx
+	pushl	%ecx
+	pushl	%edi
+	pushl	%ebx
+	pushl	%eax
+
+	xor	%ax, %ax
+	mov	%ax, %fs
+
+	movl	%esp, %eax
+	call	e820_query_map
+
+	popl	%eax
+	popl	%ebx
+	popl	%edi
+	popl	%ecx
+	popl	%edx
+
+	popw	%fs
+
+	/* Clear CF */
+	andl	$~EFLAGS_CF, 0x4(%esp)
+1:
+	IRET
+ENTRY_END(bios_int15)
+
+GLOBAL(__locals)
+
 #include "local.S"
-ENTRY_END(___int10_end)
+
+END(__locals)

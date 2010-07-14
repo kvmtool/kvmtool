@@ -18,9 +18,7 @@ OBJS	+= main.o
 OBJS	+= mmio.o
 OBJS	+= util.o
 OBJS	+= bios.o
-OBJS	+= bios/intfake.o
-OBJS	+= bios/int10.o
-OBJS	+= bios/int15.o
+OBJS	+= bios/bios.o
 
 uname_M      := $(shell uname -m | sed -e s/i.86/i386/)
 ifeq ($(uname_M),i386)
@@ -69,34 +67,22 @@ $(OBJS):
 BIOS_CFLAGS += -m32
 BIOS_CFLAGS += -march=i386
 BIOS_CFLAGS += -mregparm=3
-bios/intfake.o: bios/intfake.S bios/intfake-real.S
-	$(E) "  CC      " $@
-	$(Q) $(CC) $(CFLAGS) $(BIOS_CFLAGS) -c -s bios/intfake-real.S -o bios/intfake-real.o
-	$(E) "  LD      " $@
-	$(Q) ld -T bios/bios-strip.ld.S -o bios/intfake-real.bin.elf bios/intfake-real.o
-	$(E) "  OBJCOPY " $@
-	$(Q) objcopy -O binary -j .text bios/intfake-real.bin.elf bios/intfake-real.bin
-	$(Q) $(CC) $(CFLAGS) -c bios/intfake.S -o bios/intfake.o
 
-bios/int10.o: bios/int10.S bios/int10-real.S
+bios.o: bios/bios-rom.bin
+bios/bios.o: bios/bios.S bios/bios-rom.bin
 	$(E) "  CC      " $@
-	$(Q) $(CC) $(CFLAGS) $(BIOS_CFLAGS) -c -s bios/int10-real.S -o bios/int10-real.o
-	$(E) "  LD      " $@
-	$(Q) ld -T bios/bios-strip.ld.S -o bios/int10-real.bin.elf bios/int10-real.o
-	$(E) "  OBJCOPY " $@
-	$(Q) objcopy -O binary -j .text bios/int10-real.bin.elf bios/int10-real.bin
-	$(Q) $(CC) $(CFLAGS) -c bios/int10.S -o bios/int10.o
-
-bios/int15.o: bios/int10.S bios/int15-real.S
+	$(Q) $(CC) -c $(CFLAGS) bios/bios.S -o bios/bios.o
+	
+bios/bios-rom.bin: bios/bios-rom.S bios/e820.c
 	$(E) "  CC      " $@
 	$(Q) $(CC) -include code16gcc.h $(CFLAGS) $(BIOS_CFLAGS) -c -s bios/e820.c -o bios/e820.o
-	$(E) "  CC      " $@
-	$(Q) $(CC) $(CFLAGS) $(BIOS_CFLAGS) -c -s bios/int15-real.S -o bios/int15-real.o
+	$(Q) $(CC) $(CFLAGS) $(BIOS_CFLAGS) -c -s bios/bios-rom.S -o bios/bios-rom.o
 	$(E) "  LD      " $@
-	$(Q) ld -T bios/bios-strip.ld.S -o bios/int15-real.bin.elf bios/int15-real.o bios/e820.o
+	$(Q) ld -T bios/rom.ld.S -o bios/bios-rom.bin.elf bios/bios-rom.o bios/e820.o
 	$(E) "  OBJCOPY " $@
-	$(Q) objcopy -O binary -j .text bios/int15-real.bin.elf bios/int15-real.bin
-	$(Q) $(CC) $(CFLAGS) -c bios/int15.S -o bios/int15.o
+	$(Q) objcopy -O binary -j .text bios/bios-rom.bin.elf bios/bios-rom.bin
+	$(E) "  NM      " $@
+	$(Q) cd bios && sh gen-offsets.sh > bios-rom.h && cd ..
 
 check: $(PROGRAM)
 	$(MAKE) -C tests
@@ -108,6 +94,7 @@ clean:
 	$(Q) rm -f bios/*.bin
 	$(Q) rm -f bios/*.elf
 	$(Q) rm -f bios/*.o
+	$(Q) rm -f bios/bios-rom.h
 	$(Q) rm -f $(OBJS) $(PROGRAM)
 .PHONY: clean
 
