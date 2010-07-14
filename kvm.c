@@ -544,17 +544,17 @@ void kvm__setup_mem(struct kvm *self)
 
 	mem_map[0]	= (struct e820_entry) {
 		.addr		= REAL_MODE_IVT_BEGIN,
-		.size		= BDA_END - REAL_MODE_IVT_BEGIN,
-		.type		= E820_MEM_RESERVED,
-	};
-	mem_map[1]	= (struct e820_entry) {
-		.addr		= BDA_END,
-		.size		= EBDA_END - BDA_END,
+		.size		= EBDA_START - REAL_MODE_IVT_BEGIN,
 		.type		= E820_MEM_USABLE,
 	};
+	mem_map[1]	= (struct e820_entry) {
+		.addr		= EBDA_START,
+		.size		= VGA_RAM_BEGIN - EBDA_START,
+		.type		= E820_MEM_RESERVED,
+	};
 	mem_map[2]	= (struct e820_entry) {
-		.addr		= EBDA_END,
-		.size		= BZ_KERNEL_START - EBDA_END,
+		.addr		= MB_BIOS_BEGIN,
+		.size		= MB_BIOS_END - MB_BIOS_BEGIN,
 		.type		= E820_MEM_RESERVED,
 	};
 	mem_map[3]	= (struct e820_entry) {

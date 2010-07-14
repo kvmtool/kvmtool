@@ -18,11 +18,11 @@
 #define REAL_MODE_IVT_BEGIN		0x00000000
 #define REAL_MODE_IVT_END		0x000003ff
 
-#define BDA_START			0x00000400UL
-#define BDA_END				0x000004FFUL
+#define BDA_START			0x00000400
+#define BDA_END				0x000004ff
 
-#define EBDA_START			0x0009FC00UL
-#define EBDA_END			0x0009FFFFUL
+#define EBDA_START			0x0009fc00
+#define EBDA_END			0x0009ffff
 
 #define E820_MAP_SIZE			EBDA_START
 #define E820_MAP_START			(EBDA_START + 0x01)
@@ -32,6 +32,9 @@
 
 #define VGA_RAM_BEGIN			0x000a0000
 #define VGA_RAM_END			0x000bffff
+
+#define VGA_ROM_BEGIN			0x000c0000
+#define VGA_ROM_END			0x000c7fff
 
 /* we handle one page only */
 #define VGA_RAM_SEG			(VGA_RAM_BEGIN >> 4)
@@ -45,7 +48,7 @@
  * BIOS stack must be at absolute predefined memory address
  * We reserve 64 bytes for BIOS stack
  */
-#define MB_BIOS_SS			0xFFF7
+#define MB_BIOS_SS			0xfff7
 #define MB_BIOS_SP			0x40
 
 #define ALIGN(x, a)	\
