@@ -11,7 +11,9 @@ static inline void outb(uint8_t v, uint16_t port)
 static inline uint8_t rdfs8(unsigned long addr)
 {
 	uint8_t v;
-	asm volatile("movb %%fs:%1,%0" : "=q" (v) : "m" (*(uint8_t *)addr));
+
+	asm volatile("addr32 movb %%fs:%1,%0" : "=q" (v) : "m" (*(uint8_t *)addr));
+
 	return v;
 }
 
