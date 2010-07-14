@@ -16,7 +16,7 @@ static void usage(char *argv[])
 {
 	fprintf(stderr, "  usage: %s "
 		"[--single-step] [--ioport-debug] "
-		"[--kvm-dev=device] [--mem=MB] [--params=<kernel-params>] "
+		"[--kvm-dev=<device>] [--mem=<size-in-MiB>] [--params=<kernel-params>] "
 		"[--kernel=]<kernel-image>\n",
 		argv[0]);
 	exit(1);
