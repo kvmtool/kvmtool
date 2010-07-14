@@ -32,6 +32,7 @@ endif
 
 CFLAGS	+= $(CPPFLAGS) $(DEFINES) -Iinclude -Os -g
 
+WARNINGS += -Werror
 WARNINGS += -Wall
 WARNINGS += -Wcast-align
 WARNINGS += -Wformat=2
