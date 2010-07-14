@@ -129,10 +129,14 @@ static bool kvm__cpu_supports_vm(void)
 		eax_base	= 0x00;
 		feature		= KVM__X86_FEATURE_VMX;
 		break;
+
 	case CPUID_VENDOR_AMD_1:
 		eax_base	= 0x80000000;
 		feature		= KVM__X86_FEATURE_SVM;
 		break;
+
+	default:
+		return false;
 	}
 
 	regs	= (struct cpuid_regs) {
