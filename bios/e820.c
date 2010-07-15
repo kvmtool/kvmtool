@@ -35,7 +35,7 @@ void e820_query_map(struct e820_query *query)
 	}
 
 	query->eax	= SMAP;
-	query->ecx	= 20;
+	query->ecx	= sizeof(struct e820_entry);
 	query->ebx	= ++ndx;
 
 	if (ndx >= map_size)
