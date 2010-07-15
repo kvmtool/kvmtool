@@ -6,29 +6,51 @@
 
 #include "bios/bios-rom.h"
 
-static void bios_setup_irq_handler(struct kvm *kvm, unsigned int address,
-				unsigned int irq, void *handler, unsigned int size)
-{
-	struct real_intr_desc intr_desc;
-	void *p;
-
-	p = guest_flat_to_host(kvm, address);
-	memcpy(p, handler, size);
-	intr_desc = (struct real_intr_desc) {
-		.segment	= REAL_SEGMENT(address),
-		.offset		= REAL_OFFSET(address),
-	};
-	interrupt_table__set(&kvm->interrupt_table, &intr_desc, irq);
-}
+struct irq_handler {
+	unsigned long		address;
+	unsigned int		irq;
+	void			*handler;
+	size_t			size;
+};
 
 #define BIOS_IRQ_ADDR(name) (MB_BIOS_BEGIN + BIOS_OFFSET__##name)
 #define BIOS_IRQ_FUNC(name) ((char *)&bios_rom[BIOS_OFFSET__##name])
 #define BIOS_IRQ_SIZE(name) (BIOS_ENTRY_SIZE(BIOS_OFFSET__##name))
 
+#define DEFINE_BIOS_IRQ_HANDLER(_irq, _handler)			\
+	{							\
+		.irq		= _irq,				\
+		.address	= BIOS_IRQ_ADDR(_handler),	\
+		.handler	= BIOS_IRQ_FUNC(_handler),	\
+		.size		= BIOS_IRQ_SIZE(_handler),	\
+	}
+
+static struct irq_handler bios_irq_handlers[] = {
+	DEFINE_BIOS_IRQ_HANDLER(0x10, bios_int10),
+	DEFINE_BIOS_IRQ_HANDLER(0x15, bios_int15),
+};
+
+static void setup_irq_handler(struct kvm *kvm, struct irq_handler *handler)
+{
+	struct real_intr_desc intr_desc;
+	void *p;
+
+	p	= guest_flat_to_host(kvm, handler->address);
+	memcpy(p, handler->handler, handler->size);
+
+	intr_desc = (struct real_intr_desc) {
+		.segment	= REAL_SEGMENT(handler->address),
+		.offset		= REAL_OFFSET(handler->address),
+	};
+
+	interrupt_table__set(&kvm->interrupt_table, &intr_desc, handler->irq);
+}
+
 void setup_bios(struct kvm *kvm)
 {
 	unsigned long address = MB_BIOS_BEGIN;
 	struct real_intr_desc intr_desc;
+	unsigned int i;
 	void *p;
 
 	/* just copy the bios rom into the place */
@@ -46,17 +68,8 @@ void setup_bios(struct kvm *kvm)
 	};
 	interrupt_table__setup(&kvm->interrupt_table, &intr_desc);
 
-	/* int 0x10 */
-	address = BIOS_IRQ_ADDR(bios_int10);
-	bios_setup_irq_handler(kvm, address, 0x10, BIOS_IRQ_FUNC(bios_int10), BIOS_IRQ_SIZE(bios_int10));
-
-	/*
-	 * e820 memory map
-	 *
-	 * int 0x15
-	 */
-	address = BIOS_IRQ_ADDR(bios_int15);
-	bios_setup_irq_handler(kvm, address, 0x15, BIOS_IRQ_FUNC(bios_int15), BIOS_IRQ_SIZE(bios_int15));
+	for (i = 0; i < ARRAY_SIZE(bios_irq_handlers); i++)
+		setup_irq_handler(kvm, &bios_irq_handlers[i]);
 
 	/* we almost done */
 	p = guest_flat_to_host(kvm, 0);
