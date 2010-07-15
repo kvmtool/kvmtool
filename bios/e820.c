@@ -3,11 +3,6 @@
 #include "kvm/bios.h"
 #include "kvm/util.h"
 
-static inline void outb(uint8_t v, uint16_t port)
-{
-	asm volatile("outb %0,%1" : : "a" (v), "dN" (port));
-}
-
 static inline uint8_t rdfs8(unsigned long addr)
 {
 	uint8_t v;
