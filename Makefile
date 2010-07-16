@@ -17,10 +17,12 @@ OBJS	+= kvm.o
 OBJS	+= main.o
 OBJS	+= mmio.o
 OBJS	+= util.o
-OBJS	+= bios.o
-OBJS	+= bios/bios.o
 
 DEPS	:= $(patsubst %.o,%.d,$(OBJS))
+
+# Exclude BIOS object files from header dependencies.
+OBJS	+= bios.o
+OBJS	+= bios/bios.o
 
 uname_M      := $(shell uname -m | sed -e s/i.86/i386/)
 ifeq ($(uname_M),i386)
