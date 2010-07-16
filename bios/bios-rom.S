@@ -79,9 +79,6 @@ ENTRY(bios_int15)
 	pushl	%ebx
 	pushl	%eax
 
-	xor	%ax, %ax
-	mov	%ax, %fs
-
 	movl	%esp, %eax
 	call	e820_query_map
 
