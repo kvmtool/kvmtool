@@ -20,6 +20,8 @@ OBJS	+= util.o
 OBJS	+= bios.o
 OBJS	+= bios/bios.o
 
+DEPS	:= $(patsubst %.o,%.d,$(OBJS))
+
 uname_M      := $(shell uname -m | sed -e s/i.86/i386/)
 ifeq ($(uname_M),i386)
 	DEFINES      += -DCONFIG_X86_32
@@ -51,9 +53,14 @@ CFLAGS	+= $(WARNINGS)
 
 all: $(PROGRAM)
 
-$(PROGRAM): $(OBJS)
+$(PROGRAM): $(DEPS) $(OBJS)
 	$(E) "  LINK    " $@
 	$(Q) $(CC) $(OBJS) -o $@
+
+$(DEPS):
+
+%.d: %.c
+	$(Q) $(CC) -M -MT $(patsubst %.d,%.o,$@) $(CFLAGS) $< -o $@
 
 $(OBJS):
 
@@ -106,3 +113,6 @@ $(KVM_DEV):
 
 devices: $(KVM_DEV)
 .PHONY: devices
+
+# Deps
+-include $(DEPS)
