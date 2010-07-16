@@ -102,7 +102,7 @@ clean:
 	$(Q) rm -f bios/*.elf
 	$(Q) rm -f bios/*.o
 	$(Q) rm -f bios/bios-rom.h
-	$(Q) rm -f $(OBJS) $(PROGRAM)
+	$(Q) rm -f $(DEPS) $(OBJS) $(PROGRAM)
 .PHONY: clean
 
 KVM_DEV	?= /dev/kvm
