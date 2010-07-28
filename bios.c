@@ -53,6 +53,22 @@ void setup_bios(struct kvm *kvm)
 	unsigned int i;
 	void *p;
 
+	/*
+	 * before anything else -- clean some known areas
+	 * we definitely don't want any trash here
+	 */
+	p = guest_flat_to_host(kvm, BDA_START);
+	memset(p, 0, BDA_END - BDA_START);
+
+	p = guest_flat_to_host(kvm, EBDA_START);
+	memset(p, 0, EBDA_END - EBDA_START);
+
+	p = guest_flat_to_host(kvm, MB_BIOS_BEGIN);
+	memset(p, 0, MB_BIOS_END - MB_BIOS_BEGIN);
+
+	p = guest_flat_to_host(kvm, VGA_ROM_BEGIN);
+	memset(p, 0, VGA_ROM_END - VGA_ROM_BEGIN);
+
 	/* just copy the bios rom into the place */
 	p = guest_flat_to_host(kvm, MB_BIOS_BEGIN);
 	memcpy(p, bios_rom, bios_rom_size);
