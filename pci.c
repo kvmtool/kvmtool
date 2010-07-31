@@ -4,11 +4,11 @@
 
 #include <stdint.h>
 
-static uint32_t pci_config_address;
+static struct pci_config_address pci_config_address;
 
 static bool pci_config_address_out(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
 {
-	uint32_t *addr = data;
+	struct pci_config_address *addr = data;
 
 	pci_config_address	= *addr;
 
@@ -17,7 +17,7 @@ static bool pci_config_address_out(struct kvm *self, uint16_t port, void *data, 
 
 static bool pci_config_address_in(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
 {
-	uint32_t *addr = data;
+	struct pci_config_address *addr = data;
 
 	*addr		=  pci_config_address;
 
