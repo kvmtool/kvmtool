@@ -16,6 +16,7 @@ OBJS	+= ioport.o
 OBJS	+= kvm.o
 OBJS	+= main.o
 OBJS	+= mmio.o
+OBJS	+= pci.o
 OBJS	+= util.o
 
 DEPS	:= $(patsubst %.o,%.d,$(OBJS))

@@ -2,6 +2,7 @@
 
 #include "kvm/early_printk.h"
 #include "kvm/util.h"
+#include "kvm/pci.h"
 
 #include <inttypes.h>
 #include <signal.h>
@@ -110,6 +111,7 @@ int main(int argc, char *argv[])
 		kvm__enable_singlestep(kvm);
 
 	early_printk__init();
+	pci__init();
 
 	for (;;) {
 		kvm__run(kvm);
