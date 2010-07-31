@@ -1,6 +1,6 @@
 #include "kvm/pci.h"
-
 #include "kvm/ioport.h"
+#include "kvm/util.h"
 
 #include <stdint.h>
 
@@ -34,11 +34,43 @@ static bool pci_config_data_out(struct kvm *self, uint16_t port, void *data, int
 	return true;
 }
 
+static struct pci_device_header no_device = {
+	.vendor_id		= 0xffff,
+	.device_id		= 0xffff,
+	.revision_id		= 0xff,
+	.class			= 0xffffff,
+};
+
+#define PCI_VENDOR_ID_REDHAT_QUMRANET	0x1af4
+#define PCI_DEVICE_ID_VIRTIO_BLK	0x1001
+
+static struct pci_device_header virtio_device = {
+	.vendor_id		= PCI_VENDOR_ID_REDHAT_QUMRANET,
+	.device_id		= PCI_DEVICE_ID_VIRTIO_BLK,
+	.header_type		= PCI_HEADER_TYPE_NORMAL,
+};
+
+static bool pci_device_matches(uint8_t bus_number, uint8_t device_number, uint8_t function_number)
+{
+	if (pci_config_address.bus_number != bus_number)
+		return false;
+
+	if (pci_config_address.device_number != device_number)
+		return false;
+
+	return pci_config_address.function_number == function_number;
+}
+
 static bool pci_config_data_in(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
 {
-	uint32_t *value = data;
+	void *p;
 
-	*value = PCI_NO_DEVICE;
+	if (pci_device_matches(0, 1, 0))
+		p		= &virtio_device;
+	else
+		p		= &no_device;
+
+	memcpy(data, p + (pci_config_address.register_number * 4), size);
 
 	return true;
 }
