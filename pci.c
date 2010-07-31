@@ -63,7 +63,7 @@ static bool pci_config_data_in(struct kvm *self, uint16_t port, void *data, int 
 		if (offset < sizeof(struct pci_device_header)) {
 			void *p = &virtio_device;
 
-			memcpy(data, p + (pci_config_address.register_number << 2), size);
+			memcpy(data, p + offset, size);
 		} else
 			memset(data, 0x00, size);
 	} else
