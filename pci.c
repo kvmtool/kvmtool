@@ -10,7 +10,7 @@ static bool pci_config_address_out(struct kvm *self, uint16_t port, void *data, 
 {
 	uint32_t *addr = data;
 
-	pci_config_address	= *p;
+	pci_config_address	= *addr;
 
 	return true;
 }
