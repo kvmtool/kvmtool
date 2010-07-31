@@ -57,9 +57,15 @@ static bool pci_device_matches(uint8_t bus_number, uint8_t device_number, uint8_
 static bool pci_config_data_in(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
 {
 	if (pci_device_matches(0, 1, 0)) {
-		void *p = &virtio_device;
+		unsigned long offset;
 
-		memcpy(data, p + pci_config_address.register_number, size);
+		offset		= pci_config_address.register_number << 2;
+		if (offset < sizeof(struct pci_device_header)) {
+			void *p = &virtio_device;
+
+			memcpy(data, p + (pci_config_address.register_number << 2), size);
+		} else
+			memset(data, 0x00, size);
 	} else
 		memset(data, 0xff, size);
 
