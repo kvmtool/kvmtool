@@ -74,6 +74,7 @@ static struct ioport_operations *ioport_ops[USHRT_MAX] = {
 	/* PORT 0060-006F - KEYBOARD CONTROLLER 804x (8041, 8042) (or PPI (8255) on PC,XT) */
 	[0x0060]	= &dummy_read_write_ioport_ops,
 	[0x0061]	= &dummy_read_write_ioport_ops,
+	[0x0064]	= &dummy_read_write_ioport_ops,
 
 	/* PORT 0070-007F - CMOS RAM/RTC (REAL TIME CLOCK) */
 	[0x0070]	= &cmos_ram_rtc_ops,
@@ -94,15 +95,41 @@ static struct ioport_operations *ioport_ops[USHRT_MAX] = {
 	[0x00F0]	= &dummy_write_only_ioport_ops,
 	[0x00F1]	= &dummy_write_only_ioport_ops,
 
+	/* PORT 02E8-02EF - serial port, same as 02F8, 03E8 and 03F8 (COM4) */
+	[0x02E8]	= &dummy_read_write_ioport_ops,
+	[0x02E9]	= &dummy_read_write_ioport_ops,
+	[0x02EA]	= &dummy_read_write_ioport_ops,
+	[0x02EB]	= &dummy_read_write_ioport_ops,
+	[0x02EC]	= &dummy_read_write_ioport_ops,
+	[0x02EE]	= &dummy_read_write_ioport_ops,
+	[0x02EF]	= &dummy_read_write_ioport_ops,
+
+	/* PORT 02F8-02FF - serial port, same as 02E8, 03E8 and 03F8 (COM2) */
+	[0x02F8]	= &dummy_read_write_ioport_ops,
+	[0x02F9]	= &dummy_read_write_ioport_ops,
+	[0x02FA]	= &dummy_read_write_ioport_ops,
+	[0x02FB]	= &dummy_read_write_ioport_ops,
+	[0x02FC]	= &dummy_read_write_ioport_ops,
+	[0x02FF]	= &dummy_read_write_ioport_ops,
+
 	/* PORT 03D4-03D5 - COLOR VIDEO - CRT CONTROL REGISTERS */
 	[0x03D4]	= &dummy_read_write_ioport_ops,
 	[0x03D5]	= &dummy_write_only_ioport_ops,
+
+	/* PORT 03E8-03EF - serial port, same as 02E8, 02F8 and 03F8 (COM3) */
+	[0x03E8]	= &dummy_read_write_ioport_ops,
+	[0x03E9]	= &dummy_read_write_ioport_ops,
+	[0x03EA]	= &dummy_read_write_ioport_ops,
+	[0x03EB]	= &dummy_read_write_ioport_ops,
+	[0x03EC]	= &dummy_read_write_ioport_ops,
+	[0x03EF]	= &dummy_read_write_ioport_ops,
 
 	/* PORT 03F8-03FF - Serial port (8250,8250A,8251,16450,16550,16550A,etc.) COM1 */
 	[0x03F9]	= &dummy_read_write_ioport_ops,
 	[0x03FA]	= &dummy_read_write_ioport_ops,
 	[0x03FB]	= &dummy_read_write_ioport_ops,
 	[0x03FC]	= &dummy_read_write_ioport_ops,
+	[0x03FF]	= &dummy_read_write_ioport_ops,
 
 	/* PORT 0CF8-0CFF - PCI Configuration Mechanism 1 - Configuration Registers */
 	[0x0CF8]	= &dummy_write_only_ioport_ops,
