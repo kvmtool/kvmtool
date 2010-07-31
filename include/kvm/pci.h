@@ -9,6 +9,8 @@
 #define PCI_CONFIG_ADDRESS	0xcf8
 #define PCI_CONFIG_DATA		0xcfc
 
+#define PCI_NO_DEVICE		0xffffffff
+
 struct pci_config_address {
 	unsigned		zeros		: 2;		/* 1  .. 0  */
 	unsigned		register_number	: 6;		/* 7  .. 2  */

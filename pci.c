@@ -36,6 +36,10 @@ static bool pci_config_data_out(struct kvm *self, uint16_t port, void *data, int
 
 static bool pci_config_data_in(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
 {
+	uint32_t *value = data;
+
+	*value = PCI_NO_DEVICE;
+
 	return true;
 }
 
