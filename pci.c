@@ -41,6 +41,8 @@ static struct pci_device_header virtio_device = {
 	.vendor_id		= PCI_VENDOR_ID_REDHAT_QUMRANET,
 	.device_id		= PCI_DEVICE_ID_VIRTIO_BLK,
 	.header_type		= PCI_HEADER_TYPE_NORMAL,
+	/* .class			= (0x01 << 16) | (0x01 << 8) | ((1<<7) | 	 * (1<<1)), */
+	.bar[0]			= (IOPORT_VIRTIO << 4) | PCI_BASE_ADDRESS_SPACE_IO,
 };
 
 static bool pci_device_matches(uint8_t bus_number, uint8_t device_number, uint8_t function_number)
@@ -84,8 +86,28 @@ static struct ioport_operations pci_config_data_ops = {
 	.io_out		= pci_config_data_out,
 };
 
+static bool virtio_in(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
+{
+	info("virtio_in");
+	return true;
+}
+
+static bool virtio_out(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
+{
+	info("virtio_out");
+	return true;
+}
+
+static struct ioport_operations virtio_io_ops = {
+	.io_in		= virtio_in,
+	.io_out		= virtio_out,
+};
+
 void pci__init(void)
 {
+
+	ioport__register(IOPORT_VIRTIO,		&virtio_io_ops);
+
 	ioport__register(PCI_CONFIG_DATA + 0,	&pci_config_data_ops);
 	ioport__register(PCI_CONFIG_DATA + 1,	&pci_config_data_ops);
 	ioport__register(PCI_CONFIG_DATA + 2,	&pci_config_data_ops);

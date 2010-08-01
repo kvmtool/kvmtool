@@ -86,7 +86,7 @@ static struct ioport_operations *ioport_ops[USHRT_MAX] = {
 
 	/* PORT 00E0-00EF are 'motherboard specific' so we use them for our
 	   internal debugging purposes.  */
-	[0x00E0]	= &debug_ops,
+	[IOPORT_DBG]	= &debug_ops,
 
 	/* PORT 00ED - DUMMY PORT FOR DELAY??? */
 	[0x00ED]	= &dummy_write_only_ioport_ops,

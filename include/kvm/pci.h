@@ -34,8 +34,8 @@ struct pci_device_header {
 	uint8_t		cacheline_size;
 	uint8_t		latency_timer;
 	uint8_t		header_type;
-	uint8_t		BIST;
-	uint32_t	BAR[6];
+	uint8_t		bist;
+	uint32_t	bar[6];
 	uint32_t	card_bus;
 	uint16_t	subsys_vendor_id;
 	uint16_t	subsys_id;
