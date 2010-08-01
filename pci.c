@@ -60,17 +60,16 @@ static bool pci_config_data_in(struct kvm *self, uint16_t port, void *data, int 
 
 	/*
 	 * If someone accesses PCI configuration space offsets that are not
-	 * aligned to 4 bytes, it uses iports to signify that.
+	 * aligned to 4 bytes, it uses ioports to signify that.
 	 */
-	start		= port - PCI_CONFIG_ADDRESS;
+	start = port - PCI_CONFIG_DATA;
 
 	if (pci_device_matches(0, 1, 0)) {
 		unsigned long offset;
 
-		offset		= start + (pci_config_address.register_number << 2);
+		offset = start + (pci_config_address.register_number << 2);
 		if (offset < sizeof(struct pci_device_header)) {
 			void *p = &virtio_device;
-
 			memcpy(data, p + offset, size);
 		} else
 			memset(data, 0x00, size);
@@ -87,9 +86,10 @@ static struct ioport_operations pci_config_data_ops = {
 
 void pci__init(void)
 {
-	ioport__register(PCI_CONFIG_DATA,        &pci_config_data_ops);
-	ioport__register(PCI_CONFIG_ADDRESS + 0, &pci_config_address_ops);
-	ioport__register(PCI_CONFIG_ADDRESS + 1, &pci_config_address_ops);
-	ioport__register(PCI_CONFIG_ADDRESS + 2, &pci_config_address_ops);
-	ioport__register(PCI_CONFIG_ADDRESS + 3, &pci_config_address_ops);
+	ioport__register(PCI_CONFIG_DATA + 0,	&pci_config_data_ops);
+	ioport__register(PCI_CONFIG_DATA + 1,	&pci_config_data_ops);
+	ioport__register(PCI_CONFIG_DATA + 2,	&pci_config_data_ops);
+	ioport__register(PCI_CONFIG_DATA + 3,	&pci_config_data_ops);
+
+	ioport__register(PCI_CONFIG_ADDRESS,	&pci_config_address_ops);
 }
