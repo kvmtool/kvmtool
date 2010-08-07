@@ -6,7 +6,7 @@
 
 /* some ports we reserve for own use */
 #define IOPORT_DBG	0xe0
-#define IOPORT_VIRTIO	0xea
+#define IOPORT_VIRTIO	0xc200
 
 struct kvm;
 
