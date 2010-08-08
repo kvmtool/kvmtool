@@ -93,13 +93,11 @@ static struct ioport_operations pci_config_data_ops = {
 
 static bool virtio_in(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
 {
-	info("virtio_in");
 	return true;
 }
 
 static bool virtio_out(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
 {
-	info("virtio_out");
 	return true;
 }
 
