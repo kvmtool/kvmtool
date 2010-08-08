@@ -18,7 +18,7 @@ static void usage(char *argv[])
 	fprintf(stderr, "  usage: %s "
 		"[--single-step] [--ioport-debug] "
 		"[--kvm-dev=<device>] [--mem=<size-in-MiB>] [--params=<kernel-params>] "
-		"[--kernel=]<kernel-image>\n",
+		"[--initrd=<initrd>] [--kernel=]<kernel-image>\n",
 		argv[0]);
 	exit(1);
 }
@@ -46,6 +46,7 @@ static bool option_matches(char *arg, const char *option)
 int main(int argc, char *argv[])
 {
 	const char *kernel_filename = NULL;
+	const char *initrd_filename = NULL;
 	const char *kernel_cmdline = NULL;
 	const char *kvm_dev = "/dev/kvm";
 	unsigned long ram_size = 64UL << 20;
@@ -57,6 +58,9 @@ int main(int argc, char *argv[])
 	for (i = 1; i < argc; i++) {
 		if (option_matches(argv[i], "--kernel=")) {
 			kernel_filename	= &argv[i][9];
+			continue;
+		} else if (option_matches(argv[i], "--initrd=")) {
+			initrd_filename	= &argv[i][9];
 			continue;
 		} else if (option_matches(argv[i], "--params=")) {
 			kernel_cmdline	= &argv[i][9];
@@ -94,13 +98,13 @@ int main(int argc, char *argv[])
 
 	kvm__setup_cpuid(kvm);
 
-	strcpy(real_cmdline, "notsc nolapic nosmp noacpi pci=conf1 earlyprintk=serial,keep ");
+	strcpy(real_cmdline, "notsc nolapic nosmp noacpi pci=conf1 earlyprintk=ttyS0,keep ");
 	if (kernel_cmdline) {
 		strlcat(real_cmdline, kernel_cmdline, sizeof(real_cmdline));
 		real_cmdline[sizeof(real_cmdline)-1] = '\0';
 	}
 
-	if (!kvm__load_kernel(kvm, kernel_filename, real_cmdline))
+	if (!kvm__load_kernel(kvm, kernel_filename, initrd_filename, real_cmdline))
 		die("unable to load kernel %s", kernel_filename);
 
 	kvm__reset_vcpu(kvm);

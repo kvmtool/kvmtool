@@ -21,6 +21,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <fcntl.h>
+#include <sys/stat.h>
 
 /*
  * Compatibility code. Remove this when we move to tools/kvm.
@@ -275,12 +276,12 @@ static int load_flat_binary(struct kvm *self, int fd)
  * default.
  */
 #define BZ_KERNEL_START			0x100000UL
-
+#define INITRD_START			0x1000000UL
+#define BZ_DEFAULT_SETUP_SECTS		4
 static const char *BZIMAGE_MAGIC	= "HdrS";
 
-#define BZ_DEFAULT_SETUP_SECTS		4
-
-static bool load_bzimage(struct kvm *self, int fd, const char *kernel_cmdline)
+static bool load_bzimage(struct kvm *self, int fd_kernel,
+			int fd_initrd, const char *kernel_cmdline)
 {
 	struct boot_params *kern_boot;
 	unsigned long setup_sects;
@@ -295,21 +296,25 @@ static bool load_bzimage(struct kvm *self, int fd, const char *kernel_cmdline)
 	 * memory layout.
 	 */
 
-	if (lseek(fd, 0, SEEK_SET) < 0)
+	if (lseek(fd_kernel, 0, SEEK_SET) < 0)
 		die_perror("lseek");
 
-	if (read(fd, &boot, sizeof(boot)) != sizeof(boot))
+	if (read(fd_kernel, &boot, sizeof(boot)) != sizeof(boot)) {
+		warning("Failed to read kernel boot area");
 		return false;
+	}
 
-        if (memcmp(&boot.hdr.header, BZIMAGE_MAGIC, strlen(BZIMAGE_MAGIC)) != 0)
+        if (memcmp(&boot.hdr.header, BZIMAGE_MAGIC, strlen(BZIMAGE_MAGIC))) {
+		warning("Kernel header corrupted");
 		return false;
+	}
 
 	if (boot.hdr.version < BOOT_PROTOCOL_REQUIRED) {
 		warning("Too old kernel");
 		return false;
 	}
 
-	if (lseek(fd, 0, SEEK_SET) < 0)
+	if (lseek(fd_kernel, 0, SEEK_SET) < 0)
 		die_perror("lseek");
 
 	if (!boot.hdr.setup_sects)
@@ -319,12 +324,14 @@ static bool load_bzimage(struct kvm *self, int fd, const char *kernel_cmdline)
 	setup_size = setup_sects << 9;
 	p = guest_real_to_host(self, BOOT_LOADER_SELECTOR, BOOT_LOADER_IP);
 
-	if (read(fd, p, setup_size) != setup_size)
+	/* copy setup.bin to mem*/
+	if (read(fd_kernel, p, setup_size) != setup_size)
 		die_perror("read");
 
+	/* copy vmlinux.bin to BZ_KERNEL_START*/
 	p = guest_flat_to_host(self, BZ_KERNEL_START);
 
-	while ((nr = read(fd, p, 65536)) > 0)
+	while ((nr = read(fd_kernel, p, 65536)) > 0)
 		p += nr;
 
 	p = guest_flat_to_host(self, BOOT_CMDLINE_OFFSET);
@@ -344,6 +351,34 @@ static bool load_bzimage(struct kvm *self, int fd, const char *kernel_cmdline)
 	kern_boot->hdr.heap_end_ptr	= 0xfe00;
 	kern_boot->hdr.loadflags	|= CAN_USE_HEAP;
 
+	/*
+	 * Read initrd image into guest memory
+	 */
+	if (fd_initrd >= 0) {
+		struct stat initrd_stat;
+		unsigned long addr;
+
+		if (fstat(fd_initrd, &initrd_stat))
+			die_perror("fstat");
+
+		addr = boot.hdr.initrd_addr_max & ~0xfffff;
+		for (;;) {
+			if (addr < BZ_KERNEL_START)
+				die("Not enough memory for initrd");
+			else if (addr < (self->ram_size - initrd_stat.st_size))
+				break;
+			addr -= 0x100000;
+		}
+
+		p = guest_flat_to_host(self, addr);
+		nr = read(fd_initrd, p, initrd_stat.st_size);
+		if (nr != initrd_stat.st_size)
+			die("Failed to read initrd");
+
+		kern_boot->hdr.ramdisk_image	= addr;
+		kern_boot->hdr.ramdisk_size	= initrd_stat.st_size;
+	}
+
 	self->boot_selector	= BOOT_LOADER_SELECTOR;
 	/*
 	 * The real-mode setup code starts at offset 0x200 of a bzImage. See
@@ -361,20 +396,26 @@ static bool load_bzimage(struct kvm *self, int fd, const char *kernel_cmdline)
 }
 
 bool kvm__load_kernel(struct kvm *kvm, const char *kernel_filename,
-			const char *kernel_cmdline)
+		const char *initrd_filename, const char *kernel_cmdline)
 {
 	bool ret;
-	int fd;
+	int fd_kernel = -1, fd_initrd = -1;
 
-	fd = open(kernel_filename, O_RDONLY);
-	if (fd < 0)
+	fd_kernel = open(kernel_filename, O_RDONLY);
+	if (fd_kernel < 0)
 		die("unable to open kernel");
 
-	ret = load_bzimage(kvm, fd, kernel_cmdline);
+	if (initrd_filename) {
+		fd_initrd = open(initrd_filename, O_RDONLY);
+		if (fd_initrd < 0)
+			die("unable to open initrd");
+	}
+
+	ret = load_bzimage(kvm, fd_kernel, fd_initrd, kernel_cmdline);
 	if (ret)
 		goto found_kernel;
 
-	ret = load_flat_binary(kvm, fd);
+	ret = load_flat_binary(kvm, fd_kernel);
 	if (ret)
 		goto found_kernel;
 
