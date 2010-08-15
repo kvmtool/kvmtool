@@ -22,12 +22,22 @@ static inline uint8_t ioport__read8(uint8_t *data)
 	return *data;
 }
 
+static inline uint16_t ioport__read16(uint16_t *data)
+{
+	return *data;
+}
+
 static inline uint32_t ioport__read32(uint32_t *data)
 {
 	return *data;
 }
 
 static inline void ioport__write8(uint8_t *data, uint8_t value)
+{
+	*data		 = value;
+}
+
+static inline void ioport__write16(uint16_t *data, uint16_t value)
 {
 	*data		 = value;
 }

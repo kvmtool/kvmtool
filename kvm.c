@@ -611,6 +611,21 @@ void kvm__run(struct kvm *self)
 		die_perror("KVM_RUN failed");
 }
 
+void kvm__irq_line(struct kvm *self, int irq, int level)
+{
+	struct kvm_irq_level irq_level;
+
+	irq_level	= (struct kvm_irq_level) {
+		{
+			.irq		= irq,
+		},
+		.level		= level,
+	};
+
+	if (ioctl(self->vm_fd, KVM_IRQ_LINE, &irq_level) < 0)
+		die_perror("KVM_IRQ_LINE failed");
+}
+
 static void print_dtable(const char *name, struct kvm_dtable *dtable)
 {
 	printf(" %s                 %016" PRIx64 "  %08" PRIx16 "\n",

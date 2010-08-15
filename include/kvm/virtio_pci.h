@@ -49,4 +49,8 @@
 /* A 16-bit vector for selected queue notifications. */
 #define VIRTIO_MSI_QUEUE_VECTOR         22
 
+/* Config space size */
+#define VIRTIO_PCI_CONFIG_NOMSI         20
+#define VIRTIO_PCI_CONFIG_MSI           24
+
 #endif /* _LINUX_VIRTIO_PCI_H */
