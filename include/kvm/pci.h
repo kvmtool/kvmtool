@@ -50,5 +50,6 @@ struct pci_device_header {
 };
 
 void pci__init(void);
+void pci__register(struct pci_device_header *dev, uint8_t dev_num);
 
 #endif /* KVM__PCI_H */

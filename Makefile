@@ -9,6 +9,7 @@ export E Q
 
 PROGRAM	= kvm
 
+OBJS	+= blk-virtio.o
 OBJS	+= cpuid.o
 OBJS	+= early_printk.o
 OBJS	+= interrupt.o
