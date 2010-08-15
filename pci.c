@@ -111,13 +111,6 @@ void pci__register(struct pci_device_header *dev, uint8_t dev_num)
 
 void pci__init(void)
 {
-	ioport__register(PCI_CONFIG_DATA + 0, &pci_config_data_ops);
-	ioport__register(PCI_CONFIG_DATA + 1, &pci_config_data_ops);
-	ioport__register(PCI_CONFIG_DATA + 2, &pci_config_data_ops);
-	ioport__register(PCI_CONFIG_DATA + 3, &pci_config_data_ops);
-
-	ioport__register(PCI_CONFIG_ADDRESS + 0, &pci_config_address_ops);
-	ioport__register(PCI_CONFIG_ADDRESS + 1, &pci_config_address_ops);
-	ioport__register(PCI_CONFIG_ADDRESS + 2, &pci_config_address_ops);
-	ioport__register(PCI_CONFIG_ADDRESS + 3, &pci_config_address_ops);
+	ioport__register(PCI_CONFIG_DATA + 0, &pci_config_data_ops, 4);
+	ioport__register(PCI_CONFIG_ADDRESS + 0, &pci_config_address_ops, 4);
 }

@@ -137,9 +137,12 @@ static struct ioport_operations *ioport_ops[USHRT_MAX] = {
 	[0x0CFE]	= &dummy_read_write_ioport_ops,
 };
 
-void ioport__register(uint16_t port, struct ioport_operations *ops)
+void ioport__register(uint16_t port, struct ioport_operations *ops, int count)
 {
-	ioport_ops[port]	= ops;
+	int i;
+
+	for (i = 0; i < count; i++)
+		ioport_ops[port + i]	= ops;
 }
 
 static const char *to_direction(int direction)

@@ -38,5 +38,5 @@ void blk_virtio__init(void)
 {
 	pci__register(&virtio_device, 1);
 
-	ioport__register(IOPORT_VIRTIO, &virtio_io_ops);
+	ioport__register(IOPORT_VIRTIO, &virtio_io_ops, 1);
 }

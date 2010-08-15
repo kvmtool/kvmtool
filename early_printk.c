@@ -50,6 +50,6 @@ static struct ioport_operations early_serial_lsr_ops = {
 
 void early_printk__init(void)
 {
-	ioport__register(early_serial_base + TXR, &early_serial_txr_rxr_ops);
-	ioport__register(early_serial_base + LSR, &early_serial_lsr_ops);
+	ioport__register(early_serial_base + TXR, &early_serial_txr_rxr_ops, 1);
+	ioport__register(early_serial_base + LSR, &early_serial_lsr_ops, 1);
 }
