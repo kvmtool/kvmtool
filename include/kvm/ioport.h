@@ -17,4 +17,24 @@ struct ioport_operations {
 
 void ioport__register(uint16_t port, struct ioport_operations *ops, int count);
 
+static inline uint8_t ioport__read8(uint8_t *data)
+{
+	return *data;
+}
+
+static inline uint32_t ioport__read32(uint32_t *data)
+{
+	return *data;
+}
+
+static inline void ioport__write8(uint8_t *data, uint8_t value)
+{
+	*data		 = value;
+}
+
+static inline void ioport__write32(uint32_t *data, uint32_t value)
+{
+	*data		 = value;
+}
+
 #endif /* KVM__IOPORT_H */
