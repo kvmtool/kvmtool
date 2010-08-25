@@ -107,6 +107,7 @@ clean:
 	$(Q) rm -f bios/*.o
 	$(Q) rm -f bios/bios-rom.h
 	$(Q) rm -f $(DEPS) $(OBJS) $(PROGRAM)
+	$(Q) rm -f cscope.*
 .PHONY: clean
 
 KVM_DEV	?= /dev/kvm
@@ -117,6 +118,11 @@ $(KVM_DEV):
 
 devices: $(KVM_DEV)
 .PHONY: devices
+
+cscope:
+	$(E) "  GEN" $@
+	$(Q) cscope -Rqb
+.PHONY: cscope
 
 # Deps
 -include $(DEPS)
