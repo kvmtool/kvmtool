@@ -407,6 +407,10 @@ bool kvm__load_kernel(struct kvm *kvm, const char *kernel_filename,
 	}
 
 	ret = load_bzimage(kvm, fd_kernel, fd_initrd, kernel_cmdline);
+
+	if (initrd_filename)
+		close(fd_initrd);
+
 	if (ret)
 		goto found_kernel;
 
