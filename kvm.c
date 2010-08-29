@@ -299,19 +299,14 @@ static bool load_bzimage(struct kvm *self, int fd_kernel,
 	if (lseek(fd_kernel, 0, SEEK_SET) < 0)
 		die_perror("lseek");
 
-	if (read(fd_kernel, &boot, sizeof(boot)) != sizeof(boot)) {
-		warning("Failed to read kernel boot area");
+	if (read(fd_kernel, &boot, sizeof(boot)) != sizeof(boot))
 		return false;
-	}
 
-        if (memcmp(&boot.hdr.header, BZIMAGE_MAGIC, strlen(BZIMAGE_MAGIC))) {
-		warning("Kernel header corrupted");
+        if (memcmp(&boot.hdr.header, BZIMAGE_MAGIC, strlen(BZIMAGE_MAGIC)))
 		return false;
-	}
 
 	if (boot.hdr.version < BOOT_PROTOCOL_REQUIRED) {
-		warning("Too old kernel");
-		return false;
+		die("Too old kernel");
 	}
 
 	if (lseek(fd_kernel, 0, SEEK_SET) < 0)
@@ -403,17 +398,19 @@ bool kvm__load_kernel(struct kvm *kvm, const char *kernel_filename,
 
 	fd_kernel = open(kernel_filename, O_RDONLY);
 	if (fd_kernel < 0)
-		die("unable to open kernel");
+		die("Unable to open kernel %s", kernel_filename);
 
 	if (initrd_filename) {
 		fd_initrd = open(initrd_filename, O_RDONLY);
 		if (fd_initrd < 0)
-			die("unable to open initrd");
+			die("Unable to open initrd %s", initrd_filename);
 	}
 
 	ret = load_bzimage(kvm, fd_kernel, fd_initrd, kernel_cmdline);
 	if (ret)
 		goto found_kernel;
+
+	warning("%s is not a bzImage. Trying to load it as a flat binary...", kernel_filename);
 
 	ret = load_flat_binary(kvm, fd_kernel);
 	if (ret)
