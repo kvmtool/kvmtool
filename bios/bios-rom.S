@@ -27,7 +27,6 @@ ENTRY_END(bios_intfake)
  * We ignore bx settings
  */
 ENTRY(bios_int10)
-	cli
 	test $0x0e, %ah
 	jne 1f
 
@@ -57,7 +56,6 @@ putchar_new:
 
 	stack_restore
 1:
-	sti
 	IRET
 /*
  * private IRQ data
