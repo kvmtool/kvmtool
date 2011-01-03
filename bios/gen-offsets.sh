@@ -8,6 +8,6 @@ echo ""
 echo "#define BIOS_ENTRY_SIZE(name) (name##_end - name)"
 echo ""
 
-nm bios-rom.bin.elf | grep ' [:Tt:] ' | awk '{ print "#define BIOS_OFFSET__" $3 " 0x" $1; }'
+nm bios-rom.bin.elf | grep ' [Tt] ' | awk '{ print "#define BIOS_OFFSET__" $3 " 0x" $1; }'
 
 echo "#endif"
