@@ -53,7 +53,7 @@ static bool blk_virtio_in(struct kvm *self, uint16_t port, void *data, int size,
 	case VIRTIO_PCI_ISR:
 		ioport__write8(data, 0x1);
 		kvm__irq_line(self, VIRTIO_BLK_IRQ, 0);
-		return true;
+		break;
 	case VIRTIO_MSI_CONFIG_VECTOR:
 	default:
 		return false;
@@ -77,13 +77,12 @@ static bool blk_virtio_out(struct kvm *self, uint16_t port, void *data, int size
 		device.guest_features	= ioport__read32(data);
 		break;
 	case VIRTIO_PCI_QUEUE_PFN:
-		return true;
+		break;
 	case VIRTIO_PCI_QUEUE_SEL:
-		return true;
-	case VIRTIO_PCI_QUEUE_NOTIFY: {
+		break;
+	case VIRTIO_PCI_QUEUE_NOTIFY:
 		kvm__irq_line(self, VIRTIO_BLK_IRQ, 1);
-		return true;
-	}
+		break;
 	case VIRTIO_PCI_STATUS:
 		device.status		= ioport__read8(data);
 		break;
