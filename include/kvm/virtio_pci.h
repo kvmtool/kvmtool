@@ -49,6 +49,9 @@
 /* A 16-bit vector for selected queue notifications. */
 #define VIRTIO_MSI_QUEUE_VECTOR         22
 
+/* Vector value used to disable MSI for queue */
+#define VIRTIO_MSI_NO_VECTOR            0xffff
+
 /* Config space size */
 #define VIRTIO_PCI_CONFIG_NOMSI         20
 #define VIRTIO_PCI_CONFIG_MSI           24

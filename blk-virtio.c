@@ -9,26 +9,50 @@
 #define VIRTIO_BLK_IRQ		14
 
 struct device {
-	uint32_t		host_features;
-	uint32_t		guest_features;
-	uint8_t			status;
+	struct virtio_blk_config	blk_config;
+	uint32_t			host_features;
+	uint32_t			guest_features;
+	uint16_t			config_vector;
+	uint8_t				status;
 };
 
+#define DISK_CYLINDERS	1024
+#define DISK_HEADS	64
+#define DISK_SECTORS	32
+
 static struct device device = {
+	.blk_config		= (struct virtio_blk_config) {
+		.capacity		= DISK_CYLINDERS * DISK_HEADS * DISK_SECTORS,
+		/* VIRTIO_BLK_F_GEOMETRY */
+		.geometry		= {
+			.cylinders		= DISK_CYLINDERS,
+			.heads			= DISK_HEADS,
+			.sectors		= DISK_SECTORS,
+		},
+		/* VIRTIO_BLK_SIZE */
+		.blk_size		= 4096,
+	},
 	.host_features		= (1UL << VIRTIO_BLK_F_GEOMETRY)
-				| (1UL << VIRTIO_BLK_F_TOPOLOGY)
 				| (1UL << VIRTIO_BLK_F_BLK_SIZE),
 };
+
+static bool virtio_blk_config_in(void *data, unsigned long offset, int size, uint32_t count)
+{
+	uint8_t *config_space = (uint8_t *) &device.blk_config;
+
+	if (size != 1 || count != 1)
+		return false;
+
+	ioport__write8(data, config_space[offset - VIRTIO_PCI_CONFIG_NOMSI]);
+
+	return true;
+}
 
 static bool blk_virtio_in(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
 {
 	unsigned long offset;
 
 	offset		= port - IOPORT_VIRTIO;
-
-	/* XXX: Let virtio block device handle this */
-	if (offset >= VIRTIO_PCI_CONFIG_NOMSI)
-		return true;
 
 	switch (offset) {
 	case VIRTIO_PCI_HOST_FEATURES:
@@ -53,8 +77,10 @@ static bool blk_virtio_in(struct kvm *self, uint16_t port, void *data, int size,
 		kvm__irq_line(self, VIRTIO_BLK_IRQ, 0);
 		break;
 	case VIRTIO_MSI_CONFIG_VECTOR:
+		ioport__write16(data, device.config_vector);
+		break;
 	default:
-		return false;
+		return virtio_blk_config_in(data, offset, size, count);
 	};
 
 	return true;
@@ -65,10 +91,6 @@ static bool blk_virtio_out(struct kvm *self, uint16_t port, void *data, int size
 	unsigned long offset;
 
 	offset		= port - IOPORT_VIRTIO;
-
-	/* XXX: Let virtio block device handle this */
-	if (offset >= VIRTIO_PCI_CONFIG_NOMSI)
-		return true;
 
 	switch (offset) {
 	case VIRTIO_PCI_GUEST_FEATURES:
@@ -85,7 +107,10 @@ static bool blk_virtio_out(struct kvm *self, uint16_t port, void *data, int size
 		device.status		= ioport__read8(data);
 		break;
 	case VIRTIO_MSI_CONFIG_VECTOR:
+		device.config_vector	= VIRTIO_MSI_NO_VECTOR;
+		break;
 	case VIRTIO_MSI_QUEUE_VECTOR:
+		break;
 	default:
 		return false;
 	};
