@@ -14,6 +14,10 @@ struct device {
 	uint32_t			guest_features;
 	uint16_t			config_vector;
 	uint8_t				status;
+
+	/* virtio queue */
+	uint32_t			queue_pfn;
+	uint16_t			queue_selector;
 };
 
 #define DISK_CYLINDERS	1024
@@ -98,8 +102,10 @@ static bool blk_virtio_out(struct kvm *self, uint16_t port, void *data, int size
 		device.guest_features	= ioport__read32(data);
 		break;
 	case VIRTIO_PCI_QUEUE_PFN:
+		device.queue_pfn	= ioport__read32(data);
 		break;
 	case VIRTIO_PCI_QUEUE_SEL:
+		device.queue_selector	= ioport__read16(data);
 		break;
 	case VIRTIO_PCI_QUEUE_NOTIFY:
 		kvm__irq_line(self, VIRTIO_BLK_IRQ, 1);
