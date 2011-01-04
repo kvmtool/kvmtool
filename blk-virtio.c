@@ -1,5 +1,6 @@
 #include "kvm/blk-virtio.h"
 
+#include "kvm/virtio_ring.h"
 #include "kvm/virtio_blk.h"
 #include "kvm/virtio_pci.h"
 #include "kvm/ioport.h"
@@ -7,6 +8,15 @@
 #include "kvm/pci.h"
 
 #define VIRTIO_BLK_IRQ		14
+
+#define NUM_VIRT_QUEUES		1
+
+#define VIRTIO_BLK_QUEUE_SIZE	16
+
+struct virt_queue {
+	uint32_t			pfn;
+	struct vring			vring;
+};
 
 struct device {
 	struct virtio_blk_config	blk_config;
@@ -16,8 +26,9 @@ struct device {
 	uint8_t				status;
 
 	/* virtio queue */
-	uint32_t			queue_pfn;
 	uint16_t			queue_selector;
+
+	struct virt_queue		virt_queues[NUM_VIRT_QUEUES];
 };
 
 #define DISK_CYLINDERS	1024
@@ -66,10 +77,10 @@ static bool blk_virtio_in(struct kvm *self, uint16_t port, void *data, int size,
 	case VIRTIO_PCI_GUEST_FEATURES:
 		return false;
 	case VIRTIO_PCI_QUEUE_PFN:
-		ioport__write32(data, 0x00);
+		ioport__write32(data, device.virt_queues[device.queue_selector].pfn);
 		break;
 	case VIRTIO_PCI_QUEUE_NUM:
-		ioport__write16(data, 0x10);
+		ioport__write16(data, VIRTIO_BLK_QUEUE_SIZE);
 		break;
 	case VIRTIO_PCI_QUEUE_SEL:
 	case VIRTIO_PCI_QUEUE_NOTIFY:
@@ -101,15 +112,34 @@ static bool blk_virtio_out(struct kvm *self, uint16_t port, void *data, int size
 	case VIRTIO_PCI_GUEST_FEATURES:
 		device.guest_features	= ioport__read32(data);
 		break;
-	case VIRTIO_PCI_QUEUE_PFN:
-		device.queue_pfn	= ioport__read32(data);
+	case VIRTIO_PCI_QUEUE_PFN: {
+		struct virt_queue *queue;
+		void *p;
+
+		queue			= &device.virt_queues[device.queue_selector];
+
+		queue->pfn		= ioport__read32(data);
+
+		p			= guest_flat_to_host(self, queue->pfn << 12);
+
+		vring_init(&queue->vring, VIRTIO_BLK_QUEUE_SIZE, p, 4096);
+
 		break;
+	}
 	case VIRTIO_PCI_QUEUE_SEL:
 		device.queue_selector	= ioport__read16(data);
 		break;
-	case VIRTIO_PCI_QUEUE_NOTIFY:
+	case VIRTIO_PCI_QUEUE_NOTIFY: {
+		struct virt_queue *queue;
+		uint16_t queue_index;
+
+		queue_index		= ioport__read16(data);
+
+		queue			= &device.virt_queues[queue_index];
+
 		kvm__irq_line(self, VIRTIO_BLK_IRQ, 1);
 		break;
+	}
 	case VIRTIO_PCI_STATUS:
 		device.status		= ioport__read8(data);
 		break;
