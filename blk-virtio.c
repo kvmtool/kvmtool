@@ -20,7 +20,6 @@ static struct device device = {
 				| (1UL << VIRTIO_BLK_F_BLK_SIZE),
 };
 
-#include <stdio.h>
 static bool blk_virtio_in(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
 {
 	unsigned long offset;
