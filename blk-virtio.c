@@ -1,5 +1,6 @@
 #include "kvm/blk-virtio.h"
 
+#include "kvm/virtio_blk.h"
 #include "kvm/virtio_pci.h"
 #include "kvm/ioport.h"
 #include "kvm/kvm.h"
@@ -8,12 +9,19 @@
 #define VIRTIO_BLK_IRQ		14
 
 struct device {
+	uint32_t		host_features;
 	uint32_t		guest_features;
 	uint8_t			status;
 };
 
-static struct device device;
+static struct device device = {
+	.host_features		= (1UL << VIRTIO_BLK_F_SEG_MAX)
+				| (1UL << VIRTIO_BLK_F_GEOMETRY)
+				| (1UL << VIRTIO_BLK_F_TOPOLOGY)
+				| (1UL << VIRTIO_BLK_F_BLK_SIZE),
+};
 
+#include <stdio.h>
 static bool blk_virtio_in(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
 {
 	unsigned long offset;
@@ -26,7 +34,7 @@ static bool blk_virtio_in(struct kvm *self, uint16_t port, void *data, int size,
 
 	switch (offset) {
 	case VIRTIO_PCI_HOST_FEATURES:
-		ioport__write32(data, 0x00);
+		ioport__write32(data, device.host_features);
 		break;
 	case VIRTIO_PCI_GUEST_FEATURES:
 		return false;
