@@ -56,14 +56,14 @@ void disk_image__close(struct disk_image *self)
 	free(self);
 }
 
-int disk_image__read_sector(struct disk_image *self, uint64_t sector, void *dst)
+int disk_image__read_sector(struct disk_image *self, uint64_t sector, void *dst, uint32_t dst_len)
 {
 	uint64_t offset = sector << SECTOR_SHIFT;
 
-	if (offset + SECTOR_SIZE > self->size)
+	if (offset + dst_len > self->size)
 		return -1;
 
-	memcpy(dst, self->mmap + offset, SECTOR_SIZE);
+	memcpy(dst, self->mmap + offset, dst_len);
 
 	return 0;
 }
