@@ -11,6 +11,7 @@ PROGRAM	= kvm
 
 OBJS	+= blk-virtio.o
 OBJS	+= cpuid.o
+OBJS	+= disk-image.o
 OBJS	+= early_printk.o
 OBJS	+= interrupt.o
 OBJS	+= ioport.o

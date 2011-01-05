@@ -2,6 +2,7 @@
 
 #include "kvm/early_printk.h"
 #include "kvm/blk-virtio.h"
+#include "kvm/disk-image.h"
 #include "kvm/util.h"
 #include "kvm/pci.h"
 
@@ -19,7 +20,7 @@ static void usage(char *argv[])
 	fprintf(stderr, "  usage: %s "
 		"[--single-step] [--ioport-debug] "
 		"[--kvm-dev=<device>] [--mem=<size-in-MiB>] [--params=<kernel-params>] "
-		"[--initrd=<initrd>] [--kernel=]<kernel-image>\n",
+		"[--initrd=<initrd>] [--kernel=]<kernel-image> [--image=]<disk-image>\n",
 		argv[0]);
 	exit(1);
 }
@@ -48,6 +49,7 @@ int main(int argc, char *argv[])
 {
 	const char *kernel_filename = NULL;
 	const char *initrd_filename = NULL;
+	const char *image_filename = NULL;
 	const char *kernel_cmdline = NULL;
 	const char *kvm_dev = "/dev/kvm";
 	unsigned long ram_size = 64UL << 20;
@@ -60,6 +62,9 @@ int main(int argc, char *argv[])
 	for (i = 1; i < argc; i++) {
 		if (option_matches(argv[i], "--kernel=")) {
 			kernel_filename	= &argv[i][9];
+			continue;
+		} else if (option_matches(argv[i], "--image=")) {
+			image_filename	= &argv[i][8];
 			continue;
 		} else if (option_matches(argv[i], "--initrd=")) {
 			initrd_filename	= &argv[i][9];
@@ -100,6 +105,12 @@ int main(int argc, char *argv[])
 		usage(argv);
 
 	kvm = kvm__init(kvm_dev, ram_size);
+
+	if (image_filename) {
+		kvm->disk_image	= disk_image__open(image_filename);
+		if (!kvm->disk_image)
+			die("unable to load disk image %s", image_filename);
+	}
 
 	kvm__setup_cpuid(kvm);
 

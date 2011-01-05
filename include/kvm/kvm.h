@@ -14,6 +14,7 @@ struct kvm {
 	int			vcpu_fd;	/* For VCPU ioctls() */
 	struct kvm_run		*kvm_run;
 
+	struct disk_image	*disk_image;
 	uint64_t		ram_size;
 	void			*ram_start;
 
