@@ -4,6 +4,7 @@
 #include "kvm/virtio_blk.h"
 #include "kvm/virtio_pci.h"
 #include "kvm/ioport.h"
+#include "kvm/util.h"
 #include "kvm/kvm.h"
 #include "kvm/pci.h"
 
@@ -14,8 +15,11 @@
 #define VIRTIO_BLK_QUEUE_SIZE	16
 
 struct virt_queue {
-	uint32_t			pfn;
 	struct vring			vring;
+	uint32_t			pfn;
+	/* The next_avail_ndx field is an index to ->ring of struct vring_avail.
+	   It's where we assume the next request index is at.  */
+	uint16_t			next_avail_ndx;
 };
 
 struct device {
@@ -130,12 +134,29 @@ static bool blk_virtio_out(struct kvm *self, uint16_t port, void *data, int size
 		device.queue_selector	= ioport__read16(data);
 		break;
 	case VIRTIO_PCI_QUEUE_NOTIFY: {
+		struct virtio_blk_outhdr *req;
 		struct virt_queue *queue;
+		struct vring_desc *desc;
 		uint16_t queue_index;
+		uint16_t desc_ndx;
 
 		queue_index		= ioport__read16(data);
 
 		queue			= &device.virt_queues[queue_index];
+
+		desc_ndx		= queue->vring.avail->ring[queue->next_avail_ndx++ % queue->vring.num];
+
+		if (queue->vring.avail->idx != queue->next_avail_ndx) {
+			/*
+			 * The hypervisor and the guest disagree on next index.
+			 */
+			warning("I/O error");
+			break;
+		}
+
+		desc			= &queue->vring.desc[desc_ndx];
+
+		req			= guest_flat_to_host(self, desc->addr);
 
 		kvm__irq_line(self, VIRTIO_BLK_IRQ, 1);
 		break;
