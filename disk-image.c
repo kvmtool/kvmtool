@@ -17,6 +17,7 @@ struct disk_image *disk_image__open(const char *filename)
 {
 	struct disk_image *self;
 	struct stat st;
+	int cylinders, heads, sectors;
 
 	self		= malloc(sizeof *self);
 	if (!self)
@@ -34,6 +35,36 @@ struct disk_image *disk_image__open(const char *filename)
 	self->mmap	= mmap(NULL, self->size, PROT_READ, MAP_PRIVATE, self->fd, 0);
 	if (self->mmap == MAP_FAILED)
 		goto failed_close_fd;
+
+	/*
+	 * set the standart disk geometry of the image
+	 *
+	 * real disk example
+	 * Disk /dev/sda: 500.1 GB, 500107862016 bytes
+	 * 255 heads, 63 sectors/track, 60801 cylinders, total 976773168 sectors
+	 */
+	cylinders = (self->size >> SECTOR_SHIFT) / 16383;
+	if (cylinders > 16383)
+		cylinders = 16383;
+	else if (cylinders < 2)
+		cylinders = 2;
+	heads = (self->size >> SECTOR_SHIFT) / cylinders;
+	if (heads > 255)
+		heads = 255;
+	else if (heads < 1)
+		heads = 1;
+	sectors = (self->size >> SECTOR_SHIFT) / cylinders / heads;
+	if (sectors > 255)
+		sectors = 255;
+	else if (sectors < 1)
+		sectors = 1;
+
+	self->sectors	= sectors;
+	self->heads	= heads;
+	self->cylinders	= cylinders;
+
+	info("block image geometry: sectors: %d heads: %d cylinders: %d",
+		sectors, heads, cylinders);
 
 	return self;
 

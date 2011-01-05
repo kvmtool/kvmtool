@@ -1,6 +1,8 @@
 #ifndef KVM__BLK_VIRTIO_H
 #define KVM__BLK_VIRTIO_H
 
-void blk_virtio__init(void);
+struct kvm;
+
+void blk_virtio__init(struct kvm *self);
 
 #endif /* KVM__BLK_VIRTIO_H */

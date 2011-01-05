@@ -134,7 +134,7 @@ int main(int argc, char *argv[])
 	pci__init();
 
 	if (enable_virtio)
-		blk_virtio__init();
+		blk_virtio__init(kvm);
 
 	for (;;) {
 		kvm__run(kvm);
