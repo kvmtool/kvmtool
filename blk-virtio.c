@@ -234,10 +234,14 @@ void blk_virtio__init(struct kvm *self)
 {
 	/* update disk geometry */
 	if (self->disk_image) {
-		device.blk_config.capacity		= self->disk_image->size;
-		device.blk_config.geometry.cylinders	= self->disk_image->cylinders;
-		device.blk_config.geometry.heads	= self->disk_image->heads;
-		device.blk_config.geometry.sectors	= self->disk_image->sectors;
+		device.blk_config	= (struct virtio_blk_config) {
+			.capacity		= self->disk_image->size,
+			.geometry		= (struct virtio_blk_geometry) {
+				.cylinders		= self->disk_image->cylinders,
+				.heads			= self->disk_image->heads,
+				.sectors		= self->disk_image->sectors,
+			},
+		};
 	}
 
 	pci__register(&blk_virtio_pci_device, 1);
