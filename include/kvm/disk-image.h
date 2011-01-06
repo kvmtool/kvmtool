@@ -7,10 +7,6 @@ struct disk_image {
 	void		*mmap;
 	int		fd;
 	uint64_t	size;
-
-	uint16_t	cylinders;
-	uint8_t		heads;
-	uint8_t		sectors;
 };
 
 struct disk_image *disk_image__open(const char *filename);

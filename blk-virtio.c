@@ -52,9 +52,12 @@ static struct device device = {
 		/* VIRTIO_BLK_SIZE */
 		.blk_size		= 4096,
 	},
-	.host_features		= (1UL << VIRTIO_BLK_F_GEOMETRY)
-				| (1UL << VIRTIO_BLK_F_RO)
-				| (1UL << VIRTIO_BLK_F_BLK_SIZE),
+	/*
+	 * Note we don't set VIRTIO_BLK_F_GEOMETRY here so the
+	 * node kernel will compute disk geometry by own, the
+	 * same applies to VIRTIO_BLK_F_BLK_SIZE
+	 */
+	.host_features		= (1UL << VIRTIO_BLK_F_RO),
 };
 
 static bool virtio_blk_config_in(void *data, unsigned long offset, int size, uint32_t count)
@@ -232,17 +235,8 @@ static struct pci_device_header blk_virtio_pci_device = {
 
 void blk_virtio__init(struct kvm *self)
 {
-	/* update disk geometry */
-	if (self->disk_image) {
-		device.blk_config	= (struct virtio_blk_config) {
-			.capacity		= self->disk_image->size,
-			.geometry		= (struct virtio_blk_geometry) {
-				.cylinders		= self->disk_image->cylinders,
-				.heads			= self->disk_image->heads,
-				.sectors		= self->disk_image->sectors,
-			},
-		};
-	}
+	if (self->disk_image)
+		device.blk_config.capacity = self->disk_image->size;
 
 	pci__register(&blk_virtio_pci_device, 1);
 
