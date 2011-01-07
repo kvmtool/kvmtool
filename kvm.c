@@ -173,7 +173,7 @@ struct kvm *kvm__init(const char *kvm_dev, unsigned long ram_size)
 	self->sys_fd = open(kvm_dev, O_RDWR);
 	if (self->sys_fd < 0) {
 		if (errno == ENOENT)
-			die("'%s' not found. Please make sure you have CONFIG_KVM enabled.", kvm_dev);
+			die("'%s' not found. Please make sure your kernel has CONFIG_KVM enabled and that the KVM modules are loaded.", kvm_dev);
 
 		die_perror("open");
 	}
