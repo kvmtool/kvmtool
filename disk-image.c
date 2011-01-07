@@ -6,6 +6,7 @@
 #include <inttypes.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -13,6 +14,19 @@
 
 #define SECTOR_SHIFT		9
 #define SECTOR_SIZE		(1UL << SECTOR_SHIFT)
+
+static const char QCOW_MAGIC[]	= { 'Q', 'F', 'I', 0xfb };
+
+struct qcow_header {
+	uint8_t			magic[5];
+};
+
+static bool disk_image__is_qcow(struct disk_image *self)
+{
+	struct qcow_header *header = self->mmap;
+
+	return !memcmp(header->magic, QCOW_MAGIC, ARRAY_SIZE(QCOW_MAGIC));
+}
 
 struct disk_image *disk_image__open(const char *filename)
 {
@@ -35,6 +49,9 @@ struct disk_image *disk_image__open(const char *filename)
 	self->mmap	= mmap(NULL, self->size, PROT_READ, MAP_PRIVATE, self->fd, 0);
 	if (self->mmap == MAP_FAILED)
 		goto failed_close_fd;
+
+	if (disk_image__is_qcow(self))
+		die("QCOW disk image format is not supported.");
 
 	return self;
 
