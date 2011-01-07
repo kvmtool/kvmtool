@@ -53,7 +53,6 @@ int main(int argc, char *argv[])
 	const char *kernel_cmdline = NULL;
 	const char *kvm_dev = "/dev/kvm";
 	unsigned long ram_size = 64UL << 20;
-	bool enable_virtio = false;
 	bool single_step = false;
 	int i;
 
@@ -77,9 +76,6 @@ int main(int argc, char *argv[])
 			continue;
 		} else if (option_matches(argv[i], "--single-step")) {
 			single_step	= true;
-			continue;
-		} else if (option_matches(argv[i], "--enable-virtio")) {
-			enable_virtio	= true;
 			continue;
 		} else if (option_matches(argv[i], "--mem=")) {
 			unsigned long val = atol(&argv[i][6]) << 20;
@@ -133,8 +129,7 @@ int main(int argc, char *argv[])
 	early_printk__init();
 	pci__init();
 
-	if (enable_virtio)
-		blk_virtio__init(kvm);
+	blk_virtio__init(kvm);
 
 	for (;;) {
 		kvm__run(kvm);
