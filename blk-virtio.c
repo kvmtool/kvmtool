@@ -9,6 +9,9 @@
 #include "kvm/kvm.h"
 #include "kvm/pci.h"
 
+#include <inttypes.h>
+#include <assert.h>
+
 #define VIRTIO_BLK_IRQ		14
 
 #define NUM_VIRT_QUEUES		1
@@ -110,6 +113,65 @@ static bool blk_virtio_in(struct kvm *self, uint16_t port, void *data, int size,
 	return true;
 }
 
+static bool blk_virtio_read(struct kvm *self, struct virt_queue *queue)
+{
+	struct vring_used_elem *used_elem;
+	struct virtio_blk_outhdr *req;
+	struct vring_desc *desc;
+	uint16_t desc_ndx;
+	uint32_t dst_len;
+	uint8_t *status;
+	void *dst;
+	int err;
+
+	desc_ndx		= queue->vring.avail->ring[queue->last_avail_idx++ % queue->vring.num];
+
+	if (desc_ndx >= queue->vring.num) {
+		warning("fatal I/O error");
+		return false;
+	}
+
+	/* header */
+	desc			= &queue->vring.desc[desc_ndx];
+	assert(!(desc->flags & VRING_DESC_F_INDIRECT));
+
+	req			= guest_flat_to_host(self, desc->addr);
+
+	/* block */
+	desc			= &queue->vring.desc[desc->next];
+	assert(!(desc->flags & VRING_DESC_F_INDIRECT));
+
+	dst			= guest_flat_to_host(self, desc->addr);
+	dst_len			= desc->len;
+
+	/* status */
+	desc			= &queue->vring.desc[desc->next];
+	assert(!(desc->flags & VRING_DESC_F_INDIRECT));
+
+	status			= guest_flat_to_host(self, desc->addr);
+
+	info("reading sector %" PRIu64 " (%d bytes)", req->sector, dst_len);
+
+	if (req->type == VIRTIO_BLK_T_IN) {
+		err = disk_image__read_sector(self->disk_image, req->sector, dst, dst_len);
+
+		if (err)
+			*status			= VIRTIO_BLK_S_IOERR;
+		else
+			*status			= VIRTIO_BLK_S_OK;
+	} else {
+		warning("request type %d", req->type);
+		*status			= VIRTIO_BLK_S_IOERR;
+	}
+
+	used_elem		= &queue->vring.used->ring[queue->vring.used->idx++ % queue->vring.num];
+
+	used_elem->id		= desc_ndx;
+	used_elem->len		= 3;
+
+	return true;
+}
+
 static bool blk_virtio_out(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
 {
 	unsigned long offset;
@@ -138,57 +200,17 @@ static bool blk_virtio_out(struct kvm *self, uint16_t port, void *data, int size
 		device.queue_selector	= ioport__read16(data);
 		break;
 	case VIRTIO_PCI_QUEUE_NOTIFY: {
-		struct virtio_blk_outhdr *req;
 		struct virt_queue *queue;
-		struct vring_desc *desc;
 		uint16_t queue_index;
-		uint16_t desc_ndx;
-		uint32_t dst_len;
-		uint8_t *status;
-		void *dst;
-		int err;
 
 		queue_index		= ioport__read16(data);
 
 		queue			= &device.virt_queues[queue_index];
 
-		if (queue->vring.avail->idx == queue->last_avail_idx) {
-			warning("vring is empty");
-			break;
+		while (queue->vring.avail->idx != queue->last_avail_idx) {
+			if (!blk_virtio_read(self, queue))
+				return false;
 		}
-
-		desc_ndx		= queue->vring.avail->ring[queue->last_avail_idx++ % queue->vring.num];
-
-		if (desc_ndx >= queue->vring.num) {
-			warning("fatal I/O error");
-			break;
-		}
-
-		/* header */
-		desc			= &queue->vring.desc[desc_ndx];
-
-		req			= guest_flat_to_host(self, desc->addr);
-
-		/* block */
-		desc			= &queue->vring.desc[desc->next];
-
-		dst			= guest_flat_to_host(self, desc->addr);
-		dst_len			= desc->len;
-
-		/* status */
-		desc			= &queue->vring.desc[desc->next];
-
-		status			= guest_flat_to_host(self, desc->addr);
-
-		err = disk_image__read_sector(self->disk_image, req->sector, dst, dst_len);
-
-		if (err)
-			*status			= VIRTIO_BLK_S_IOERR;
-		else
-			*status			= VIRTIO_BLK_S_OK;
-
-		queue->vring.used->idx++;
-
 		kvm__irq_line(self, VIRTIO_BLK_IRQ, 1);
 
 		break;
