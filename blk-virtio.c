@@ -234,7 +234,7 @@ void blk_virtio__init(struct kvm *self)
 	if (!self->disk_image)
 		return;
 
-	device.blk_config.capacity = self->disk_image->size;
+	device.blk_config.capacity = self->disk_image->size / 512;
 
 	pci__register(&blk_virtio_pci_device, 1);
 
