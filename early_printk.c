@@ -19,9 +19,9 @@ static bool early_serial_txr_out(struct kvm *self, uint16_t port, void *data, in
 
 	while (count--) {
 		for (i = 0; i < size; i++)
-			fprintf(stderr, "%c", *p++);
+			fprintf(stdout, "%c", *p++);
 	}
-	fflush(stderr);
+	fflush(stdout);
 
 	return true;
 }
