@@ -18,9 +18,9 @@
 struct virt_queue {
 	struct vring			vring;
 	uint32_t			pfn;
-	/* The next_avail_ndx field is an index to ->ring of struct vring_avail.
+	/* The last_avail_idx field is an index to ->ring of struct vring_avail.
 	   It's where we assume the next request index is at.  */
-	uint16_t			next_avail_ndx;
+	uint16_t			last_avail_idx;
 };
 
 struct device {
@@ -152,13 +152,15 @@ static bool blk_virtio_out(struct kvm *self, uint16_t port, void *data, int size
 
 		queue			= &device.virt_queues[queue_index];
 
-		desc_ndx		= queue->vring.avail->ring[queue->next_avail_ndx++ % queue->vring.num];
+		if (queue->vring.avail->idx == queue->last_avail_idx) {
+			warning("vring is empty");
+			break;
+		}
 
-		if (queue->vring.avail->idx != queue->next_avail_ndx) {
-			/*
-			 * The hypervisor and the guest disagree on next index.
-			 */
-			warning("I/O error");
+		desc_ndx		= queue->vring.avail->ring[queue->last_avail_idx++ % queue->vring.num];
+
+		if (desc_ndx >= queue->vring.num) {
+			warning("fatal I/O error");
 			break;
 		}
 
