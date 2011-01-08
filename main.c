@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <time.h>
 
 extern bool ioport_debug;
 
@@ -44,6 +45,47 @@ static bool option_matches(char *arg, const char *option)
 {
 	return !strncmp(arg, option, strlen(option));
 }
+
+#define TIMER_INTERVAL_NS 1000000000
+
+static void alarm_handler(int sig)
+{
+}
+
+/*
+ * This function sets up a timer that's used to inject interrupts from the
+ * userspace hypervisor into the guest at periodical intervals. Please note
+ * that clock interrupt, for example, is not handled here.
+ */
+static void setup_timer(void)
+{
+	struct itimerspec its;
+	struct sigaction sa;
+	struct sigevent sev;
+	timer_t timerid;
+
+	sigfillset(&sa.sa_mask);
+	sa.sa_flags			= 0;
+	sa.sa_handler			= alarm_handler;
+
+	sigaction(SIGALRM, &sa, NULL);
+
+	memset(&sev, 0, sizeof(struct sigevent));
+	sev.sigev_value.sival_int	= 0;
+	sev.sigev_notify		= SIGEV_SIGNAL;
+	sev.sigev_signo			= SIGALRM;
+
+	its.it_value.tv_sec		= TIMER_INTERVAL_NS / 1000000000;
+	its.it_value.tv_nsec		= TIMER_INTERVAL_NS % 1000000000;
+	its.it_interval.tv_sec		= its.it_value.tv_sec;
+	its.it_interval.tv_nsec		= its.it_value.tv_nsec;
+	if (timer_create(CLOCK_MONOTONIC, &sev, &timerid) < 0)
+		die("timer_create()");
+
+	if (timer_settime(timerid, 0, &its, NULL) < 0)
+		die("timer_settime()");
+}
+
 
 int main(int argc, char *argv[])
 {
@@ -131,6 +173,8 @@ int main(int argc, char *argv[])
 
 	blk_virtio__init(kvm);
 
+	setup_timer();
+
 	for (;;) {
 		kvm__run(kvm);
 
@@ -165,7 +209,10 @@ int main(int argc, char *argv[])
 			if (!ret)
 				goto exit_kvm;
 			break;
-
+		}
+		case KVM_EXIT_INTR: {
+			serial8250__interrupt(kvm);
+			break;
 		}
 		default:
 			goto exit_kvm;

@@ -608,7 +608,10 @@ void kvm__setup_mem(struct kvm *self)
 
 void kvm__run(struct kvm *self)
 {
-	if (ioctl(self->vcpu_fd, KVM_RUN, 0) < 0)
+	int err;
+
+	err = ioctl(self->vcpu_fd, KVM_RUN, 0);
+	if (err && (errno != EINTR && errno != EAGAIN))
 		die_perror("KVM_RUN failed");
 }
 

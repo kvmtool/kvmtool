@@ -27,6 +27,8 @@ DEPS	:= $(patsubst %.o,%.d,$(OBJS))
 OBJS	+= bios.o
 OBJS	+= bios/bios.o
 
+LIBS	+= -lrt
+
 uname_M      := $(shell uname -m | sed -e s/i.86/i386/)
 ifeq ($(uname_M),i386)
 	DEFINES      += -DCONFIG_X86_32
@@ -60,7 +62,7 @@ all: $(PROGRAM)
 
 $(PROGRAM): $(DEPS) $(OBJS)
 	$(E) "  LINK    " $@
-	$(Q) $(CC) $(OBJS) -o $@
+	$(Q) $(CC) $(OBJS) $(LIBS) -o $@
 
 $(DEPS):
 

@@ -65,6 +65,11 @@ static struct serial8250_device device = {
 	.iobase			= 0x3f8,	/* ttyS0 */
 };
 
+void serial8250__interrupt(struct kvm *self)
+{
+	/* TODO: inject 8250 interrupt for the guest */
+}
+
 static bool serial8250_out(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
 {
 	uint16_t offset = port - device.iobase;
