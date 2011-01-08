@@ -10,6 +10,7 @@ static int early_serial_base = 0x3f8;  /* ttyS0 */
 
 #define TXR             0       /*  Transmit register (WRITE) */
 #define LSR             5       /*  Line Status               */
+#define MSR		6	/*  Modem Status              */
 
 static bool early_serial_txr_out(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
 {
@@ -48,8 +49,18 @@ static struct ioport_operations early_serial_lsr_ops = {
 	.io_in		= early_serial_lsr_in,
 };
 
+static bool early_serial_msr_in(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
+{
+	return true;
+}
+
+static struct ioport_operations early_serial_msr_ops = {
+	.io_in		= early_serial_msr_in,
+};
+
 void early_printk__init(void)
 {
 	ioport__register(early_serial_base + TXR, &early_serial_txr_rxr_ops, 1);
 	ioport__register(early_serial_base + LSR, &early_serial_lsr_ops, 1);
+	ioport__register(early_serial_base + MSR, &early_serial_msr_ops, 1);
 }
