@@ -150,8 +150,6 @@ static bool blk_virtio_read(struct kvm *self, struct virt_queue *queue)
 
 	status			= guest_flat_to_host(self, desc->addr);
 
-	info("reading sector %" PRIu64 " (%d bytes)", req->sector, dst_len);
-
 	if (req->type == VIRTIO_BLK_T_IN) {
 		err = disk_image__read_sector(self->disk_image, req->sector, dst, dst_len);
 
