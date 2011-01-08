@@ -24,6 +24,7 @@
 #define IIR		2
 
 #define UART_IIR_NO_INT		0x01
+#define UART_IIR_THRI		0x02
 
 /* 16550 FIFO Control Register */
 #define FCR		2
@@ -130,13 +131,13 @@ static bool serial8250_in(struct kvm *self, uint16_t port, void *data, int size,
 
 	switch (offset) {
 	case THR:
-		ioport__write8(data, 0x00);
+		/* TODO: input support */
 		break;
 	case IER:
 		ioport__write8(data, device.ier);
 		break;
 	case IIR:
-		ioport__write8(data, UART_IIR_NO_INT);
+		ioport__write8(data, UART_IIR_NO_INT | UART_IIR_THRI);
 		break;
 	case LCR:
 		ioport__write8(data, device.lcr);
