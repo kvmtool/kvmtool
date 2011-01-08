@@ -46,7 +46,7 @@ struct disk_image *disk_image__open(const char *filename)
 
 	self->size	= st.st_size;
 
-	self->mmap	= mmap(NULL, self->size, PROT_READ, MAP_PRIVATE, self->fd, 0);
+	self->mmap	= mmap(NULL, self->size, PROT_READ|PROT_WRITE, MAP_PRIVATE, self->fd, 0);
 	if (self->mmap == MAP_FAILED)
 		goto failed_close_fd;
 
@@ -82,6 +82,18 @@ int disk_image__read_sector(struct disk_image *self, uint64_t sector, void *dst,
 		return -1;
 
 	memcpy(dst, self->mmap + offset, dst_len);
+
+	return 0;
+}
+
+int disk_image__write_sector(struct disk_image *self, uint64_t sector, void *src, uint32_t src_len)
+{
+	uint64_t offset = sector << SECTOR_SHIFT;
+
+	if (offset + src_len > self->size)
+		return -1;
+
+	memcpy(self->mmap + offset, src, src_len);
 
 	return 0;
 }

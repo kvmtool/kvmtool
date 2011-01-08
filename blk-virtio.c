@@ -119,10 +119,9 @@ static bool blk_virtio_read(struct kvm *self, struct virt_queue *queue)
 	struct virtio_blk_outhdr *req;
 	struct vring_desc *desc;
 	uint16_t desc_ndx;
-	uint32_t dst_len;
+	uint32_t block_len;
 	uint8_t *status;
-	void *dst;
-	int err;
+	void *block;
 
 	desc_ndx		= queue->vring.avail->ring[queue->last_avail_idx++ % queue->vring.num];
 
@@ -141,8 +140,8 @@ static bool blk_virtio_read(struct kvm *self, struct virt_queue *queue)
 	desc			= &queue->vring.desc[desc->next];
 	assert(!(desc->flags & VRING_DESC_F_INDIRECT));
 
-	dst			= guest_flat_to_host(self, desc->addr);
-	dst_len			= desc->len;
+	block			= guest_flat_to_host(self, desc->addr);
+	block_len		= desc->len;
 
 	/* status */
 	desc			= &queue->vring.desc[desc->next];
@@ -150,16 +149,31 @@ static bool blk_virtio_read(struct kvm *self, struct virt_queue *queue)
 
 	status			= guest_flat_to_host(self, desc->addr);
 
-	if (req->type == VIRTIO_BLK_T_IN) {
-		err = disk_image__read_sector(self->disk_image, req->sector, dst, dst_len);
+	switch (req->type) {
+	case VIRTIO_BLK_T_IN: {
+		int err;
 
+		err		= disk_image__read_sector(self->disk_image, req->sector, block, block_len);
 		if (err)
 			*status			= VIRTIO_BLK_S_IOERR;
 		else
 			*status			= VIRTIO_BLK_S_OK;
-	} else {
+		break;
+	}
+	case VIRTIO_BLK_T_OUT: {
+		int err;
+
+		err		= disk_image__write_sector(self->disk_image, req->sector, block, block_len);
+		if (err)
+			*status			= VIRTIO_BLK_S_IOERR;
+		else
+			*status			= VIRTIO_BLK_S_OK;
+		break;
+	}
+	default:
 		warning("request type %d", req->type);
 		*status			= VIRTIO_BLK_S_IOERR;
+		break;
 	}
 
 	used_elem		= &queue->vring.used->ring[queue->vring.used->idx++ % queue->vring.num];
