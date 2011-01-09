@@ -5,6 +5,7 @@
 #include "kvm/kvm.h"
 
 #include <stdbool.h>
+#include <poll.h>
 
 /* Transmitter holding register */
 #define THR             0
@@ -21,6 +22,7 @@
 /* Interrupt enable register */
 #define IER		1
 
+#define UART_IER_RDI		0x01
 #define UART_IER_THRI		0x02
 
 /* Interrupt identification register */
@@ -43,6 +45,7 @@
 /* Line status register */
 #define LSR		5
 
+#define UART_LSR_DR		0x01
 #define UART_LSR_THRE		0x20
 
 /* Modem status register */
@@ -56,6 +59,8 @@
 struct serial8250_device {
 	uint16_t		iobase;
 	uint8_t			irq;
+
+	uint8_t			thr;
 	uint8_t			dll;
 	uint8_t			dlm;
 	uint8_t			iir;
@@ -63,6 +68,7 @@ struct serial8250_device {
 	uint8_t			fcr;
 	uint8_t			lcr;
 	uint8_t			mcr;
+	uint8_t			lsr;
 	uint8_t			scr;
 };
 
@@ -70,12 +76,47 @@ static struct serial8250_device device = {
 	.iobase			= 0x3f8,	/* ttyS0 */
 	.irq			= 4,
 
-	.iir			= UART_IIR_NO_INT | UART_IIR_THRI,
+	.iir			= UART_IIR_NO_INT,
+	.lsr			= UART_LSR_THRE,
 };
+
+static int read_char(int fd)
+{
+	int c;
+
+	if (read(fd, &c, 1) < 0)
+		return -1;
+
+	return c;
+}
+
+static bool is_readable(int fd)
+{
+	struct pollfd pollfd;
+	int err;
+
+	pollfd		= (struct pollfd) {
+		.fd		= fd,
+		.events		= POLLIN,
+	};
+
+	err		= poll(&pollfd, 1, 0);
+	return err > 0;
+}
 
 void serial8250__interrupt(struct kvm *self)
 {
-	if (device.ier & UART_IER_THRI) {
+	if (!(device.lsr & UART_LSR_DR) && is_readable(fileno(stdin))) {
+		int c;
+
+		c			= read_char(fileno(stdin));
+		if (c >= 0) {
+			device.thr		= c;
+			device.lsr		|= UART_LSR_DR;
+		}
+	}
+
+	if (device.ier & UART_IER_THRI || device.lsr & UART_LSR_DR) {
 		device.iir		&= ~UART_IIR_NO_INT;
 		kvm__irq_line(self, device.irq, 1);
 	}
@@ -151,7 +192,13 @@ static bool serial8250_in(struct kvm *self, uint16_t port, void *data, int size,
 
 	switch (offset) {
 	case THR:
-		/* TODO: input support */
+		if (device.lsr & UART_LSR_DR) {
+			device.lsr		&= ~UART_LSR_DR;
+			ioport__write8(data, device.thr);
+
+			device.iir		|= UART_IIR_NO_INT;
+			kvm__irq_line(self, device.irq, 0);
+		}
 		break;
 	case IER:
 		ioport__write8(data, device.ier);
@@ -166,7 +213,7 @@ static bool serial8250_in(struct kvm *self, uint16_t port, void *data, int size,
 		ioport__write8(data, device.mcr);
 		break;
 	case LSR:
-		ioport__write8(data, UART_LSR_THRE);
+		ioport__write8(data, device.lsr);
 		break;
 	case MSR:
 		ioport__write8(data, UART_MSR_CTS);
