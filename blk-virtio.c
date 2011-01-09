@@ -60,7 +60,7 @@ static struct device device = {
 	 * node kernel will compute disk geometry by own, the
 	 * same applies to VIRTIO_BLK_F_BLK_SIZE
 	 */
-	.host_features		= (1UL << VIRTIO_BLK_F_RO),
+	.host_features		= 0,
 };
 
 static bool virtio_blk_config_in(void *data, unsigned long offset, int size, uint32_t count)
