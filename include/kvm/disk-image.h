@@ -3,6 +3,9 @@
 
 #include <stdint.h>
 
+#define SECTOR_SHIFT		9
+#define SECTOR_SIZE		(1UL << SECTOR_SHIFT)
+
 struct disk_image {
 	void		*mmap;
 	int		fd;

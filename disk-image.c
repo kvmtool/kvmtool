@@ -12,9 +12,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-#define SECTOR_SHIFT		9
-#define SECTOR_SIZE		(1UL << SECTOR_SHIFT)
-
 static const char QCOW_MAGIC[]	= { 'Q', 'F', 'I', 0xfb };
 
 struct qcow_header {
