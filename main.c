@@ -46,7 +46,7 @@ static bool option_matches(char *arg, const char *option)
 	return !strncmp(arg, option, strlen(option));
 }
 
-#define TIMER_INTERVAL_NS 1000000000
+#define TIMER_INTERVAL_NS 1000000	/* 1 msec */
 
 static void alarm_handler(int sig)
 {

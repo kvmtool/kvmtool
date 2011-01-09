@@ -2,6 +2,7 @@
 
 #include "kvm/ioport.h"
 #include "kvm/util.h"
+#include "kvm/kvm.h"
 
 #include <stdbool.h>
 
@@ -19,6 +20,8 @@
 
 /* Interrupt enable register */
 #define IER		1
+
+#define UART_IER_THRI		0x02
 
 /* Interrupt identification register */
 #define IIR		2
@@ -52,8 +55,10 @@
 
 struct serial8250_device {
 	uint16_t		iobase;
+	uint8_t			irq;
 	uint8_t			dll;
 	uint8_t			dlm;
+	uint8_t			iir;
 	uint8_t			ier;
 	uint8_t			fcr;
 	uint8_t			lcr;
@@ -63,11 +68,17 @@ struct serial8250_device {
 
 static struct serial8250_device device = {
 	.iobase			= 0x3f8,	/* ttyS0 */
+	.irq			= 4,
+
+	.iir			= UART_IIR_NO_INT | UART_IIR_THRI,
 };
 
 void serial8250__interrupt(struct kvm *self)
 {
-	/* TODO: inject 8250 interrupt for the guest */
+	if (device.ier & UART_IER_THRI) {
+		device.iir		&= ~UART_IIR_NO_INT;
+		kvm__irq_line(self, device.irq, 1);
+	}
 }
 
 static bool serial8250_out(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
@@ -102,6 +113,10 @@ static bool serial8250_out(struct kvm *self, uint16_t port, void *data, int size
 					fprintf(stdout, "%c", *p++);
 			}
 			fflush(stdout);
+
+			device.iir		|= UART_IIR_NO_INT;
+			kvm__irq_line(self, device.irq, 0);
+
 			break;
 		}
 		case IER:
@@ -142,7 +157,7 @@ static bool serial8250_in(struct kvm *self, uint16_t port, void *data, int size,
 		ioport__write8(data, device.ier);
 		break;
 	case IIR:
-		ioport__write8(data, UART_IIR_NO_INT | UART_IIR_THRI);
+		ioport__write8(data, device.iir);
 		break;
 	case LCR:
 		ioport__write8(data, device.lcr);
