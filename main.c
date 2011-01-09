@@ -30,6 +30,24 @@ static void usage(char *argv[])
 
 static struct kvm *kvm;
 
+static struct termios tty_origin_stdin;
+static struct termios tty_origin_stdout;
+static struct termios tty_origin_stderr;
+
+static void tty_save_origins(void)
+{
+	tcgetattr(fileno(stdin), &tty_origin_stdin);
+	tcgetattr(fileno(stdout), &tty_origin_stdout);
+	tcgetattr(fileno(stderr), &tty_origin_stderr);
+}
+
+static void tty_restore_origins(void)
+{
+	tcsetattr(fileno(stdin), TCSAFLUSH, &tty_origin_stdin);
+	tcsetattr(fileno(stdout), TCSAFLUSH, &tty_origin_stdout);
+	tcsetattr(fileno(stderr), TCSAFLUSH, &tty_origin_stderr);
+}
+
 static void tty_set_canon_flag(int fd, int on)
 {
 	struct termios tty;
@@ -46,6 +64,7 @@ static void tty_set_canon_flag(int fd, int on)
 static void shutdown(void)
 {
 	tty_set_canon_flag(fileno(stdin), 0);
+	tty_restore_origins();
 }
 
 static void handle_sigint(int sig)
@@ -122,6 +141,8 @@ int main(int argc, char *argv[])
 	unsigned long ram_size = 64UL << 20;
 	bool single_step = false;
 	int i;
+
+	tty_save_origins();
 
 	atexit(shutdown);
 
