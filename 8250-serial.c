@@ -1,4 +1,4 @@
-#include "kvm/early_printk.h"
+#include "kvm/8250-serial.h"
 
 #include "kvm/ioport.h"
 #include "kvm/util.h"
@@ -171,7 +171,7 @@ static struct ioport_operations serial8250_ops = {
 	.io_out		= serial8250_out,
 };
 
-void early_printk__init(void)
+void serial8250__init(void)
 {
 	ioport__register(device.iobase, &serial8250_ops, 8);
 }

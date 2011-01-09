@@ -1,6 +1,6 @@
 #include "kvm/kvm.h"
 
-#include "kvm/early_printk.h"
+#include "kvm/8250-serial.h"
 #include "kvm/blk-virtio.h"
 #include "kvm/disk-image.h"
 #include "kvm/util.h"
@@ -168,7 +168,7 @@ int main(int argc, char *argv[])
 	if (single_step)
 		kvm__enable_singlestep(kvm);
 
-	early_printk__init();
+	serial8250__init();
 	pci__init();
 
 	blk_virtio__init(kvm);
