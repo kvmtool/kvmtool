@@ -92,16 +92,12 @@ static int read_char(int fd)
 
 static bool is_readable(int fd)
 {
-	struct pollfd pollfd;
-	int err;
-
-	pollfd		= (struct pollfd) {
-		.fd		= fd,
-		.events		= POLLIN,
+	struct pollfd pollfd = (struct pollfd) {
+		.fd	= fd,
+		.events	= POLLIN,
 	};
 
-	err		= poll(&pollfd, 1, 0);
-	return err > 0;
+	return poll(&pollfd, 1, 0) > 0;
 }
 
 void serial8250__interrupt(struct kvm *self)
