@@ -7,6 +7,8 @@
 #include "kvm/pci.h"
 
 #include <inttypes.h>
+#include <termios.h>
+#include <unistd.h>
 #include <signal.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -27,6 +29,30 @@ static void usage(char *argv[])
 }
 
 static struct kvm *kvm;
+
+static void tty_set_canon_flag(int fd, int on)
+{
+	struct termios tty;
+	int mask = ISTRIP | INLCR | ICRNL | IGNCR | IXON | IXOFF | ICANON | ECHO;
+
+	tcgetattr(fd, &tty);
+	if (on)
+		tty.c_lflag |= mask;
+	else
+		tty.c_lflag &= ~mask;
+	tcsetattr(fd, TCSAFLUSH, &tty);
+}
+
+static void shutdown(void)
+{
+	tty_set_canon_flag(fileno(stdin), 0);
+}
+
+static void handle_sigint(int sig)
+{
+	shutdown();
+	exit(1);
+}
 
 static void handle_sigquit(int sig)
 {
@@ -86,7 +112,6 @@ static void setup_timer(void)
 		die("timer_settime()");
 }
 
-
 int main(int argc, char *argv[])
 {
 	const char *kernel_filename = NULL;
@@ -98,7 +123,10 @@ int main(int argc, char *argv[])
 	bool single_step = false;
 	int i;
 
+	atexit(shutdown);
+
 	signal(SIGQUIT, handle_sigquit);
+	signal(SIGINT, handle_sigint);
 
 	for (i = 1; i < argc; i++) {
 		if (option_matches(argv[i], "--kernel=")) {
@@ -174,6 +202,8 @@ int main(int argc, char *argv[])
 	blk_virtio__init(kvm);
 
 	setup_timer();
+
+	tty_set_canon_flag(fileno(stdin), 1);
 
 	for (;;) {
 		kvm__run(kvm);
