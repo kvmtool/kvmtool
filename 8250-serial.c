@@ -13,7 +13,7 @@ struct serial8250_device {
 	uint16_t		iobase;
 	uint8_t			irq;
 
-	uint8_t			thr;
+	uint8_t			rbr;		/* receive buffer */
 	uint8_t			dll;
 	uint8_t			dlm;
 	uint8_t			iir;
@@ -71,6 +71,24 @@ static bool is_readable(int fd)
 	return poll(&pollfd, 1, 0) > 0;
 }
 
+static void serial8250__receive(struct kvm *self, struct serial8250_device *dev)
+{
+	int c;
+
+	if (dev->lsr & UART_LSR_DR)
+		return;
+
+	if (!is_readable(fileno(stdin)))
+		return;
+
+	c		= read_char(fileno(stdin));
+	if (c < 0)
+		return;
+
+	dev->rbr	= c;
+	dev->lsr	|= UART_LSR_DR;
+}
+
 /*
  * Interrupts are injected for ttyS0 only.
  */
@@ -85,23 +103,14 @@ void serial8250__interrupt(struct kvm *self)
 	if (!(dev->ier & (UART_IER_THRI|UART_IER_RDI)))
 		return;
 
+	serial8250__receive(self, dev);
+
 	new_iir		= 0;
 
-	/* We're always good for guest sending data. */
-	if (dev->ier & UART_IER_THRI)
+	if (dev->lsr & UART_LSR_DR)
+		new_iir			|= UART_IIR_RDI;
+	else if (dev->ier & UART_IER_THRI)
 		new_iir			|= UART_IIR_THRI;
-
-	/* Is there input in stdin to send to the guest? */
-	if (!(dev->lsr & UART_LSR_DR) && is_readable(fileno(stdin))) {
-		int c;
-
-		c			= read_char(fileno(stdin));
-		if (c >= 0) {
-			dev->thr		= c;
-			dev->lsr		|= UART_LSR_DR;
-			new_iir			|= UART_IIR_RDI;
-		}
-	}
 
 	/* Only send an IRQ if there's work to do. */
 	if (new_iir) {
@@ -208,12 +217,12 @@ static bool serial8250_in(struct kvm *self, uint16_t port, void *data, int size,
 		return false;
 
 	switch (offset) {
-	case UART_TX:
+	case UART_RX:
 		if (dev->lsr & UART_LSR_DR) {
 			dev->iir		= UART_IIR_NO_INT;
 
 			dev->lsr		&= ~UART_LSR_DR;
-			ioport__write8(data, dev->thr);
+			ioport__write8(data, dev->rbr);
 		}
 		break;
 	case UART_IER:
