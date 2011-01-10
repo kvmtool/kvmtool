@@ -29,7 +29,6 @@ static struct serial8250_device device = {
 	.iobase			= 0x3f8,	/* ttyS0 */
 	.irq			= 4,
 
-	.iir			= UART_IIR_NO_INT,
 	.lsr			= UART_LSR_TEMT | UART_LSR_THRE,
 };
 
@@ -55,6 +54,21 @@ static bool is_readable(int fd)
 
 void serial8250__interrupt(struct kvm *self)
 {
+	uint8_t new_iir;
+
+	device.iir	= UART_IIR_NO_INT;
+
+	/* No interrupts enabled. Exit... */
+	if (!(device.ier & (UART_IER_THRI|UART_IER_RDI)))
+		return;
+
+	new_iir		= 0;
+
+	/* We're always good for guest sending data. */
+	if (device.ier & UART_IER_THRI)
+		new_iir			|= UART_IIR_THRI;
+
+	/* Is there input in stdin to send to the guest? */
 	if (!(device.lsr & UART_LSR_DR) && is_readable(fileno(stdin))) {
 		int c;
 
@@ -62,11 +76,14 @@ void serial8250__interrupt(struct kvm *self)
 		if (c >= 0) {
 			device.thr		= c;
 			device.lsr		|= UART_LSR_DR;
+			new_iir			|= UART_IIR_RDI;
 		}
 	}
 
-	if (device.ier & UART_IER_THRI || device.lsr & UART_LSR_DR) {
-		device.iir		&= ~UART_IIR_NO_INT;
+	/* Only send an IRQ if there's work to do. */
+	if (new_iir) {
+		device.iir		= new_iir;
+		kvm__irq_line(self, device.irq, 0);
 		kvm__irq_line(self, device.irq, 1);
 	}
 }
@@ -103,9 +120,6 @@ static bool serial8250_out(struct kvm *self, uint16_t port, void *data, int size
 					fprintf(stdout, "%c", *p++);
 			}
 			fflush(stdout);
-
-			device.iir		|= UART_IIR_NO_INT;
-			kvm__irq_line(self, device.irq, 0);
 
 			break;
 		}
@@ -144,9 +158,6 @@ static bool serial8250_in(struct kvm *self, uint16_t port, void *data, int size,
 		if (device.lsr & UART_LSR_DR) {
 			device.lsr		&= ~UART_LSR_DR;
 			ioport__write8(data, device.thr);
-
-			device.iir		|= UART_IIR_NO_INT;
-			kvm__irq_line(self, device.irq, 0);
 		}
 		break;
 	case UART_IER:
