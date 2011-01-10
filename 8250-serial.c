@@ -25,13 +25,23 @@ struct serial8250_device {
 	uint8_t			scr;
 };
 
-static struct serial8250_device devices[1] = {
+static struct serial8250_device devices[] = {
 	/* ttyS0 */
 	[0]	= {
 		.iobase			= 0x3f8,
 		.irq			= 4,
 
 		.lsr			= UART_LSR_TEMT | UART_LSR_THRE,
+	},
+	/* ttyS1 */
+	[1]	= {
+		.iobase			= 0x2f8,
+		.irq			= 3,
+	},
+	/* ttyS2 */
+	[2]	= {
+		.iobase			= 0x3e8,
+		.irq			= 4,
 	},
 };
 
