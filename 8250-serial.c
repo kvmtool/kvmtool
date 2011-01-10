@@ -23,6 +23,8 @@ struct serial8250_device {
 	uint8_t			mcr;
 	uint8_t			lsr;
 	uint8_t			scr;
+
+	uint8_t			counter;
 };
 
 static struct serial8250_device devices[] = {
@@ -37,11 +39,15 @@ static struct serial8250_device devices[] = {
 	[1]	= {
 		.iobase			= 0x2f8,
 		.irq			= 3,
+
+		.iir			= UART_IIR_NO_INT,
 	},
 	/* ttyS2 */
 	[2]	= {
 		.iobase			= 0x3e8,
 		.irq			= 4,
+
+		.iir			= UART_IIR_NO_INT,
 	},
 };
 
@@ -158,6 +164,11 @@ static bool serial8250_out(struct kvm *self, uint16_t port, void *data, int size
 			}
 			fflush(stdout);
 
+			if (dev->counter++ > 10) {
+				dev->iir		= UART_IIR_NO_INT;
+				dev->counter		= 0;
+			}
+
 			break;
 		}
 		case UART_IER:
@@ -200,6 +211,8 @@ static bool serial8250_in(struct kvm *self, uint16_t port, void *data, int size,
 	switch (offset) {
 	case UART_TX:
 		if (dev->lsr & UART_LSR_DR) {
+			dev->iir		= UART_IIR_NO_INT;
+
 			dev->lsr		&= ~UART_LSR_DR;
 			ioport__write8(data, dev->thr);
 		}
