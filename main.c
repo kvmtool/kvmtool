@@ -201,7 +201,7 @@ int main(int argc, char *argv[])
 
 	kvm__setup_cpuid(kvm);
 
-	strcpy(real_cmdline, "notsc nolapic nosmp noacpi pci=conf1 console=ttyS0 root=fc00 rw ");
+	strcpy(real_cmdline, "notsc nolapic nosmp noacpi pci=conf1 console=ttyS0 root=/dev/vda rw ");
 	if (kernel_cmdline) {
 		strlcat(real_cmdline, kernel_cmdline, sizeof(real_cmdline));
 		real_cmdline[sizeof(real_cmdline)-1] = '\0';
