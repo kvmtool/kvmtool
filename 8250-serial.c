@@ -4,57 +4,10 @@
 #include "kvm/util.h"
 #include "kvm/kvm.h"
 
+#include <linux/serial_reg.h>
+
 #include <stdbool.h>
 #include <poll.h>
-
-/* Transmitter holding register */
-#define THR             0
-
-/* Receive buffer register */
-#define RBR             0
-
-/* Divisor latch low byte */
-#define DLL		0
-
-/* Divisor latch high byte */
-#define DLM		1
-
-/* Interrupt enable register */
-#define IER		1
-
-#define UART_IER_RDI		0x01
-#define UART_IER_THRI		0x02
-
-/* Interrupt identification register */
-#define IIR		2
-
-#define UART_IIR_NO_INT		0x01
-#define UART_IIR_THRI		0x02
-
-/* 16550 FIFO Control Register */
-#define FCR		2
-
-/* Line control register */
-#define LCR		3
-
-#define UART_LCR_DLAB		0x80
-
-/* Modem control register */
-#define MCR		4
-
-/* Line status register */
-#define LSR		5
-
-#define UART_LSR_DR		0x01
-#define UART_LSR_THRE		0x20
-
-/* Modem status register */
-#define MSR		6
-
-#define UART_MSR_CTS		0x10
-
-/* Scratch register */
-#define SCR		7
 
 struct serial8250_device {
 	uint16_t		iobase;
@@ -124,16 +77,16 @@ static bool serial8250_out(struct kvm *self, uint16_t port, void *data, int size
 
 	if (device.lcr & UART_LCR_DLAB) {
 		switch (offset) {
-		case DLL:
+		case UART_DLL:
 			device.dll		= ioport__read8(data);
 			break;
-		case DLM:
+		case UART_DLM:
 			device.dlm		= ioport__read8(data);
 			break;
-		case FCR:
+		case UART_FCR:
 			device.fcr		= ioport__read8(data);
 			break;
-		case LCR:
+		case UART_LCR:
 			device.lcr		= ioport__read8(data);
 			break;
 		default:
@@ -141,7 +94,7 @@ static bool serial8250_out(struct kvm *self, uint16_t port, void *data, int size
 		}
 	} else {
 		switch (offset) {
-		case THR: {
+		case UART_TX: {
 			char *p = data;
 			int i;
 
@@ -156,19 +109,19 @@ static bool serial8250_out(struct kvm *self, uint16_t port, void *data, int size
 
 			break;
 		}
-		case IER:
+		case UART_IER:
 			device.ier		= ioport__read8(data);
 			break;
-		case FCR:
+		case UART_FCR:
 			device.fcr		= ioport__read8(data);
 			break;
-		case LCR:
+		case UART_LCR:
 			device.lcr		= ioport__read8(data);
 			break;
-		case MCR:
+		case UART_MCR:
 			device.mcr		= ioport__read8(data);
 			break;
-		case SCR:
+		case UART_SCR:
 			device.scr		= ioport__read8(data);
 			break;
 		default:
@@ -187,7 +140,7 @@ static bool serial8250_in(struct kvm *self, uint16_t port, void *data, int size,
 		return false;
 
 	switch (offset) {
-	case THR:
+	case UART_TX:
 		if (device.lsr & UART_LSR_DR) {
 			device.lsr		&= ~UART_LSR_DR;
 			ioport__write8(data, device.thr);
@@ -196,25 +149,25 @@ static bool serial8250_in(struct kvm *self, uint16_t port, void *data, int size,
 			kvm__irq_line(self, device.irq, 0);
 		}
 		break;
-	case IER:
+	case UART_IER:
 		ioport__write8(data, device.ier);
 		break;
-	case IIR:
+	case UART_IIR:
 		ioport__write8(data, device.iir);
 		break;
-	case LCR:
+	case UART_LCR:
 		ioport__write8(data, device.lcr);
 		break;
-	case MCR:
+	case UART_MCR:
 		ioport__write8(data, device.mcr);
 		break;
-	case LSR:
+	case UART_LSR:
 		ioport__write8(data, device.lsr);
 		break;
-	case MSR:
+	case UART_MSR:
 		ioport__write8(data, UART_MSR_CTS);
 		break;
-	case SCR:
+	case UART_SCR:
 		ioport__write8(data, device.scr);
 		break;
 	default:
