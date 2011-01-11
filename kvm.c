@@ -1,7 +1,7 @@
 #include "kvm/kvm.h"
 
-#include "kvm/interrupt.h"
 #include "kvm/cpufeature.h"
+#include "kvm/interrupt.h"
 #include "kvm/e820.h"
 #include "kvm/util.h"
 
@@ -12,16 +12,18 @@
 #include <sys/ioctl.h>
 #include <inttypes.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
 #include <stdbool.h>
 #include <assert.h>
 #include <limits.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <fcntl.h>
-#include <sys/stat.h>
+#include <time.h>
 
 /*
  * Compatibility code. Remove this when we move to tools/kvm.
@@ -604,6 +606,46 @@ void kvm__setup_mem(struct kvm *self)
 		.size		= self->ram_size - BZ_KERNEL_START,
 		.type		= E820_MEM_USABLE,
 	};
+}
+
+#define TIMER_INTERVAL_NS 1000000	/* 1 msec */
+
+static void alarm_handler(int sig)
+{
+}
+
+/*
+ * This function sets up a timer that's used to inject interrupts from the
+ * userspace hypervisor into the guest at periodical intervals. Please note
+ * that clock interrupt, for example, is not handled here.
+ */
+void kvm__start_timer(struct kvm *self)
+{
+	struct itimerspec its;
+	struct sigaction sa;
+	struct sigevent sev;
+
+	sigfillset(&sa.sa_mask);
+	sa.sa_flags			= 0;
+	sa.sa_handler			= alarm_handler;
+
+	sigaction(SIGALRM, &sa, NULL);
+
+	memset(&sev, 0, sizeof(struct sigevent));
+	sev.sigev_value.sival_int	= 0;
+	sev.sigev_notify		= SIGEV_SIGNAL;
+	sev.sigev_signo			= SIGALRM;
+
+	if (timer_create(CLOCK_REALTIME, &sev, &self->timerid) < 0)
+		die("timer_create()");
+
+	its.it_value.tv_sec		= TIMER_INTERVAL_NS / 1000000000;
+	its.it_value.tv_nsec		= TIMER_INTERVAL_NS % 1000000000;
+	its.it_interval.tv_sec		= its.it_value.tv_sec;
+	its.it_interval.tv_nsec		= its.it_value.tv_nsec;
+
+	if (timer_settime(self->timerid, 0, &its, NULL) < 0)
+		die("timer_settime()");
 }
 
 void kvm__run(struct kvm *self)
