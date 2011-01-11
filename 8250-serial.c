@@ -229,6 +229,7 @@ static bool serial8250_in(struct kvm *self, uint16_t port, void *data, int size,
 		ioport__write8(data, dev->ier);
 		break;
 	case UART_IIR:
+		dev->iir &= 0x3f; /* no FIFO for 8250 */
 		ioport__write8(data, dev->iir);
 		break;
 	case UART_LCR:
@@ -244,7 +245,8 @@ static bool serial8250_in(struct kvm *self, uint16_t port, void *data, int size,
 		ioport__write8(data, UART_MSR_CTS);
 		break;
 	case UART_SCR:
-		ioport__write8(data, dev->scr);
+		/* No SCR for 8250 */
+		ioport__write8(data, 0);
 		break;
 	default:
 		return false;
