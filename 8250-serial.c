@@ -22,9 +22,8 @@ struct serial8250_device {
 	uint8_t			lcr;
 	uint8_t			mcr;
 	uint8_t			lsr;
+	uint8_t			msr;
 	uint8_t			scr;
-
-	uint8_t			counter;
 };
 
 static struct serial8250_device devices[] = {
@@ -34,6 +33,7 @@ static struct serial8250_device devices[] = {
 		.irq			= 4,
 
 		.lsr			= UART_LSR_TEMT | UART_LSR_THRE,
+		.iir			= UART_IIR_NO_INT,
 	},
 	/* ttyS1 */
 	[1]	= {
@@ -75,15 +75,15 @@ static void serial8250__receive(struct kvm *self, struct serial8250_device *dev)
 {
 	int c;
 
-	if (dev->lsr & UART_LSR_DR)
-		return;
-
 	if (!is_readable(fileno(stdin)))
 		return;
 
 	c		= read_char(fileno(stdin));
 	if (c < 0)
 		return;
+
+	if (dev->lsr & UART_LSR_DR)
+		dev->lsr	|= UART_LSR_OE;
 
 	dev->rbr	= c;
 	dev->lsr	|= UART_LSR_DR;
@@ -95,27 +95,17 @@ static void serial8250__receive(struct kvm *self, struct serial8250_device *dev)
 void serial8250__interrupt(struct kvm *self)
 {
 	struct serial8250_device *dev = &devices[0];
-	uint8_t new_iir;
-
-	dev->iir	= UART_IIR_NO_INT;
-
-	/* No interrupts enabled. Exit... */
-	if (!(dev->ier & (UART_IER_THRI|UART_IER_RDI)))
-		return;
 
 	serial8250__receive(self, dev);
 
-	new_iir		= 0;
-
-	if (dev->lsr & UART_LSR_DR)
-		new_iir			|= UART_IIR_RDI;
+	if (dev->ier & UART_IER_RDI && dev->lsr & UART_LSR_DR)
+		dev->iir		= UART_IIR_RDI;
 	else if (dev->ier & UART_IER_THRI)
-		new_iir			|= UART_IIR_THRI;
+		dev->iir		= UART_IIR_THRI;
+	else
+		dev->iir		= UART_IIR_NO_INT;
 
-	/* Only send an IRQ if there's work to do. */
-	if (new_iir) {
-		dev->counter		= 0;
-		dev->iir		= new_iir;
+	if (dev->iir != UART_IIR_NO_INT) {
 		kvm__irq_line(self, dev->irq, 0);
 		kvm__irq_line(self, dev->irq, 1);
 	}
@@ -145,36 +135,34 @@ static bool serial8250_out(struct kvm *self, uint16_t port, void *data, int size
 
 	offset		= port - dev->iobase;
 
-	/* LSR is factory test and MSR is not used for writes */
-	if (offset == UART_LSR || offset == UART_MSR)
-		return true;
-
-	/* FCR, LCR, MCR, and SCR have the same meaning regardless of DLAB */
-	switch (offset) {
-	case UART_FCR:
-		dev->fcr		= ioport__read8(data);
-		return true;
-	case UART_LCR:
-		dev->lcr		= ioport__read8(data);
-		return true;
-	case UART_MCR:
-		dev->mcr		= ioport__read8(data);
-		return true;
-	case UART_SCR:
-		dev->scr		= ioport__read8(data);
-		return true;
-	default:
-		break;
-	}
-
 	if (dev->lcr & UART_LCR_DLAB) {
 		switch (offset) {
 		case UART_DLL:
-			dev->dll		= ioport__read8(data);
+			dev->dll	= ioport__read8(data);
 			break;
 		case UART_DLM:
-			dev->dlm		= ioport__read8(data);
+			dev->dlm	= ioport__read8(data);
 			break;
+		case UART_FCR:
+			dev->fcr	= ioport__read8(data);
+			break;
+		case UART_LCR:
+			dev->lcr	= ioport__read8(data);
+			break;
+		case UART_MCR:
+			dev->mcr	= ioport__read8(data);
+			break;
+		case UART_LSR:
+			/* Factory test */
+			break;
+		case UART_MSR:
+			/* Not used */
+			break;
+		case UART_SCR:
+			dev->scr	= ioport__read8(data);
+			break;
+		default:
+			return false;
 		}
 	} else {
 		switch (offset) {
@@ -182,23 +170,41 @@ static bool serial8250_out(struct kvm *self, uint16_t port, void *data, int size
 			char *p = data;
 			int i;
 
-			while (count--) {
-				for (i = 0; i < size; i++)
-					fprintf(stdout, "%c", *p++);
+			if (!(dev->mcr & UART_MCR_LOOP)) {
+				while (count--) {
+					for (i = 0; i < size; i++)
+						fprintf(stdout, "%c", *p++);
+				}
+				fflush(stdout);
 			}
-			fflush(stdout);
-
-			if (dev->counter++ > 10)
-				dev->iir		= UART_IIR_NO_INT;
-
+			dev->iir		= UART_IIR_NO_INT;
 			break;
 		}
-		case UART_IER:
-			dev->ier		= ioport__read8(data);
+		case UART_FCR:
+			dev->fcr	= ioport__read8(data);
 			break;
+		case UART_IER:
+			dev->ier	= ioport__read8(data) & 0x3f;
+			break;
+		case UART_LCR:
+			dev->lcr	= ioport__read8(data);
+			break;
+		case UART_MCR:
+			dev->mcr	= ioport__read8(data);
+			break;
+		case UART_LSR:
+			/* Factory test */
+			break;
+		case UART_MSR:
+			/* Not used */
+			break;
+		case UART_SCR:
+			dev->scr	= ioport__read8(data);
+			break;
+		default:
+			return false;
 		}
 	}
-
 	return true;
 }
 
@@ -213,7 +219,6 @@ static bool serial8250_in(struct kvm *self, uint16_t port, void *data, int size,
 
 	offset		= port - dev->iobase;
 
-	/* DLAB only changes the meaning of the first two registers */
 	if (dev->lcr & UART_LCR_DLAB) {
 		switch (offset) {
 		case UART_DLL:
@@ -222,29 +227,34 @@ static bool serial8250_in(struct kvm *self, uint16_t port, void *data, int size,
 		case UART_DLM:
 			ioport__write8(data, dev->dlm);
 			return true;
+		default:
+			break;
 		}
 	} else {
 		switch (offset) {
 		case UART_RX:
-			if (dev->lsr & UART_LSR_DR) {
-				dev->iir		= UART_IIR_NO_INT;
-
-				dev->lsr		&= ~UART_LSR_DR;
-				ioport__write8(data, dev->rbr);
-			}
+			ioport__write8(data, dev->rbr);
+			dev->lsr		&= ~UART_LSR_DR;
+			dev->iir		= UART_IIR_NO_INT;
 			return true;
 		case UART_IER:
 			ioport__write8(data, dev->ier);
 			return true;
+		default:
+			break;
 		}
 	}
 
-	/* All other registers have the same meaning regardless of DLAB */
 	switch (offset) {
-	case UART_IIR:
-		dev->iir &= 0x3f; /* no FIFO for 8250 */
-		ioport__write8(data, dev->iir);
+	case UART_IIR: {
+		uint8_t iir = dev->iir;
+
+		if (dev->fcr & UART_FCR_ENABLE_FIFO)
+			iir		|= 0xc0;
+
+		ioport__write8(data, iir);
 		break;
+	}
 	case UART_LCR:
 		ioport__write8(data, dev->lcr);
 		break;
@@ -253,16 +263,17 @@ static bool serial8250_in(struct kvm *self, uint16_t port, void *data, int size,
 		break;
 	case UART_LSR:
 		ioport__write8(data, dev->lsr);
+		dev->lsr		&= ~(UART_LSR_OE|UART_LSR_PE|UART_LSR_FE|UART_LSR_BI);
 		break;
 	case UART_MSR:
-		ioport__write8(data, UART_MSR_CTS);
+		ioport__write8(data, dev->msr);
 		break;
 	case UART_SCR:
-		/* No SCR for 8250 */
-		ioport__write8(data, 0);
+		ioport__write8(data, dev->scr);
 		break;
+	default:
+		return false;
 	}
-
 	return true;
 }
 
