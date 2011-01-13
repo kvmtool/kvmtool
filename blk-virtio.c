@@ -81,7 +81,7 @@ static bool blk_virtio_in(struct kvm *self, uint16_t port, void *data, int size,
 {
 	unsigned long offset;
 
-	offset		= port - IOPORT_VIRTIO;
+	offset		= port - IOPORT_VIRTIO_BLK;
 
 	switch (offset) {
 	case VIRTIO_PCI_HOST_FEATURES:
@@ -218,7 +218,7 @@ static bool blk_virtio_out(struct kvm *self, uint16_t port, void *data, int size
 {
 	unsigned long offset;
 
-	offset		= port - IOPORT_VIRTIO;
+	offset		= port - IOPORT_VIRTIO_BLK;
 
 	switch (offset) {
 	case VIRTIO_PCI_GUEST_FEATURES:
@@ -290,7 +290,7 @@ static struct pci_device_header blk_virtio_pci_device = {
 	.class			= 0x010000,
 	.subsys_vendor_id	= PCI_SUBSYSTEM_VENDOR_ID_REDHAT_QUMRANET,
 	.subsys_id		= PCI_SUBSYSTEM_ID_VIRTIO_BLK,
-	.bar[0]			= IOPORT_VIRTIO | PCI_BASE_ADDRESS_SPACE_IO,
+	.bar[0]			= IOPORT_VIRTIO_BLK | PCI_BASE_ADDRESS_SPACE_IO,
 	.irq_pin		= 1,
 	.irq_line		= VIRTIO_BLK_IRQ,
 };
@@ -304,5 +304,5 @@ void blk_virtio__init(struct kvm *self)
 
 	pci__register(&blk_virtio_pci_device, 1);
 
-	ioport__register(IOPORT_VIRTIO, &blk_virtio_io_ops, 256);
+	ioport__register(IOPORT_VIRTIO_BLK, &blk_virtio_io_ops, 256);
 }
