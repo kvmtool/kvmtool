@@ -3,7 +3,7 @@
 
 #include <inttypes.h>
 
-#include "pci_regs.h"
+#include <linux/pci_regs.h>
 
 /*
  * PCI Configuration Mechanism #1 I/O ports. See Section 3.7.4.1.

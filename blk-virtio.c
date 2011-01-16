@@ -1,7 +1,5 @@
 #include "kvm/blk-virtio.h"
 
-#include "kvm/virtio_ring.h"
-#include "kvm/virtio_blk.h"
 #include "kvm/virtio_pci.h"
 #include "kvm/disk-image.h"
 #include "kvm/ioport.h"
@@ -9,6 +7,8 @@
 #include "kvm/kvm.h"
 #include "kvm/pci.h"
 
+#include <linux/virtio_ring.h>
+#include <linux/virtio_blk.h>
 #include <inttypes.h>
 #include <assert.h>
 

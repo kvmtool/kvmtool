@@ -40,7 +40,7 @@ ifeq ($(uname_M),x86_64)
 endif
 endif
 
-CFLAGS	+= $(CPPFLAGS) $(DEFINES) -Iinclude -Os -g
+CFLAGS	+= $(CPPFLAGS) $(DEFINES) -Iinclude -I../../include -Os -g
 
 WARNINGS += -Werror
 WARNINGS += -Wall
