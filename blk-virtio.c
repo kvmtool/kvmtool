@@ -42,12 +42,10 @@ struct device {
 #define DISK_CYLINDERS	1024
 #define DISK_HEADS	64
 #define DISK_SECTORS	32
-#define DISK_SEG_MAX	128
 
 static struct device device = {
 	.blk_config		= (struct virtio_blk_config) {
 		.capacity		= DISK_CYLINDERS * DISK_HEADS * DISK_SECTORS,
-		.seg_max		= DISK_SEG_MAX,
 		/* VIRTIO_BLK_F_GEOMETRY */
 		.geometry		= {
 			.cylinders		= DISK_CYLINDERS,
@@ -62,7 +60,7 @@ static struct device device = {
 	 * node kernel will compute disk geometry by own, the
 	 * same applies to VIRTIO_BLK_F_BLK_SIZE
 	 */
-	.host_features		= (1UL << VIRTIO_BLK_F_SEG_MAX),
+	.host_features		= 0,
 };
 
 static bool virtio_blk_config_in(void *data, unsigned long offset, int size, uint32_t count)
@@ -115,101 +113,73 @@ static bool blk_virtio_in(struct kvm *self, uint16_t port, void *data, int size,
 	return true;
 }
 
-static bool blk_virtio_request(struct kvm *self, struct virt_queue *queue)
+static bool blk_virtio_read(struct kvm *self, struct virt_queue *queue)
 {
 	struct vring_used_elem *used_elem;
 	struct virtio_blk_outhdr *req;
-	uint16_t desc_block_last;
 	struct vring_desc *desc;
-	uint16_t desc_status;
-	uint16_t desc_block;
+	uint16_t desc_ndx;
 	uint32_t block_len;
-	uint32_t block_cnt;
-	uint16_t desc_hdr;
 	uint8_t *status;
 	void *block;
-	int err;
-	int err_cnt;
 
-	/* header */
-	desc_hdr		= queue->vring.avail->ring[queue->last_avail_idx++ % queue->vring.num];
+	desc_ndx		= queue->vring.avail->ring[queue->last_avail_idx++ % queue->vring.num];
 
-	if (desc_hdr >= queue->vring.num) {
+	if (desc_ndx >= queue->vring.num) {
 		warning("fatal I/O error");
 		return false;
 	}
 
-	desc			= &queue->vring.desc[desc_hdr];
+	/* header */
+	desc			= &queue->vring.desc[desc_ndx];
 	assert(!(desc->flags & VRING_DESC_F_INDIRECT));
 
 	req			= guest_flat_to_host(self, desc->addr);
 
+	/* block */
+	desc			= &queue->vring.desc[desc->next];
+	assert(!(desc->flags & VRING_DESC_F_INDIRECT));
+
+	block			= guest_flat_to_host(self, desc->addr);
+	block_len		= desc->len;
+
 	/* status */
-	desc_status		= desc_hdr;
-
-	do {
-		desc_block_last	= desc_status;
-		desc_status	= queue->vring.desc[desc_status].next;
-
-		if (desc_status >= queue->vring.num) {
-			warning("fatal I/O error");
-			return false;
-		}
-
-	} while (queue->vring.desc[desc_status].flags & VRING_DESC_F_NEXT);
-
-	desc			= &queue->vring.desc[desc_status];
+	desc			= &queue->vring.desc[desc->next];
 	assert(!(desc->flags & VRING_DESC_F_INDIRECT));
 
 	status			= guest_flat_to_host(self, desc->addr);
 
-	/* block */
-	desc_block		= desc_hdr;
-	block_cnt		= 0;
-	err_cnt			= 0;
+	switch (req->type) {
+	case VIRTIO_BLK_T_IN: {
+		int err;
 
-	do {
-		desc_block	= queue->vring.desc[desc_block].next;
-
-		desc		= &queue->vring.desc[desc_block];
-		assert(!(desc->flags & VRING_DESC_F_INDIRECT));
-
-		block		= guest_flat_to_host(self, desc->addr);
-		block_len	= desc->len;
-
-		switch (req->type) {
-		case VIRTIO_BLK_T_IN:
-			err	= disk_image__read_sector(self->disk_image, req->sector, block, block_len);
-			break;
-		case VIRTIO_BLK_T_OUT:
-			err	= disk_image__write_sector(self->disk_image, req->sector, block, block_len);
-			break;
-		default:
-			warning("request type %d", req->type);
-			err	= -1;
-		}
-
+		err		= disk_image__read_sector(self->disk_image, req->sector, block, block_len);
 		if (err)
-			err_cnt++;
+			*status			= VIRTIO_BLK_S_IOERR;
+		else
+			*status			= VIRTIO_BLK_S_OK;
+		break;
+	}
+	case VIRTIO_BLK_T_OUT: {
+		int err;
 
-		req->sector	+= block_len >> SECTOR_SHIFT;
-		block_cnt	+= block_len;
-
-		if (desc_block == desc_block_last)
-			break;
-
-		if (desc_block >= queue->vring.num) {
-			warning("fatal I/O error");
-			return false;
-		}
-
-	} while (true);
-
-	*status			= err_cnt ? VIRTIO_BLK_S_IOERR : VIRTIO_BLK_S_OK;
+		err		= disk_image__write_sector(self->disk_image, req->sector, block, block_len);
+		if (err)
+			*status			= VIRTIO_BLK_S_IOERR;
+		else
+			*status			= VIRTIO_BLK_S_OK;
+		break;
+	}
+	default:
+		warning("request type %d", req->type);
+		*status			= VIRTIO_BLK_S_IOERR;
+		break;
+	}
 
 	used_elem		= &queue->vring.used->ring[queue->vring.used->idx++ % queue->vring.num];
-	used_elem->id		= desc_hdr;
-	used_elem->len		= block_cnt;
+
+	used_elem->id		= desc_ndx;
+	used_elem->len		= 3;
 
 	return true;
 }
@@ -250,7 +220,7 @@ static bool blk_virtio_out(struct kvm *self, uint16_t port, void *data, int size
 		queue			= &device.virt_queues[queue_index];
 
 		while (queue->vring.avail->idx != queue->last_avail_idx) {
-			if (!blk_virtio_request(self, queue))
+			if (!blk_virtio_read(self, queue))
 				return false;
 		}
 		kvm__irq_line(self, VIRTIO_BLK_IRQ, 1);
@@ -300,7 +270,7 @@ void blk_virtio__init(struct kvm *self)
 	if (!self->disk_image)
 		return;
 
-	device.blk_config.capacity = self->disk_image->size >> SECTOR_SHIFT;
+	device.blk_config.capacity = self->disk_image->size / SECTOR_SIZE;
 
 	pci__register(&blk_virtio_pci_device, 1);
 
