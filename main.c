@@ -29,46 +29,34 @@ static void usage(char *argv[])
 
 static struct kvm *kvm;
 
-static struct termios tty_origin_stdin;
-static struct termios tty_origin_stdout;
-static struct termios tty_origin_stderr;
+static struct termios orig_term;
 
-static void tty_save_origins(void)
+static void setup_console(void)
 {
-	tcgetattr(fileno(stdin), &tty_origin_stdin);
-	tcgetattr(fileno(stdout), &tty_origin_stdout);
-	tcgetattr(fileno(stderr), &tty_origin_stderr);
+	struct termios term;
+
+	if (tcgetattr(STDIN_FILENO, &orig_term) < 0)
+		die("unable to save initial standard input settings");
+
+	term			= orig_term;
+
+	term.c_lflag		&= ~(ICANON|ECHO);
+
+	tcsetattr(STDIN_FILENO, TCSANOW, &term);
 }
 
-static void tty_restore_origins(void)
+static void cleanup_console(void)
 {
-	tcsetattr(fileno(stdin), TCSAFLUSH, &tty_origin_stdin);
-	tcsetattr(fileno(stdout), TCSAFLUSH, &tty_origin_stdout);
-	tcsetattr(fileno(stderr), TCSAFLUSH, &tty_origin_stderr);
-}
-
-static void tty_set_canon_flag(int fd, int on)
-{
-	struct termios tty;
-	int mask = ISTRIP | INLCR | ICRNL | IGNCR | IXON | IXOFF | ICANON | ECHO;
-
-	tcgetattr(fd, &tty);
-	if (on)
-		tty.c_lflag |= mask;
-	else
-		tty.c_lflag &= ~mask;
-	tcsetattr(fd, TCSAFLUSH, &tty);
+	tcsetattr(STDIN_FILENO, TCSANOW, &orig_term);
 }
 
 static void shutdown(void)
 {
-	tty_set_canon_flag(fileno(stdin), 0);
-	tty_restore_origins();
+	cleanup_console();
 }
 
 static void handle_sigint(int sig)
 {
-	shutdown();
 	exit(1);
 }
 
@@ -101,12 +89,12 @@ int main(int argc, char *argv[])
 	bool single_step = false;
 	int i;
 
-	tty_save_origins();
-
-	atexit(shutdown);
-
 	signal(SIGQUIT, handle_sigquit);
 	signal(SIGINT, handle_sigint);
+
+	setup_console();
+
+	atexit(shutdown);
 
 	for (i = 1; i < argc; i++) {
 		if (option_matches(argv[i], "--kernel=")) {
@@ -182,8 +170,6 @@ int main(int argc, char *argv[])
 	blk_virtio__init(kvm);
 
 	kvm__start_timer(kvm);
-
-	tty_set_canon_flag(fileno(stdin), 1);
 
 	for (;;) {
 		kvm__run(kvm);
