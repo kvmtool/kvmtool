@@ -164,7 +164,7 @@ int main(int argc, char *argv[])
 	if (single_step)
 		kvm__enable_singlestep(kvm);
 
-	serial8250__init();
+	serial8250__init(kvm);
 	pci__init();
 
 	blk_virtio__init(kvm);

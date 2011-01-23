@@ -32,8 +32,10 @@ static struct serial8250_device devices[] = {
 		.iobase			= 0x3f8,
 		.irq			= 4,
 
-		.lsr			= UART_LSR_TEMT | UART_LSR_THRE,
 		.iir			= UART_IIR_NO_INT,
+		.lsr			= UART_LSR_TEMT | UART_LSR_THRE,
+		.msr			= UART_MSR_DCD | UART_MSR_DSR | UART_MSR_CTS,
+		.mcr			= UART_MCR_OUT2,
 	},
 	/* ttyS1 */
 	[1]	= {
@@ -282,13 +284,19 @@ static struct ioport_operations serial8250_ops = {
 	.io_out		= serial8250_out,
 };
 
-void serial8250__init(void)
+static void serial8250__device_init(struct kvm *kvm, struct serial8250_device *dev)
+{
+	ioport__register(dev->iobase, &serial8250_ops, 8);
+	kvm__irq_line(kvm, dev->irq, 0);
+}
+
+void serial8250__init(struct kvm *kvm)
 {
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(devices); i++) {
 		struct serial8250_device *dev = &devices[i];
 
-		ioport__register(dev->iobase, &serial8250_ops, 8);
+		serial8250__device_init(kvm, dev);
 	}
 }
