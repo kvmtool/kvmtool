@@ -1,7 +1,9 @@
 #include "kvm/blk-virtio.h"
 
 #include "kvm/virtio_pci.h"
+
 #include "kvm/disk-image.h"
+#include "kvm/virtqueue.h"
 #include "kvm/ioport.h"
 #include "kvm/util.h"
 #include "kvm/kvm.h"
@@ -17,14 +19,6 @@
 #define NUM_VIRT_QUEUES		1
 
 #define VIRTIO_BLK_QUEUE_SIZE	16
-
-struct virt_queue {
-	struct vring			vring;
-	uint32_t			pfn;
-	/* The last_avail_idx field is an index to ->ring of struct vring_avail.
-	   It's where we assume the next request index is at.  */
-	uint16_t			last_avail_idx;
-};
 
 struct device {
 	struct virtio_blk_config	blk_config;
@@ -118,12 +112,12 @@ static bool blk_virtio_read(struct kvm *self, struct virt_queue *queue)
 	struct vring_used_elem *used_elem;
 	struct virtio_blk_outhdr *req;
 	struct vring_desc *desc;
-	uint16_t desc_ndx;
 	uint32_t block_len;
+	uint16_t desc_ndx;
 	uint8_t *status;
 	void *block;
 
-	desc_ndx		= queue->vring.avail->ring[queue->last_avail_idx++ % queue->vring.num];
+	desc_ndx		= virt_queue__pop(queue);
 
 	if (desc_ndx >= queue->vring.num) {
 		warning("fatal I/O error");
@@ -131,20 +125,20 @@ static bool blk_virtio_read(struct kvm *self, struct virt_queue *queue)
 	}
 
 	/* header */
-	desc			= &queue->vring.desc[desc_ndx];
+	desc			= virt_queue__get_desc(queue, desc_ndx);
 	assert(!(desc->flags & VRING_DESC_F_INDIRECT));
 
 	req			= guest_flat_to_host(self, desc->addr);
 
 	/* block */
-	desc			= &queue->vring.desc[desc->next];
+	desc			= virt_queue__get_desc(queue, desc->next);
 	assert(!(desc->flags & VRING_DESC_F_INDIRECT));
 
 	block			= guest_flat_to_host(self, desc->addr);
 	block_len		= desc->len;
 
 	/* status */
-	desc			= &queue->vring.desc[desc->next];
+	desc			= virt_queue__get_desc(queue, desc->next);
 	assert(!(desc->flags & VRING_DESC_F_INDIRECT));
 
 	status			= guest_flat_to_host(self, desc->addr);
@@ -176,7 +170,7 @@ static bool blk_virtio_read(struct kvm *self, struct virt_queue *queue)
 		break;
 	}
 
-	used_elem		= &queue->vring.used->ring[queue->vring.used->idx++ % queue->vring.num];
+	used_elem		= virt_queue__get_used_elem(queue);
 
 	used_elem->id		= desc_ndx;
 	used_elem->len		= 3;
