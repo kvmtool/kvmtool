@@ -77,15 +77,15 @@ static void serial8250__receive(struct kvm *self, struct serial8250_device *dev)
 {
 	int c;
 
+	if (dev->lsr & UART_LSR_DR)
+		return;
+
 	if (!is_readable(fileno(stdin)))
 		return;
 
 	c		= read_char(fileno(stdin));
 	if (c < 0)
 		return;
-
-	if (dev->lsr & UART_LSR_DR)
-		dev->lsr	|= UART_LSR_OE;
 
 	dev->rbr	= c;
 	dev->lsr	|= UART_LSR_DR;
