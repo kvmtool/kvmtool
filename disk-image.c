@@ -1,5 +1,6 @@
 #include "kvm/disk-image.h"
 
+#include "kvm/read-write.h"
 #include "kvm/util.h"
 
 #include <sys/types.h>
@@ -12,19 +13,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-static const char QCOW_MAGIC[]	= { 'Q', 'F', 'I', 0xfb };
-
-struct qcow_header {
-	uint8_t			magic[5];
-};
-
-static bool disk_image__is_qcow(struct disk_image *self)
-{
-	struct qcow_header *header = self->mmap;
-
-	return !memcmp(header->magic, QCOW_MAGIC, ARRAY_SIZE(QCOW_MAGIC));
-}
-
 struct disk_image *disk_image__open(const char *filename)
 {
 	struct disk_image *self;
@@ -34,7 +22,7 @@ struct disk_image *disk_image__open(const char *filename)
 	if (!self)
 		return NULL;
 
-	self->fd	= open(filename, O_RDONLY);
+	self->fd	= open(filename, O_RDWR);
 	if (self->fd < 0)
 		goto failed_free;
 
@@ -42,13 +30,6 @@ struct disk_image *disk_image__open(const char *filename)
 		goto failed_close_fd;
 
 	self->size	= st.st_size;
-
-	self->mmap	= mmap(NULL, self->size, PROT_READ|PROT_WRITE, MAP_PRIVATE, self->fd, 0);
-	if (self->mmap == MAP_FAILED)
-		goto failed_close_fd;
-
-	if (disk_image__is_qcow(self))
-		die("QCOW disk image format is not supported.");
 
 	return self;
 
@@ -62,9 +43,6 @@ failed_free:
 
 void disk_image__close(struct disk_image *self)
 {
-	if (munmap(self->mmap, self->size) < 0)
-		warning("munmap() failed");
-
 	if (close(self->fd) < 0)
 		warning("close() failed");
 
@@ -78,7 +56,11 @@ int disk_image__read_sector(struct disk_image *self, uint64_t sector, void *dst,
 	if (offset + dst_len > self->size)
 		return -1;
 
-	memcpy(dst, self->mmap + offset, dst_len);
+	if (lseek(self->fd, offset, SEEK_SET) < 0)
+		return -1;
+
+	if (read_in_full(self->fd, dst, dst_len) < 0)
+		return -1;
 
 	return 0;
 }
@@ -90,7 +72,11 @@ int disk_image__write_sector(struct disk_image *self, uint64_t sector, void *src
 	if (offset + src_len > self->size)
 		return -1;
 
-	memcpy(self->mmap + offset, src, src_len);
+	if (lseek(self->fd, offset, SEEK_SET) < 0)
+		return -1;
+
+	if (write_in_full(self->fd, src, src_len) < 0)
+		return -1;
 
 	return 0;
 }

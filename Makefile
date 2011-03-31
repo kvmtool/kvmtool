@@ -15,6 +15,7 @@ TAGS = ctags
 OBJS	+= 8250-serial.o
 OBJS	+= blk-virtio.o
 OBJS	+= cpuid.o
+OBJS	+= read-write.o
 OBJS	+= disk-image.o
 OBJS	+= interrupt.o
 OBJS	+= ioport.o
@@ -39,6 +40,9 @@ ifeq ($(uname_M),x86_64)
 	DEFINES      += -DCONFIG_X86_64
 endif
 endif
+
+DEFINES	+= -D_FILE_OFFSET_BITS=64
+DEFINES	+= -D_GNU_SOURCE
 
 CFLAGS	+= $(CPPFLAGS) $(DEFINES) -Iinclude -I../../include -Os -g
 

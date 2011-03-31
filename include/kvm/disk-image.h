@@ -7,7 +7,6 @@
 #define SECTOR_SIZE		(1UL << SECTOR_SHIFT)
 
 struct disk_image {
-	void		*mmap;
 	int		fd;
 	uint64_t	size;
 };
