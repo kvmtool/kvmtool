@@ -36,9 +36,9 @@ LIBS	+= -lrt
 uname_M      := $(shell uname -m | sed -e s/i.86/i386/)
 ifeq ($(uname_M),i386)
 	DEFINES      += -DCONFIG_X86_32
-ifeq ($(uname_M),x86_64)
-	DEFINES      += -DCONFIG_X86_64
 endif
+ifeq ($(uname_M),x86_64)
+	DEFINES      += -DCONFIG_X86_64 -D__x86_64__
 endif
 
 DEFINES	+= -D_FILE_OFFSET_BITS=64
