@@ -38,7 +38,7 @@ ifeq ($(uname_M),i386)
 	DEFINES      += -DCONFIG_X86_32
 endif
 ifeq ($(uname_M),x86_64)
-	DEFINES      += -DCONFIG_X86_64 -D__x86_64__
+	DEFINES      += -DCONFIG_X86_64
 endif
 
 DEFINES	+= -D_FILE_OFFSET_BITS=64
