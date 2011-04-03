@@ -250,7 +250,7 @@ void kvm__enable_singlestep(struct kvm *self)
 #define BOOT_LOADER_SP		0x8000
 #define BOOT_CMDLINE_OFFSET	0x20000
 
-#define BOOT_PROTOCOL_REQUIRED	0x202
+#define BOOT_PROTOCOL_REQUIRED	0x206
 #define LOAD_HIGH		0x01
 
 static int load_flat_binary(struct kvm *self, int fd)
