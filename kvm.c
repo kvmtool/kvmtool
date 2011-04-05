@@ -384,11 +384,6 @@ static bool load_bzimage(struct kvm *self, int fd_kernel,
 	self->boot_ip		= BOOT_LOADER_IP + 0x200;
 	self->boot_sp		= BOOT_LOADER_SP;
 
-	/*
-	 * Drum roll, BIOS is coming to live, oh dear...
-	 */
-	setup_bios(self);
-
 	return true;
 }
 
