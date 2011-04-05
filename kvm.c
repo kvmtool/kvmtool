@@ -560,14 +560,14 @@ static void kvm__setup_sregs(struct kvm *self)
 		die_perror("KVM_SET_SREGS failed");
 }
 
+/**
+ * kvm__reset_vcpu - reset virtual CPU to a known state
+ */
 void kvm__reset_vcpu(struct kvm *self)
 {
 	kvm__setup_sregs(self);
-
 	kvm__setup_regs(self);
-
 	kvm__setup_fpu(self);
-
 	kvm__setup_msrs(self);
 }
 
