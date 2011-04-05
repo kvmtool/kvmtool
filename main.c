@@ -148,7 +148,10 @@ int main(int argc, char *argv[])
 
 	kvm__setup_cpuid(kvm);
 
-	strcpy(real_cmdline, "notsc nolapic nosmp noacpi pci=conf1 console=ttyS0 root=/dev/vda rw ");
+	strcpy(real_cmdline, "notsc nolapic nosmp noacpi pci=conf1 console=ttyS0 ");
+	if (!kernel_cmdline || (strstr(kernel_cmdline, "root=") == NULL))
+		strlcat(real_cmdline, "root=/dev/vda rw ", sizeof(real_cmdline));
+
 	if (kernel_cmdline) {
 		strlcat(real_cmdline, kernel_cmdline, sizeof(real_cmdline));
 		real_cmdline[sizeof(real_cmdline)-1] = '\0';
