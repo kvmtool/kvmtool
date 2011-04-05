@@ -8,6 +8,8 @@
 #define E820_MEM_USABLE		1
 #define E820_MEM_RESERVED	2
 
+#define E820_MEM_AREAS		4
+
 struct e820_entry {
 	uint64_t addr;	/* start of memory segment */
 	uint64_t size;	/* size of memory segment */

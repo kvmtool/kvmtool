@@ -2,7 +2,7 @@
 
 #include "kvm/cpufeature.h"
 #include "kvm/interrupt.h"
-#include "kvm/e820.h"
+#include "kvm/boot-protocol.h"
 #include "kvm/util.h"
 
 #include <linux/kvm.h>
@@ -273,13 +273,6 @@ static int load_flat_binary(struct kvm *self, int fd)
 	return true;
 }
 
-/*
- * The protected mode kernel part of a modern bzImage is loaded at 1 MB by
- * default.
- */
-#define BZ_KERNEL_START			0x100000UL
-#define INITRD_START			0x1000000UL
-#define BZ_DEFAULT_SETUP_SECTS		4
 static const char *BZIMAGE_MAGIC	= "HdrS";
 
 static bool load_bzimage(struct kvm *self, int fd_kernel,
@@ -571,36 +564,19 @@ void kvm__reset_vcpu(struct kvm *self)
 	kvm__setup_msrs(self);
 }
 
-void kvm__setup_mem(struct kvm *self)
+/**
+ * kvm__setup_bios - inject BIOS into guest system memory
+ * @self - guest system descriptor
+ *
+ * This function is a main routine where we poke guest memory
+ * and install BIOS there.
+ */
+void kvm__setup_bios(struct kvm *self)
 {
-	struct e820_entry *mem_map;
-	unsigned char *size;
+	/* standart minimal configuration */
+	setup_bios(self);
 
-	size		= guest_flat_to_host(self, E820_MAP_SIZE);
-	mem_map		= guest_flat_to_host(self, E820_MAP_START);
-
-	*size		= 4;
-
-	mem_map[0]	= (struct e820_entry) {
-		.addr		= REAL_MODE_IVT_BEGIN,
-		.size		= EBDA_START - REAL_MODE_IVT_BEGIN,
-		.type		= E820_MEM_USABLE,
-	};
-	mem_map[1]	= (struct e820_entry) {
-		.addr		= EBDA_START,
-		.size		= VGA_RAM_BEGIN - EBDA_START,
-		.type		= E820_MEM_RESERVED,
-	};
-	mem_map[2]	= (struct e820_entry) {
-		.addr		= MB_BIOS_BEGIN,
-		.size		= MB_BIOS_END - MB_BIOS_BEGIN,
-		.type		= E820_MEM_RESERVED,
-	};
-	mem_map[3]	= (struct e820_entry) {
-		.addr		= BZ_KERNEL_START,
-		.size		= self->ram_size - BZ_KERNEL_START,
-		.type		= E820_MEM_USABLE,
-	};
+	/* FIXME: SMP, ACPI and friends here */
 }
 
 #define TIMER_INTERVAL_NS 1000000	/* 1 msec */

@@ -1,4 +1,6 @@
 #include "kvm/kvm.h"
+#include "kvm/boot-protocol.h"
+#include "kvm/e820.h"
 #include "kvm/interrupt.h"
 #include "kvm/util.h"
 
@@ -46,6 +48,49 @@ static void setup_irq_handler(struct kvm *kvm, struct irq_handler *handler)
 	interrupt_table__set(&kvm->interrupt_table, &intr_desc, handler->irq);
 }
 
+/**
+ * e820_setup - setup some simple E820 memory map
+ * @kvm - guest system descriptor
+ */
+static void e820_setup(struct kvm *kvm)
+{
+	struct e820_entry *mem_map;
+	unsigned char *size;
+	unsigned int i = 0;
+
+	size		= guest_flat_to_host(kvm, E820_MAP_SIZE);
+	mem_map		= guest_flat_to_host(kvm, E820_MAP_START);
+
+	*size		= E820_MEM_AREAS;
+
+	mem_map[i++]	= (struct e820_entry) {
+		.addr		= REAL_MODE_IVT_BEGIN,
+		.size		= EBDA_START - REAL_MODE_IVT_BEGIN,
+		.type		= E820_MEM_USABLE,
+	};
+	mem_map[i++]	= (struct e820_entry) {
+		.addr		= EBDA_START,
+		.size		= VGA_RAM_BEGIN - EBDA_START,
+		.type		= E820_MEM_RESERVED,
+	};
+	mem_map[i++]	= (struct e820_entry) {
+		.addr		= MB_BIOS_BEGIN,
+		.size		= MB_BIOS_END - MB_BIOS_BEGIN,
+		.type		= E820_MEM_RESERVED,
+	};
+	mem_map[i++]	= (struct e820_entry) {
+		.addr		= BZ_KERNEL_START,
+		.size		= kvm->ram_size - BZ_KERNEL_START,
+		.type		= E820_MEM_USABLE,
+	};
+
+	BUILD_BUG_ON(i > E820_MEM_AREAS);
+}
+
+/**
+ * setup_bios - inject BIOS into guest memory
+ * @kvm - guest system descriptor
+ */
 void setup_bios(struct kvm *kvm)
 {
 	unsigned long address = MB_BIOS_BEGIN;
@@ -72,6 +117,9 @@ void setup_bios(struct kvm *kvm)
 	/* just copy the bios rom into the place */
 	p = guest_flat_to_host(kvm, MB_BIOS_BEGIN);
 	memcpy(p, bios_rom, bios_rom_size);
+
+	/* E820 memory map must be present */
+	e820_setup(kvm);
 
 	/*
 	 * Setup a *fake* real mode vector table, it has only

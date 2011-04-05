@@ -41,7 +41,7 @@ void kvm__enable_singlestep(struct kvm *self);
 bool kvm__load_kernel(struct kvm *kvm, const char *kernel_filename,
 			const char *initrd_filename, const char *kernel_cmdline);
 void kvm__reset_vcpu(struct kvm *self);
-void kvm__setup_mem(struct kvm *self);
+void kvm__setup_bios(struct kvm *self);
 void kvm__start_timer(struct kvm *self);
 void kvm__run(struct kvm *self);
 void kvm__irq_line(struct kvm *self, int irq, int level);

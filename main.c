@@ -162,9 +162,7 @@ int main(int argc, char *argv[])
 
 	kvm__reset_vcpu(kvm);
 
-	setup_bios(kvm);
-
-	kvm__setup_mem(kvm);
+	kvm__setup_bios(kvm);
 
 	if (single_step)
 		kvm__enable_singlestep(kvm);

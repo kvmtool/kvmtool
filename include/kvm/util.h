@@ -37,6 +37,8 @@ extern void warning(const char *err, ...) __attribute__((format (printf, 1, 2)))
 extern void info(const char *err, ...) __attribute__((format (printf, 1, 2)));
 extern void set_die_routine(void (*routine)(const char *err, va_list params) NORETURN);
 
+#define BUILD_BUG_ON(condition) ((void)sizeof(char[1 - 2*!!(condition)]))
+
 #define DIE_IF(cnd)						\
 do {								\
 	if (cnd)						\
