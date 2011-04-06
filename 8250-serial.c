@@ -1,5 +1,6 @@
 #include "kvm/8250-serial.h"
 
+#include "kvm/read-write.h"
 #include "kvm/ioport.h"
 #include "kvm/util.h"
 #include "kvm/kvm.h"
@@ -55,9 +56,9 @@ static struct serial8250_device devices[] = {
 
 static int read_char(int fd)
 {
-	int c;
+	char c;
 
-	if (read(fd, &c, 1) < 0)
+	if (read_in_full(fd, &c, 1) == 0)
 		return -1;
 
 	return c;
