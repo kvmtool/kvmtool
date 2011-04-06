@@ -33,23 +33,12 @@ struct device {
 	struct virt_queue		virt_queues[NUM_VIRT_QUEUES];
 };
 
-#define DISK_CYLINDERS	1024
-#define DISK_HEADS	64
-#define DISK_SECTORS	32
 #define DISK_SEG_MAX	126
 
 static struct device device = {
 	.blk_config		= (struct virtio_blk_config) {
-		.capacity		= DISK_CYLINDERS * DISK_HEADS * DISK_SECTORS,
+		/* VIRTIO_BLK_F_SEG_MAX */
 		.seg_max		= DISK_SEG_MAX,
-		/* VIRTIO_BLK_F_GEOMETRY */
-		.geometry		= {
-			.cylinders		= DISK_CYLINDERS,
-			.heads			= DISK_HEADS,
-			.sectors		= DISK_SECTORS,
-		},
-		/* VIRTIO_BLK_SIZE */
-		.blk_size		= 4096,
 	},
 	/*
 	 * Note we don't set VIRTIO_BLK_F_GEOMETRY here so the
