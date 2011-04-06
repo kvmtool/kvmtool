@@ -220,6 +220,7 @@ int main(int argc, char *argv[])
 		}
 	}
 exit_kvm:
+	disk_image__close(kvm->disk_image);
 	kvm__delete(kvm);
 
 	return 0;
@@ -230,6 +231,7 @@ panic_kvm:
 	if (kvm->kvm_run->exit_reason == KVM_EXIT_UNKNOWN)
 		fprintf(stderr, "KVM exit code: 0x%" PRIu64 "\n",
 			kvm->kvm_run->hw.hardware_exit_reason);
+	disk_image__close(kvm->disk_image);
 	kvm__show_registers(kvm);
 	kvm__show_code(kvm);
 	kvm__show_page_tables(kvm);

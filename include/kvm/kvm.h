@@ -43,6 +43,7 @@ bool kvm__load_kernel(struct kvm *kvm, const char *kernel_filename,
 void kvm__reset_vcpu(struct kvm *self);
 void kvm__setup_bios(struct kvm *self);
 void kvm__start_timer(struct kvm *self);
+void kvm__stop_timer(struct kvm *self);
 void kvm__run(struct kvm *self);
 void kvm__irq_line(struct kvm *self, int irq, int level);
 bool kvm__emulate_io(struct kvm *self, uint16_t port, void *data, int direction, int size, uint32_t count);

@@ -105,6 +105,11 @@ static struct kvm *kvm__new(void)
 
 void kvm__delete(struct kvm *self)
 {
+	kvm__stop_timer(self);
+
+	if (self->msrs)
+		free(self->msrs);
+
 	free(self->ram_start);
 	free(self);
 }
@@ -610,6 +615,15 @@ void kvm__start_timer(struct kvm *self)
 
 	if (timer_settime(self->timerid, 0, &its, NULL) < 0)
 		die("timer_settime()");
+}
+
+void kvm__stop_timer(struct kvm *self)
+{
+	if (self->timerid)
+		if (timer_delete(self->timerid) < 0)
+			die("timer_delete()");
+
+	self->timerid = 0;
 }
 
 void kvm__run(struct kvm *self)
