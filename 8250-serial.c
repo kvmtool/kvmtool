@@ -80,10 +80,10 @@ static void serial8250__receive(struct kvm *self, struct serial8250_device *dev)
 	if (dev->lsr & UART_LSR_DR)
 		return;
 
-	if (!is_readable(fileno(stdin)))
+	if (!is_readable(STDIN_FILENO))
 		return;
 
-	c		= read_char(fileno(stdin));
+	c		= read_char(STDIN_FILENO);
 	if (c < 0)
 		return;
 
