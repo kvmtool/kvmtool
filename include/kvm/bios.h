@@ -62,4 +62,10 @@
 #define BIOS_NEXT_IRQ_ADDR(addr, size)	\
 	ALIGN((addr + size + 1), 16)
 
+/*
+ * When interfere with assembler code we need to be sure how
+ * arguments are passed in real mode.
+ */
+#define bioscall __attribute__((regparm(3)))
+
 #endif /* BIOS_H_ */

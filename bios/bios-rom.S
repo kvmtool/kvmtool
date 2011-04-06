@@ -77,7 +77,7 @@ ENTRY(bios_int15)
 	pushl	%ebx
 	pushl	%eax
 
-	movl	%esp, %eax
+	movl	%esp, %eax	# it's bioscall case
 	call	e820_query_map
 
 	popl	%eax

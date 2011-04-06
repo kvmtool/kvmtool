@@ -18,7 +18,7 @@ static inline uint8_t rdfs8(unsigned long addr)
 	return v;
 }
 
-void e820_query_map(struct e820_query *query)
+bioscall void e820_query_map(struct e820_query *query)
 {
 	uint8_t map_size;
 	uint16_t fs_seg;
