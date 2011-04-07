@@ -25,13 +25,6 @@
 #include <fcntl.h>
 #include <time.h>
 
-/*
- * Compatibility code. Remove this when we move to tools/kvm.
- */
-#ifndef KVM_EXIT_INTERNAL_ERROR
-# define KVM_EXIT_INTERNAL_ERROR		17
-#endif
-
 #define DEFINE_KVM_EXIT_REASON(reason) [reason] = #reason
 
 const char *kvm_exit_reasons[] = {
