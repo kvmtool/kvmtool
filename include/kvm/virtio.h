@@ -26,12 +26,6 @@ static inline struct vring_desc *virt_queue__get_desc(struct virt_queue *queue, 
 	return &queue->vring.desc[desc_ndx];
 }
 
-static inline struct vring_used_elem *virt_queue__get_used_elem(struct virt_queue *queue)
-{
-	return &queue->vring.used->ring[queue->vring.used->idx++ % queue->vring.num];
-}
-
-
 static inline bool virt_queue__available(struct virt_queue *vq)
 {
 	return vq->vring.avail->idx !=  vq->last_avail_idx;

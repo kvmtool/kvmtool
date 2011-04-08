@@ -100,7 +100,6 @@ static bool virtio_blk_pci_io_in(struct kvm *self, uint16_t port, void *data, in
 
 static bool virtio_blk_request(struct kvm *self, struct virt_queue *queue)
 {
-	struct vring_used_elem *used_elem;
 	struct virtio_blk_outhdr *req;
 	uint16_t desc_block_last;
 	struct vring_desc *desc;
@@ -190,9 +189,7 @@ static bool virtio_blk_request(struct kvm *self, struct virt_queue *queue)
 
 	*status			= err_cnt ? VIRTIO_BLK_S_IOERR : VIRTIO_BLK_S_OK;
 
-	used_elem		= virt_queue__get_used_elem(queue);
-	used_elem->id		= desc_hdr;
-	used_elem->len		= block_cnt;
+	virt_queue__set_used_elem(queue, desc_hdr, block_cnt);
 
 	return true;
 }
