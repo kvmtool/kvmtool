@@ -105,18 +105,20 @@ static bool virtio_blk_do_io_request(struct kvm *self, struct virt_queue *queue)
 	struct virtio_blk_outhdr *req;
 	uint32_t block_len, block_cnt;
 	uint16_t out, in, head;
-	int err, err_cnt, i;
 	uint8_t *status;
+	bool io_error;
 	void *block;
+	int err, i;
 
-	head			= virt_queue__get_iov(queue, iov, &out, &in, self);
+	io_error	= false;
+
+	head		= virt_queue__get_iov(queue, iov, &out, &in, self);
 
 	/* head */
 	req		= iov[0].iov_base;
 
 	/* block */
 	block_cnt	= 0;
-	err_cnt		= 0;
 
 	for (i = 1; i < out + in - 1; i++) {
 		block		= iov[i].iov_base;
@@ -131,11 +133,8 @@ static bool virtio_blk_do_io_request(struct kvm *self, struct virt_queue *queue)
 			break;
 		default:
 			warning("request type %d", req->type);
-			err	= -1;
+			io_error	= true;
 		}
-
-		if (err)
-			err_cnt++;
 
 		req->sector	+= block_len >> SECTOR_SHIFT;
 		block_cnt	+= block_len;
@@ -143,7 +142,7 @@ static bool virtio_blk_do_io_request(struct kvm *self, struct virt_queue *queue)
 
 	/* status */
 	status			= iov[out + in - 1].iov_base;
-	*status			= err_cnt ? VIRTIO_BLK_S_IOERR : VIRTIO_BLK_S_OK;
+	*status			= io_error ? VIRTIO_BLK_S_IOERR : VIRTIO_BLK_S_OK;
 
 	virt_queue__set_used_elem(queue, head, block_cnt);
 
