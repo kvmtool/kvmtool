@@ -82,7 +82,7 @@ struct disk_image *disk_image__open(const char *filename)
 	if (self)
 		return self;
 
-	if (close(self->fd) < 0)
+	if (close(fd) < 0)
 		warning("close() failed");
 
 	return NULL;
