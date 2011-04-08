@@ -5,8 +5,11 @@
 #include <stdint.h>
 
 /* some ports we reserve for own use */
-#define IOPORT_DBG		0xe0
-#define IOPORT_VIRTIO_BLK	0xc200	/* Virtio block device */
+#define IOPORT_DBG			0xe0
+#define IOPORT_VIRTIO_BLK		0xc200	/* Virtio block device */
+#define IOPORT_VIRTIO_BLK_SIZE		256
+#define IOPORT_VIRTIO_CONSOLE		0xd200	/* Virtio console device */
+#define IOPORT_VIRTIO_CONSOLE_SIZE	256
 
 struct kvm;
 

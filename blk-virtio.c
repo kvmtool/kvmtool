@@ -278,6 +278,8 @@ static struct pci_device_header blk_virtio_pci_device = {
 	.irq_line		= VIRTIO_BLK_IRQ,
 };
 
+#define PCI_VIRTIO_BLK_DEVNUM 1
+
 void blk_virtio__init(struct kvm *self)
 {
 	if (!self->disk_image)
@@ -285,7 +287,7 @@ void blk_virtio__init(struct kvm *self)
 
 	device.blk_config.capacity = self->disk_image->size / SECTOR_SIZE;
 
-	pci__register(&blk_virtio_pci_device, 1);
+	pci__register(&blk_virtio_pci_device, PCI_VIRTIO_BLK_DEVNUM);
 
-	ioport__register(IOPORT_VIRTIO_BLK, &blk_virtio_io_ops, 256);
+	ioport__register(IOPORT_VIRTIO_BLK, &blk_virtio_io_ops, IOPORT_VIRTIO_BLK_SIZE);
 }
