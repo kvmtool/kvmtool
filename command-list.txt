@@ -1,0 +1,5 @@
+#
+# List of known perf commands.
+# command name			category [deprecated] [common]
+#
+kvm-run				mainporcelain common
