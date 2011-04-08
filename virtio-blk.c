@@ -30,7 +30,7 @@ struct blk_device {
 	/* virtio queue */
 	uint16_t			queue_selector;
 
-	struct virt_queue		virt_queues[NUM_VIRT_QUEUES];
+	struct virt_queue		vqs[NUM_VIRT_QUEUES];
 };
 
 #define DISK_SEG_MAX	126
@@ -73,7 +73,7 @@ static bool virtio_blk_pci_io_in(struct kvm *self, uint16_t port, void *data, in
 	case VIRTIO_PCI_GUEST_FEATURES:
 		return false;
 	case VIRTIO_PCI_QUEUE_PFN:
-		ioport__write32(data, blk_device.virt_queues[blk_device.queue_selector].pfn);
+		ioport__write32(data, blk_device.vqs[blk_device.queue_selector].pfn);
 		break;
 	case VIRTIO_PCI_QUEUE_NUM:
 		ioport__write16(data, VIRTIO_BLK_QUEUE_SIZE);
@@ -98,66 +98,29 @@ static bool virtio_blk_pci_io_in(struct kvm *self, uint16_t port, void *data, in
 	return true;
 }
 
-static bool virtio_blk_request(struct kvm *self, struct virt_queue *queue)
+static bool virtio_blk_do_io_request(struct kvm *self, struct virt_queue *queue)
 {
+
+	struct iovec iov[VIRTIO_BLK_QUEUE_SIZE];
 	struct virtio_blk_outhdr *req;
-	uint16_t desc_block_last;
-	struct vring_desc *desc;
-	uint16_t desc_status;
-	uint16_t desc_block;
-	uint32_t block_len;
-	uint32_t block_cnt;
-	uint16_t desc_hdr;
+	uint32_t block_len, block_cnt;
+	uint16_t out, in, head;
+	int err, err_cnt, i;
 	uint8_t *status;
 	void *block;
-	int err;
-	int err_cnt;
 
-	/* header */
-	desc_hdr		= virt_queue__pop(queue);
+	head			= virt_queue__get_iov(queue, iov, &out, &in, self);
 
-	if (desc_hdr >= queue->vring.num) {
-		warning("fatal I/O error");
-		return false;
-	}
-
-	desc			= virt_queue__get_desc(queue, desc_hdr);
-	assert(!(desc->flags & VRING_DESC_F_INDIRECT));
-
-	req			= guest_flat_to_host(self, desc->addr);
-
-	/* status */
-	desc_status		= desc_hdr;
-
-	do {
-		desc_block_last	= desc_status;
-		desc_status	= virt_queue__get_desc(queue, desc_status)->next;
-
-		if (desc_status >= queue->vring.num) {
-			warning("fatal I/O error");
-			return false;
-		}
-
-		desc		= virt_queue__get_desc(queue, desc_status);
-		assert(!(desc->flags & VRING_DESC_F_INDIRECT));
-
-	} while (desc->flags & VRING_DESC_F_NEXT);
-
-	status			= guest_flat_to_host(self, desc->addr);
+	/* head */
+	req		= iov[0].iov_base;
 
 	/* block */
-	desc_block		= desc_hdr;
-	block_cnt		= 0;
-	err_cnt			= 0;
+	block_cnt	= 0;
+	err_cnt		= 0;
 
-	do {
-		desc_block	= virt_queue__get_desc(queue, desc_block)->next;
-
-		desc		= virt_queue__get_desc(queue, desc_block);
-		assert(!(desc->flags & VRING_DESC_F_INDIRECT));
-
-		block		= guest_flat_to_host(self, desc->addr);
-		block_len	= desc->len;
+	for (i = 1; i < out + in - 1; i++) {
+		block		= iov[i].iov_base;
+		block_len	= iov[i].iov_len;
 
 		switch (req->type) {
 		case VIRTIO_BLK_T_IN:
@@ -176,24 +139,28 @@ static bool virtio_blk_request(struct kvm *self, struct virt_queue *queue)
 
 		req->sector	+= block_len >> SECTOR_SHIFT;
 		block_cnt	+= block_len;
+	}
 
-		if (desc_block == desc_block_last)
-			break;
-
-		if (desc_block >= queue->vring.num) {
-			warning("fatal I/O error");
-			return false;
-		}
-
-	} while (true);
-
+	/* status */
+	status			= iov[out + in - 1].iov_base;
 	*status			= err_cnt ? VIRTIO_BLK_S_IOERR : VIRTIO_BLK_S_OK;
 
-	virt_queue__set_used_elem(queue, desc_hdr, block_cnt);
+	virt_queue__set_used_elem(queue, head, block_cnt);
 
 	return true;
 }
 
+static void virtio_blk_handle_callback(struct kvm *self, uint16_t queue_index)
+{
+	struct virt_queue *vq;
+
+	vq = &blk_device.vqs[queue_index];
+	while (virt_queue__available(vq)) {
+		virtio_blk_do_io_request(self, vq);
+	}
+	kvm__irq_line(self, VIRTIO_BLK_IRQ, 1);
+
+}
 static bool virtio_blk_pci_io_out(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
 {
 	unsigned long offset;
@@ -208,7 +175,7 @@ static bool virtio_blk_pci_io_out(struct kvm *self, uint16_t port, void *data, i
 		struct virt_queue *queue;
 		void *p;
 
-		queue			= &blk_device.virt_queues[blk_device.queue_selector];
+		queue			= &blk_device.vqs[blk_device.queue_selector];
 
 		queue->pfn		= ioport__read32(data);
 
@@ -222,19 +189,9 @@ static bool virtio_blk_pci_io_out(struct kvm *self, uint16_t port, void *data, i
 		blk_device.queue_selector	= ioport__read16(data);
 		break;
 	case VIRTIO_PCI_QUEUE_NOTIFY: {
-		struct virt_queue *queue;
 		uint16_t queue_index;
-
 		queue_index		= ioport__read16(data);
-
-		queue			= &blk_device.virt_queues[queue_index];
-
-		while (queue->vring.avail->idx != queue->last_avail_idx) {
-			if (!virtio_blk_request(self, queue))
-				return false;
-		}
-		kvm__irq_line(self, VIRTIO_BLK_IRQ, 1);
-
+		virtio_blk_handle_callback(self, queue_index);
 		break;
 	}
 	case VIRTIO_PCI_STATUS:
