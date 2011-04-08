@@ -46,7 +46,7 @@ static void handle_sigquit(int sig)
 	exit(1);
 }
 
-static u64 ram_size;
+static u64 ram_size = MIN_RAM_SIZE_MB;
 static const char *kernel_cmdline;
 static const char *kernel_filename;
 static const char *initrd_filename;
@@ -114,9 +114,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	}
 
-	if (!ram_size)
-		ram_size = MIN_RAM_SIZE_MB;
-	else if (ram_size < MIN_RAM_SIZE_MB) {
+	if (ram_size < MIN_RAM_SIZE_MB) {
 		die("Not enough memory specified: %luMB (min %luMB)", ram_size,
 				MIN_RAM_SIZE_MB);
 	}
