@@ -41,9 +41,6 @@ static void handle_sigquit(int sig)
 	kvm__show_registers(kvm);
 	kvm__show_code(kvm);
 	kvm__show_page_tables(kvm);
-	kvm__delete(kvm);
-
-	exit(1);
 }
 
 static char real_cmdline[2048];
