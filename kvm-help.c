@@ -1,0 +1,43 @@
+#include <stdio.h>
+#include <string.h>
+
+/* user defined headers */
+#include <common-cmds.h>
+
+#include <kvm/util.h>
+#include <kvm/kvm-help.h>
+
+
+const char kvm_usage_string[] =
+	"kvm [--version] [--help] COMMAND [ARGS]";
+
+const char kvm_more_info_string[] =
+	"See 'kvm help COMMAND' for more information on a specific command.";
+
+
+static void list_common_cmds_help(void)
+{
+	unsigned int i, longest = 0;
+
+	for (i = 0; i < ARRAY_SIZE(common_cmds); i++) {
+		if (longest < strlen(common_cmds[i].name))
+			longest = strlen(common_cmds[i].name);
+	}
+
+	puts(" The most commonly used kvm commands are:");
+	for (i = 0; i < ARRAY_SIZE(common_cmds); i++) {
+		printf("   %-*s   ", longest, common_cmds[i].name);
+		puts(common_cmds[i].help);
+	}
+}
+
+int kvm_cmd_help(int argc, const char **argv, const char *prefix)
+{
+	if (!argv || !*argv) {
+		printf("\n usage: %s\n\n", kvm_usage_string);
+		list_common_cmds_help();
+		printf("\n %s\n\n", kvm_more_info_string);
+		return 0;
+	}
+	return 0;
+}
