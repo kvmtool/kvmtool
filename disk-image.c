@@ -90,6 +90,10 @@ struct disk_image *disk_image__open(const char *filename)
 
 void disk_image__close(struct disk_image *self)
 {
+	/* If there was no disk image then there's nothing to do: */
+	if (!self)
+		return;
+
 	if (self->ops->close)
 		self->ops->close(self);
 
