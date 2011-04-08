@@ -3,7 +3,7 @@
 #include "kvm/virtio_pci.h"
 
 #include "kvm/disk-image.h"
-#include "kvm/virtqueue.h"
+#include "kvm/virtio.h"
 #include "kvm/ioport.h"
 #include "kvm/util.h"
 #include "kvm/kvm.h"

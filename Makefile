@@ -26,6 +26,7 @@ OBJS	+= mmio.o
 OBJS	+= pci.o
 OBJS	+= util.o
 OBJS	+= term.o
+OBJS	+= virtio.o
 
 DEPS	:= $(patsubst %.o,%.d,$(OBJS))
 
