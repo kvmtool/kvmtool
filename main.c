@@ -38,6 +38,7 @@ static void handle_sigint(int sig)
 
 static void handle_sigquit(int sig)
 {
+	serial8250__inject_sysrq(kvm);
 	kvm__show_registers(kvm);
 	kvm__show_code(kvm);
 	kvm__show_page_tables(kvm);

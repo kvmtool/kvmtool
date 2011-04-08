@@ -53,12 +53,40 @@ static struct serial8250_device devices[] = {
 	},
 };
 
+#define SYSRQ_PENDING_NONE		0
+#define SYSRQ_PENDING_BREAK		1
+#define SYSRQ_PENDING_CMD		2
+
+static int sysrq_pending;
+
+static void serial8250__sysrq(struct kvm *self, struct serial8250_device *dev)
+{
+	switch (sysrq_pending) {
+	case SYSRQ_PENDING_BREAK:
+		dev->lsr	|= UART_LSR_DR | UART_LSR_BI;
+
+		sysrq_pending	= SYSRQ_PENDING_CMD;
+		break;
+	case SYSRQ_PENDING_CMD:
+		dev->rbr	= 'p';
+		dev->lsr	|= UART_LSR_DR;
+
+		sysrq_pending	= SYSRQ_PENDING_NONE;
+		break;
+	}
+}
+
 static void serial8250__receive(struct kvm *self, struct serial8250_device *dev)
 {
 	int c;
 
 	if (dev->lsr & UART_LSR_DR)
 		return;
+
+	if (sysrq_pending) {
+		serial8250__sysrq(self, dev);
+		return;
+	}
 
 	if (!term_readable(CONSOLE_8250))
 		return;
@@ -92,6 +120,11 @@ void serial8250__inject_interrupt(struct kvm *self)
 		kvm__irq_line(self, dev->irq, 0);
 		kvm__irq_line(self, dev->irq, 1);
 	}
+}
+
+void serial8250__inject_sysrq(struct kvm *self)
+{
+	sysrq_pending	= SYSRQ_PENDING_BREAK;
 }
 
 static struct serial8250_device *find_device(uint16_t port)
