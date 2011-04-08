@@ -201,6 +201,8 @@ exit_kvm:
 	disk_image__close(kvm->disk_image);
 	kvm__delete(kvm);
 
+	printf("\n  # KVM session ended normally.\n");
+
 	return 0;
 
 panic_kvm:
