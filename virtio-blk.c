@@ -1,6 +1,6 @@
-#include "kvm/blk-virtio.h"
+#include "kvm/virtio-blk.h"
 
-#include "kvm/virtio_pci.h"
+#include "kvm/virtio-pci.h"
 
 #include "kvm/disk-image.h"
 #include "kvm/virtio.h"
@@ -48,7 +48,7 @@ static struct blk_device blk_device = {
 	.host_features		= (1UL << VIRTIO_BLK_F_SEG_MAX),
 };
 
-static bool virtio_blk_config_in(void *data, unsigned long offset, int size, uint32_t count)
+static bool virtio_blk_pci_io_device_specific_in(void *data, unsigned long offset, int size, uint32_t count)
 {
 	uint8_t *config_space = (uint8_t *) &blk_device.blk_config;
 
@@ -60,7 +60,7 @@ static bool virtio_blk_config_in(void *data, unsigned long offset, int size, uin
 	return true;
 }
 
-static bool blk_virtio_in(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
+static bool virtio_blk_pci_io_in(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
 {
 	unsigned long offset;
 
@@ -92,13 +92,13 @@ static bool blk_virtio_in(struct kvm *self, uint16_t port, void *data, int size,
 		ioport__write16(data, blk_device.config_vector);
 		break;
 	default:
-		return virtio_blk_config_in(data, offset, size, count);
+		return virtio_blk_pci_io_device_specific_in(data, offset, size, count);
 	};
 
 	return true;
 }
 
-static bool blk_virtio_request(struct kvm *self, struct virt_queue *queue)
+static bool virtio_blk_request(struct kvm *self, struct virt_queue *queue)
 {
 	struct vring_used_elem *used_elem;
 	struct virtio_blk_outhdr *req;
@@ -197,7 +197,7 @@ static bool blk_virtio_request(struct kvm *self, struct virt_queue *queue)
 	return true;
 }
 
-static bool blk_virtio_out(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
+static bool virtio_blk_pci_io_out(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
 {
 	unsigned long offset;
 
@@ -233,7 +233,7 @@ static bool blk_virtio_out(struct kvm *self, uint16_t port, void *data, int size
 		queue			= &blk_device.virt_queues[queue_index];
 
 		while (queue->vring.avail->idx != queue->last_avail_idx) {
-			if (!blk_virtio_request(self, queue))
+			if (!virtio_blk_request(self, queue))
 				return false;
 		}
 		kvm__irq_line(self, VIRTIO_BLK_IRQ, 1);
@@ -255,9 +255,9 @@ static bool blk_virtio_out(struct kvm *self, uint16_t port, void *data, int size
 	return true;
 }
 
-static struct ioport_operations blk_virtio_io_ops = {
-	.io_in		= blk_virtio_in,
-	.io_out		= blk_virtio_out,
+static struct ioport_operations virtio_blk_io_ops = {
+	.io_in		= virtio_blk_pci_io_in,
+	.io_out		= virtio_blk_pci_io_out,
 };
 
 #define PCI_VENDOR_ID_REDHAT_QUMRANET		0x1af4
@@ -265,7 +265,7 @@ static struct ioport_operations blk_virtio_io_ops = {
 #define PCI_SUBSYSTEM_VENDOR_ID_REDHAT_QUMRANET	0x1af4
 #define PCI_SUBSYSTEM_ID_VIRTIO_BLK		0x0002
 
-static struct pci_device_header blk_virtio_pci_device = {
+static struct pci_device_header virtio_blk_pci_device = {
 	.vendor_id		= PCI_VENDOR_ID_REDHAT_QUMRANET,
 	.device_id		= PCI_DEVICE_ID_VIRTIO_BLK,
 	.header_type		= PCI_HEADER_TYPE_NORMAL,
@@ -280,14 +280,14 @@ static struct pci_device_header blk_virtio_pci_device = {
 
 #define PCI_VIRTIO_BLK_DEVNUM 1
 
-void blk_virtio__init(struct kvm *self)
+void virtio_blk__init(struct kvm *self)
 {
 	if (!self->disk_image)
 		return;
 
 	blk_device.blk_config.capacity = self->disk_image->size / SECTOR_SIZE;
 
-	pci__register(&blk_virtio_pci_device, PCI_VIRTIO_BLK_DEVNUM);
+	pci__register(&virtio_blk_pci_device, PCI_VIRTIO_BLK_DEVNUM);
 
-	ioport__register(IOPORT_VIRTIO_BLK, &blk_virtio_io_ops, IOPORT_VIRTIO_BLK_SIZE);
+	ioport__register(IOPORT_VIRTIO_BLK, &virtio_blk_io_ops, IOPORT_VIRTIO_BLK_SIZE);
 }

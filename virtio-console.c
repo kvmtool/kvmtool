@@ -1,5 +1,5 @@
-#include "kvm/console-virtio.h"
-#include "kvm/virtio_pci.h"
+#include "kvm/virtio-console.h"
+#include "kvm/virtio-pci.h"
 #include "kvm/disk-image.h"
 #include "kvm/virtio.h"
 #include "kvm/ioport.h"

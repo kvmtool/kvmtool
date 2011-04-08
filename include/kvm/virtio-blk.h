@@ -3,6 +3,6 @@
 
 struct kvm;
 
-void blk_virtio__init(struct kvm *self);
+void virtio_blk__init(struct kvm *self);
 
 #endif /* KVM__BLK_VIRTIO_H */

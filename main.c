@@ -1,8 +1,8 @@
 #include "kvm/kvm.h"
 
 #include "kvm/8250-serial.h"
-#include "kvm/blk-virtio.h"
-#include "kvm/console-virtio.h"
+#include "kvm/virtio-blk.h"
+#include "kvm/virtio-console.h"
 #include "kvm/disk-image.h"
 #include "kvm/util.h"
 #include "kvm/pci.h"
@@ -145,7 +145,7 @@ int main(int argc, char *argv[])
 
 	pci__init();
 
-	blk_virtio__init(kvm);
+	virtio_blk__init(kvm);
 
 	virtio_console__init(kvm);
 
