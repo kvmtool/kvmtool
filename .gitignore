@@ -3,3 +3,4 @@
 *.d
 .cscope
 tags
+include/common-cmds.h
