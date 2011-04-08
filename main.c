@@ -5,9 +5,9 @@
 #include "kvm/disk-image.h"
 #include "kvm/util.h"
 #include "kvm/pci.h"
+#include "kvm/term.h"
 
 #include <inttypes.h>
-#include <termios.h>
 #include <signal.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -29,32 +29,6 @@ static void usage(char *argv[])
 
 static struct kvm *kvm;
 
-static struct termios orig_term;
-
-static void setup_console(void)
-{
-	struct termios term;
-
-	if (tcgetattr(STDIN_FILENO, &orig_term) < 0)
-		die("unable to save initial standard input settings");
-
-	term			= orig_term;
-
-	term.c_lflag		&= ~(ICANON|ECHO);
-
-	tcsetattr(STDIN_FILENO, TCSANOW, &term);
-}
-
-static void cleanup_console(void)
-{
-	tcsetattr(STDIN_FILENO, TCSANOW, &orig_term);
-}
-
-static void shutdown(void)
-{
-	cleanup_console();
-}
-
 static void handle_sigint(int sig)
 {
 	exit(1);
@@ -65,7 +39,6 @@ static void handle_sigquit(int sig)
 	kvm__show_registers(kvm);
 	kvm__show_code(kvm);
 	kvm__show_page_tables(kvm);
-
 	kvm__delete(kvm);
 
 	exit(1);
@@ -91,10 +64,6 @@ int main(int argc, char *argv[])
 
 	signal(SIGQUIT, handle_sigquit);
 	signal(SIGINT, handle_sigint);
-
-	setup_console();
-
-	atexit(shutdown);
 
 	for (i = 1; i < argc; i++) {
 		if (option_matches(argv[i], "--kernel=")) {
@@ -137,6 +106,8 @@ int main(int argc, char *argv[])
 	/* at least we should have kernel image passed */
 	if (!kernel_filename)
 		usage(argv);
+
+	term_init();
 
 	kvm = kvm__init(kvm_dev, ram_size);
 
