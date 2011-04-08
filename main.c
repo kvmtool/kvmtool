@@ -181,7 +181,7 @@ int main(int argc, char *argv[])
 			break;
 		}
 		case KVM_EXIT_INTR: {
-			serial8250__interrupt(kvm);
+			serial8250__inject_interrupt(kvm);
 			break;
 		}
 		case KVM_EXIT_SHUTDOWN:

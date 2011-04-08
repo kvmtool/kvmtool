@@ -3,12 +3,11 @@
 #include "kvm/read-write.h"
 #include "kvm/ioport.h"
 #include "kvm/util.h"
+#include "kvm/term.h"
 #include "kvm/kvm.h"
 
 #include <linux/serial_reg.h>
 
-#include <stdbool.h>
-#include <poll.h>
 
 struct serial8250_device {
 	uint16_t		iobase;
@@ -54,26 +53,6 @@ static struct serial8250_device devices[] = {
 	},
 };
 
-static int read_char(int fd)
-{
-	char c;
-
-	if (read_in_full(fd, &c, 1) == 0)
-		return -1;
-
-	return c;
-}
-
-static bool is_readable(int fd)
-{
-	struct pollfd pollfd = (struct pollfd) {
-		.fd	= fd,
-		.events	= POLLIN,
-	};
-
-	return poll(&pollfd, 1, 0) > 0;
-}
-
 static void serial8250__receive(struct kvm *self, struct serial8250_device *dev)
 {
 	int c;
@@ -81,10 +60,11 @@ static void serial8250__receive(struct kvm *self, struct serial8250_device *dev)
 	if (dev->lsr & UART_LSR_DR)
 		return;
 
-	if (!is_readable(STDIN_FILENO))
+	if (!term_readable(CONSOLE_8250))
 		return;
 
-	c		= read_char(STDIN_FILENO);
+	c		= term_getc(CONSOLE_8250);
+
 	if (c < 0)
 		return;
 
@@ -95,7 +75,7 @@ static void serial8250__receive(struct kvm *self, struct serial8250_device *dev)
 /*
  * Interrupts are injected for ttyS0 only.
  */
-void serial8250__interrupt(struct kvm *self)
+void serial8250__inject_interrupt(struct kvm *self)
 {
 	struct serial8250_device *dev = &devices[0];
 
@@ -170,15 +150,9 @@ static bool serial8250_out(struct kvm *self, uint16_t port, void *data, int size
 	} else {
 		switch (offset) {
 		case UART_TX: {
-			char *p = data;
-			int i;
-
+			char *addr = data;
 			if (!(dev->mcr & UART_MCR_LOOP)) {
-				while (count--) {
-					for (i = 0; i < size; i++)
-						fprintf(stdout, "%c", *p++);
-				}
-				fflush(stdout);
+				term_putc(CONSOLE_8250, addr, size * count);
 			}
 			dev->iir		= UART_IIR_NO_INT;
 			break;
