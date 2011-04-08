@@ -151,12 +151,11 @@ static bool virtio_blk_do_io_request(struct kvm *self, struct virt_queue *queue)
 
 static void virtio_blk_handle_callback(struct kvm *self, uint16_t queue_index)
 {
-	struct virt_queue *vq;
+	struct virt_queue *vq = &blk_device.vqs[queue_index];
 
-	vq = &blk_device.vqs[queue_index];
-	while (virt_queue__available(vq)) {
+	while (virt_queue__available(vq))
 		virtio_blk_do_io_request(self, vq);
-	}
+
 	kvm__irq_line(self, VIRTIO_BLK_IRQ, 1);
 
 }

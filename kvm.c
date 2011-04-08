@@ -299,12 +299,11 @@ static bool load_bzimage(struct kvm *self, int fd_kernel,
 	if (read(fd_kernel, &boot, sizeof(boot)) != sizeof(boot))
 		return false;
 
-        if (memcmp(&boot.hdr.header, BZIMAGE_MAGIC, strlen(BZIMAGE_MAGIC)))
+	if (memcmp(&boot.hdr.header, BZIMAGE_MAGIC, strlen(BZIMAGE_MAGIC)))
 		return false;
 
-	if (boot.hdr.version < BOOT_PROTOCOL_REQUIRED) {
+	if (boot.hdr.version < BOOT_PROTOCOL_REQUIRED)
 		die("Too old kernel");
-	}
 
 	if (lseek(fd_kernel, 0, SEEK_SET) < 0)
 		die_perror("lseek");
@@ -820,7 +819,7 @@ void kvm__dump_mem(struct kvm *self, unsigned long addr, unsigned long size)
 
 	p = guest_flat_to_host(self, addr);
 
-	for (n = 0; n < size; n+=8) {
+	for (n = 0; n < size; n += 8) {
 		if (!host_ptr_in_ram(self, p + n))
 			break;
 

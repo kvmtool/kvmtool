@@ -52,8 +52,8 @@ static const char *kernel_filename;
 static const char *initrd_filename;
 static const char *image_filename;
 static const char *kvm_dev;
-static bool single_step = false;
-static bool virtio_console = false;
+static bool single_step;
+static bool virtio_console;
 extern bool ioport_debug;
 extern int  active_console;
 

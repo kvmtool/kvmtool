@@ -7,17 +7,18 @@
 /* user defined header files */
 #include <kvm/kvm-cmd.h>
 
-/* kvm_get_command: Searches the command in an array of the commands and
-   returns a pointer to cmd_struct if a match is found.
-
-   Input parameters:
-   command: Array of possible commands. The last entry in the array must be
-            NULL.
-   cmd: A string command to search in the array
-
-   Return Value:
-   NULL: If the cmd is not matched with any of the command in the command array
-   p: Pointer to cmd_struct of the matching command
+/*
+ * kvm_get_command: Searches the command in an array of the commands and
+ * returns a pointer to cmd_struct if a match is found.
+ *
+ * Input parameters:
+ * command: Array of possible commands. The last entry in the array must be
+ *          NULL.
+ * cmd: A string command to search in the array
+ *
+ * Return Value:
+ * NULL: If the cmd is not matched with any of the command in the command array
+ * p: Pointer to cmd_struct of the matching command
  */
 static struct cmd_struct *kvm_get_command(struct cmd_struct *command,
 		const char *cmd)

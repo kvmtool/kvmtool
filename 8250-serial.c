@@ -184,9 +184,10 @@ static bool serial8250_out(struct kvm *self, uint16_t port, void *data, int size
 		switch (offset) {
 		case UART_TX: {
 			char *addr = data;
-			if (!(dev->mcr & UART_MCR_LOOP)) {
+
+			if (!(dev->mcr & UART_MCR_LOOP))
 				term_putc(CONSOLE_8250, addr, size * count);
-			}
+
 			dev->iir		= UART_IIR_NO_INT;
 			break;
 		}

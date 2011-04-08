@@ -30,9 +30,8 @@ int term_putc(int who, char *addr, int cnt)
 	if (who != active_console)
 		return -1;
 
-	while (cnt--) {
+	while (cnt--)
 		fprintf(stdout, "%c", *addr++);
-	}
 
 	fflush(stdout);
 	return cnt;
@@ -81,7 +80,7 @@ void term_init(void)
 		die("unable to save initial standard input settings");
 
 	term = orig_term;
-	term.c_lflag &= ~(ICANON |ECHO | ISIG);
+	term.c_lflag &= ~(ICANON | ECHO | ISIG);
 	tcsetattr(STDIN_FILENO, TCSANOW, &term);
 
 	atexit(term_cleanup);
