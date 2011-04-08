@@ -2,6 +2,7 @@
 
 #include "kvm/8250-serial.h"
 #include "kvm/blk-virtio.h"
+#include "kvm/console-virtio.h"
 #include "kvm/disk-image.h"
 #include "kvm/util.h"
 #include "kvm/pci.h"
@@ -139,9 +140,12 @@ int main(int argc, char *argv[])
 		kvm__enable_singlestep(kvm);
 
 	serial8250__init(kvm);
+
 	pci__init();
 
 	blk_virtio__init(kvm);
+
+	virtio_console__init(kvm);
 
 	kvm__start_timer(kvm);
 
@@ -182,6 +186,7 @@ int main(int argc, char *argv[])
 		}
 		case KVM_EXIT_INTR: {
 			serial8250__inject_interrupt(kvm);
+			virtio_console__inject_interrupt(kvm);
 			break;
 		}
 		case KVM_EXIT_SHUTDOWN:
