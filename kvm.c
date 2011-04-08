@@ -174,8 +174,12 @@ struct kvm *kvm__init(const char *kvm_dev, unsigned long ram_size)
 	if (self->sys_fd < 0) {
 		if (errno == ENOENT)
 			die("'%s' not found. Please make sure your kernel has CONFIG_KVM enabled and that the KVM modules are loaded.", kvm_dev);
+		if (errno == ENODEV)
+			die("'%s' KVM driver not available.\n  # (If the KVM module is loaded then 'dmesg' may offer further clues about the failure.)", kvm_dev);
 
-		die_perror("open");
+		fprintf(stderr, "  Fatal, could not open %s: ", kvm_dev);
+		perror(NULL);
+		exit(1);
 	}
 
 	ret = ioctl(self->sys_fd, KVM_GET_API_VERSION, 0);
