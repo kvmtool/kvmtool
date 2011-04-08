@@ -17,11 +17,12 @@
 #include <stdio.h>
 
 extern bool ioport_debug;
+extern int active_console;
 
 static void usage(char *argv[])
 {
 	fprintf(stderr, "  usage: %s "
-		"[--single-step] [--ioport-debug] "
+		"[--single-step] [--ioport-debug] [--enable-virtio-console] "
 		"[--kvm-dev=<device>] [--mem=<size-in-MiB>] [--params=<kernel-params>] "
 		"[--initrd=<initrd>] [--kernel=]<kernel-image> [--image=]<disk-image>\n",
 		argv[0]);
@@ -84,6 +85,9 @@ int main(int argc, char *argv[])
 			continue;
 		} else if (option_matches(argv[i], "--single-step")) {
 			single_step	= true;
+			continue;
+		} else if (option_matches(argv[i], "--enable-virtio-console")) {
+			active_console	= CONSOLE_VIRTIO;
 			continue;
 		} else if (option_matches(argv[i], "--mem=")) {
 			unsigned long val = atol(&argv[i][6]) << 20;
