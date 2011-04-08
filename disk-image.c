@@ -35,10 +35,7 @@ static int raw_image__read_sector(struct disk_image *self, uint64_t sector, void
 	if (offset + dst_len > self->size)
 		return -1;
 
-	if (lseek(self->fd, offset, SEEK_SET) < 0)
-		return -1;
-
-	if (read_in_full(self->fd, dst, dst_len) < 0)
+	if (pread_in_full(self->fd, dst, dst_len, offset) < 0)
 		return -1;
 
 	return 0;
@@ -51,10 +48,7 @@ static int raw_image__write_sector(struct disk_image *self, uint64_t sector, voi
 	if (offset + src_len > self->size)
 		return -1;
 
-	if (lseek(self->fd, offset, SEEK_SET) < 0)
-		return -1;
-
-	if (write_in_full(self->fd, src, src_len) < 0)
+	if (pwrite_in_full(self->fd, src, src_len, offset) < 0)
 		return -1;
 
 	return 0;
