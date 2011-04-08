@@ -20,7 +20,7 @@
 
 #define VIRTIO_BLK_QUEUE_SIZE	128
 
-struct device {
+struct blk_device {
 	struct virtio_blk_config	blk_config;
 	uint32_t			host_features;
 	uint32_t			guest_features;
@@ -35,7 +35,7 @@ struct device {
 
 #define DISK_SEG_MAX	126
 
-static struct device device = {
+static struct blk_device blk_device = {
 	.blk_config		= (struct virtio_blk_config) {
 		/* VIRTIO_BLK_F_SEG_MAX */
 		.seg_max		= DISK_SEG_MAX,
@@ -50,7 +50,7 @@ static struct device device = {
 
 static bool virtio_blk_config_in(void *data, unsigned long offset, int size, uint32_t count)
 {
-	uint8_t *config_space = (uint8_t *) &device.blk_config;
+	uint8_t *config_space = (uint8_t *) &blk_device.blk_config;
 
 	if (size != 1 || count != 1)
 		return false;
@@ -68,12 +68,12 @@ static bool blk_virtio_in(struct kvm *self, uint16_t port, void *data, int size,
 
 	switch (offset) {
 	case VIRTIO_PCI_HOST_FEATURES:
-		ioport__write32(data, device.host_features);
+		ioport__write32(data, blk_device.host_features);
 		break;
 	case VIRTIO_PCI_GUEST_FEATURES:
 		return false;
 	case VIRTIO_PCI_QUEUE_PFN:
-		ioport__write32(data, device.virt_queues[device.queue_selector].pfn);
+		ioport__write32(data, blk_device.virt_queues[blk_device.queue_selector].pfn);
 		break;
 	case VIRTIO_PCI_QUEUE_NUM:
 		ioport__write16(data, VIRTIO_BLK_QUEUE_SIZE);
@@ -82,14 +82,14 @@ static bool blk_virtio_in(struct kvm *self, uint16_t port, void *data, int size,
 	case VIRTIO_PCI_QUEUE_NOTIFY:
 		return false;
 	case VIRTIO_PCI_STATUS:
-		ioport__write8(data, device.status);
+		ioport__write8(data, blk_device.status);
 		break;
 	case VIRTIO_PCI_ISR:
 		ioport__write8(data, 0x1);
 		kvm__irq_line(self, VIRTIO_BLK_IRQ, 0);
 		break;
 	case VIRTIO_MSI_CONFIG_VECTOR:
-		ioport__write16(data, device.config_vector);
+		ioport__write16(data, blk_device.config_vector);
 		break;
 	default:
 		return virtio_blk_config_in(data, offset, size, count);
@@ -205,13 +205,13 @@ static bool blk_virtio_out(struct kvm *self, uint16_t port, void *data, int size
 
 	switch (offset) {
 	case VIRTIO_PCI_GUEST_FEATURES:
-		device.guest_features	= ioport__read32(data);
+		blk_device.guest_features	= ioport__read32(data);
 		break;
 	case VIRTIO_PCI_QUEUE_PFN: {
 		struct virt_queue *queue;
 		void *p;
 
-		queue			= &device.virt_queues[device.queue_selector];
+		queue			= &blk_device.virt_queues[blk_device.queue_selector];
 
 		queue->pfn		= ioport__read32(data);
 
@@ -222,7 +222,7 @@ static bool blk_virtio_out(struct kvm *self, uint16_t port, void *data, int size
 		break;
 	}
 	case VIRTIO_PCI_QUEUE_SEL:
-		device.queue_selector	= ioport__read16(data);
+		blk_device.queue_selector	= ioport__read16(data);
 		break;
 	case VIRTIO_PCI_QUEUE_NOTIFY: {
 		struct virt_queue *queue;
@@ -230,7 +230,7 @@ static bool blk_virtio_out(struct kvm *self, uint16_t port, void *data, int size
 
 		queue_index		= ioport__read16(data);
 
-		queue			= &device.virt_queues[queue_index];
+		queue			= &blk_device.virt_queues[queue_index];
 
 		while (queue->vring.avail->idx != queue->last_avail_idx) {
 			if (!blk_virtio_request(self, queue))
@@ -241,10 +241,10 @@ static bool blk_virtio_out(struct kvm *self, uint16_t port, void *data, int size
 		break;
 	}
 	case VIRTIO_PCI_STATUS:
-		device.status		= ioport__read8(data);
+		blk_device.status		= ioport__read8(data);
 		break;
 	case VIRTIO_MSI_CONFIG_VECTOR:
-		device.config_vector	= VIRTIO_MSI_NO_VECTOR;
+		blk_device.config_vector	= VIRTIO_MSI_NO_VECTOR;
 		break;
 	case VIRTIO_MSI_QUEUE_VECTOR:
 		break;
@@ -285,7 +285,7 @@ void blk_virtio__init(struct kvm *self)
 	if (!self->disk_image)
 		return;
 
-	device.blk_config.capacity = self->disk_image->size / SECTOR_SIZE;
+	blk_device.blk_config.capacity = self->disk_image->size / SECTOR_SIZE;
 
 	pci__register(&blk_virtio_pci_device, PCI_VIRTIO_BLK_DEVNUM);
 
