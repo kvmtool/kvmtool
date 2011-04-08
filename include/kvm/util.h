@@ -48,4 +48,12 @@ do {								\
 
 extern size_t strlcat(char *dest, const char *src, size_t count);
 
+/* some inline functions */
+
+static inline const char *skip_prefix(const char *str, const char *prefix)
+{
+	size_t len = strlen(prefix);
+	return strncmp(str, prefix, len) ? NULL : str + len;
+}
+
 #endif /* KVM__UTIL_H */
