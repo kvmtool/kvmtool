@@ -412,10 +412,6 @@ void kvm__setup_bios(struct kvm *self)
 
 #define TIMER_INTERVAL_NS 1000000	/* 1 msec */
 
-static void alarm_handler(int sig)
-{
-}
-
 /*
  * This function sets up a timer that's used to inject interrupts from the
  * userspace hypervisor into the guest at periodical intervals. Please note
@@ -424,14 +420,7 @@ static void alarm_handler(int sig)
 void kvm__start_timer(struct kvm *self)
 {
 	struct itimerspec its;
-	struct sigaction sa;
 	struct sigevent sev;
-
-	sigfillset(&sa.sa_mask);
-	sa.sa_flags			= 0;
-	sa.sa_handler			= alarm_handler;
-
-	sigaction(SIGALRM, &sa, NULL);
 
 	memset(&sev, 0, sizeof(struct sigevent));
 	sev.sigev_value.sival_int	= 0;

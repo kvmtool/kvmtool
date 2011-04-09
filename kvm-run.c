@@ -29,8 +29,11 @@
 #define MIN_RAM_SIZE_MB		(64ULL)
 #define MIN_RAM_SIZE_BYTE	(MIN_RAM_SIZE_MB << MB_SHIFT)
 
+#define NUM_KVM_CPUS		1
+
 static struct kvm *kvm;
-static struct kvm_cpu *cpu;
+static struct kvm_cpu *cpus[NUM_KVM_CPUS];
+static __thread struct kvm_cpu *current_cpu;
 
 static void handle_sigint(int sig)
 {
@@ -39,14 +42,20 @@ static void handle_sigint(int sig)
 
 static void handle_sigquit(int sig)
 {
-	kvm_cpu__show_registers(cpu);
-	kvm_cpu__show_code(cpu);
-	kvm_cpu__show_page_tables(cpu);
+	kvm_cpu__show_registers(current_cpu);
+	kvm_cpu__show_code(current_cpu);
+	kvm_cpu__show_page_tables(current_cpu);
 
-	kvm_cpu__delete(cpu);
+	kvm_cpu__delete(current_cpu);
 	kvm__delete(kvm);
 
 	exit(1);
+}
+
+static void handle_sigalrm(int sig)
+{
+	serial8250__inject_interrupt(kvm);
+	virtio_console__inject_interrupt(kvm);
 }
 
 static u64 ram_size = MIN_RAM_SIZE_MB;
@@ -84,10 +93,41 @@ static const struct option options[] = {
 	OPT_END()
 };
 
+static void *kvm_cpu_thread(void *arg)
+{
+	current_cpu		= arg;
+
+	if (kvm_cpu__start(current_cpu))
+		goto panic_kvm;
+
+	kvm_cpu__delete(current_cpu);
+
+	return (void *) (intptr_t) 0;
+
+panic_kvm:
+	fprintf(stderr, "KVM exit reason: %" PRIu32 " (\"%s\")\n",
+		current_cpu->kvm_run->exit_reason,
+		kvm_exit_reasons[current_cpu->kvm_run->exit_reason]);
+	if (current_cpu->kvm_run->exit_reason == KVM_EXIT_UNKNOWN)
+		fprintf(stderr, "KVM exit code: 0x%Lu\n",
+			current_cpu->kvm_run->hw.hardware_exit_reason);
+	disk_image__close(kvm->disk_image);
+	kvm_cpu__show_registers(current_cpu);
+	kvm_cpu__show_code(current_cpu);
+	kvm_cpu__show_page_tables(current_cpu);
+
+	kvm_cpu__delete(current_cpu);
+
+	return (void *) (intptr_t) 1;
+}
+
 int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 {
 	static char real_cmdline[2048];
+	int exit_code = 0;
+	int i;
 
+	signal(SIGALRM, handle_sigalrm);
 	signal(SIGQUIT, handle_sigquit);
 	signal(SIGINT, handle_sigint);
 
@@ -132,10 +172,6 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	kvm = kvm__init(kvm_dev, ram_size);
 
-	cpu = kvm_cpu__init(kvm);
-	if (!cpu)
-		die("unable to initialize KVM VCPU");
-
 	if (image_filename) {
 		kvm->disk_image	= disk_image__open(image_filename);
 		if (!kvm->disk_image)
@@ -169,32 +205,33 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	kvm__start_timer(kvm);
 
-	if (single_step)
-		kvm_cpu__enable_singlestep(cpu);
+	for (i = 0; i < NUM_KVM_CPUS; i++) {
+		cpus[i] = kvm_cpu__init(kvm, i);
+		if (!cpus[i])
+			die("unable to initialize KVM VCPU");
 
-	if (kvm_cpu__start(cpu))
-		goto panic_kvm;
+		if (single_step)
+			kvm_cpu__enable_singlestep(cpus[i]);
+
+		if (pthread_create(&cpus[i]->thread, NULL, kvm_cpu_thread, cpus[i]) != 0)
+			die("unable to create KVM VCPU thread");
+	}
+
+	for (i = 0; i < NUM_KVM_CPUS; i++) {
+		void *ret;
+
+		if (pthread_join(cpus[i]->thread, &ret) != 0)
+			die("pthread_join");
+
+		if (ret != NULL)
+			exit_code	= 1;
+	}
 
 	disk_image__close(kvm->disk_image);
 	kvm__delete(kvm);
 
-	printf("\n  # KVM session ended normally.\n");
+	if (!exit_code)
+		printf("\n  # KVM session ended normally.\n");
 
-	return 0;
-
-panic_kvm:
-	fprintf(stderr, "KVM exit reason: %" PRIu32 " (\"%s\")\n",
-		cpu->kvm_run->exit_reason,
-		kvm_exit_reasons[cpu->kvm_run->exit_reason]);
-	if (cpu->kvm_run->exit_reason == KVM_EXIT_UNKNOWN)
-		fprintf(stderr, "KVM exit code: 0x%Lu\n",
-			cpu->kvm_run->hw.hardware_exit_reason);
-	disk_image__close(kvm->disk_image);
-	kvm_cpu__show_registers(cpu);
-	kvm_cpu__show_code(cpu);
-	kvm_cpu__show_page_tables(cpu);
-	kvm_cpu__delete(cpu);
-	kvm__delete(kvm);
-
-	return 1;
+	return exit_code;
 }

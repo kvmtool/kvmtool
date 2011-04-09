@@ -1,12 +1,11 @@
 #include "kvm/kvm-cpu.h"
 
-#include "kvm/virtio-console.h"
-#include "kvm/8250-serial.h"
 #include "kvm/util.h"
 #include "kvm/kvm.h"
 
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <stdio.h>
@@ -61,7 +60,7 @@ void kvm_cpu__delete(struct kvm_cpu *self)
 	free(self);
 }
 
-struct kvm_cpu *kvm_cpu__init(struct kvm *kvm)
+struct kvm_cpu *kvm_cpu__init(struct kvm *kvm, unsigned long cpu_id)
 {
 	struct kvm_cpu *self;
 	int mmap_size;
@@ -70,7 +69,9 @@ struct kvm_cpu *kvm_cpu__init(struct kvm *kvm)
 	if (!self)
 		return NULL;
 
-	self->vcpu_fd = ioctl(self->kvm->vm_fd, KVM_CREATE_VCPU, 0);
+	self->cpu_id	= cpu_id;
+
+	self->vcpu_fd = ioctl(self->kvm->vm_fd, KVM_CREATE_VCPU, cpu_id);
 	if (self->vcpu_fd < 0)
 		die_perror("KVM_CREATE_VCPU ioctl");
 
@@ -373,6 +374,13 @@ void kvm_cpu__run(struct kvm_cpu *self)
 
 int kvm_cpu__start(struct kvm_cpu *cpu)
 {
+	sigset_t sigset;
+
+	sigemptyset(&sigset);
+	sigaddset(&sigset, SIGALRM);
+
+	pthread_sigmask(SIG_BLOCK, &sigset, NULL);
+
 	kvm_cpu__setup_cpuid(cpu);
 	kvm_cpu__reset_vcpu(cpu);
 
@@ -412,11 +420,8 @@ int kvm_cpu__start(struct kvm_cpu *cpu)
 				goto panic_kvm;
 			break;
 		}
-		case KVM_EXIT_INTR: {
-			serial8250__inject_interrupt(cpu->kvm);
-			virtio_console__inject_interrupt(cpu->kvm);
+		case KVM_EXIT_INTR:
 			break;
-		}
 		case KVM_EXIT_SHUTDOWN:
 			goto exit_kvm;
 		default:
