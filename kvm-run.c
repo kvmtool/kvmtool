@@ -42,14 +42,7 @@ static void handle_sigint(int sig)
 
 static void handle_sigquit(int sig)
 {
-	kvm_cpu__show_registers(current_cpu);
-	kvm_cpu__show_code(current_cpu);
-	kvm_cpu__show_page_tables(current_cpu);
-
-	kvm_cpu__delete(current_cpu);
-	kvm__delete(kvm);
-
-	exit(1);
+	serial8250__inject_sysrq(kvm);
 }
 
 static void handle_sigalrm(int sig)
