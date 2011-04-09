@@ -5,6 +5,7 @@
 #include "kvm/ioport.h"
 #include "kvm/util.h"
 #include "kvm/term.h"
+#include "kvm/mutex.h"
 #include "kvm/kvm.h"
 #include "kvm/pci.h"
 
@@ -29,6 +30,8 @@
 #define PCI_VIRTIO_CONSOLE_DEVNUM	2
 
 struct console_device {
+	pthread_mutex_t			mutex;
+
 	struct virt_queue		vqs[VIRTIO_CONSOLE_NUM_QUEUES];
 	struct virtio_console_config	console_config;
 	uint32_t			host_features;
@@ -39,6 +42,8 @@ struct console_device {
 };
 
 static struct console_device console_device = {
+	.mutex			= PTHREAD_MUTEX_INITIALIZER,
+
 	.console_config = {
 		.cols		= 80,
 		.rows		= 24,
@@ -59,6 +64,8 @@ void virtio_console__inject_interrupt(struct kvm *self)
 	uint16_t head;
 	int len;
 
+	mutex_lock(&console_device.mutex);
+
 	vq = &console_device.vqs[VIRTIO_CONSOLE_RX_QUEUE];
 
 	if (term_readable(CONSOLE_VIRTIO) && virt_queue__available(vq)) {
@@ -67,6 +74,8 @@ void virtio_console__inject_interrupt(struct kvm *self)
 		virt_queue__set_used_elem(vq, head, len);
 		kvm__irq_line(self, VIRTIO_CONSOLE_IRQ, 1);
 	}
+
+	mutex_unlock(&console_device.mutex);
 }
 
 static bool virtio_console_pci_io_device_specific_in(void *data, unsigned long offset, int size, uint32_t count)
@@ -87,13 +96,17 @@ static bool virtio_console_pci_io_device_specific_in(void *data, unsigned long o
 static bool virtio_console_pci_io_in(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
 {
 	unsigned long offset = port - IOPORT_VIRTIO_CONSOLE;
+	bool ret = true;
+
+	mutex_lock(&console_device.mutex);
 
 	switch (offset) {
 	case VIRTIO_PCI_HOST_FEATURES:
 		ioport__write32(data, console_device.host_features);
 		break;
 	case VIRTIO_PCI_GUEST_FEATURES:
-		return false;
+		ret = false;
+		break;
 	case VIRTIO_PCI_QUEUE_PFN:
 		ioport__write32(data, console_device.vqs[console_device.queue_selector].pfn);
 		break;
@@ -102,7 +115,8 @@ static bool virtio_console_pci_io_in(struct kvm *self, uint16_t port, void *data
 		break;
 	case VIRTIO_PCI_QUEUE_SEL:
 	case VIRTIO_PCI_QUEUE_NOTIFY:
-		return false;
+		ret = false;
+		break;
 	case VIRTIO_PCI_STATUS:
 		ioport__write8(data, console_device.status);
 		break;
@@ -114,10 +128,12 @@ static bool virtio_console_pci_io_in(struct kvm *self, uint16_t port, void *data
 		ioport__write16(data, console_device.config_vector);
 		break;
 	default:
-		return virtio_console_pci_io_device_specific_in(data, offset, size, count);
+		ret = virtio_console_pci_io_device_specific_in(data, offset, size, count);
 	};
 
-	return true;
+	mutex_unlock(&console_device.mutex);
+
+	return ret;
 }
 
 static void virtio_console_handle_callback(struct kvm *self, uint16_t queue_index)
@@ -145,6 +161,7 @@ static void virtio_console_handle_callback(struct kvm *self, uint16_t queue_inde
 static bool virtio_console_pci_io_out(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
 {
 	unsigned long offset = port - IOPORT_VIRTIO_CONSOLE;
+	bool ret = true;
 
 	switch (offset) {
 	case VIRTIO_PCI_GUEST_FEATURES:
@@ -182,10 +199,11 @@ static bool virtio_console_pci_io_out(struct kvm *self, uint16_t port, void *dat
 	case VIRTIO_MSI_QUEUE_VECTOR:
 		break;
 	default:
-		return false;
+		ret = false;
 	};
 
-	return true;
+	mutex_unlock(&console_device.mutex);
+	return ret;
 }
 
 static struct ioport_operations virtio_console_io_ops = {
