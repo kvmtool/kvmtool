@@ -177,54 +177,9 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	kvm__start_timer(kvm);
 
-	for (;;) {
-		kvm_cpu__run(cpu);
+	if (kvm_cpu__start(cpu))
+		goto panic_kvm;
 
-		switch (cpu->kvm_run->exit_reason) {
-		case KVM_EXIT_DEBUG:
-			kvm_cpu__show_registers(cpu);
-			kvm_cpu__show_code(cpu);
-			break;
-		case KVM_EXIT_IO: {
-			bool ret;
-
-			ret = kvm__emulate_io(kvm,
-					cpu->kvm_run->io.port,
-					(uint8_t *)cpu->kvm_run +
-					cpu->kvm_run->io.data_offset,
-					cpu->kvm_run->io.direction,
-					cpu->kvm_run->io.size,
-					cpu->kvm_run->io.count);
-
-			if (!ret)
-				goto panic_kvm;
-			break;
-		}
-		case KVM_EXIT_MMIO: {
-			bool ret;
-
-			ret = kvm__emulate_mmio(kvm,
-					cpu->kvm_run->mmio.phys_addr,
-					cpu->kvm_run->mmio.data,
-					cpu->kvm_run->mmio.len,
-					cpu->kvm_run->mmio.is_write);
-
-			if (!ret)
-				goto panic_kvm;
-			break;
-		}
-		case KVM_EXIT_INTR: {
-			serial8250__inject_interrupt(kvm);
-			virtio_console__inject_interrupt(kvm);
-			break;
-		}
-		case KVM_EXIT_SHUTDOWN:
-			goto exit_kvm;
-		default:
-			goto panic_kvm;
-		}
-	}
-exit_kvm:
 	disk_image__close(kvm->disk_image);
 	kvm__delete(kvm);
 

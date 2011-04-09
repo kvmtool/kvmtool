@@ -1,5 +1,7 @@
 #include "kvm/kvm-cpu.h"
 
+#include "kvm/virtio-console.h"
+#include "kvm/8250-serial.h"
 #include "kvm/util.h"
 #include "kvm/kvm.h"
 
@@ -367,4 +369,61 @@ void kvm_cpu__run(struct kvm_cpu *self)
 	err = ioctl(self->vcpu_fd, KVM_RUN, 0);
 	if (err && (errno != EINTR && errno != EAGAIN))
 		die_perror("KVM_RUN failed");
+}
+
+int kvm_cpu__start(struct kvm_cpu *cpu)
+{
+	for (;;) {
+		kvm_cpu__run(cpu);
+
+		switch (cpu->kvm_run->exit_reason) {
+		case KVM_EXIT_DEBUG:
+			kvm_cpu__show_registers(cpu);
+			kvm_cpu__show_code(cpu);
+			break;
+		case KVM_EXIT_IO: {
+			bool ret;
+
+			ret = kvm__emulate_io(cpu->kvm,
+					cpu->kvm_run->io.port,
+					(uint8_t *)cpu->kvm_run +
+					cpu->kvm_run->io.data_offset,
+					cpu->kvm_run->io.direction,
+					cpu->kvm_run->io.size,
+					cpu->kvm_run->io.count);
+
+			if (!ret)
+				goto panic_kvm;
+			break;
+		}
+		case KVM_EXIT_MMIO: {
+			bool ret;
+
+			ret = kvm__emulate_mmio(cpu->kvm,
+					cpu->kvm_run->mmio.phys_addr,
+					cpu->kvm_run->mmio.data,
+					cpu->kvm_run->mmio.len,
+					cpu->kvm_run->mmio.is_write);
+
+			if (!ret)
+				goto panic_kvm;
+			break;
+		}
+		case KVM_EXIT_INTR: {
+			serial8250__inject_interrupt(cpu->kvm);
+			virtio_console__inject_interrupt(cpu->kvm);
+			break;
+		}
+		case KVM_EXIT_SHUTDOWN:
+			goto exit_kvm;
+		default:
+			goto panic_kvm;
+		}
+	}
+
+exit_kvm:
+	return 0;
+
+panic_kvm:
+	return 1;
 }

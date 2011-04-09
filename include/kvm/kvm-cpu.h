@@ -25,6 +25,7 @@ void kvm_cpu__reset_vcpu(struct kvm_cpu *self);
 void kvm_cpu__setup_cpuid(struct kvm_cpu *self);
 void kvm_cpu__enable_singlestep(struct kvm_cpu *self);
 void kvm_cpu__run(struct kvm_cpu *self);
+int kvm_cpu__start(struct kvm_cpu *cpu);
 
 void kvm_cpu__show_code(struct kvm_cpu *self);
 void kvm_cpu__show_registers(struct kvm_cpu *self);
