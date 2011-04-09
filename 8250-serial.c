@@ -116,7 +116,7 @@ void serial8250__inject_interrupt(struct kvm *self)
 {
 	struct serial8250_device *dev = &devices[0];
 
-	if (pthread_mutex_lock(&dev->mutex) < 0)
+	if (pthread_mutex_lock(&dev->mutex) != 0)
 		die("pthread_mutex_lock");
 
 	serial8250__receive(self, dev);
@@ -133,7 +133,7 @@ void serial8250__inject_interrupt(struct kvm *self)
 		kvm__irq_line(self, dev->irq, 1);
 	}
 
-	if (pthread_mutex_unlock(&dev->mutex) < 0)
+	if (pthread_mutex_unlock(&dev->mutex) != 0)
 		die("pthread_mutex_unlock");
 }
 
@@ -165,7 +165,7 @@ static bool serial8250_out(struct kvm *self, uint16_t port, void *data, int size
 	if (!dev)
 		return false;
 
-	if (pthread_mutex_lock(&dev->mutex) < 0)
+	if (pthread_mutex_lock(&dev->mutex) != 0)
 		die("pthread_mutex_lock");
 
 	offset		= port - dev->iobase;
@@ -239,7 +239,7 @@ static bool serial8250_out(struct kvm *self, uint16_t port, void *data, int size
 	}
 
 out_unlock:
-	if (pthread_mutex_unlock(&dev->mutex) < 0)
+	if (pthread_mutex_unlock(&dev->mutex) != 0)
 		die("pthread_mutex_unlock");
 
 	return ret;
@@ -255,7 +255,7 @@ static bool serial8250_in(struct kvm *self, uint16_t port, void *data, int size,
 	if (!dev)
 		return false;
 
-	if (pthread_mutex_lock(&dev->mutex) < 0)
+	if (pthread_mutex_lock(&dev->mutex) != 0)
 		die("pthread_mutex_lock");
 
 	offset		= port - dev->iobase;
@@ -321,7 +321,7 @@ static bool serial8250_in(struct kvm *self, uint16_t port, void *data, int size,
 		goto out_unlock;
 	}
 out_unlock:
-	if (pthread_mutex_unlock(&dev->mutex) < 0)
+	if (pthread_mutex_unlock(&dev->mutex) != 0)
 		die("pthread_mutex_unlock");
 
 	return ret;
