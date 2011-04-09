@@ -1,3 +1,5 @@
+#include "kvm/kvm-cpu.h"
+
 #include "kvm/kvm.h"
 #include "kvm/util.h"
 
@@ -30,14 +32,14 @@ static void filter_cpuid(struct kvm_cpuid2 *kvm_cpuid)
 	}
 }
 
-void kvm__setup_cpuid(struct kvm *self)
+void kvm_cpu__setup_cpuid(struct kvm_cpu *self)
 {
 	struct kvm_cpuid2 *kvm_cpuid;
 
 	kvm_cpuid = calloc(1, sizeof(*kvm_cpuid) + MAX_KVM_CPUID_ENTRIES * sizeof(*kvm_cpuid->entries));
 
 	kvm_cpuid->nent = MAX_KVM_CPUID_ENTRIES;
-	if (ioctl(self->sys_fd, KVM_GET_SUPPORTED_CPUID, kvm_cpuid) < 0)
+	if (ioctl(self->kvm->sys_fd, KVM_GET_SUPPORTED_CPUID, kvm_cpuid) < 0)
 		die_perror("KVM_GET_SUPPORTED_CPUID failed");
 
 	filter_cpuid(kvm_cpuid);

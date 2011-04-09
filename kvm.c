@@ -107,9 +107,6 @@ void kvm__delete(struct kvm *self)
 {
 	kvm__stop_timer(self);
 
-	if (self->msrs)
-		free(self->msrs);
-
 	free(self->ram_start);
 	free(self);
 }
@@ -162,7 +159,6 @@ struct kvm *kvm__init(const char *kvm_dev, unsigned long ram_size)
 	struct kvm_pit_config pit_config = { .flags = 0, };
 	struct kvm *self;
 	long page_size;
-	int mmap_size;
 	int ret;
 
 	if (!kvm__cpu_supports_vm())
@@ -222,29 +218,7 @@ struct kvm *kvm__init(const char *kvm_dev, unsigned long ram_size)
 	if (ret < 0)
 		die_perror("KVM_CREATE_IRQCHIP ioctl");
 
-	self->vcpu_fd = ioctl(self->vm_fd, KVM_CREATE_VCPU, 0);
-	if (self->vcpu_fd < 0)
-		die_perror("KVM_CREATE_VCPU ioctl");
-
-	mmap_size = ioctl(self->sys_fd, KVM_GET_VCPU_MMAP_SIZE, 0);
-	if (mmap_size < 0)
-		die_perror("KVM_GET_VCPU_MMAP_SIZE ioctl");
-
-	self->kvm_run = mmap(NULL, mmap_size, PROT_READ|PROT_WRITE, MAP_SHARED, self->vcpu_fd, 0);
-	if (self->kvm_run == MAP_FAILED)
-		die("unable to mmap vcpu fd");
-
 	return self;
-}
-
-void kvm__enable_singlestep(struct kvm *self)
-{
-	struct kvm_guest_debug debug = {
-		.control	= KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_SINGLESTEP,
-	};
-
-	if (ioctl(self->vcpu_fd, KVM_SET_GUEST_DEBUG, &debug) < 0)
-		warning("KVM_SET_GUEST_DEBUG failed");
 }
 
 #define BOOT_LOADER_SELECTOR	0x1000
@@ -417,154 +391,6 @@ found_kernel:
 	return ret;
 }
 
-static inline uint64_t ip_flat_to_real(struct kvm *self, uint64_t ip)
-{
-	uint64_t cs = self->sregs.cs.selector;
-
-	return ip - (cs << 4);
-}
-
-static inline bool is_in_protected_mode(struct kvm *self)
-{
-	return self->sregs.cr0 & 0x01;
-}
-
-static inline uint64_t ip_to_flat(struct kvm *self, uint64_t ip)
-{
-	uint64_t cs;
-
-	/*
-	 * NOTE! We should take code segment base address into account here.
-	 * Luckily it's usually zero because Linux uses flat memory model.
-	 */
-	if (is_in_protected_mode(self))
-		return ip;
-
-	cs = self->sregs.cs.selector;
-
-	return ip + (cs << 4);
-}
-
-static inline uint32_t selector_to_base(uint16_t selector)
-{
-	/*
-	 * KVM on Intel requires 'base' to be 'selector * 16' in real mode.
-	 */
-	return (uint32_t)selector * 16;
-}
-
-static struct kvm_msrs *kvm_msrs__new(size_t nmsrs)
-{
-	struct kvm_msrs *self = calloc(1, sizeof(*self) + (sizeof(struct kvm_msr_entry) * nmsrs));
-
-	if (!self)
-		die("out of memory");
-
-	return self;
-}
-
-#define MSR_IA32_TIME_STAMP_COUNTER	0x10
-
-#define MSR_IA32_SYSENTER_CS		0x174
-#define MSR_IA32_SYSENTER_ESP		0x175
-#define MSR_IA32_SYSENTER_EIP		0x176
-
-#define MSR_IA32_STAR			0xc0000081
-#define MSR_IA32_LSTAR			0xc0000082
-#define MSR_IA32_CSTAR			0xc0000083
-#define MSR_IA32_FMASK			0xc0000084
-#define MSR_IA32_KERNEL_GS_BASE		0xc0000102
-
-#define KVM_MSR_ENTRY(_index, _data)	\
-	(struct kvm_msr_entry) { .index = _index, .data = _data }
-
-static void kvm__setup_msrs(struct kvm *self)
-{
-	unsigned long ndx = 0;
-
-	self->msrs = kvm_msrs__new(100);
-
-	self->msrs->entries[ndx++] = KVM_MSR_ENTRY(MSR_IA32_SYSENTER_CS,	0x0);
-	self->msrs->entries[ndx++] = KVM_MSR_ENTRY(MSR_IA32_SYSENTER_ESP,	0x0);
-	self->msrs->entries[ndx++] = KVM_MSR_ENTRY(MSR_IA32_SYSENTER_EIP,	0x0);
-#ifdef CONFIG_X86_64
-	self->msrs->entries[ndx++] = KVM_MSR_ENTRY(MSR_IA32_STAR,		0x0);
-	self->msrs->entries[ndx++] = KVM_MSR_ENTRY(MSR_IA32_CSTAR,		0x0);
-	self->msrs->entries[ndx++] = KVM_MSR_ENTRY(MSR_IA32_KERNEL_GS_BASE,	0x0);
-	self->msrs->entries[ndx++] = KVM_MSR_ENTRY(MSR_IA32_FMASK,		0x0);
-	self->msrs->entries[ndx++] = KVM_MSR_ENTRY(MSR_IA32_LSTAR,		0x0);
-#endif
-	self->msrs->entries[ndx++] = KVM_MSR_ENTRY(MSR_IA32_TIME_STAMP_COUNTER,	0x0);
-
-	self->msrs->nmsrs	= ndx;
-
-	if (ioctl(self->vcpu_fd, KVM_SET_MSRS, self->msrs) < 0)
-		die_perror("KVM_SET_MSRS failed");
-}
-
-static void kvm__setup_fpu(struct kvm *self)
-{
-	self->fpu = (struct kvm_fpu) {
-		.fcw		= 0x37f,
-		.mxcsr		= 0x1f80,
-	};
-
-	if (ioctl(self->vcpu_fd, KVM_SET_FPU, &self->fpu) < 0)
-		die_perror("KVM_SET_FPU failed");
-}
-
-static void kvm__setup_regs(struct kvm *self)
-{
-	self->regs = (struct kvm_regs) {
-		/* We start the guest in 16-bit real mode  */
-		.rflags		= 0x0000000000000002ULL,
-
-		.rip		= self->boot_ip,
-		.rsp		= self->boot_sp,
-		.rbp		= self->boot_sp,
-	};
-
-	if (self->regs.rip > USHRT_MAX)
-		die("ip 0x%" PRIx64 " is too high for real mode", (uint64_t) self->regs.rip);
-
-	if (ioctl(self->vcpu_fd, KVM_SET_REGS, &self->regs) < 0)
-		die_perror("KVM_SET_REGS failed");
-}
-
-static void kvm__setup_sregs(struct kvm *self)
-{
-
-	if (ioctl(self->vcpu_fd, KVM_GET_SREGS, &self->sregs) < 0)
-		die_perror("KVM_GET_SREGS failed");
-
-	self->sregs.cs.selector	= self->boot_selector;
-	self->sregs.cs.base	= selector_to_base(self->boot_selector);
-	self->sregs.ss.selector	= self->boot_selector;
-	self->sregs.ss.base	= selector_to_base(self->boot_selector);
-	self->sregs.ds.selector	= self->boot_selector;
-	self->sregs.ds.base	= selector_to_base(self->boot_selector);
-	self->sregs.es.selector	= self->boot_selector;
-	self->sregs.es.base	= selector_to_base(self->boot_selector);
-	self->sregs.fs.selector	= self->boot_selector;
-	self->sregs.fs.base	= selector_to_base(self->boot_selector);
-	self->sregs.gs.selector	= self->boot_selector;
-	self->sregs.gs.base	= selector_to_base(self->boot_selector);
-
-	if (ioctl(self->vcpu_fd, KVM_SET_SREGS, &self->sregs) < 0)
-		die_perror("KVM_SET_SREGS failed");
-}
-
-/**
- * kvm__reset_vcpu - reset virtual CPU to a known state
- */
-void kvm__reset_vcpu(struct kvm *self)
-{
-	kvm__setup_sregs(self);
-	kvm__setup_regs(self);
-	kvm__setup_fpu(self);
-	kvm__setup_msrs(self);
-}
-
 /**
  * kvm__setup_bios - inject BIOS into guest system memory
  * @self - guest system descriptor
@@ -629,15 +455,6 @@ void kvm__stop_timer(struct kvm *self)
 	self->timerid = 0;
 }
 
-void kvm__run(struct kvm *self)
-{
-	int err;
-
-	err = ioctl(self->vcpu_fd, KVM_RUN, 0);
-	if (err && (errno != EINTR && errno != EAGAIN))
-		die_perror("KVM_RUN failed");
-}
-
 void kvm__irq_line(struct kvm *self, int irq, int level)
 {
 	struct kvm_irq_level irq_level;
@@ -651,161 +468,6 @@ void kvm__irq_line(struct kvm *self, int irq, int level)
 
 	if (ioctl(self->vm_fd, KVM_IRQ_LINE, &irq_level) < 0)
 		die_perror("KVM_IRQ_LINE failed");
-}
-
-static void print_dtable(const char *name, struct kvm_dtable *dtable)
-{
-	printf(" %s                 %016" PRIx64 "  %08" PRIx16 "\n",
-		name, (uint64_t) dtable->base, (uint16_t) dtable->limit);
-}
-
-static void print_segment(const char *name, struct kvm_segment *seg)
-{
-	printf(" %s       %04" PRIx16 "      %016" PRIx64 "  %08" PRIx32 "  %02" PRIx8 "    %x %x   %x  %x %x %x %x\n",
-		name, (uint16_t) seg->selector, (uint64_t) seg->base, (uint32_t) seg->limit,
-		(uint8_t) seg->type, seg->present, seg->dpl, seg->db, seg->s, seg->l, seg->g, seg->avl);
-}
-
-void kvm__show_registers(struct kvm *self)
-{
-	unsigned long cr0, cr2, cr3;
-	unsigned long cr4, cr8;
-	unsigned long rax, rbx, rcx;
-	unsigned long rdx, rsi, rdi;
-	unsigned long rbp,  r8,  r9;
-	unsigned long r10, r11, r12;
-	unsigned long r13, r14, r15;
-	unsigned long rip, rsp;
-	struct kvm_sregs sregs;
-	unsigned long rflags;
-	struct kvm_regs regs;
-	int i;
-
-	if (ioctl(self->vcpu_fd, KVM_GET_REGS, &regs) < 0)
-		die("KVM_GET_REGS failed");
-
-	rflags = regs.rflags;
-
-	rip = regs.rip; rsp = regs.rsp;
-	rax = regs.rax; rbx = regs.rbx; rcx = regs.rcx;
-	rdx = regs.rdx; rsi = regs.rsi; rdi = regs.rdi;
-	rbp = regs.rbp; r8  = regs.r8;  r9  = regs.r9;
-	r10 = regs.r10; r11 = regs.r11; r12 = regs.r12;
-	r13 = regs.r13; r14 = regs.r14; r15 = regs.r15;
-
-	printf("Registers:\n");
-	printf(" rip: %016lx   rsp: %016lx flags: %016lx\n", rip, rsp, rflags);
-	printf(" rax: %016lx   rbx: %016lx   rcx: %016lx\n", rax, rbx, rcx);
-	printf(" rdx: %016lx   rsi: %016lx   rdi: %016lx\n", rdx, rsi, rdi);
-	printf(" rbp: %016lx   r8:  %016lx   r9:  %016lx\n", rbp, r8,  r9);
-	printf(" r10: %016lx   r11: %016lx   r12: %016lx\n", r10, r11, r12);
-	printf(" r13: %016lx   r14: %016lx   r15: %016lx\n", r13, r14, r15);
-
-	if (ioctl(self->vcpu_fd, KVM_GET_SREGS, &sregs) < 0)
-		die("KVM_GET_REGS failed");
-
-	cr0 = sregs.cr0; cr2 = sregs.cr2; cr3 = sregs.cr3;
-	cr4 = sregs.cr4; cr8 = sregs.cr8;
-
-	printf(" cr0: %016lx   cr2: %016lx   cr3: %016lx\n", cr0, cr2, cr3);
-	printf(" cr4: %016lx   cr8: %016lx\n", cr4, cr8);
-	printf("Segment registers:\n");
-	printf(" register  selector  base              limit     type  p dpl db s l g avl\n");
-	print_segment("cs ", &sregs.cs);
-	print_segment("ss ", &sregs.ss);
-	print_segment("ds ", &sregs.ds);
-	print_segment("es ", &sregs.es);
-	print_segment("fs ", &sregs.fs);
-	print_segment("gs ", &sregs.gs);
-	print_segment("tr ", &sregs.tr);
-	print_segment("ldt", &sregs.ldt);
-	print_dtable("gdt", &sregs.gdt);
-	print_dtable("idt", &sregs.idt);
-	printf(" [ efer: %016" PRIx64 "  apic base: %016" PRIx64 "  nmi: %s ]\n",
-		(uint64_t) sregs.efer, (uint64_t) sregs.apic_base,
-		(self->nmi_disabled ? "disabled" : "enabled"));
-	printf("Interrupt bitmap:\n");
-	printf(" ");
-	for (i = 0; i < (KVM_NR_INTERRUPTS + 63) / 64; i++)
-		printf("%016" PRIx64 " ", (uint64_t) sregs.interrupt_bitmap[i]);
-	printf("\n");
-}
-
-void kvm__show_code(struct kvm *self)
-{
-	unsigned int code_bytes = 64;
-	unsigned int code_prologue = code_bytes * 43 / 64;
-	unsigned int code_len = code_bytes;
-	unsigned char c;
-	unsigned int i;
-	uint8_t *ip;
-
-	if (ioctl(self->vcpu_fd, KVM_GET_REGS, &self->regs) < 0)
-		die("KVM_GET_REGS failed");
-
-	if (ioctl(self->vcpu_fd, KVM_GET_SREGS, &self->sregs) < 0)
-		die("KVM_GET_SREGS failed");
-
-	ip = guest_flat_to_host(self, ip_to_flat(self, self->regs.rip) - code_prologue);
-
-	printf("Code: ");
-
-	for (i = 0; i < code_len; i++, ip++) {
-		if (!host_ptr_in_ram(self, ip))
-			break;
-
-		c = *ip;
-
-		if (ip == guest_flat_to_host(self, ip_to_flat(self, self->regs.rip)))
-			printf("<%02x> ", c);
-		else
-			printf("%02x ", c);
-	}
-
-	printf("\n");
-
-	printf("Stack:\n");
-	kvm__dump_mem(self, self->regs.rsp, 32);
-}
-
-void kvm__show_page_tables(struct kvm *self)
-{
-	uint64_t *pte1;
-	uint64_t *pte2;
-	uint64_t *pte3;
-	uint64_t *pte4;
-
-	if (!is_in_protected_mode(self))
-		return;
-
-	if (ioctl(self->vcpu_fd, KVM_GET_SREGS, &self->sregs) < 0)
-		die("KVM_GET_SREGS failed");
-
-	pte4	= guest_flat_to_host(self, self->sregs.cr3);
-	if (!host_ptr_in_ram(self, pte4))
-		return;
-
-	pte3	= guest_flat_to_host(self, (*pte4 & ~0xfff));
-	if (!host_ptr_in_ram(self, pte3))
-		return;
-
-	pte2	= guest_flat_to_host(self, (*pte3 & ~0xfff));
-	if (!host_ptr_in_ram(self, pte2))
-		return;
-
-	pte1	= guest_flat_to_host(self, (*pte2 & ~0xfff));
-	if (!host_ptr_in_ram(self, pte1))
-		return;
-
-	printf("Page Tables:\n");
-	if (*pte2 & (1 << 7))
-		printf(" pte4: %016" PRIx64 "   pte3: %016" PRIx64
-			"   pte2: %016" PRIx64 "\n",
-			*pte4, *pte3, *pte2);
-	else
-		printf(" pte4: %016" PRIx64 "   pte3: %016" PRIx64 "   pte2: %016"
-			PRIx64 "   pte1: %016" PRIx64 "\n",
-			*pte4, *pte3, *pte2, *pte1);
 }
 
 void kvm__dump_mem(struct kvm *self, unsigned long addr, unsigned long size)

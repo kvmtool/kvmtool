@@ -2,6 +2,8 @@
 
 #include "kvm/kvm.h"
 
+#include <linux/kvm.h>	/* for KVM_EXIT_* */
+
 #include <stdbool.h>
 #include <assert.h>
 #include <limits.h>

@@ -10,6 +10,7 @@
 /* user defined header files */
 #include <linux/types.h>
 #include <kvm/kvm.h>
+#include <kvm/kvm-cpu.h>
 #include <kvm/8250-serial.h>
 #include <kvm/virtio-blk.h>
 #include <kvm/virtio-console.h>
@@ -29,6 +30,7 @@
 #define MIN_RAM_SIZE_BYTE	(MIN_RAM_SIZE_MB << MB_SHIFT)
 
 static struct kvm *kvm;
+static struct kvm_cpu *cpu;
 
 static void handle_sigint(int sig)
 {
@@ -37,10 +39,11 @@ static void handle_sigint(int sig)
 
 static void handle_sigquit(int sig)
 {
-	kvm__show_registers(kvm);
-	kvm__show_code(kvm);
-	kvm__show_page_tables(kvm);
+	kvm_cpu__show_registers(cpu);
+	kvm_cpu__show_code(cpu);
+	kvm_cpu__show_page_tables(cpu);
 
+	kvm_cpu__delete(cpu);
 	kvm__delete(kvm);
 
 	exit(1);
@@ -130,13 +133,17 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	kvm = kvm__init(kvm_dev, ram_size);
 
+	cpu = kvm_cpu__init(kvm);
+	if (!cpu)
+		die("unable to initialize KVM VCPU");
+
 	if (image_filename) {
 		kvm->disk_image	= disk_image__open(image_filename);
 		if (!kvm->disk_image)
 			die("unable to load disk image %s", image_filename);
 	}
 
-	kvm__setup_cpuid(kvm);
+	kvm_cpu__setup_cpuid(cpu);
 
 	strcpy(real_cmdline, "notsc nolapic noacpi pci=conf1 console=ttyS0 ");
 	if (!kernel_cmdline || !strstr(kernel_cmdline, "root=")) {
@@ -153,12 +160,12 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 				real_cmdline))
 		die("unable to load kernel %s", kernel_filename);
 
-	kvm__reset_vcpu(kvm);
+	kvm_cpu__reset_vcpu(cpu);
 
 	kvm__setup_bios(kvm);
 
 	if (single_step)
-		kvm__enable_singlestep(kvm);
+		kvm_cpu__enable_singlestep(cpu);
 
 	serial8250__init(kvm);
 
@@ -171,23 +178,23 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	kvm__start_timer(kvm);
 
 	for (;;) {
-		kvm__run(kvm);
+		kvm_cpu__run(cpu);
 
-		switch (kvm->kvm_run->exit_reason) {
+		switch (cpu->kvm_run->exit_reason) {
 		case KVM_EXIT_DEBUG:
-			kvm__show_registers(kvm);
-			kvm__show_code(kvm);
+			kvm_cpu__show_registers(cpu);
+			kvm_cpu__show_code(cpu);
 			break;
 		case KVM_EXIT_IO: {
 			bool ret;
 
 			ret = kvm__emulate_io(kvm,
-					kvm->kvm_run->io.port,
-					(uint8_t *)kvm->kvm_run +
-					kvm->kvm_run->io.data_offset,
-					kvm->kvm_run->io.direction,
-					kvm->kvm_run->io.size,
-					kvm->kvm_run->io.count);
+					cpu->kvm_run->io.port,
+					(uint8_t *)cpu->kvm_run +
+					cpu->kvm_run->io.data_offset,
+					cpu->kvm_run->io.direction,
+					cpu->kvm_run->io.size,
+					cpu->kvm_run->io.count);
 
 			if (!ret)
 				goto panic_kvm;
@@ -197,10 +204,10 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 			bool ret;
 
 			ret = kvm__emulate_mmio(kvm,
-					kvm->kvm_run->mmio.phys_addr,
-					kvm->kvm_run->mmio.data,
-					kvm->kvm_run->mmio.len,
-					kvm->kvm_run->mmio.is_write);
+					cpu->kvm_run->mmio.phys_addr,
+					cpu->kvm_run->mmio.data,
+					cpu->kvm_run->mmio.len,
+					cpu->kvm_run->mmio.is_write);
 
 			if (!ret)
 				goto panic_kvm;
@@ -227,15 +234,16 @@ exit_kvm:
 
 panic_kvm:
 	fprintf(stderr, "KVM exit reason: %" PRIu32 " (\"%s\")\n",
-		kvm->kvm_run->exit_reason,
-		kvm_exit_reasons[kvm->kvm_run->exit_reason]);
-	if (kvm->kvm_run->exit_reason == KVM_EXIT_UNKNOWN)
+		cpu->kvm_run->exit_reason,
+		kvm_exit_reasons[cpu->kvm_run->exit_reason]);
+	if (cpu->kvm_run->exit_reason == KVM_EXIT_UNKNOWN)
 		fprintf(stderr, "KVM exit code: 0x%" PRIu64 "\n",
-			kvm->kvm_run->hw.hardware_exit_reason);
+			cpu->kvm_run->hw.hardware_exit_reason);
 	disk_image__close(kvm->disk_image);
-	kvm__show_registers(kvm);
-	kvm__show_code(kvm);
-	kvm__show_page_tables(kvm);
+	kvm_cpu__show_registers(cpu);
+	kvm_cpu__show_code(cpu);
+	kvm_cpu__show_page_tables(cpu);
+	kvm_cpu__delete(cpu);
 	kvm__delete(kvm);
 
 	return 1;

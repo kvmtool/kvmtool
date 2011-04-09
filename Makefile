@@ -21,6 +21,7 @@ OBJS	+= disk-image.o
 OBJS	+= interrupt.o
 OBJS	+= ioport.o
 OBJS	+= kvm.o
+OBJS	+= kvm-cpu.o
 OBJS	+= main.o
 OBJS	+= mmio.o
 OBJS	+= pci.o
