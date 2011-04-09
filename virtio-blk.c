@@ -11,8 +11,9 @@
 
 #include <linux/virtio_ring.h>
 #include <linux/virtio_blk.h>
+
 #include <inttypes.h>
-#include <assert.h>
+#include <pthread.h>
 
 #define VIRTIO_BLK_IRQ		14
 
@@ -21,6 +22,8 @@
 #define VIRTIO_BLK_QUEUE_SIZE	128
 
 struct blk_device {
+	pthread_mutex_t			mutex;
+
 	struct virtio_blk_config	blk_config;
 	uint32_t			host_features;
 	uint32_t			guest_features;
@@ -36,6 +39,8 @@ struct blk_device {
 #define DISK_SEG_MAX	126
 
 static struct blk_device blk_device = {
+	.mutex			= PTHREAD_MUTEX_INITIALIZER,
+
 	.blk_config		= (struct virtio_blk_config) {
 		/* VIRTIO_BLK_F_SEG_MAX */
 		.seg_max		= DISK_SEG_MAX,
@@ -63,6 +68,10 @@ static bool virtio_blk_pci_io_device_specific_in(void *data, unsigned long offse
 static bool virtio_blk_pci_io_in(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
 {
 	unsigned long offset;
+	bool ret = true;
+
+	if (pthread_mutex_lock(&blk_device.mutex) < 0)
+		die("pthread_mutex_lock");
 
 	offset		= port - IOPORT_VIRTIO_BLK;
 
@@ -71,7 +80,8 @@ static bool virtio_blk_pci_io_in(struct kvm *self, uint16_t port, void *data, in
 		ioport__write32(data, blk_device.host_features);
 		break;
 	case VIRTIO_PCI_GUEST_FEATURES:
-		return false;
+		ret		= false;
+		goto out_unlock;
 	case VIRTIO_PCI_QUEUE_PFN:
 		ioport__write32(data, blk_device.vqs[blk_device.queue_selector].pfn);
 		break;
@@ -80,7 +90,8 @@ static bool virtio_blk_pci_io_in(struct kvm *self, uint16_t port, void *data, in
 		break;
 	case VIRTIO_PCI_QUEUE_SEL:
 	case VIRTIO_PCI_QUEUE_NOTIFY:
-		return false;
+		ret		= false;
+		goto out_unlock;
 	case VIRTIO_PCI_STATUS:
 		ioport__write8(data, blk_device.status);
 		break;
@@ -92,15 +103,19 @@ static bool virtio_blk_pci_io_in(struct kvm *self, uint16_t port, void *data, in
 		ioport__write16(data, blk_device.config_vector);
 		break;
 	default:
-		return virtio_blk_pci_io_device_specific_in(data, offset, size, count);
+		ret		= virtio_blk_pci_io_device_specific_in(data, offset, size, count);
+		goto out_unlock;
 	};
 
-	return true;
+out_unlock:
+	if (pthread_mutex_unlock(&blk_device.mutex) < 0)
+		die("pthread_mutex_unlock");
+
+	return ret;
 }
 
 static bool virtio_blk_do_io_request(struct kvm *self, struct virt_queue *queue)
 {
-
 	struct iovec iov[VIRTIO_BLK_QUEUE_SIZE];
 	struct virtio_blk_outhdr *req;
 	uint32_t block_len, block_cnt;
@@ -159,9 +174,14 @@ static void virtio_blk_handle_callback(struct kvm *self, uint16_t queue_index)
 	kvm__irq_line(self, VIRTIO_BLK_IRQ, 1);
 
 }
+
 static bool virtio_blk_pci_io_out(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
 {
 	unsigned long offset;
+	bool ret = true;
+
+	if (pthread_mutex_lock(&blk_device.mutex) < 0)
+		die("pthread_mutex_lock");
 
 	offset		= port - IOPORT_VIRTIO_BLK;
 
@@ -201,10 +221,15 @@ static bool virtio_blk_pci_io_out(struct kvm *self, uint16_t port, void *data, i
 	case VIRTIO_MSI_QUEUE_VECTOR:
 		break;
 	default:
-		return false;
+		ret		= false;
+		goto out_unlock;
 	};
 
-	return true;
+out_unlock:
+	if (pthread_mutex_unlock(&blk_device.mutex) < 0)
+		die("pthread_mutex_unlock");
+
+	return ret;
 }
 
 static struct ioport_operations virtio_blk_io_ops = {
