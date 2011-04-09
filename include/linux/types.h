@@ -12,8 +12,8 @@
 #define __s32		int32_t
 #define __u32		uint32_t
 
-#define __s64		int64_t
-#define __u64		uint64_t
+#define __s64		long long
+#define __u64		unsigned long long
 
 typedef __u64 u64;
 typedef __s64 s64;

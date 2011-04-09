@@ -26,7 +26,7 @@
 #define DEFAULT_KVM_DEV		"/dev/kvm"
 
 #define MB_SHIFT		(20)
-#define MIN_RAM_SIZE_MB		(64UL)
+#define MIN_RAM_SIZE_MB		(64ULL)
 #define MIN_RAM_SIZE_BYTE	(MIN_RAM_SIZE_MB << MB_SHIFT)
 
 static struct kvm *kvm;
@@ -117,10 +117,9 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	}
 
-	if (ram_size < MIN_RAM_SIZE_MB) {
-		die("Not enough memory specified: %luMB (min %luMB)", ram_size,
-				MIN_RAM_SIZE_MB);
-	}
+	if (ram_size < MIN_RAM_SIZE_MB)
+		die("Not enough memory specified: %lluMB (min %lluMB)", ram_size, MIN_RAM_SIZE_MB);
+
 	ram_size <<= MB_SHIFT;
 
 	if (!kvm_dev)
@@ -188,7 +187,7 @@ panic_kvm:
 		cpu->kvm_run->exit_reason,
 		kvm_exit_reasons[cpu->kvm_run->exit_reason]);
 	if (cpu->kvm_run->exit_reason == KVM_EXIT_UNKNOWN)
-		fprintf(stderr, "KVM exit code: 0x%" PRIu64 "\n",
+		fprintf(stderr, "KVM exit code: 0x%Lu\n",
 			cpu->kvm_run->hw.hardware_exit_reason);
 	disk_image__close(kvm->disk_image);
 	kvm_cpu__show_registers(cpu);
