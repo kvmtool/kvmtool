@@ -385,9 +385,13 @@ bool kvm__load_kernel(struct kvm *kvm, const char *kernel_filename,
 	if (ret)
 		goto found_kernel;
 
+	close(fd_kernel);
+
 	die("%s is not a valid bzImage or flat binary", kernel_filename);
 
 found_kernel:
+	close(fd_kernel);
+
 	return ret;
 }
 
