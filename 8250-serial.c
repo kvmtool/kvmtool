@@ -8,8 +8,11 @@
 
 #include <linux/serial_reg.h>
 
+#include <pthread.h>
 
 struct serial8250_device {
+	pthread_mutex_t		mutex;
+
 	uint16_t		iobase;
 	uint8_t			irq;
 
@@ -29,6 +32,8 @@ struct serial8250_device {
 static struct serial8250_device devices[] = {
 	/* ttyS0 */
 	[0]	= {
+		.mutex			= PTHREAD_MUTEX_INITIALIZER,
+
 		.iobase			= 0x3f8,
 		.irq			= 4,
 
@@ -39,6 +44,8 @@ static struct serial8250_device devices[] = {
 	},
 	/* ttyS1 */
 	[1]	= {
+		.mutex			= PTHREAD_MUTEX_INITIALIZER,
+
 		.iobase			= 0x2f8,
 		.irq			= 3,
 
@@ -46,6 +53,8 @@ static struct serial8250_device devices[] = {
 	},
 	/* ttyS2 */
 	[2]	= {
+		.mutex			= PTHREAD_MUTEX_INITIALIZER,
+
 		.iobase			= 0x3e8,
 		.irq			= 4,
 
@@ -107,6 +116,9 @@ void serial8250__inject_interrupt(struct kvm *self)
 {
 	struct serial8250_device *dev = &devices[0];
 
+	if (pthread_mutex_lock(&dev->mutex) < 0)
+		die("pthread_mutex_lock");
+
 	serial8250__receive(self, dev);
 
 	if (dev->ier & UART_IER_RDI && dev->lsr & UART_LSR_DR)
@@ -120,6 +132,9 @@ void serial8250__inject_interrupt(struct kvm *self)
 		kvm__irq_line(self, dev->irq, 0);
 		kvm__irq_line(self, dev->irq, 1);
 	}
+
+	if (pthread_mutex_unlock(&dev->mutex) < 0)
+		die("pthread_mutex_unlock");
 }
 
 void serial8250__inject_sysrq(struct kvm *self)
@@ -144,10 +159,14 @@ static bool serial8250_out(struct kvm *self, uint16_t port, void *data, int size
 {
 	struct serial8250_device *dev;
 	uint16_t offset;
+	bool ret = true;
 
 	dev		= find_device(port);
 	if (!dev)
 		return false;
+
+	if (pthread_mutex_lock(&dev->mutex) < 0)
+		die("pthread_mutex_lock");
 
 	offset		= port - dev->iobase;
 
@@ -178,7 +197,8 @@ static bool serial8250_out(struct kvm *self, uint16_t port, void *data, int size
 			dev->scr	= ioport__read8(data);
 			break;
 		default:
-			return false;
+			ret		= false;
+			goto out_unlock;
 		}
 	} else {
 		switch (offset) {
@@ -213,20 +233,30 @@ static bool serial8250_out(struct kvm *self, uint16_t port, void *data, int size
 			dev->scr	= ioport__read8(data);
 			break;
 		default:
-			return false;
+			ret		= false;
+			goto out_unlock;
 		}
 	}
-	return true;
+
+out_unlock:
+	if (pthread_mutex_unlock(&dev->mutex) < 0)
+		die("pthread_mutex_unlock");
+
+	return ret;
 }
 
 static bool serial8250_in(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
 {
 	struct serial8250_device *dev;
 	uint16_t offset;
+	bool ret = true;
 
 	dev		= find_device(port);
 	if (!dev)
 		return false;
+
+	if (pthread_mutex_lock(&dev->mutex) < 0)
+		die("pthread_mutex_lock");
 
 	offset		= port - dev->iobase;
 
@@ -234,10 +264,12 @@ static bool serial8250_in(struct kvm *self, uint16_t port, void *data, int size,
 		switch (offset) {
 		case UART_DLL:
 			ioport__write8(data, dev->dll);
-			return true;
+			goto out_unlock;
+
 		case UART_DLM:
 			ioport__write8(data, dev->dlm);
-			return true;
+			goto out_unlock;
+
 		default:
 			break;
 		}
@@ -247,10 +279,12 @@ static bool serial8250_in(struct kvm *self, uint16_t port, void *data, int size,
 			ioport__write8(data, dev->rbr);
 			dev->lsr		&= ~UART_LSR_DR;
 			dev->iir		= UART_IIR_NO_INT;
-			return true;
+			goto out_unlock;
+
 		case UART_IER:
 			ioport__write8(data, dev->ier);
-			return true;
+			goto out_unlock;
+
 		default:
 			break;
 		}
@@ -283,9 +317,14 @@ static bool serial8250_in(struct kvm *self, uint16_t port, void *data, int size,
 		ioport__write8(data, dev->scr);
 		break;
 	default:
-		return false;
+		ret		= false;
+		goto out_unlock;
 	}
-	return true;
+out_unlock:
+	if (pthread_mutex_unlock(&dev->mutex) < 0)
+		die("pthread_mutex_unlock");
+
+	return ret;
 }
 
 static struct ioport_operations serial8250_ops = {
