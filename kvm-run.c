@@ -143,8 +143,6 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 			die("unable to load disk image %s", image_filename);
 	}
 
-	kvm_cpu__setup_cpuid(cpu);
-
 	strcpy(real_cmdline, "notsc nolapic noacpi pci=conf1 console=ttyS0 ");
 	if (!kernel_cmdline || !strstr(kernel_cmdline, "root=")) {
 		strlcat(real_cmdline, "root=/dev/vda rw ",
@@ -160,12 +158,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 				real_cmdline))
 		die("unable to load kernel %s", kernel_filename);
 
-	kvm_cpu__reset_vcpu(cpu);
-
 	kvm__setup_bios(kvm);
-
-	if (single_step)
-		kvm_cpu__enable_singlestep(cpu);
 
 	serial8250__init(kvm);
 
@@ -176,6 +169,9 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	virtio_console__init(kvm);
 
 	kvm__start_timer(kvm);
+
+	if (single_step)
+		kvm_cpu__enable_singlestep(cpu);
 
 	if (kvm_cpu__start(cpu))
 		goto panic_kvm;

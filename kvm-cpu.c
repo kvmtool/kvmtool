@@ -373,6 +373,9 @@ void kvm_cpu__run(struct kvm_cpu *self)
 
 int kvm_cpu__start(struct kvm_cpu *cpu)
 {
+	kvm_cpu__setup_cpuid(cpu);
+	kvm_cpu__reset_vcpu(cpu);
+
 	for (;;) {
 		kvm_cpu__run(cpu);
 
