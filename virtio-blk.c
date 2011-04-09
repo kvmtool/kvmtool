@@ -139,9 +139,13 @@ static bool virtio_blk_do_io_request(struct kvm *self, struct virt_queue *queue)
 		switch (req->type) {
 		case VIRTIO_BLK_T_IN:
 			err	= disk_image__read_sector(self->disk_image, req->sector, block, block_len);
+			if (err)
+				io_error = true;
 			break;
 		case VIRTIO_BLK_T_OUT:
 			err	= disk_image__write_sector(self->disk_image, req->sector, block, block_len);
+			if (err)
+				io_error = true;
 			break;
 		default:
 			warning("request type %d", req->type);
