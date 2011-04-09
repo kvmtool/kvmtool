@@ -5,6 +5,7 @@
 #include "kvm/disk-image.h"
 #include "kvm/virtio.h"
 #include "kvm/ioport.h"
+#include "kvm/mutex.h"
 #include "kvm/util.h"
 #include "kvm/kvm.h"
 #include "kvm/pci.h"
@@ -70,8 +71,7 @@ static bool virtio_blk_pci_io_in(struct kvm *self, uint16_t port, void *data, in
 	unsigned long offset;
 	bool ret = true;
 
-	if (pthread_mutex_lock(&blk_device.mutex) != 0)
-		die("pthread_mutex_lock");
+	mutex_lock(&blk_device.mutex);
 
 	offset		= port - IOPORT_VIRTIO_BLK;
 
@@ -108,8 +108,7 @@ static bool virtio_blk_pci_io_in(struct kvm *self, uint16_t port, void *data, in
 	};
 
 out_unlock:
-	if (pthread_mutex_unlock(&blk_device.mutex) != 0)
-		die("pthread_mutex_unlock");
+	mutex_unlock(&blk_device.mutex);
 
 	return ret;
 }
@@ -180,8 +179,7 @@ static bool virtio_blk_pci_io_out(struct kvm *self, uint16_t port, void *data, i
 	unsigned long offset;
 	bool ret = true;
 
-	if (pthread_mutex_lock(&blk_device.mutex) != 0)
-		die("pthread_mutex_lock");
+	mutex_lock(&blk_device.mutex);
 
 	offset		= port - IOPORT_VIRTIO_BLK;
 
@@ -226,8 +224,7 @@ static bool virtio_blk_pci_io_out(struct kvm *self, uint16_t port, void *data, i
 	};
 
 out_unlock:
-	if (pthread_mutex_unlock(&blk_device.mutex) != 0)
-		die("pthread_mutex_unlock");
+	mutex_unlock(&blk_device.mutex);
 
 	return ret;
 }
