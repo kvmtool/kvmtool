@@ -81,7 +81,7 @@ static bool virtio_blk_pci_io_in(struct kvm *self, uint16_t port, void *data, in
 		break;
 	case VIRTIO_PCI_GUEST_FEATURES:
 		ret		= false;
-		goto out_unlock;
+		break;
 	case VIRTIO_PCI_QUEUE_PFN:
 		ioport__write32(data, blk_device.vqs[blk_device.queue_selector].pfn);
 		break;
@@ -91,7 +91,7 @@ static bool virtio_blk_pci_io_in(struct kvm *self, uint16_t port, void *data, in
 	case VIRTIO_PCI_QUEUE_SEL:
 	case VIRTIO_PCI_QUEUE_NOTIFY:
 		ret		= false;
-		goto out_unlock;
+		break;
 	case VIRTIO_PCI_STATUS:
 		ioport__write8(data, blk_device.status);
 		break;
@@ -104,10 +104,8 @@ static bool virtio_blk_pci_io_in(struct kvm *self, uint16_t port, void *data, in
 		break;
 	default:
 		ret		= virtio_blk_pci_io_device_specific_in(data, offset, size, count);
-		goto out_unlock;
 	};
 
-out_unlock:
 	mutex_unlock(&blk_device.mutex);
 
 	return ret;
@@ -220,10 +218,8 @@ static bool virtio_blk_pci_io_out(struct kvm *self, uint16_t port, void *data, i
 		break;
 	default:
 		ret		= false;
-		goto out_unlock;
 	};
 
-out_unlock:
 	mutex_unlock(&blk_device.mutex);
 
 	return ret;
