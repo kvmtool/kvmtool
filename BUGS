@@ -1,7 +1,0 @@
-Known Bugs
-==========
-
-- Launcher fails miserably if '/dev/kvm' is not found on machines that have
-  CONFIG_KVM enabled. Ingo Molnar suggested that we introduce sys_open_kvm_fd()
-  syscall similar to what we've done for '/dev/epoll'. That should also make it
-  easier to report to users when BIOS has disabled virtualization extensions.
