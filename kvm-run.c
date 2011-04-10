@@ -29,11 +29,11 @@
 #define MIN_RAM_SIZE_MB		(64ULL)
 #define MIN_RAM_SIZE_BYTE	(MIN_RAM_SIZE_MB << MB_SHIFT)
 
-#define NUM_KVM_CPUS		1
+#define KVM_NR_CPUS		(255)
 
 static struct kvm *kvm;
-static struct kvm_cpu *cpus[NUM_KVM_CPUS];
-static __thread struct kvm_cpu *current_cpu;
+static struct kvm_cpu *kvm_cpus[KVM_NR_CPUS];
+static __thread struct kvm_cpu *current_kvm_cpu;
 
 static void handle_sigint(int sig)
 {
@@ -62,6 +62,8 @@ static bool virtio_console;
 extern bool ioport_debug;
 extern int  active_console;
 
+static int nrcpus = 1;
+
 static const char * const run_usage[] = {
 	"kvm run [<options>] <kernel image>",
 	NULL
@@ -83,33 +85,34 @@ static const struct option options[] = {
 			"Enable ioport debugging"),
 	OPT_BOOLEAN('c', "enable-virtio-console", &virtio_console,
 			"Enable the virtual IO console"),
+	OPT_INTEGER('\0', "cpus", &nrcpus, "Number of CPUs"),
 	OPT_END()
 };
 
 static void *kvm_cpu_thread(void *arg)
 {
-	current_cpu		= arg;
+	current_kvm_cpu		= arg;
 
-	if (kvm_cpu__start(current_cpu))
+	if (kvm_cpu__start(current_kvm_cpu))
 		goto panic_kvm;
 
-	kvm_cpu__delete(current_cpu);
+	kvm_cpu__delete(current_kvm_cpu);
 
 	return (void *) (intptr_t) 0;
 
 panic_kvm:
 	fprintf(stderr, "KVM exit reason: %" PRIu32 " (\"%s\")\n",
-		current_cpu->kvm_run->exit_reason,
-		kvm_exit_reasons[current_cpu->kvm_run->exit_reason]);
-	if (current_cpu->kvm_run->exit_reason == KVM_EXIT_UNKNOWN)
+		current_kvm_cpu->kvm_run->exit_reason,
+		kvm_exit_reasons[current_kvm_cpu->kvm_run->exit_reason]);
+	if (current_kvm_cpu->kvm_run->exit_reason == KVM_EXIT_UNKNOWN)
 		fprintf(stderr, "KVM exit code: 0x%Lu\n",
-			current_cpu->kvm_run->hw.hardware_exit_reason);
+			current_kvm_cpu->kvm_run->hw.hardware_exit_reason);
 	disk_image__close(kvm->disk_image);
-	kvm_cpu__show_registers(current_cpu);
-	kvm_cpu__show_code(current_cpu);
-	kvm_cpu__show_page_tables(current_cpu);
+	kvm_cpu__show_registers(current_kvm_cpu);
+	kvm_cpu__show_code(current_kvm_cpu);
+	kvm_cpu__show_page_tables(current_kvm_cpu);
 
-	kvm_cpu__delete(current_cpu);
+	kvm_cpu__delete(current_kvm_cpu);
 
 	return (void *) (intptr_t) 1;
 }
@@ -149,6 +152,13 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 		}
 
 	}
+
+	if (nrcpus < 1 || nrcpus > KVM_NR_CPUS)
+		die("Number of CPUs %d is out of [1;%d] range", nrcpus, KVM_NR_CPUS);
+
+	/* FIXME: Remove as only SMP gets fully supported */
+	if (nrcpus > 1)
+		warning("Limiting CPUs to 1, true SMP is not yet implemented");
 
 	if (ram_size < MIN_RAM_SIZE_MB)
 		die("Not enough memory specified: %lluMB (min %lluMB)", ram_size, MIN_RAM_SIZE_MB);
@@ -198,22 +208,22 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	kvm__start_timer(kvm);
 
-	for (i = 0; i < NUM_KVM_CPUS; i++) {
-		cpus[i] = kvm_cpu__init(kvm, i);
-		if (!cpus[i])
+	for (i = 0; i < nrcpus; i++) {
+		kvm_cpus[i] = kvm_cpu__init(kvm, i);
+		if (!kvm_cpus[i])
 			die("unable to initialize KVM VCPU");
 
 		if (single_step)
-			kvm_cpu__enable_singlestep(cpus[i]);
+			kvm_cpu__enable_singlestep(kvm_cpus[i]);
 
-		if (pthread_create(&cpus[i]->thread, NULL, kvm_cpu_thread, cpus[i]) != 0)
+		if (pthread_create(&kvm_cpus[i]->thread, NULL, kvm_cpu_thread, kvm_cpus[i]) != 0)
 			die("unable to create KVM VCPU thread");
 	}
 
-	for (i = 0; i < NUM_KVM_CPUS; i++) {
+	for (i = 0; i < nrcpus; i++) {
 		void *ret;
 
-		if (pthread_join(cpus[i]->thread, &ret) != 0)
+		if (pthread_join(kvm_cpus[i]->thread, &ret) != 0)
 			die("pthread_join");
 
 		if (ret != NULL)
