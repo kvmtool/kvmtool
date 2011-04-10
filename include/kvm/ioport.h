@@ -18,6 +18,8 @@ struct ioport_operations {
 	bool (*io_out)(struct kvm *self, uint16_t port, void *data, int size, uint32_t count);
 };
 
+void ioport__setup_legacy(void);
+
 void ioport__register(uint16_t port, struct ioport_operations *ops, int count);
 
 static inline uint8_t ioport__read8(uint8_t *data)

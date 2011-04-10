@@ -18,6 +18,7 @@
 #include <kvm/util.h>
 #include <kvm/pci.h>
 #include <kvm/term.h>
+#include <kvm/ioport.h>
 
 /* header files for gitish interface  */
 #include <kvm/kvm-run.h>
@@ -195,6 +196,8 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	if (!kvm__load_kernel(kvm, kernel_filename, initrd_filename,
 				real_cmdline))
 		die("unable to load kernel %s", kernel_filename);
+
+	ioport__setup_legacy();
 
 	kvm__setup_bios(kvm);
 
