@@ -28,6 +28,8 @@ static inline struct vring_desc *virt_queue__get_desc(struct virt_queue *queue, 
 
 static inline bool virt_queue__available(struct virt_queue *vq)
 {
+	if (!vq->vring.avail)
+		return 0;
 	return vq->vring.avail->idx !=  vq->last_avail_idx;
 }
 
