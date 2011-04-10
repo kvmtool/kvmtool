@@ -30,23 +30,30 @@ OPTIONS
 
 -k::
 --kernel=::
-        The virtual machine kernel.
+	The virtual machine kernel.
+
 -d
 --kvm-dev=::
-	KVM device file
+	KVM device file.
 
 -i::
 --image=::
 	A disk image file.
 
 -s::
---single-step:: Enable single stepping.
+--single-step::
+	Enable single stepping.
 
 -g::
---ioport-debug:: Enable ioport debugging.
+--ioport-debug::
+	Enable ioport debugging.
 
 -c::
---enable-virtio-console:: Enable the virtual IO console
+--enable-virtio-console::
+	Enable the virtual IO console.
+
+--cpus::
+	The number of virtual CPUs to run.
 
 SEE ALSO
 --------
