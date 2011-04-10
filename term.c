@@ -9,9 +9,12 @@
 #include "kvm/term.h"
 #include "kvm/util.h"
 
-static struct termios orig_term;
+static struct termios	orig_term;
 
-int active_console = CONSOLE_8250;
+int term_escape_char	= 0x01; /* ctrl-a is used for escape */
+bool term_got_escape	= false;
+
+int active_console	= CONSOLE_8250;
 
 int term_getc(int who)
 {
@@ -22,6 +25,24 @@ int term_getc(int who)
 
 	if (read_in_full(STDIN_FILENO, &c, 1) < 0)
 		return -1;
+
+	c &= 0xff;
+
+	if (term_got_escape) {
+		term_got_escape = false;
+		if (c == 'x') {
+			printf("\n  # KVM session terminated.\n");
+			exit(1);
+		}
+		if (c == term_escape_char)
+			return c;
+	}
+
+	if (c == term_escape_char) {
+		term_got_escape = true;
+		return -1;
+	}
+
 	return c;
 }
 
@@ -39,16 +60,26 @@ int term_putc(int who, char *addr, int cnt)
 
 int term_getc_iov(int who, struct iovec *iov, int iovcnt)
 {
-	if (who != active_console)
-		return -1;
+	int c;
 
-	return readv(STDIN_FILENO, iov, iovcnt);
+	if (who != active_console)
+		return 0;
+
+	c = term_getc(who);
+
+	if (c < 0)
+		return 0;
+
+	*((int *)iov[0].iov_base)	= c;
+	iov[0].iov_len			= sizeof(int);
+
+	return sizeof(int);
 }
 
 int term_putc_iov(int who, struct iovec *iov, int iovcnt)
 {
 	if (who != active_console)
-		return -1;
+		return 0;
 
 	return writev(STDOUT_FILENO, iov, iovcnt);
 }
