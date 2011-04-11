@@ -25,6 +25,7 @@
 #include <kvm/parse-options.h>
 
 #define DEFAULT_KVM_DEV		"/dev/kvm"
+#define DEFAULT_CONSOLE		"serial"
 
 #define MB_SHIFT		(20)
 #define MIN_RAM_SIZE_MB		(64ULL)
@@ -57,9 +58,9 @@ static const char *kernel_cmdline;
 static const char *kernel_filename;
 static const char *initrd_filename;
 static const char *image_filename;
+static const char *console;
 static const char *kvm_dev;
 static bool single_step;
-static bool virtio_console;
 extern bool ioport_debug;
 extern int  active_console;
 
@@ -84,8 +85,8 @@ static const struct option options[] = {
 			"Enable single stepping"),
 	OPT_BOOLEAN('g', "ioport-debug", &ioport_debug,
 			"Enable ioport debugging"),
-	OPT_BOOLEAN('c', "enable-virtio-console", &virtio_console,
-			"Enable the virtual IO console"),
+	OPT_STRING('c', "console", &console, "serial or virtio",
+			"Console to use"),
 	OPT_INTEGER('\0', "cpus", &nrcpus, "Number of CPUs"),
 	OPT_END()
 };
@@ -169,8 +170,13 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	if (!kvm_dev)
 		kvm_dev = DEFAULT_KVM_DEV;
 
-	if (virtio_console == true)
+	if (!console)
+		console = DEFAULT_CONSOLE;
+
+	if (!strncmp(console, "virtio", 6))
 		active_console  = CONSOLE_VIRTIO;
+	else
+		active_console  = CONSOLE_8250;
 
 	term_init();
 

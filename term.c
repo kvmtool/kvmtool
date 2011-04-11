@@ -14,7 +14,7 @@ static struct termios	orig_term;
 int term_escape_char	= 0x01; /* ctrl-a is used for escape */
 bool term_got_escape	= false;
 
-int active_console	= CONSOLE_8250;
+int active_console;
 
 int term_getc(int who)
 {
