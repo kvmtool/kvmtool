@@ -61,6 +61,7 @@ static const char *image_filename;
 static const char *console;
 static const char *kvm_dev;
 static bool single_step;
+static bool readonly_image;
 extern bool ioport_debug;
 extern int  active_console;
 
@@ -80,6 +81,8 @@ static const struct option options[] = {
 	OPT_STRING('k', "kernel", &kernel_filename, "kernel",
 			"Kernel to boot in virtual machine"),
 	OPT_STRING('i', "image", &image_filename, "image", "Disk image"),
+	OPT_BOOLEAN('\0', "readonly", &readonly_image,
+			"Don't write changes back to disk image"),
 	OPT_STRING('d', "kvm-dev", &kvm_dev, "kvm-dev", "KVM device file"),
 	OPT_BOOLEAN('s', "single-step", &single_step,
 			"Enable single stepping"),
@@ -183,7 +186,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	kvm = kvm__init(kvm_dev, ram_size);
 
 	if (image_filename) {
-		kvm->disk_image	= disk_image__open(image_filename);
+		kvm->disk_image	= disk_image__open(image_filename, readonly_image);
 		if (!kvm->disk_image)
 			die("unable to load disk image %s", image_filename);
 	}
