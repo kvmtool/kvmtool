@@ -227,7 +227,7 @@ static struct pci_device_header virtio_console_pci_device = {
 	.subsys_vendor_id	= PCI_SUBSYSTEM_VENDOR_ID_REDHAT_QUMRANET,
 	.subsys_id		= PCI_SUBSYSTEM_ID_VIRTIO_CONSOLE,
 	.bar[0]			= IOPORT_VIRTIO_CONSOLE | PCI_BASE_ADDRESS_SPACE_IO,
-	.irq_pin		= 3,
+	.irq_pin		= 2,
 	.irq_line		= VIRTIO_CONSOLE_IRQ,
 };
 
