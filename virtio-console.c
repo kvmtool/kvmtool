@@ -163,6 +163,8 @@ static bool virtio_console_pci_io_out(struct kvm *self, uint16_t port, void *dat
 	unsigned long offset = port - IOPORT_VIRTIO_CONSOLE;
 	bool ret = true;
 
+	mutex_lock(&console_device.mutex);
+
 	switch (offset) {
 	case VIRTIO_PCI_GUEST_FEATURES:
 		console_device.guest_features	= ioport__read32(data);
