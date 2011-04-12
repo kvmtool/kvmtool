@@ -177,7 +177,8 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	}
 
-	kernel_filename = find_host_kernel();
+	if (!kernel_filename)
+		kernel_filename = find_host_kernel();
 
 	if (!kernel_filename) {
 		usage_with_options(run_usage, options);
