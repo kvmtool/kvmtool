@@ -212,7 +212,7 @@ static struct ioport_operations virtio_console_io_ops = {
 };
 
 #define PCI_VENDOR_ID_REDHAT_QUMRANET		0x1af4
-#define PCI_DEVICE_ID_VIRTIO_CONSOLE		0x1002
+#define PCI_DEVICE_ID_VIRTIO_CONSOLE		0x1003
 #define PCI_SUBSYSTEM_VENDOR_ID_REDHAT_QUMRANET	0x1af4
 #define PCI_SUBSYSTEM_ID_VIRTIO_CONSOLE		0x0003
 
@@ -221,7 +221,7 @@ static struct pci_device_header virtio_console_pci_device = {
 	.device_id		= PCI_DEVICE_ID_VIRTIO_CONSOLE,
 	.header_type		= PCI_HEADER_TYPE_NORMAL,
 	.revision_id		= 0,
-	.class			= (0x07 << 8) | (0x80 << 4) | (0x0 << 0),
+	.class			= 0x078000,
 	.subsys_vendor_id	= PCI_SUBSYSTEM_VENDOR_ID_REDHAT_QUMRANET,
 	.subsys_id		= PCI_SUBSYSTEM_ID_VIRTIO_CONSOLE,
 	.bar[0]			= IOPORT_VIRTIO_CONSOLE | PCI_BASE_ADDRESS_SPACE_IO,
