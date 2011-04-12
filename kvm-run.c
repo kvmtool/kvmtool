@@ -6,6 +6,9 @@
 #include <inttypes.h>
 #include <stdlib.h>
 #include <termios.h>
+#include <sys/utsname.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 /* user defined header files */
 #include <linux/types.h>
@@ -68,7 +71,7 @@ extern int  active_console;
 static int nrcpus = 1;
 
 static const char * const run_usage[] = {
-	"kvm run [<options>] <kernel image>",
+	"kvm run [<options>] [<kernel image>]",
 	NULL
 };
 
@@ -122,6 +125,28 @@ panic_kvm:
 	return (void *) (intptr_t) 1;
 }
 
+static char host_kernel[PATH_MAX];
+
+static const char *find_host_kernel(void)
+{
+	struct utsname uts;
+	struct stat st;
+
+	if (uname(&uts) < 0)
+		return NULL;
+
+	if (snprintf(host_kernel, PATH_MAX, "/boot/vmlinuz-%s", uts.release) < 0)
+		return NULL;
+
+	if (stat(host_kernel, &st) < 0)
+		return NULL;
+
+	if (!S_ISREG(st.st_mode))
+		return NULL;
+
+	return host_kernel;
+}
+
 int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 {
 	static char real_cmdline[2048];
@@ -131,12 +156,6 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	signal(SIGALRM, handle_sigalrm);
 	signal(SIGQUIT, handle_sigquit);
 	signal(SIGINT, handle_sigint);
-
-	if (!argv || !*argv) {
-		/* no argument specified */
-		usage_with_options(run_usage, options);
-		return EINVAL;
-	}
 
 	while (argc != 0) {
 		argc = parse_options(argc, argv, options, run_usage,
@@ -156,6 +175,13 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 			argc--;
 		}
 
+	}
+
+	kernel_filename = find_host_kernel();
+
+	if (!kernel_filename) {
+		usage_with_options(run_usage, options);
+		return EINVAL;
 	}
 
 	if (nrcpus < 1 || nrcpus > KVM_NR_CPUS)
