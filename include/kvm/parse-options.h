@@ -132,6 +132,12 @@ intptr_t defval;
 	.help = (h)                         \
 }
 
+#define OPT_GROUP(h)                        \
+{                                           \
+	.type = OPTION_GROUP,               \
+	.help = (h)                         \
+}
+
 #define OPT_END() { .type = OPTION_END }
 
 enum {
