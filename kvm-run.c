@@ -76,24 +76,29 @@ static const char * const run_usage[] = {
 };
 
 static const struct option options[] = {
+	OPT_GROUP("Basic options:"),
+	OPT_INTEGER('\0', "cpus", &nrcpus, "Number of CPUs"),
 	OPT_U64('m', "mem", &ram_size, "Virtual machine memory size in MiB."),
-	OPT_STRING('p', "params", &kernel_cmdline, "params",
-			"Kernel command line arguments"),
-	OPT_STRING('r', "initrd", &initrd_filename, "initrd",
-			"Initial RAM disk image"),
-	OPT_STRING('k', "kernel", &kernel_filename, "kernel",
-			"Kernel to boot in virtual machine"),
 	OPT_STRING('i', "image", &image_filename, "image", "Disk image"),
 	OPT_BOOLEAN('\0', "readonly", &readonly_image,
 			"Don't write changes back to disk image"),
+	OPT_STRING('c', "console", &console, "serial or virtio",
+			"Console to use"),
+
+	OPT_GROUP("Kernel options:"),
+	OPT_STRING('k', "kernel", &kernel_filename, "kernel",
+			"Kernel to boot in virtual machine"),
+	OPT_STRING('r', "initrd", &initrd_filename, "initrd",
+			"Initial RAM disk image"),
+	OPT_STRING('p', "params", &kernel_cmdline, "params",
+			"Kernel command line arguments"),
+
+	OPT_GROUP("Debug options:"),
 	OPT_STRING('d', "kvm-dev", &kvm_dev, "kvm-dev", "KVM device file"),
 	OPT_BOOLEAN('s', "single-step", &single_step,
 			"Enable single stepping"),
 	OPT_BOOLEAN('g', "ioport-debug", &ioport_debug,
 			"Enable ioport debugging"),
-	OPT_STRING('c', "console", &console, "serial or virtio",
-			"Console to use"),
-	OPT_INTEGER('\0', "cpus", &nrcpus, "Number of CPUs"),
 	OPT_END()
 };
 
