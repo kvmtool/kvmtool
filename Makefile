@@ -14,6 +14,7 @@ TAGS = ctags
 
 OBJS	+= 8250-serial.o
 OBJS	+= virtio-blk.o
+OBJS	+= virtio-net.o
 OBJS	+= virtio-console.o
 OBJS	+= cpuid.o
 OBJS	+= read-write.o

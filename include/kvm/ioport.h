@@ -10,6 +10,8 @@
 #define IOPORT_VIRTIO_BLK_SIZE		256
 #define IOPORT_VIRTIO_CONSOLE		0xd200	/* Virtio console device */
 #define IOPORT_VIRTIO_CONSOLE_SIZE	256
+#define IOPORT_VIRTIO_NET		0xe200	/* Virtio network device */
+#define IOPORT_VIRTIO_NET_SIZE		256
 
 struct kvm;
 

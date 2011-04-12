@@ -16,6 +16,7 @@
 #include <kvm/kvm-cpu.h>
 #include <kvm/8250-serial.h>
 #include <kvm/virtio-blk.h>
+#include <kvm/virtio-net.h>
 #include <kvm/virtio-console.h>
 #include <kvm/disk-image.h>
 #include <kvm/util.h>
@@ -29,6 +30,7 @@
 
 #define DEFAULT_KVM_DEV		"/dev/kvm"
 #define DEFAULT_CONSOLE		"serial"
+#define DEFAULT_NETWORK		"none"
 
 #define MB_SHIFT		(20)
 #define MIN_RAM_SIZE_MB		(64ULL)
@@ -63,6 +65,7 @@ static const char *initrd_filename;
 static const char *image_filename;
 static const char *console;
 static const char *kvm_dev;
+static const char *network;
 static bool single_step;
 static bool readonly_image;
 extern bool ioport_debug;
@@ -84,6 +87,8 @@ static const struct option options[] = {
 			"Don't write changes back to disk image"),
 	OPT_STRING('c', "console", &console, "serial or virtio",
 			"Console to use"),
+	OPT_STRING('n', "network", &network, "virtio",
+			"Network to use"),
 
 	OPT_GROUP("Kernel options:"),
 	OPT_STRING('k', "kernel", &kernel_filename, "kernel",
@@ -249,6 +254,12 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	virtio_blk__init(kvm);
 
 	virtio_console__init(kvm);
+
+	if (!network)
+		network = DEFAULT_NETWORK;
+
+	if (!strncmp(network, "virtio", 6))
+		virtio_net__init(kvm);
 
 	kvm__start_timer(kvm);
 
