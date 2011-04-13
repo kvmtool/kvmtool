@@ -4,6 +4,9 @@
 #include "kvm/qcow.h"
 #include "kvm/util.h"
 
+#include <linux/fs.h>	/* for BLKGETSIZE64 */
+
+#include <sys/ioctl.h>
 #include <sys/types.h>
 #include <inttypes.h>
 #include <sys/mman.h>
@@ -110,23 +113,43 @@ static struct disk_image_operations raw_image_ro_mmap_ops = {
 	.close			= raw_image__close_sector_ro_mmap,
 };
 
-static struct disk_image *raw_image__probe(int fd, bool readonly)
+static struct disk_image *raw_image__probe(int fd, struct stat *st, bool readonly)
 {
-	struct stat st;
+	if (readonly)
+		return disk_image__new_readonly(fd, st->st_size, &raw_image_ro_mmap_ops);
+	else
+		return disk_image__new(fd, st->st_size, &raw_image_ops);
+}
 
-	if (fstat(fd, &st) < 0)
+static struct disk_image *blkdev__probe(const char *filename, struct stat *st)
+{
+	uint64_t size;
+	int fd;
+
+	if (!S_ISBLK(st->st_mode))
 		return NULL;
 
-	if (readonly)
-		return disk_image__new_readonly(fd, st.st_size, &raw_image_ro_mmap_ops);
-	else
-		return disk_image__new(fd, st.st_size, &raw_image_ops);
+	fd		= open(filename, O_RDONLY);
+	if (fd < 0)
+		return NULL;
+
+	if (ioctl(fd, BLKGETSIZE64, &size) < 0)
+		return NULL;
+
+	return disk_image__new_readonly(fd, size, &raw_image_ro_mmap_ops);
 }
 
 struct disk_image *disk_image__open(const char *filename, bool readonly)
 {
 	struct disk_image *self;
+	struct stat st;
 	int fd;
+
+	if (stat(filename, &st) < 0)
+		return NULL;
+
+	if (S_ISBLK(st.st_mode))
+		return blkdev__probe(filename, &st);
 
 	fd		= open(filename, readonly ? O_RDONLY : O_RDWR);
 	if (fd < 0)
@@ -136,7 +159,7 @@ struct disk_image *disk_image__open(const char *filename, bool readonly)
 	if (self)
 		return self;
 
-	self = raw_image__probe(fd, readonly);
+	self = raw_image__probe(fd, &st, readonly);
 	if (self)
 		return self;
 
