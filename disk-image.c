@@ -92,6 +92,12 @@ static int raw_image__write_sector_ro_mmap(struct disk_image *self, uint64_t sec
 	return 0;
 }
 
+static void raw_image__close_sector_ro_mmap(struct disk_image *self)
+{
+	if (self->priv != MAP_FAILED)
+		munmap(self->priv, self->size);
+}
+
 static struct disk_image_operations raw_image_ops = {
 	.read_sector		= raw_image__read_sector,
 	.write_sector		= raw_image__write_sector,
@@ -100,6 +106,7 @@ static struct disk_image_operations raw_image_ops = {
 static struct disk_image_operations raw_image_ro_mmap_ops = {
 	.read_sector		= raw_image__read_sector_ro_mmap,
 	.write_sector		= raw_image__write_sector_ro_mmap,
+	.close			= raw_image__close_sector_ro_mmap,
 };
 
 static struct disk_image *raw_image__probe(int fd, bool readonly)
@@ -139,9 +146,6 @@ void disk_image__close(struct disk_image *self)
 	/* If there was no disk image then there's nothing to do: */
 	if (!self)
 		return;
-
-	if (self->priv != MAP_FAILED)
-		munmap(self->priv, self->size);
 
 	if (self->ops->close)
 		self->ops->close(self);
