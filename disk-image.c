@@ -13,7 +13,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-struct disk_image *disk_image__new(int fd, uint64_t size, struct disk_image_operations *ops, bool readonly)
+struct disk_image *disk_image__new(int fd, uint64_t size, struct disk_image_operations *ops)
 {
 	struct disk_image *self;
 
@@ -24,15 +24,23 @@ struct disk_image *disk_image__new(int fd, uint64_t size, struct disk_image_oper
 	self->fd	= fd;
 	self->size	= size;
 	self->ops	= ops;
-	if (readonly) {
-		self->priv = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_NORESERVE, fd, 0);
-		if (self->priv == MAP_FAILED)
-			die("mmap() failed");
-	} else
-		self->priv = MAP_FAILED;
-
 	return self;
 }
+
+struct disk_image *disk_image__new_readonly(int fd, uint64_t size, struct disk_image_operations *ops)
+{
+	struct disk_image *self;
+
+	self = disk_image__new(fd, size, ops);
+	if (!self)
+		return NULL;
+
+	self->priv = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_NORESERVE, fd, 0);
+	if (self->priv == MAP_FAILED)
+		die("mmap() failed");
+	return self;
+}
+
 
 static int raw_image__read_sector(struct disk_image *self, uint64_t sector, void *dst, uint32_t dst_len)
 {
@@ -101,7 +109,10 @@ static struct disk_image *raw_image__probe(int fd, bool readonly)
 	if (fstat(fd, &st) < 0)
 		return NULL;
 
-	return disk_image__new(fd, st.st_size, readonly ? &raw_image_ro_mmap_ops : &raw_image_ops, readonly);
+	if (readonly)
+		return disk_image__new_readonly(fd, st.st_size, &raw_image_ro_mmap_ops);
+	else
+		return disk_image__new(fd, st.st_size, &raw_image_ops);
 }
 
 struct disk_image *disk_image__open(const char *filename, bool readonly)

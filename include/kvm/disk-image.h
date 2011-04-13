@@ -23,7 +23,8 @@ struct disk_image {
 };
 
 struct disk_image *disk_image__open(const char *filename, bool readonly);
-struct disk_image *disk_image__new(int fd, uint64_t size, struct disk_image_operations *ops, bool readonly);
+struct disk_image *disk_image__new(int fd, uint64_t size, struct disk_image_operations *ops);
+struct disk_image *disk_image__new_readonly(int fd, uint64_t size, struct disk_image_operations *ops);
 void disk_image__close(struct disk_image *self);
 
 static inline int disk_image__read_sector(struct disk_image *self, uint64_t sector, void *dst, uint32_t dst_len)
