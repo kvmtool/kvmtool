@@ -1,6 +1,7 @@
 #include "kvm/disk-image.h"
 
 #include "kvm/read-write.h"
+#include "kvm/qcow.h"
 #include "kvm/util.h"
 
 #include <sys/types.h>
@@ -130,6 +131,10 @@ struct disk_image *disk_image__open(const char *filename, bool readonly)
 	fd		= open(filename, readonly ? O_RDONLY : O_RDWR);
 	if (fd < 0)
 		return NULL;
+
+	self = qcow_probe(fd);
+	if (self)
+		return self;
 
 	self = raw_image__probe(fd, readonly);
 	if (self)
