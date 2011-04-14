@@ -6,6 +6,7 @@ struct kvm;
 struct virtio_net_parameters {
 	struct kvm *self;
 	const char *host_ip;
+	char guest_mac[6];
 };
 
 void virtio_net__init(const struct virtio_net_parameters *params);

@@ -32,6 +32,7 @@
 #define DEFAULT_CONSOLE		"serial"
 #define DEFAULT_NETWORK		"virtio"
 #define DEFAULT_HOST_ADDR	"192.168.33.2"
+#define DEFAULT_GUEST_MAC	"00:11:22:33:44:55"
 
 #define MB_SHIFT		(20)
 #define MIN_RAM_SIZE_MB		(64ULL)
@@ -63,6 +64,7 @@ static const char *console;
 static const char *kvm_dev;
 static const char *network;
 static const char *host_ip_addr;
+static const char *guest_mac;
 static bool single_step;
 static bool readonly_image;
 extern bool ioport_debug;
@@ -98,7 +100,8 @@ static const struct option options[] = {
 			"Network to use"),
 	OPT_STRING('\0', "host-ip-addr", &host_ip_addr, "a.b.c.d",
 			"Assign this address to the host side networking"),
-
+	OPT_STRING('\0', "guest-mac", &guest_mac, "aa:bb:cc:dd:ee:ff",
+			"Assign this address to the guest side NIC"),
 	OPT_GROUP("Debug options:"),
 	OPT_STRING('d', "kvm-dev", &kvm_dev, "kvm-dev", "KVM device file"),
 	OPT_BOOLEAN('s', "single-step", &single_step,
@@ -271,6 +274,9 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	if (!host_ip_addr)
 		host_ip_addr = DEFAULT_HOST_ADDR;
 
+	if (!guest_mac)
+		guest_mac = DEFAULT_GUEST_MAC;
+
 	term_init();
 
 	kvm = kvm__init(kvm_dev, ram_size);
@@ -316,6 +322,14 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 			.host_ip = host_ip_addr,
 			.self = kvm
 		};
+		sscanf(guest_mac,	"%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
+							net_params.guest_mac,
+							net_params.guest_mac+1,
+							net_params.guest_mac+2,
+							net_params.guest_mac+3,
+							net_params.guest_mac+4,
+							net_params.guest_mac+5);
+
 		virtio_net__init(&net_params);
 	}
 

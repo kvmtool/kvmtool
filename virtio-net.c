@@ -280,7 +280,11 @@ static bool virtio_net__tap_init(const struct virtio_net_parameters *params)
 {
 	struct ifreq ifr;
 	int sock = socket(AF_INET, SOCK_STREAM, 0);
+	int i;
 	struct sockaddr_in sin = {0};
+
+	for (i = 0 ; i < 6 ; i++)
+		net_device.net_config.mac[i] = params->guest_mac[i];
 
 	net_device.tap_fd = open("/dev/net/tun", O_RDWR);
 	if (net_device.tap_fd < 0) {
