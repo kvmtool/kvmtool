@@ -30,7 +30,7 @@
 
 #define DEFAULT_KVM_DEV		"/dev/kvm"
 #define DEFAULT_CONSOLE		"serial"
-#define DEFAULT_NETWORK		"none"
+#define DEFAULT_NETWORK		"virtio"
 #define DEFAULT_HOST_ADDR	"192.168.33.2"
 
 #define MB_SHIFT		(20)
@@ -311,7 +311,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	if (!network)
 		network = DEFAULT_NETWORK;
 
-	if (!strncmp(network, "virtio", 6))	{
+	if (!strncmp(network, "virtio", 6)) {
 		net_params = (struct virtio_net_parameters) {
 			.host_ip = host_ip_addr,
 			.self = kvm

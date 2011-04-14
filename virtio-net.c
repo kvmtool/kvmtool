@@ -276,21 +276,25 @@ static struct pci_device_header virtio_net_pci_device = {
 	.irq_line		= VIRTIO_NET_IRQ,
 };
 
-static void virtio_net__tap_init(const struct virtio_net_parameters *params)
+static bool virtio_net__tap_init(const struct virtio_net_parameters *params)
 {
 	struct ifreq ifr;
 	int sock = socket(AF_INET, SOCK_STREAM, 0);
 	struct sockaddr_in sin = {0};
 
 	net_device.tap_fd = open("/dev/net/tun", O_RDWR);
-	if (net_device.tap_fd < 0)
-		die("Unable to open /dev/net/tun\n");
+	if (net_device.tap_fd < 0) {
+		warning("Unable to open /dev/net/tun\n");
+		goto fail;
+	}
 
 	memset(&ifr, 0, sizeof(ifr));
 	ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
 
-	if (ioctl(net_device.tap_fd, TUNSETIFF, &ifr) < 0)
-		die("Config tap device error. Are you root?");
+	if (ioctl(net_device.tap_fd, TUNSETIFF, &ifr) < 0) {
+		warning("Config tap device error. Are you root?");
+		goto fail;
+	}
 
 	strncpy(net_device.tap_name, ifr.ifr_name, sizeof(net_device.tap_name));
 
@@ -305,8 +309,10 @@ static void virtio_net__tap_init(const struct virtio_net_parameters *params)
 	memcpy(&(ifr.ifr_addr), &sin, sizeof(ifr.ifr_addr));
 	ifr.ifr_addr.sa_family = AF_INET;
 
-	if (ioctl(sock, SIOCSIFADDR, &ifr) < 0)
+	if (ioctl(sock, SIOCSIFADDR, &ifr) < 0) {
 		warning("Can not set ip address on tap device");
+		goto fail;
+	}
 
 	memset(&ifr, 0, sizeof(ifr));
 	strncpy(ifr.ifr_name, net_device.tap_name, sizeof(net_device.tap_name));
@@ -316,6 +322,16 @@ static void virtio_net__tap_init(const struct virtio_net_parameters *params)
 		warning("Could not bring tap device up");
 
 	close(sock);
+
+	return 1;
+
+fail:
+	if (sock >= 0)
+		close(sock);
+	if (net_device.tap_fd >= 0)
+		close(net_device.tap_fd);
+
+	return 0;
 }
 
 static void virtio_net__io_thread_init(struct kvm *self)
@@ -332,9 +348,10 @@ static void virtio_net__io_thread_init(struct kvm *self)
 
 void virtio_net__init(const struct virtio_net_parameters *params)
 {
-	pci__register(&virtio_net_pci_device, PCI_VIRTIO_NET_DEVNUM);
-	ioport__register(IOPORT_VIRTIO_NET, &virtio_net_io_ops, IOPORT_VIRTIO_NET_SIZE);
+	if (virtio_net__tap_init(params)) {
+		pci__register(&virtio_net_pci_device, PCI_VIRTIO_NET_DEVNUM);
+		ioport__register(IOPORT_VIRTIO_NET, &virtio_net_io_ops, IOPORT_VIRTIO_NET_SIZE);
 
-	virtio_net__tap_init(params);
-	virtio_net__io_thread_init(params->self);
+		virtio_net__io_thread_init(params->self);
+	}
 }
