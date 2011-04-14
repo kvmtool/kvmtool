@@ -136,26 +136,75 @@ panic_kvm:
 	return (void *) (intptr_t) 1;
 }
 
-static char host_kernel[PATH_MAX];
+static char kernel[PATH_MAX];
+const char *host_kernels[] = {
+	"/boot/vmlinuz",
+	"/boot/bzImage",
+	NULL
+};
+const char *defult_kernels[] = {
+	"./bzImage",
+	"../../arch/x86/boot/bzImage",
+	NULL
+};
 
-static const char *find_host_kernel(void)
+static void kernel_usage_with_options(void)
 {
+	const char **k;
 	struct utsname uts;
+
+	fprintf(stderr, "Fatal: could not find default kernel image in:\n");
+	k = &defult_kernels[0];
+	while (*k) {
+		fprintf(stderr, "\t%s\n", *k);
+		k++;
+	}
+
+	if (uname(&uts) < 0)
+		return;
+
+	k = &host_kernels[0];
+	while (*k) {
+		if (snprintf(kernel, PATH_MAX, "%s-%s", *k, uts.release) < 0)
+			return;
+		fprintf(stderr, "\t%s\n", kernel);
+		k++;
+	}
+	usage_with_options(run_usage, options);
+}
+
+static const char *find_kernel(void)
+{
+	const char **k;
 	struct stat st;
+	struct utsname uts;
+
+	k = &defult_kernels[0];
+	while (*k) {
+		if (stat(*k, &st) < 0 || !S_ISREG(st.st_mode)) {
+			k++;
+			continue;
+		}
+		strncpy(kernel, *k, PATH_MAX);
+		return kernel;
+	}
 
 	if (uname(&uts) < 0)
 		return NULL;
 
-	if (snprintf(host_kernel, PATH_MAX, "/boot/vmlinuz-%s", uts.release) < 0)
-		return NULL;
+	k = &host_kernels[0];
+	while (*k) {
+		if (snprintf(kernel, PATH_MAX, "%s-%s", *k, uts.release) < 0)
+			return NULL;
 
-	if (stat(host_kernel, &st) < 0)
-		return NULL;
+		if (stat(kernel, &st) < 0 || !S_ISREG(st.st_mode)) {
+			k++;
+			continue;
+		}
+		return kernel;
 
-	if (!S_ISREG(st.st_mode))
-		return NULL;
-
-	return host_kernel;
+	}
+	return NULL;
 }
 
 int kvm_cmd_run(int argc, const char **argv, const char *prefix)
@@ -188,10 +237,10 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	}
 
 	if (!kernel_filename)
-		kernel_filename = find_host_kernel();
+		kernel_filename = find_kernel();
 
 	if (!kernel_filename) {
-		usage_with_options(run_usage, options);
+		kernel_usage_with_options();
 		return EINVAL;
 	}
 
