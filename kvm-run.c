@@ -212,6 +212,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	static char real_cmdline[2048];
 	int exit_code = 0;
 	int i;
+	struct virtio_net_parameters net_params;
 
 	signal(SIGALRM, handle_sigalrm);
 	signal(SIGQUIT, handle_sigquit);
@@ -310,8 +311,13 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	if (!network)
 		network = DEFAULT_NETWORK;
 
-	if (!strncmp(network, "virtio", 6))
-		virtio_net__init(kvm, host_ip_addr);
+	if (!strncmp(network, "virtio", 6))	{
+		net_params = (struct virtio_net_parameters) {
+			.host_ip = host_ip_addr,
+			.self = kvm
+		};
+		virtio_net__init(&net_params);
+	}
 
 	kvm__start_timer(kvm);
 

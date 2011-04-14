@@ -2,6 +2,12 @@
 #define KVM__VIRTIO_NET_H
 
 struct kvm;
-void virtio_net__init(struct kvm *self, const char *host_ip_addr);
+
+struct virtio_net_parameters {
+	struct kvm *self;
+	const char *host_ip;
+};
+
+void virtio_net__init(const struct virtio_net_parameters *params);
 
 #endif /* KVM__VIRTIO_NET_H */

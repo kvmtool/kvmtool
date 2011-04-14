@@ -276,7 +276,7 @@ static struct pci_device_header virtio_net_pci_device = {
 	.irq_line		= VIRTIO_NET_IRQ,
 };
 
-static void virtio_net__tap_init(const char *host_ip_addr)
+static void virtio_net__tap_init(const struct virtio_net_parameters *params)
 {
 	struct ifreq ifr;
 	int sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -301,7 +301,7 @@ static void virtio_net__tap_init(const char *host_ip_addr)
 
 	strncpy(ifr.ifr_name, net_device.tap_name, sizeof(net_device.tap_name));
 
-	sin.sin_addr.s_addr = inet_addr(host_ip_addr);
+	sin.sin_addr.s_addr = inet_addr(params->host_ip);
 	memcpy(&(ifr.ifr_addr), &sin, sizeof(ifr.ifr_addr));
 	ifr.ifr_addr.sa_family = AF_INET;
 
@@ -330,11 +330,11 @@ static void virtio_net__io_thread_init(struct kvm *self)
 	pthread_create(&net_device.io_tx_thread, NULL, virtio_net_tx_thread, (void *)self);
 }
 
-void virtio_net__init(struct kvm *self, const char *host_ip_addr)
+void virtio_net__init(const struct virtio_net_parameters *params)
 {
 	pci__register(&virtio_net_pci_device, PCI_VIRTIO_NET_DEVNUM);
 	ioport__register(IOPORT_VIRTIO_NET, &virtio_net_io_ops, IOPORT_VIRTIO_NET_SIZE);
 
-	virtio_net__tap_init(host_ip_addr);
-	virtio_net__io_thread_init(self);
+	virtio_net__tap_init(params);
+	virtio_net__io_thread_init(params->self);
 }
