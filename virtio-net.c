@@ -14,6 +14,9 @@
 #include <sys/ioctl.h>
 #include <assert.h>
 #include <fcntl.h>
+#include <arpa/inet.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 
 #define VIRTIO_NET_IRQ		14
 #define VIRTIO_NET_QUEUE_SIZE	128
@@ -276,6 +279,8 @@ static struct pci_device_header virtio_net_pci_device = {
 static void virtio_net__tap_init(void)
 {
 	struct ifreq ifr;
+	int sock = socket(AF_INET, SOCK_STREAM, 0);
+	struct sockaddr_in sin = {0};
 
 	net_device.tap_fd = open("/dev/net/tun", O_RDWR);
 	if (net_device.tap_fd < 0)
@@ -291,9 +296,27 @@ static void virtio_net__tap_init(void)
 
 	ioctl(net_device.tap_fd, TUNSETNOCSUM, 1);
 
+
+	memset(&ifr, 0, sizeof(ifr));
+
+	strncpy(ifr.ifr_name, net_device.tap_name, sizeof(net_device.tap_name));
+
 	/*FIXME: Remove this after user can specify ip address and netmask*/
-	if (system("ifconfig tap0 192.168.33.2") < 0)
-		warning("Can not set ip address on tap0");
+	sin.sin_addr.s_addr = inet_addr("192.168.33.2");
+	memcpy(&(ifr.ifr_addr), &sin, sizeof(ifr.ifr_addr));
+	ifr.ifr_addr.sa_family = AF_INET;
+
+	if (ioctl(sock, SIOCSIFADDR, &ifr) < 0)
+		warning("Can not set ip address on tap device");
+
+	memset(&ifr, 0, sizeof(ifr));
+	strncpy(ifr.ifr_name, net_device.tap_name, sizeof(net_device.tap_name));
+	ioctl(sock, SIOCGIFFLAGS, &ifr);
+	ifr.ifr_flags |= IFF_UP | IFF_RUNNING;
+	if (ioctl(sock, SIOCSIFFLAGS, &ifr) < 0)
+		warning("Could not bring tap device up");
+
+	close(sock);
 }
 
 static void virtio_net__io_thread_init(struct kvm *self)
