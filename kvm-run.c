@@ -31,6 +31,7 @@
 #define DEFAULT_KVM_DEV		"/dev/kvm"
 #define DEFAULT_CONSOLE		"serial"
 #define DEFAULT_NETWORK		"none"
+#define DEFAULT_HOST_ADDR	"192.168.33.2"
 
 #define MB_SHIFT		(20)
 #define MIN_RAM_SIZE_MB		(64ULL)
@@ -66,6 +67,7 @@ static const char *image_filename;
 static const char *console;
 static const char *kvm_dev;
 static const char *network;
+static const char *host_ip_addr;
 static bool single_step;
 static bool readonly_image;
 extern bool ioport_debug;
@@ -87,8 +89,6 @@ static const struct option options[] = {
 			"Don't write changes back to disk image"),
 	OPT_STRING('c', "console", &console, "serial or virtio",
 			"Console to use"),
-	OPT_STRING('n', "network", &network, "virtio",
-			"Network to use"),
 
 	OPT_GROUP("Kernel options:"),
 	OPT_STRING('k', "kernel", &kernel_filename, "kernel",
@@ -97,6 +97,12 @@ static const struct option options[] = {
 			"Initial RAM disk image"),
 	OPT_STRING('p', "params", &kernel_cmdline, "params",
 			"Kernel command line arguments"),
+
+	OPT_GROUP("Networking options:"),
+	OPT_STRING('n', "network", &network, "virtio",
+			"Network to use"),
+	OPT_STRING('\0', "host-ip-addr", &host_ip_addr, "a.b.c.d",
+			"Assign this address to the host side networking"),
 
 	OPT_GROUP("Debug options:"),
 	OPT_STRING('d', "kvm-dev", &kvm_dev, "kvm-dev", "KVM device file"),
@@ -218,6 +224,9 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	else
 		active_console  = CONSOLE_8250;
 
+	if (!host_ip_addr)
+		host_ip_addr = DEFAULT_HOST_ADDR;
+
 	term_init();
 
 	kvm = kvm__init(kvm_dev, ram_size);
@@ -259,7 +268,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 		network = DEFAULT_NETWORK;
 
 	if (!strncmp(network, "virtio", 6))
-		virtio_net__init(kvm);
+		virtio_net__init(kvm, host_ip_addr);
 
 	kvm__start_timer(kvm);
 
