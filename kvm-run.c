@@ -43,11 +43,6 @@ static struct kvm *kvm;
 static struct kvm_cpu *kvm_cpus[KVM_NR_CPUS];
 static __thread struct kvm_cpu *current_kvm_cpu;
 
-static void handle_sigint(int sig)
-{
-	exit(1);
-}
-
 static void handle_sigquit(int sig)
 {
 	serial8250__inject_sysrq(kvm);
@@ -171,7 +166,6 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	signal(SIGALRM, handle_sigalrm);
 	signal(SIGQUIT, handle_sigquit);
-	signal(SIGINT, handle_sigint);
 
 	while (argc != 0) {
 		argc = parse_options(argc, argv, options, run_usage,
