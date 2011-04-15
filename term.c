@@ -71,9 +71,8 @@ int term_getc_iov(int who, struct iovec *iov, int iovcnt)
 		return 0;
 
 	*((int *)iov[0].iov_base)	= c;
-	iov[0].iov_len			= sizeof(int);
 
-	return sizeof(int);
+	return sizeof(char);
 }
 
 int term_putc_iov(int who, struct iovec *iov, int iovcnt)
