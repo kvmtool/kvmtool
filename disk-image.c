@@ -96,7 +96,7 @@ static int raw_image__write_sector_ro_mmap(struct disk_image *self, uint64_t sec
 	return 0;
 }
 
-static void raw_image__close_sector_ro_mmap(struct disk_image *self)
+static void raw_image__close_ro_mmap(struct disk_image *self)
 {
 	if (self->priv != MAP_FAILED)
 		munmap(self->priv, self->size);
@@ -110,7 +110,7 @@ static struct disk_image_operations raw_image_ops = {
 static struct disk_image_operations raw_image_ro_mmap_ops = {
 	.read_sector		= raw_image__read_sector_ro_mmap,
 	.write_sector		= raw_image__write_sector_ro_mmap,
-	.close			= raw_image__close_sector_ro_mmap,
+	.close			= raw_image__close_ro_mmap,
 };
 
 static struct disk_image *raw_image__probe(int fd, struct stat *st, bool readonly)
