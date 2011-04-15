@@ -58,7 +58,7 @@ static int qcow1_read_sector(struct disk_image *self, uint64_t sector, void *dst
 	if (l1_idx >= q->table.table_size)
 		goto out_error;
 
-	l2_table_offset	= be64_to_cpu(q->table.l1_table[l1_idx]);
+	l2_table_offset	= q->table.l1_table[l1_idx];
 	if (!l2_table_offset)
 		goto zero_sector;
 
@@ -128,15 +128,22 @@ struct disk_image_operations qcow1_disk_ops = {
 static int qcow_read_l1_table(struct qcow *q)
 {
 	struct qcow1_header *header = q->header;
+	struct qcow_table *table = &q->table;
+	u64 i;
 
-	q->table.table_size	= header->size / ((1 << header->l2_bits) * (1 << header->cluster_bits));
+	table->table_size = header->size / ((1 << header->l2_bits) *
+			(1 << header->cluster_bits));
 
-	q->table.l1_table	= calloc(q->table.table_size, sizeof(uint64_t));
-	if (!q->table.l1_table)
+	table->l1_table	= calloc(table->table_size, sizeof(u64));
+	if (!table->l1_table)
 		return -1;
 
-	if (pread_in_full(q->fd, q->table.l1_table, sizeof(uint64_t) * q->table.table_size, header->l1_table_offset) < 0)
+	if (pread_in_full(q->fd, table->l1_table, sizeof(u64) *
+				table->table_size, header->l1_table_offset) < 0)
 		return -1;
+
+	for (i = 0; i < table->table_size; i++)
+		be64_to_cpus(&table->l1_table[i]);
 
 	return 0;
 }
