@@ -15,21 +15,21 @@
 #include <linux/byteorder.h>
 #include <linux/types.h>
 
-static inline uint64_t sect_to_l1_offset(struct qcow *q, uint64_t offset)
+static inline uint64_t get_l1_index(struct qcow *q, uint64_t offset)
 {
 	struct qcow1_header *header = q->header;
 
 	return offset >> (header->l2_bits + header->cluster_bits);
 }
 
-static inline uint64_t sect_to_l2_offset(struct qcow *q, uint64_t offset)
+static inline uint64_t get_l2_index(struct qcow *q, uint64_t offset)
 {
 	struct qcow1_header *header = q->header;
 
 	return (offset >> (header->cluster_bits)) & ((1 << header->l2_bits)-1);
 }
 
-static inline uint64_t sect_to_cluster_offset(struct qcow *q, uint64_t offset)
+static inline uint64_t get_cluster_offset(struct qcow *q, uint64_t offset)
 {
 	struct qcow1_header *header = q->header;
 
@@ -53,7 +53,7 @@ static int qcow1_read_sector(struct disk_image *self, uint64_t sector, void *dst
 	if (offset >= header->size)
 		goto out_error;
 
-	l1_idx		= sect_to_l1_offset(self->priv, offset);
+	l1_idx		= get_l1_index(q, offset);
 
 	if (l1_idx >= q->table.table_size)
 		goto out_error;
@@ -71,7 +71,7 @@ static int qcow1_read_sector(struct disk_image *self, uint64_t sector, void *dst
 	if (pread_in_full(q->fd, l2_table, sizeof(uint64_t) * l2_table_size, l2_table_offset) < 0)
 		goto out_error_free_l2;
 
-	l2_idx		= sect_to_l2_offset(self->priv, offset);
+	l2_idx		= get_l2_index(q, offset);
 
 	if (l2_idx >= l2_table_size)
 		goto out_error_free_l2;
@@ -81,7 +81,7 @@ static int qcow1_read_sector(struct disk_image *self, uint64_t sector, void *dst
 	if (!clust_start)
 		goto zero_sector;
 
-	clust_offset	= sect_to_cluster_offset(self->priv, offset);
+	clust_offset	= get_cluster_offset(q, offset);
 
 	if (pread_in_full(q->fd, dst, dst_len, clust_start + clust_offset) < 0)
 		goto out_error_free_l2;
