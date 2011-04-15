@@ -115,6 +115,7 @@ static void qcow1_disk_close(struct disk_image *self)
 
 	q = self->priv;
 
+	free(q->table.l1_table);
 	free(q->header);
 	free(q);
 }
@@ -200,6 +201,7 @@ error:
 	if (!q)
 		return NULL;
 
+	free(q->table.l1_table);
 	free(q->header);
 	free(q);
 
