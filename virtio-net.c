@@ -17,6 +17,8 @@
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <unistd.h>
+#include <sys/wait.h>
 
 #define VIRTIO_NET_IRQ		14
 #define VIRTIO_NET_QUEUE_SIZE	128
@@ -280,7 +282,7 @@ static bool virtio_net__tap_init(const struct virtio_net_parameters *params)
 {
 	struct ifreq ifr;
 	int sock = socket(AF_INET, SOCK_STREAM, 0);
-	int i;
+	int i, pid, status;
 	struct sockaddr_in sin = {0};
 
 	for (i = 0 ; i < 6 ; i++)
@@ -304,18 +306,31 @@ static bool virtio_net__tap_init(const struct virtio_net_parameters *params)
 
 	ioctl(net_device.tap_fd, TUNSETNOCSUM, 1);
 
+	if (strcmp(params->script, "none")) {
+		pid = fork();
+		if (pid == 0) {
+			execl(params->script, params->script, net_device.tap_name, NULL);
+			_exit(1);
+		} else {
+			waitpid(pid, &status, 0);
+			if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
+				warning("Fail to setup tap by %s", params->script);
+				goto fail;
+			}
+		}
+	} else {
+		memset(&ifr, 0, sizeof(ifr));
 
-	memset(&ifr, 0, sizeof(ifr));
+		strncpy(ifr.ifr_name, net_device.tap_name, sizeof(net_device.tap_name));
 
-	strncpy(ifr.ifr_name, net_device.tap_name, sizeof(net_device.tap_name));
+		sin.sin_addr.s_addr = inet_addr(params->host_ip);
+		memcpy(&(ifr.ifr_addr), &sin, sizeof(ifr.ifr_addr));
+		ifr.ifr_addr.sa_family = AF_INET;
 
-	sin.sin_addr.s_addr = inet_addr(params->host_ip);
-	memcpy(&(ifr.ifr_addr), &sin, sizeof(ifr.ifr_addr));
-	ifr.ifr_addr.sa_family = AF_INET;
-
-	if (ioctl(sock, SIOCSIFADDR, &ifr) < 0) {
-		warning("Can not set ip address on tap device");
-		goto fail;
+		if (ioctl(sock, SIOCSIFADDR, &ifr) < 0) {
+			warning("Can not set ip address on tap device");
+			goto fail;
+		}
 	}
 
 	memset(&ifr, 0, sizeof(ifr));

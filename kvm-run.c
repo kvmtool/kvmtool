@@ -33,6 +33,7 @@
 #define DEFAULT_NETWORK		"virtio"
 #define DEFAULT_HOST_ADDR	"192.168.33.2"
 #define DEFAULT_GUEST_MAC	"00:11:22:33:44:55"
+#define DEFAULT_SCRIPT		"none"
 
 #define MB_SHIFT		(20)
 #define MIN_RAM_SIZE_MB		(64ULL)
@@ -65,6 +66,7 @@ static const char *kvm_dev;
 static const char *network;
 static const char *host_ip_addr;
 static const char *guest_mac;
+static const char *script;
 static bool single_step;
 static bool readonly_image;
 extern bool ioport_debug;
@@ -102,6 +104,8 @@ static const struct option options[] = {
 			"Assign this address to the host side networking"),
 	OPT_STRING('\0', "guest-mac", &guest_mac, "aa:bb:cc:dd:ee:ff",
 			"Assign this address to the guest side NIC"),
+	OPT_STRING('\0', "tapscript", &script, "Script path",
+			 "Assign a script to process created tap device"),
 	OPT_GROUP("Debug options:"),
 	OPT_STRING('d', "kvm-dev", &kvm_dev, "kvm-dev", "KVM device file"),
 	OPT_BOOLEAN('s', "single-step", &single_step,
@@ -277,6 +281,9 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	if (!guest_mac)
 		guest_mac = DEFAULT_GUEST_MAC;
 
+	if (!script)
+		script = DEFAULT_SCRIPT;
+
 	term_init();
 
 	kvm = kvm__init(kvm_dev, ram_size);
@@ -320,7 +327,8 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	if (!strncmp(network, "virtio", 6)) {
 		net_params = (struct virtio_net_parameters) {
 			.host_ip = host_ip_addr,
-			.self = kvm
+			.self = kvm,
+			.script = script
 		};
 		sscanf(guest_mac,	"%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
 							net_params.guest_mac,
