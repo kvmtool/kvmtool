@@ -188,10 +188,24 @@ static inline ssize_t get_iov_size(const struct iovec *iov, int iovcnt)
 	return size;
 }
 
+static inline void shift_iovec(const struct iovec **iov, int *iovcnt,
+				size_t nr, ssize_t *total, size_t *count, off_t *offset)
+{
+	while (nr >= (*iov)->iov_len) {
+		nr -= (*iov)->iov_len;
+		*total += (*iov)->iov_len;
+		*count -= (*iov)->iov_len;
+		if (offset)
+			*offset += (*iov)->iov_len;
+		(*iovcnt)--;
+		(*iov)++;
+	}
+}
+
 ssize_t readv_in_full(int fd, const struct iovec *iov, int iovcnt)
 {
 	ssize_t total = 0;
-	ssize_t count = get_iov_size(iov, iovcnt);
+	size_t count = get_iov_size(iov, iovcnt);
 
 	while (count > 0) {
 		ssize_t nr;
@@ -204,13 +218,7 @@ ssize_t readv_in_full(int fd, const struct iovec *iov, int iovcnt)
 			return -1;
 		}
 
-		while ((size_t)nr >= iov->iov_len) {
-			nr -= iov->iov_len;
-			total += iov->iov_len;
-			count -= iov->iov_len;
-			iovcnt--;
-			iov++;
-		}
+		shift_iovec(&iov, &iovcnt, nr, &total, &count, NULL);
 	}
 
 	return total;
@@ -232,13 +240,7 @@ ssize_t writev_in_full(int fd, const struct iovec *iov, int iovcnt)
 			return -1;
 		}
 
-		while ((size_t)nr >= iov->iov_len) {
-			nr -= iov->iov_len;
-			total += iov->iov_len;
-			count -= iov->iov_len;
-			iovcnt--;
-			iov++;
-		}
+		shift_iovec(&iov, &iovcnt, nr, &total, &count, NULL);
 	}
 
 	return total;
@@ -286,13 +288,7 @@ ssize_t preadv_in_full(int fd, const struct iovec *iov, int iovcnt, off_t offset
 			return -1;
 		}
 
-		while ((size_t)nr >= iov->iov_len) {
-			nr -= iov->iov_len;
-			total += iov->iov_len;
-			count -= iov->iov_len;
-			iovcnt--;
-			iov++;
-		}
+		shift_iovec(&iov, &iovcnt, nr, &total, &count, &offset);
 	}
 
 	return total;
@@ -313,13 +309,8 @@ ssize_t pwritev_in_full(int fd, const struct iovec *iov, int iovcnt, off_t offse
 			errno = ENOSPC;
 			return -1;
 		}
-		while ((size_t)nr >= iov->iov_len) {
-			nr -= iov->iov_len;
-			total += iov->iov_len;
-			count -= iov->iov_len;
-			iovcnt--;
-			iov++;
-		}
+
+		shift_iovec(&iov, &iovcnt, nr, &total, &count, &offset);
 	}
 
 	return total;
