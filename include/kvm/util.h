@@ -1,3 +1,5 @@
+#include <linux/stringify.h>
+
 #ifndef KVM__UTIL_H
 #define KVM__UTIL_H
 
@@ -26,9 +28,6 @@
 #define __attribute__(x)
 #endif
 #endif
-
-#define __stringify_1(x)	#x
-#define __stringify(x)		__stringify_1(x)
 
 extern void die(const char *err, ...) NORETURN __attribute__((format (printf, 1, 2)));
 extern void die_perror(const char *s) NORETURN;
