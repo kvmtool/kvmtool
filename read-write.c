@@ -152,3 +152,175 @@ ssize_t pwrite_in_full(int fd, const void *buf, size_t count, off_t offset)
 
 	return total;
 }
+
+/* Same as readv(2) except that this function never returns EAGAIN or EINTR. */
+ssize_t xreadv(int fd, const struct iovec *iov, int iovcnt)
+{
+	ssize_t nr;
+
+restart:
+	nr = readv(fd, iov, iovcnt);
+	if ((nr < 0) && ((errno == EAGAIN) || (errno == EINTR)))
+		goto restart;
+
+	return nr;
+}
+
+/* Same as writev(2) except that this function never returns EAGAIN or EINTR. */
+ssize_t xwritev(int fd, const struct iovec *iov, int iovcnt)
+{
+	ssize_t nr;
+
+restart:
+	nr = write(fd, iov, iovcnt);
+	if ((nr < 0) && ((errno == EAGAIN) || (errno == EINTR)))
+		goto restart;
+
+	return nr;
+}
+
+static inline ssize_t get_iov_size(const struct iovec *iov, int iovcnt)
+{
+	size_t size = 0;
+	while (iovcnt--)
+		size += (iov++)->iov_len;
+
+	return size;
+}
+
+ssize_t readv_in_full(int fd, const struct iovec *iov, int iovcnt)
+{
+	ssize_t total = 0;
+	ssize_t count = get_iov_size(iov, iovcnt);
+
+	while (count > 0) {
+		ssize_t nr;
+
+		nr = xreadv(fd, iov, iovcnt);
+		if (nr <= 0) {
+			if (total > 0)
+				return total;
+
+			return -1;
+		}
+
+		while ((size_t)nr >= iov->iov_len) {
+			nr -= iov->iov_len;
+			total += iov->iov_len;
+			count -= iov->iov_len;
+			iovcnt--;
+			iov++;
+		}
+	}
+
+	return total;
+}
+
+ssize_t writev_in_full(int fd, const struct iovec *iov, int iovcnt)
+{
+	ssize_t total = 0;
+	size_t count = get_iov_size(iov, iovcnt);
+
+	while (count > 0) {
+		ssize_t nr;
+
+		nr = xwritev(fd, iov, iovcnt);
+		if (nr < 0)
+			return -1;
+		if (nr == 0) {
+			errno = ENOSPC;
+			return -1;
+		}
+
+		while ((size_t)nr >= iov->iov_len) {
+			nr -= iov->iov_len;
+			total += iov->iov_len;
+			count -= iov->iov_len;
+			iovcnt--;
+			iov++;
+		}
+	}
+
+	return total;
+}
+
+/* Same as preadv(2) except that this function never returns EAGAIN or EINTR. */
+ssize_t xpreadv(int fd, const struct iovec *iov, int iovcnt, off_t offset)
+{
+	ssize_t nr;
+
+restart:
+	nr = preadv(fd, iov, iovcnt, offset);
+	if ((nr < 0) && ((errno == EAGAIN) || (errno == EINTR)))
+		goto restart;
+
+	return nr;
+}
+
+/* Same as pwritev(2) except that this function never returns EAGAIN or EINTR. */
+ssize_t xpwritev(int fd, const struct iovec *iov, int iovcnt, off_t offset)
+{
+	ssize_t nr;
+
+restart:
+	nr = pwritev(fd, iov, iovcnt, offset);
+	if ((nr < 0) && ((errno == EAGAIN) || (errno == EINTR)))
+		goto restart;
+
+	return nr;
+}
+
+ssize_t preadv_in_full(int fd, const struct iovec *iov, int iovcnt, off_t offset)
+{
+	ssize_t total = 0;
+	size_t count = get_iov_size(iov, iovcnt);
+
+	while (count > 0) {
+		ssize_t nr;
+
+		nr = xpreadv(fd, iov, iovcnt, offset);
+		if (nr <= 0) {
+			if (total > 0)
+				return total;
+
+			return -1;
+		}
+
+		while ((size_t)nr >= iov->iov_len) {
+			nr -= iov->iov_len;
+			total += iov->iov_len;
+			count -= iov->iov_len;
+			iovcnt--;
+			iov++;
+		}
+	}
+
+	return total;
+}
+
+ssize_t pwritev_in_full(int fd, const struct iovec *iov, int iovcnt, off_t offset)
+{
+	ssize_t total = 0;
+	size_t count = get_iov_size(iov, iovcnt);
+
+	while (count > 0) {
+		ssize_t nr;
+
+		nr = xpwritev(fd, iov, iovcnt, offset);
+		if (nr < 0)
+			return -1;
+		if (nr == 0) {
+			errno = ENOSPC;
+			return -1;
+		}
+		while ((size_t)nr >= iov->iov_len) {
+			nr -= iov->iov_len;
+			total += iov->iov_len;
+			count -= iov->iov_len;
+			iovcnt--;
+			iov++;
+		}
+	}
+
+	return total;
+}
