@@ -149,7 +149,7 @@ const char *host_kernels[] = {
 	"/boot/bzImage",
 	NULL
 };
-const char *defult_kernels[] = {
+const char *default_kernels[] = {
 	"./bzImage",
 	"../../arch/x86/boot/bzImage",
 	NULL
@@ -161,7 +161,7 @@ static void kernel_usage_with_options(void)
 	struct utsname uts;
 
 	fprintf(stderr, "Fatal: could not find default kernel image in:\n");
-	k = &defult_kernels[0];
+	k = &default_kernels[0];
 	while (*k) {
 		fprintf(stderr, "\t%s\n", *k);
 		k++;
@@ -186,7 +186,7 @@ static const char *find_kernel(void)
 	struct stat st;
 	struct utsname uts;
 
-	k = &defult_kernels[0];
+	k = &default_kernels[0];
 	while (*k) {
 		if (stat(*k, &st) < 0 || !S_ISREG(st.st_mode)) {
 			k++;
