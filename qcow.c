@@ -44,7 +44,7 @@ static int qcow1_read_sector(struct disk_image *self, uint64_t sector, void *dst
 	uint64_t l2_table_size;
 	uint64_t clust_offset;
 	uint64_t clust_start;
-	uint64_t *l2_table;
+	uint64_t *l2_table = NULL;
 	uint64_t l1_idx;
 	uint64_t l2_idx;
 	uint64_t offset;
@@ -69,14 +69,16 @@ static int qcow1_read_sector(struct disk_image *self, uint64_t sector, void *dst
 		goto out_error;
 
 	if (pread_in_full(q->fd, l2_table, sizeof(uint64_t) * l2_table_size, l2_table_offset) < 0)
-		goto out_error_free_l2;
+		goto out_error;
 
 	l2_idx		= get_l2_index(q, offset);
 
 	if (l2_idx >= l2_table_size)
-		goto out_error_free_l2;
+		goto out_error;
 
 	clust_start	= be64_to_cpu(l2_table[l2_idx]);
+
+	free(l2_table);
 
 	if (!clust_start)
 		goto zero_sector;
@@ -84,9 +86,7 @@ static int qcow1_read_sector(struct disk_image *self, uint64_t sector, void *dst
 	clust_offset	= get_cluster_offset(q, offset);
 
 	if (pread_in_full(q->fd, dst, dst_len, clust_start + clust_offset) < 0)
-		goto out_error_free_l2;
-
-	free(l2_table);
+		goto out_error;
 
 	return 0;
 
@@ -95,9 +95,9 @@ zero_sector:
 
 	return 0;
 
-out_error_free_l2:
-	free(l2_table);
 out_error:
+	free(l2_table);
+
 	return -1;
 }
 
