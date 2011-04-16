@@ -36,68 +36,96 @@ static inline u64 get_cluster_offset(struct qcow *q, u64 offset)
 	return offset & ((1 << header->cluster_bits)-1);
 }
 
-static int qcow1_read_sector(struct disk_image *self, uint64_t sector, void *dst, uint32_t dst_len)
+static u32 qcow1_read_cluster(struct qcow *q, u64 offset, void *dst,
+		u32 dst_len)
 {
-	struct qcow *q = self->priv;
 	struct qcow1_header *header = q->header;
+	struct qcow_table   *table  = &q->table;
 	u64 l2_table_offset;
 	u64 l2_table_size;
+	u64 cluster_size;
 	u64 clust_offset;
 	u64 clust_start;
 	u64 *l2_table = NULL;
 	u64 l1_idx;
 	u64 l2_idx;
-	u64 offset;
+	u32 length;
 
-	offset		= sector << SECTOR_SHIFT;
-	if (offset >= header->size)
+	length = cluster_size = 1 << header->cluster_bits;
+
+	l1_idx = get_l1_index(q, offset);
+	if (l1_idx >= table->table_size)
 		goto out_error;
 
-	l1_idx		= get_l1_index(q, offset);
-
-	if (l1_idx >= q->table.table_size)
+	clust_offset = get_cluster_offset(q, offset);
+	if (clust_offset >= cluster_size)
 		goto out_error;
 
-	l2_table_offset	= q->table.l1_table[l1_idx];
+	length = cluster_size - clust_offset;
+	if (length > dst_len)
+		length = dst_len;
+
+	l2_table_offset = table->l1_table[l1_idx];
 	if (!l2_table_offset)
-		goto zero_sector;
+		goto zero_cluster;
 
-	l2_table_size	= 1 << header->l2_bits;
-
-	l2_table	= calloc(l2_table_size, sizeof(u64));
+	l2_table_size = 1 << header->l2_bits;
+	l2_table = calloc(l2_table_size, sizeof(u64));
 	if (!l2_table)
 		goto out_error;
 
-	if (pread_in_full(q->fd, l2_table, sizeof(u64) * l2_table_size, l2_table_offset) < 0)
+	if (pread_in_full(q->fd, l2_table, l2_table_size * sizeof(u64),
+				l2_table_offset) < 0)
 		goto out_error;
 
-	l2_idx		= get_l2_index(q, offset);
-
+	l2_idx = get_l2_index(q, offset);
 	if (l2_idx >= l2_table_size)
 		goto out_error;
 
-	clust_start	= be64_to_cpu(l2_table[l2_idx]);
-
+	clust_start = be64_to_cpu(l2_table[l2_idx]);
 	free(l2_table);
-
 	if (!clust_start)
-		goto zero_sector;
+		goto zero_cluster;
 
-	clust_offset	= get_cluster_offset(q, offset);
-
-	if (pread_in_full(q->fd, dst, dst_len, clust_start + clust_offset) < 0)
+	if (pread_in_full(q->fd, dst, length, clust_start + clust_offset) < 0)
 		goto out_error;
 
-	return 0;
-
-zero_sector:
-	memset(dst, 0, dst_len);
-
-	return 0;
+	return length;
+zero_cluster:
+	memset(dst, 0, length);
+	return length;
 
 out_error:
 	free(l2_table);
+	return -1;
+}
 
+static int qcow1_read_sector(struct disk_image *self, uint64_t sector,
+		void *dst, uint32_t dst_len)
+{
+	struct qcow *q = self->priv;
+	struct qcow1_header *header = q->header;
+	char *buf = dst;
+	u64 offset;
+	u32 length;
+	u32 nr;
+
+	length = 0;
+	while (length < dst_len) {
+		offset = sector << SECTOR_SHIFT;
+		if (offset >= header->size)
+			goto out_error;
+
+		nr = qcow1_read_cluster(q, offset, buf, dst_len - length);
+		if (!nr)
+			goto out_error;
+
+		length += nr;
+		buf    += nr;
+		sector += (nr >> SECTOR_SHIFT);
+	}
+	return 0;
+out_error:
 	return -1;
 }
 
