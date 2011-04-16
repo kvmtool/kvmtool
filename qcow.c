@@ -15,21 +15,21 @@
 #include <linux/byteorder.h>
 #include <linux/types.h>
 
-static inline uint64_t get_l1_index(struct qcow *q, uint64_t offset)
+static inline u64 get_l1_index(struct qcow *q, u64 offset)
 {
 	struct qcow1_header *header = q->header;
 
 	return offset >> (header->l2_bits + header->cluster_bits);
 }
 
-static inline uint64_t get_l2_index(struct qcow *q, uint64_t offset)
+static inline u64 get_l2_index(struct qcow *q, u64 offset)
 {
 	struct qcow1_header *header = q->header;
 
 	return (offset >> (header->cluster_bits)) & ((1 << header->l2_bits)-1);
 }
 
-static inline uint64_t get_cluster_offset(struct qcow *q, uint64_t offset)
+static inline u64 get_cluster_offset(struct qcow *q, u64 offset)
 {
 	struct qcow1_header *header = q->header;
 
@@ -40,14 +40,14 @@ static int qcow1_read_sector(struct disk_image *self, uint64_t sector, void *dst
 {
 	struct qcow *q = self->priv;
 	struct qcow1_header *header = q->header;
-	uint64_t l2_table_offset;
-	uint64_t l2_table_size;
-	uint64_t clust_offset;
-	uint64_t clust_start;
-	uint64_t *l2_table = NULL;
-	uint64_t l1_idx;
-	uint64_t l2_idx;
-	uint64_t offset;
+	u64 l2_table_offset;
+	u64 l2_table_size;
+	u64 clust_offset;
+	u64 clust_start;
+	u64 *l2_table = NULL;
+	u64 l1_idx;
+	u64 l2_idx;
+	u64 offset;
 
 	offset		= sector << SECTOR_SHIFT;
 	if (offset >= header->size)
@@ -64,11 +64,11 @@ static int qcow1_read_sector(struct disk_image *self, uint64_t sector, void *dst
 
 	l2_table_size	= 1 << header->l2_bits;
 
-	l2_table	= calloc(l2_table_size, sizeof(uint64_t));
+	l2_table	= calloc(l2_table_size, sizeof(u64));
 	if (!l2_table)
 		goto out_error;
 
-	if (pread_in_full(q->fd, l2_table, sizeof(uint64_t) * l2_table_size, l2_table_offset) < 0)
+	if (pread_in_full(q->fd, l2_table, sizeof(u64) * l2_table_size, l2_table_offset) < 0)
 		goto out_error;
 
 	l2_idx		= get_l2_index(q, offset);
