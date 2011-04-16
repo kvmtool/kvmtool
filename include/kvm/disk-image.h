@@ -13,8 +13,8 @@ struct disk_image;
 struct disk_image_operations {
 	int (*read_sector)(struct disk_image *self, uint64_t sector, void *dst, uint32_t dst_len);
 	int (*write_sector)(struct disk_image *self, uint64_t sector, void *src, uint32_t src_len);
-	ssize_t (*read_sector_sg)(struct disk_image *self, uint64_t sector, const struct iovec *iov, int iovcount);
-	ssize_t (*write_sector_sg)(struct disk_image *self, uint64_t sector, const struct iovec *iov, int iovcount);
+	ssize_t (*read_sector_iov)(struct disk_image *self, uint64_t sector, const struct iovec *iov, int iovcount);
+	ssize_t (*write_sector_iov)(struct disk_image *self, uint64_t sector, const struct iovec *iov, int iovcount);
 	void (*close)(struct disk_image *self);
 };
 
@@ -40,10 +40,10 @@ static inline int disk_image__write_sector(struct disk_image *self, uint64_t sec
 	return self->ops->write_sector(self, sector, src, src_len);
 }
 
-static inline ssize_t disk_image__read_sector_sg(struct disk_image *self, uint64_t sector, const struct iovec *iov, int iovcount)
+static inline ssize_t disk_image__read_sector_iov(struct disk_image *self, uint64_t sector, const struct iovec *iov, int iovcount)
 {
-	if (self->ops->read_sector_sg)
-		return self->ops->read_sector_sg(self, sector, iov, iovcount);
+	if (self->ops->read_sector_iov)
+		return self->ops->read_sector_iov(self, sector, iov, iovcount);
 
 	while (iovcount--) {
 		self->ops->read_sector(self, sector, iov->iov_base, iov->iov_len);
@@ -54,10 +54,10 @@ static inline ssize_t disk_image__read_sector_sg(struct disk_image *self, uint64
 	return sector << SECTOR_SHIFT;
 }
 
-static inline ssize_t disk_image__write_sector_sg(struct disk_image *self, uint64_t sector, const struct iovec *iov, int iovcount)
+static inline ssize_t disk_image__write_sector_iov(struct disk_image *self, uint64_t sector, const struct iovec *iov, int iovcount)
 {
-	if (self->ops->write_sector_sg)
-		return self->ops->write_sector_sg(self, sector, iov, iovcount);
+	if (self->ops->write_sector_iov)
+		return self->ops->write_sector_iov(self, sector, iov, iovcount);
 
 	while (iovcount--) {
 		self->ops->write_sector(self, sector, iov->iov_base, iov->iov_len);

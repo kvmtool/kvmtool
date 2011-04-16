@@ -126,11 +126,11 @@ static bool virtio_blk_do_io_request(struct kvm *self, struct virt_queue *queue)
 
 	switch (req->type) {
 	case VIRTIO_BLK_T_IN:
-		block_cnt = disk_image__read_sector_sg(self->disk_image, req->sector, iov + 1, in + out - 2);
+		block_cnt = disk_image__read_sector_iov(self->disk_image, req->sector, iov + 1, in + out - 2);
 
 		break;
 	case VIRTIO_BLK_T_OUT:
-		block_cnt = disk_image__write_sector_sg(self->disk_image, req->sector, iov + 1, in + out - 2);
+		block_cnt = disk_image__write_sector_iov(self->disk_image, req->sector, iov + 1, in + out - 2);
 
 		break;
 
