@@ -115,50 +115,33 @@ static bool virtio_blk_do_io_request(struct kvm *self, struct virt_queue *queue)
 {
 	struct iovec iov[VIRTIO_BLK_QUEUE_SIZE];
 	struct virtio_blk_outhdr *req;
-	uint32_t block_len, block_cnt;
+	ssize_t block_cnt = -1;
 	uint16_t out, in, head;
 	uint8_t *status;
-	bool io_error;
-	void *block;
-	int err, i;
-
-	io_error	= false;
 
 	head		= virt_queue__get_iov(queue, iov, &out, &in, self);
 
 	/* head */
 	req		= iov[0].iov_base;
 
-	/* block */
-	block_cnt	= 0;
+	switch (req->type) {
+	case VIRTIO_BLK_T_IN:
+		block_cnt = disk_image__read_sector_sg(self->disk_image, req->sector, iov + 1, in + out - 2);
 
-	for (i = 1; i < out + in - 1; i++) {
-		block		= iov[i].iov_base;
-		block_len	= iov[i].iov_len;
+		break;
+	case VIRTIO_BLK_T_OUT:
+		block_cnt = disk_image__write_sector_sg(self->disk_image, req->sector, iov + 1, in + out - 2);
 
-		switch (req->type) {
-		case VIRTIO_BLK_T_IN:
-			err	= disk_image__read_sector(self->disk_image, req->sector, block, block_len);
-			if (err)
-				io_error = true;
-			break;
-		case VIRTIO_BLK_T_OUT:
-			err	= disk_image__write_sector(self->disk_image, req->sector, block, block_len);
-			if (err)
-				io_error = true;
-			break;
-		default:
-			warning("request type %d", req->type);
-			io_error	= true;
-		}
+		break;
 
-		req->sector	+= block_len >> SECTOR_SHIFT;
-		block_cnt	+= block_len;
+	default:
+		warning("request type %d", req->type);
+		block_cnt = -1;
 	}
 
 	/* status */
 	status			= iov[out + in - 1].iov_base;
-	*status			= io_error ? VIRTIO_BLK_S_IOERR : VIRTIO_BLK_S_OK;
+	*status			= (block_cnt < 0) ? VIRTIO_BLK_S_IOERR : VIRTIO_BLK_S_OK;
 
 	virt_queue__set_used_elem(queue, head, block_cnt);
 

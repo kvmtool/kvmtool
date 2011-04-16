@@ -72,6 +72,20 @@ static int raw_image__write_sector(struct disk_image *self, uint64_t sector, voi
 	return 0;
 }
 
+static ssize_t raw_image__read_sector_sg(struct disk_image *self, uint64_t sector, const struct iovec *iov, int iovcount)
+{
+	uint64_t offset = sector << SECTOR_SHIFT;
+
+	return preadv_in_full(self->fd, iov, iovcount, offset);
+}
+
+static ssize_t raw_image__write_sector_sg(struct disk_image *self, uint64_t sector, const struct iovec *iov, int iovcount)
+{
+	uint64_t offset = sector << SECTOR_SHIFT;
+
+	return pwritev_in_full(self->fd, iov, iovcount, offset);
+}
+
 static int raw_image__read_sector_ro_mmap(struct disk_image *self, uint64_t sector, void *dst, uint32_t dst_len)
 {
 	uint64_t offset = sector << SECTOR_SHIFT;
@@ -105,6 +119,8 @@ static void raw_image__close_ro_mmap(struct disk_image *self)
 static struct disk_image_operations raw_image_ops = {
 	.read_sector		= raw_image__read_sector,
 	.write_sector		= raw_image__write_sector,
+	.read_sector_sg		= raw_image__read_sector_sg,
+	.write_sector_sg	= raw_image__write_sector_sg
 };
 
 static struct disk_image_operations raw_image_ro_mmap_ops = {
