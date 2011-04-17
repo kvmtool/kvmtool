@@ -40,13 +40,13 @@ static u32 qcow1_read_cluster(struct qcow *q, u64 offset, void *dst,
 		u32 dst_len)
 {
 	struct qcow1_header *header = q->header;
-	struct qcow_table   *table  = &q->table;
+	struct qcow_table *table  = &q->table;
+	u64 *l2_table = NULL;
 	u64 l2_table_offset;
 	u64 l2_table_size;
 	u64 cluster_size;
 	u64 clust_offset;
 	u64 clust_start;
-	u64 *l2_table = NULL;
 	u64 l1_idx;
 	u64 l2_idx;
 	u32 length;
@@ -83,21 +83,23 @@ static u32 qcow1_read_cluster(struct qcow *q, u64 offset, void *dst,
 		goto out_error;
 
 	clust_start = be64_to_cpu(l2_table[l2_idx]);
-	free(l2_table);
 	if (!clust_start)
 		goto zero_cluster;
 
 	if (pread_in_full(q->fd, dst, length, clust_start + clust_offset) < 0)
 		goto out_error;
 
-	return length;
-zero_cluster:
-	memset(dst, 0, length);
+out:
+	free(l2_table);
 	return length;
 
+zero_cluster:
+	memset(dst, 0, length);
+	goto out;
+
 out_error:
-	free(l2_table);
-	return -1;
+	length = -1;
+	goto out;
 }
 
 static int qcow1_read_sector(struct disk_image *self, uint64_t sector,
