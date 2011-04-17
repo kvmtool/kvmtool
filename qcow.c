@@ -107,22 +107,22 @@ static int qcow1_read_sector(struct disk_image *self, uint64_t sector,
 	struct qcow1_header *header = q->header;
 	char *buf = dst;
 	u64 offset;
-	u32 length;
+	u32 nr_read;
 	u32 nr;
 
-	length = 0;
-	while (length < dst_len) {
+	nr_read = 0;
+	while (nr_read < dst_len) {
 		offset = sector << SECTOR_SHIFT;
 		if (offset >= header->size)
 			goto out_error;
 
-		nr = qcow1_read_cluster(q, offset, buf, dst_len - length);
+		nr = qcow1_read_cluster(q, offset, buf, dst_len - nr_read);
 		if (!nr)
 			goto out_error;
 
-		length += nr;
-		buf    += nr;
-		sector += (nr >> SECTOR_SHIFT);
+		nr_read		+= nr;
+		buf		+= nr;
+		sector		+= (nr >> SECTOR_SHIFT);
 	}
 	return 0;
 out_error:
