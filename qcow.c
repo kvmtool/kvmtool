@@ -36,8 +36,7 @@ static inline u64 get_cluster_offset(struct qcow *q, u64 offset)
 	return offset & ((1 << header->cluster_bits)-1);
 }
 
-static u32 qcow1_read_cluster(struct qcow *q, u64 offset, void *dst,
-		u32 dst_len)
+static ssize_t qcow1_read_cluster(struct qcow *q, u64 offset, void *dst, u32 dst_len)
 {
 	struct qcow1_header *header = q->header;
 	struct qcow_table *table  = &q->table;
@@ -47,9 +46,9 @@ static u32 qcow1_read_cluster(struct qcow *q, u64 offset, void *dst,
 	u64 cluster_size;
 	u64 clust_offset;
 	u64 clust_start;
+	size_t length;
 	u64 l1_idx;
 	u64 l2_idx;
-	u32 length;
 
 	cluster_size = 1 << header->cluster_bits;
 
@@ -119,7 +118,7 @@ static int qcow1_read_sector(struct disk_image *self, uint64_t sector,
 			goto out_error;
 
 		nr = qcow1_read_cluster(q, offset, buf, dst_len - nr_read);
-		if (!nr)
+		if (nr <= 0)
 			goto out_error;
 
 		nr_read		+= nr;
