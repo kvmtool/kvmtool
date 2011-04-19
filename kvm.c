@@ -107,7 +107,7 @@ void kvm__delete(struct kvm *self)
 {
 	kvm__stop_timer(self);
 
-	free(self->ram_start);
+	munmap(self->ram_start, self->ram_size);
 	free(self);
 }
 
@@ -153,12 +153,27 @@ static bool kvm__cpu_supports_vm(void)
 	return regs.ecx & (1 << feature);
 }
 
-struct kvm *kvm__init(const char *kvm_dev, unsigned long ram_size)
+void kvm__init_ram(struct kvm *self)
 {
 	struct kvm_userspace_memory_region mem;
+	int ret;
+
+	mem = (struct kvm_userspace_memory_region) {
+		.slot			= 0,
+		.guest_phys_addr	= 0x0UL,
+		.memory_size		= self->ram_size,
+		.userspace_addr		= (unsigned long) self->ram_start,
+	};
+
+	ret = ioctl(self->vm_fd, KVM_SET_USER_MEMORY_REGION, &mem);
+	if (ret < 0)
+		die_perror("KVM_SET_USER_MEMORY_REGION ioctl");
+}
+
+struct kvm *kvm__init(const char *kvm_dev, unsigned long ram_size)
+{
 	struct kvm_pit_config pit_config = { .flags = 0, };
 	struct kvm *self;
-	long page_size;
 	int ret;
 
 	if (!kvm__cpu_supports_vm())
@@ -199,20 +214,9 @@ struct kvm *kvm__init(const char *kvm_dev, unsigned long ram_size)
 
 	self->ram_size		= ram_size;
 
-	page_size	= sysconf(_SC_PAGESIZE);
-	if (posix_memalign(&self->ram_start, page_size, self->ram_size) != 0)
+	self->ram_start = mmap(NULL, ram_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
+	if (self->ram_start == MAP_FAILED)
 		die("out of memory");
-
-	mem = (struct kvm_userspace_memory_region) {
-		.slot			= 0,
-		.guest_phys_addr	= 0x0UL,
-		.memory_size		= self->ram_size,
-		.userspace_addr		= (unsigned long) self->ram_start,
-	};
-
-	ret = ioctl(self->vm_fd, KVM_SET_USER_MEMORY_REGION, &mem);
-	if (ret < 0)
-		die_perror("KVM_SET_USER_MEMORY_REGION ioctl");
 
 	ret = ioctl(self->vm_fd, KVM_CREATE_IRQCHIP);
 	if (ret < 0)

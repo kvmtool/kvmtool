@@ -437,7 +437,11 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 		if (single_step)
 			kvm_cpu__enable_singlestep(kvm_cpus[i]);
+	}
 
+	kvm__init_ram(kvm);
+
+	for (i = 0; i < nrcpus; i++) {
 		if (pthread_create(&kvm_cpus[i]->thread, NULL, kvm_cpu_thread, kvm_cpus[i]) != 0)
 			die("unable to create KVM VCPU thread");
 	}
