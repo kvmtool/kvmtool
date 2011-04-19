@@ -51,7 +51,7 @@ static u32 qcow1_read_cluster(struct qcow *q, u64 offset, void *dst,
 	u64 l2_idx;
 	u32 length;
 
-	length = cluster_size = 1 << header->cluster_bits;
+	cluster_size = 1 << header->cluster_bits;
 
 	l1_idx = get_l1_index(q, offset);
 	if (l1_idx >= table->table_size)
