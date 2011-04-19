@@ -120,8 +120,10 @@ static struct disk_image *blkdev__probe(const char *filename, struct stat *st)
 	if (fd < 0)
 		return NULL;
 
-	if (ioctl(fd, BLKGETSIZE64, &size) < 0)
+	if (ioctl(fd, BLKGETSIZE64, &size) < 0) {
+		close(fd);
 		return NULL;
+	}
 
 	return disk_image__new_readonly(fd, size, &raw_image_ro_mmap_ops);
 }
