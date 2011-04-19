@@ -9,6 +9,7 @@
 #include <sys/utsname.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <ctype.h>
 
 /* user defined header files */
 #include <linux/types.h>
@@ -214,12 +215,91 @@ static const char *find_kernel(void)
 	return NULL;
 }
 
+static int root_device(char *dev, long *part)
+{
+	FILE   *fp;
+	char   *line;
+	int    tmp;
+	size_t nr_read;
+	char   device[PATH_MAX];
+	char   mnt_pt[PATH_MAX];
+	char   resolved_path[PATH_MAX];
+	char   *p;
+	struct stat st;
+
+	fp = fopen("/proc/mounts", "r");
+	if (!fp)
+		return -1;
+
+	line = NULL;
+	tmp  = 0;
+	while (!feof(fp)) {
+		if (getline(&line, &nr_read, fp) < 0)
+			break;
+		sscanf(line, "%s %s", device, mnt_pt);
+		if (!strncmp(device, "/dev", 4) && !strcmp(mnt_pt, "/")) {
+			tmp = 1;
+			break;
+		}
+	}
+	fclose(fp);
+	free(line);
+
+	if (!tmp)
+		return -1;
+
+	/* get the absolute path */
+	if (!realpath(device, resolved_path))
+		return -1;
+
+	/* find the partition number */
+	p = resolved_path;
+	while (*p) {
+		if (isdigit(*p)) {
+			strncpy(dev, resolved_path, p - resolved_path);
+			*part = atol(p);
+			break;
+		}
+		p++;
+	}
+
+	/* verify the device path */
+	if (stat(dev, &st) < 0)
+		return -1;
+	return 0;
+}
+
+static char *host_image(char *cmd_line, size_t size)
+{
+	char *t;
+	char device[PATH_MAX];
+	long part = 0;
+
+	t = malloc(PATH_MAX);
+	if (!t)
+		return NULL;
+
+	/* check for the root file system */
+	if (root_device(device, &part) < 0) {
+		free(t);
+		return NULL;
+	}
+	strncpy(t, device, PATH_MAX);
+	if (!strstr(cmd_line, "root=")) {
+		char tmp[PATH_MAX];
+		snprintf(tmp, sizeof(tmp), "root=/dev/vda%ld rw ", part);
+		strlcat(cmd_line, tmp, size);
+	}
+	return t;
+}
+
 int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 {
 	static char real_cmdline[2048];
 	int exit_code = 0;
 	int i;
 	struct virtio_net_parameters net_params;
+	char *hi;
 
 	signal(SIGALRM, handle_sigalrm);
 	signal(SIGQUIT, handle_sigquit);
@@ -288,22 +368,29 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	kvm = kvm__init(kvm_dev, ram_size);
 
+	memset(real_cmdline, 0, sizeof(real_cmdline));
+	strcpy(real_cmdline, "notsc nolapic noacpi pci=conf1 console=ttyS0 ");
+	if (kernel_cmdline)
+		strlcat(real_cmdline, kernel_cmdline, sizeof(real_cmdline));
+
+	hi = NULL;
+	if (!image_filename) {
+		hi = host_image(real_cmdline, sizeof(real_cmdline));
+		if (hi) {
+			image_filename = hi;
+			readonly_image = true;
+		}
+	}
+
+	if (!strstr(real_cmdline, "root="))
+		strlcat(real_cmdline, "root=/dev/vda rw ", sizeof(real_cmdline));
+
 	if (image_filename) {
 		kvm->disk_image	= disk_image__open(image_filename, readonly_image);
 		if (!kvm->disk_image)
 			die("unable to load disk image %s", image_filename);
 	}
-
-	strcpy(real_cmdline, "notsc nolapic noacpi pci=conf1 console=ttyS0 ");
-	if (!kernel_cmdline || !strstr(kernel_cmdline, "root=")) {
-		strlcat(real_cmdline, "root=/dev/vda rw ",
-				sizeof(real_cmdline));
-	}
-
-	if (kernel_cmdline) {
-		strlcat(real_cmdline, kernel_cmdline, sizeof(real_cmdline));
-		real_cmdline[sizeof(real_cmdline)-1] = '\0';
-	}
+	free(hi);
 
 	if (!kvm__load_kernel(kvm, kernel_filename, initrd_filename,
 				real_cmdline))
