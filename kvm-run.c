@@ -383,7 +383,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	}
 
 	if (!strstr(real_cmdline, "root="))
-		strlcat(real_cmdline, "root=/dev/vda rw ", sizeof(real_cmdline));
+		strlcat(real_cmdline, " root=/dev/vda rw ", sizeof(real_cmdline));
 
 	if (image_filename) {
 		kvm->disk_image	= disk_image__open(image_filename, readonly_image);
