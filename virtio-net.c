@@ -57,8 +57,14 @@ static struct net_device net_device = {
 		.mac		= {0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
 		.status		= VIRTIO_NET_S_LINK_UP,
 	},
-
-	.host_features		= 1UL << VIRTIO_NET_F_MAC,
+	.host_features		= 1UL << VIRTIO_NET_F_MAC |
+				  1UL << VIRTIO_NET_F_CSUM |
+				  1UL << VIRTIO_NET_F_HOST_UFO |
+				  1UL << VIRTIO_NET_F_HOST_TSO4 |
+				  1UL << VIRTIO_NET_F_HOST_TSO6 |
+				  1UL << VIRTIO_NET_F_GUEST_UFO |
+				  1UL << VIRTIO_NET_F_GUEST_TSO4 |
+				  1UL << VIRTIO_NET_F_GUEST_TSO6,
 };
 
 static void *virtio_net_rx_thread(void *p)
@@ -81,13 +87,8 @@ static void *virtio_net_rx_thread(void *p)
 
 		while (virt_queue__available(vq)) {
 			head = virt_queue__get_iov(vq, iov, &out, &in, self);
-
-			/* We do not specify GSO or CSUM features, So we can ignore virtio_net_hdr */
-			len = readv(net_device.tap_fd, iov + 1, in - 1);
-
-			/* However, We have to tell guest we have write the virtio_net_hdr */
-			virt_queue__set_used_elem(vq, head, sizeof(struct virtio_net_hdr) + len);
-
+			len = readv(net_device.tap_fd, iov, in);
+			virt_queue__set_used_elem(vq, head, len);
 			/* We should interrupt guest right now, otherwise latency is huge. */
 			kvm__irq_line(self, VIRTIO_NET_IRQ, 1);
 		}
@@ -119,7 +120,7 @@ static void *virtio_net_tx_thread(void *p)
 
 		while (virt_queue__available(vq)) {
 			head = virt_queue__get_iov(vq, iov, &out, &in, self);
-			len = writev(net_device.tap_fd, iov + 1, out - 1);
+			len = writev(net_device.tap_fd, iov, out);
 			virt_queue__set_used_elem(vq, head, len);
 		}
 
@@ -280,23 +281,22 @@ static struct pci_device_header virtio_net_pci_device = {
 
 static bool virtio_net__tap_init(const struct virtio_net_parameters *params)
 {
-	struct ifreq ifr;
 	int sock = socket(AF_INET, SOCK_STREAM, 0);
-	int i, pid, status;
+	int i, pid, status, offload, hdr_len;
 	struct sockaddr_in sin = {0};
+	struct ifreq ifr;
 
 	for (i = 0 ; i < 6 ; i++)
 		net_device.net_config.mac[i] = params->guest_mac[i];
 
 	net_device.tap_fd = open("/dev/net/tun", O_RDWR);
 	if (net_device.tap_fd < 0) {
-		warning("Unable to open /dev/net/tun\n");
+		warning("Unable to open /dev/net/tun");
 		goto fail;
 	}
 
 	memset(&ifr, 0, sizeof(ifr));
-	ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
-
+	ifr.ifr_flags = IFF_TAP | IFF_NO_PI | IFF_VNET_HDR;
 	if (ioctl(net_device.tap_fd, TUNSETIFF, &ifr) < 0) {
 		warning("Config tap device error. Are you root?");
 		goto fail;
@@ -304,7 +304,22 @@ static bool virtio_net__tap_init(const struct virtio_net_parameters *params)
 
 	strncpy(net_device.tap_name, ifr.ifr_name, sizeof(net_device.tap_name));
 
-	ioctl(net_device.tap_fd, TUNSETNOCSUM, 1);
+	if (ioctl(net_device.tap_fd, TUNSETNOCSUM, 1) < 0) {
+		warning("Config tap device TUNSETNOCSUM error");
+		goto fail;
+	}
+
+	hdr_len = sizeof(struct virtio_net_hdr);
+	if (ioctl(net_device.tap_fd, TUNSETVNETHDRSZ, &hdr_len) < 0) {
+		warning("Config tap device TUNSETVNETHDRSZ error");
+		goto fail;
+	}
+
+	offload = TUN_F_CSUM | TUN_F_TSO4 | TUN_F_TSO6 | TUN_F_UFO;
+	if (ioctl(net_device.tap_fd, TUNSETOFFLOAD, offload) < 0) {
+		warning("Config tap device TUNSETOFFLOAD error");
+		goto fail;
+	}
 
 	if (strcmp(params->script, "none")) {
 		pid = fork();
@@ -320,15 +335,12 @@ static bool virtio_net__tap_init(const struct virtio_net_parameters *params)
 		}
 	} else {
 		memset(&ifr, 0, sizeof(ifr));
-
 		strncpy(ifr.ifr_name, net_device.tap_name, sizeof(net_device.tap_name));
-
 		sin.sin_addr.s_addr = inet_addr(params->host_ip);
 		memcpy(&(ifr.ifr_addr), &sin, sizeof(ifr.ifr_addr));
 		ifr.ifr_addr.sa_family = AF_INET;
-
 		if (ioctl(sock, SIOCSIFADDR, &ifr) < 0) {
-			warning("Can not set ip address on tap device");
+			warning("Could not set ip address on tap device");
 			goto fail;
 		}
 	}
