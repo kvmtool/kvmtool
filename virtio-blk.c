@@ -16,7 +16,8 @@
 #include <inttypes.h>
 #include <pthread.h>
 
-#define VIRTIO_BLK_IRQ		14
+#define VIRTIO_BLK_IRQ		15
+#define VIRTIO_BLK_PIN		1
 
 #define NUM_VIRT_QUEUES		1
 
@@ -296,7 +297,7 @@ static struct pci_device_header virtio_blk_pci_device = {
 	.subsys_vendor_id	= PCI_SUBSYSTEM_VENDOR_ID_REDHAT_QUMRANET,
 	.subsys_id		= PCI_SUBSYSTEM_ID_VIRTIO_BLK,
 	.bar[0]			= IOPORT_VIRTIO_BLK | PCI_BASE_ADDRESS_SPACE_IO,
-	.irq_pin		= 1,
+	.irq_pin		= VIRTIO_BLK_PIN,
 	.irq_line		= VIRTIO_BLK_IRQ,
 };
 

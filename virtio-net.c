@@ -21,6 +21,8 @@
 #include <sys/wait.h>
 
 #define VIRTIO_NET_IRQ		14
+#define VIRTIO_NET_PIN		3
+
 #define VIRTIO_NET_QUEUE_SIZE	128
 #define VIRTIO_NET_NUM_QUEUES	2
 #define VIRTIO_NET_RX_QUEUE	0
@@ -275,7 +277,7 @@ static struct pci_device_header virtio_net_pci_device = {
 	.subsys_vendor_id	= PCI_SUBSYSTEM_VENDOR_ID_REDHAT_QUMRANET,
 	.subsys_id		= PCI_SUBSYSTEM_ID_VIRTIO_NET,
 	.bar[0]			= IOPORT_VIRTIO_NET | PCI_BASE_ADDRESS_SPACE_IO,
-	.irq_pin		= 3,
+	.irq_pin		= VIRTIO_NET_PIN,
 	.irq_line		= VIRTIO_NET_IRQ,
 };
 

@@ -22,7 +22,9 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-#define VIRTIO_CONSOLE_IRQ		14
+#define VIRTIO_CONSOLE_IRQ		13
+#define VIRTIO_CONSOLE_PIN		2
+
 #define VIRTIO_CONSOLE_QUEUE_SIZE	128
 #define VIRTIO_CONSOLE_NUM_QUEUES	2
 #define VIRTIO_CONSOLE_RX_QUEUE		0
@@ -227,7 +229,7 @@ static struct pci_device_header virtio_console_pci_device = {
 	.subsys_vendor_id	= PCI_SUBSYSTEM_VENDOR_ID_REDHAT_QUMRANET,
 	.subsys_id		= PCI_SUBSYSTEM_ID_VIRTIO_CONSOLE,
 	.bar[0]			= IOPORT_VIRTIO_CONSOLE | PCI_BASE_ADDRESS_SPACE_IO,
-	.irq_pin		= 2,
+	.irq_pin		= VIRTIO_CONSOLE_PIN,
 	.irq_line		= VIRTIO_CONSOLE_IRQ,
 };
 
