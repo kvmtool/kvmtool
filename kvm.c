@@ -4,6 +4,7 @@
 #include "kvm/interrupt.h"
 #include "kvm/boot-protocol.h"
 #include "kvm/util.h"
+#include "kvm/mptable.h"
 
 #include <linux/kvm.h>
 
@@ -412,6 +413,9 @@ void kvm__setup_bios(struct kvm *self)
 	setup_bios(self);
 
 	/* FIXME: SMP, ACPI and friends here */
+
+	/* MP table */
+	mptable_setup(self, self->nrcpus);
 }
 
 #define TIMER_INTERVAL_NS 1000000	/* 1 msec */

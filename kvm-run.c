@@ -336,8 +336,10 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 		die("Number of CPUs %d is out of [1;%d] range", nrcpus, KVM_NR_CPUS);
 
 	/* FIXME: Remove as only SMP gets fully supported */
-	if (nrcpus > 1)
+	if (nrcpus > 1) {
 		warning("Limiting CPUs to 1, true SMP is not yet implemented");
+		nrcpus = 1;
+	}
 
 	if (ram_size < MIN_RAM_SIZE_MB)
 		die("Not enough memory specified: %lluMB (min %lluMB)", ram_size, MIN_RAM_SIZE_MB);
@@ -367,6 +369,8 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	term_init();
 
 	kvm = kvm__init(kvm_dev, ram_size);
+
+	kvm->nrcpus = nrcpus;
 
 	memset(real_cmdline, 0, sizeof(real_cmdline));
 	strcpy(real_cmdline, "notsc nolapic noacpi pci=conf1 console=ttyS0 ");

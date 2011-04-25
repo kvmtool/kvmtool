@@ -12,6 +12,8 @@ struct kvm {
 	int			vm_fd;		/* For VM ioctls() */
 	timer_t			timerid;	/* Posix timer for interrupts */
 
+	int			nrcpus;		/* Number of cpus to run */
+
 	struct disk_image	*disk_image;
 	uint64_t		ram_size;
 	void			*ram_start;

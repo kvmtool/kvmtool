@@ -32,9 +32,10 @@ OBJS	+= virtio.o
 OBJS	+= util/parse-options.o
 OBJS	+= util/strbuf.o
 OBJS	+= kvm-help.o
-OBJS	+= kvm-cmd.o
-OBJS	+= kvm-run.o
-OBJS	+= qcow.o
+OBJS    += kvm-cmd.o
+OBJS    += kvm-run.o
+OBJS    += qcow.o
+OBJS    += mptable.o
 
 DEPS	:= $(patsubst %.o,%.d,$(OBJS))
 
