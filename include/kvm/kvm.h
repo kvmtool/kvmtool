@@ -7,6 +7,8 @@
 #include <stdint.h>
 #include <time.h>
 
+#define KVM_NR_CPUS		(255)
+
 struct kvm {
 	int			sys_fd;		/* For system ioctls(), i.e. /dev/kvm */
 	int			vm_fd;		/* For VM ioctls() */

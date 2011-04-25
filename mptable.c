@@ -6,6 +6,14 @@
 
 #include <string.h>
 
+/*
+ * If kernel is not configured yet this macro
+ * might not be defined, fix it by own definition
+ */
+#ifndef NR_CPUS
+#define NR_CPUS KVM_NR_CPUS
+#endif
+
 #include <asm/mpspec_def.h>
 
 /*
