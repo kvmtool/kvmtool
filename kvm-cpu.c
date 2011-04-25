@@ -3,6 +3,8 @@
 #include "kvm/util.h"
 #include "kvm/kvm.h"
 
+#include <asm/msr-index.h>
+
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <signal.h>
@@ -106,18 +108,6 @@ static struct kvm_msrs *kvm_msrs__new(size_t nmsrs)
 	return self;
 }
 
-#define MSR_IA32_TIME_STAMP_COUNTER	0x10
-
-#define MSR_IA32_SYSENTER_CS		0x174
-#define MSR_IA32_SYSENTER_ESP		0x175
-#define MSR_IA32_SYSENTER_EIP		0x176
-
-#define MSR_IA32_STAR			0xc0000081
-#define MSR_IA32_LSTAR			0xc0000082
-#define MSR_IA32_CSTAR			0xc0000083
-#define MSR_IA32_FMASK			0xc0000084
-#define MSR_IA32_KERNEL_GS_BASE		0xc0000102
-
 #define KVM_MSR_ENTRY(_index, _data)	\
 	(struct kvm_msr_entry) { .index = _index, .data = _data }
 
@@ -131,13 +121,13 @@ static void kvm_cpu__setup_msrs(struct kvm_cpu *self)
 	self->msrs->entries[ndx++] = KVM_MSR_ENTRY(MSR_IA32_SYSENTER_ESP,	0x0);
 	self->msrs->entries[ndx++] = KVM_MSR_ENTRY(MSR_IA32_SYSENTER_EIP,	0x0);
 #ifdef CONFIG_X86_64
-	self->msrs->entries[ndx++] = KVM_MSR_ENTRY(MSR_IA32_STAR,		0x0);
-	self->msrs->entries[ndx++] = KVM_MSR_ENTRY(MSR_IA32_CSTAR,		0x0);
-	self->msrs->entries[ndx++] = KVM_MSR_ENTRY(MSR_IA32_KERNEL_GS_BASE,	0x0);
-	self->msrs->entries[ndx++] = KVM_MSR_ENTRY(MSR_IA32_FMASK,		0x0);
-	self->msrs->entries[ndx++] = KVM_MSR_ENTRY(MSR_IA32_LSTAR,		0x0);
+	self->msrs->entries[ndx++] = KVM_MSR_ENTRY(MSR_STAR,			0x0);
+	self->msrs->entries[ndx++] = KVM_MSR_ENTRY(MSR_CSTAR,			0x0);
+	self->msrs->entries[ndx++] = KVM_MSR_ENTRY(MSR_KERNEL_GS_BASE,		0x0);
+	self->msrs->entries[ndx++] = KVM_MSR_ENTRY(MSR_SYSCALL_MASK,		0x0);
+	self->msrs->entries[ndx++] = KVM_MSR_ENTRY(MSR_LSTAR,			0x0);
 #endif
-	self->msrs->entries[ndx++] = KVM_MSR_ENTRY(MSR_IA32_TIME_STAMP_COUNTER,	0x0);
+	self->msrs->entries[ndx++] = KVM_MSR_ENTRY(MSR_IA32_TSC,		0x0);
 
 	self->msrs->nmsrs	= ndx;
 
