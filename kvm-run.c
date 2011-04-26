@@ -176,7 +176,7 @@ static void kernel_usage_with_options(void)
 		fprintf(stderr, "\t%s\n", kernel);
 		k++;
 	}
-	usage_with_options(run_usage, options);
+	fprintf(stderr, "\nPlease see 'kvm run --help' for more options.\n\n");
 }
 
 static const char *find_kernel(void)
