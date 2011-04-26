@@ -264,6 +264,10 @@ static int root_device(char *dev, long *part)
 	/* verify the device path */
 	if (stat(dev, &st) < 0)
 		return -1;
+
+	if (access(dev, R_OK) < 0)
+		return -1;
+
 	return 0;
 }
 
