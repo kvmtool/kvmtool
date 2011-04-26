@@ -44,17 +44,6 @@ static struct kvm *kvm;
 static struct kvm_cpu *kvm_cpus[KVM_NR_CPUS];
 static __thread struct kvm_cpu *current_kvm_cpu;
 
-static void handle_sigquit(int sig)
-{
-	serial8250__inject_sysrq(kvm);
-}
-
-static void handle_sigalrm(int sig)
-{
-	serial8250__inject_interrupt(kvm);
-	virtio_console__inject_interrupt(kvm);
-}
-
 static u64 ram_size = MIN_RAM_SIZE_MB;
 static const char *kernel_cmdline;
 static const char *kernel_filename;
@@ -113,6 +102,27 @@ static const struct option options[] = {
 			"Enable ioport debugging"),
 	OPT_END()
 };
+
+static void handle_sigquit(int sig)
+{
+	int i;
+
+	for (i = 0; i < nrcpus; i++) {
+		struct kvm_cpu *cpu = kvm_cpus[i];
+
+		kvm_cpu__show_registers(cpu);
+		kvm_cpu__show_code(cpu);
+		kvm_cpu__show_page_tables(cpu);
+	}
+
+	serial8250__inject_sysrq(kvm);
+}
+
+static void handle_sigalrm(int sig)
+{
+	serial8250__inject_interrupt(kvm);
+	virtio_console__inject_interrupt(kvm);
+}
 
 static void *kvm_cpu_thread(void *arg)
 {
