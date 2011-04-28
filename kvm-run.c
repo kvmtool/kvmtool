@@ -143,7 +143,7 @@ panic_kvm:
 	if (current_kvm_cpu->kvm_run->exit_reason == KVM_EXIT_UNKNOWN)
 		fprintf(stderr, "KVM exit code: 0x%Lu\n",
 			current_kvm_cpu->kvm_run->hw.hardware_exit_reason);
-	disk_image__close(kvm->disk_image);
+
 	kvm_cpu__show_registers(current_kvm_cpu);
 	kvm_cpu__show_code(current_kvm_cpu);
 	kvm_cpu__show_page_tables(current_kvm_cpu);
