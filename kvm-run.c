@@ -22,6 +22,7 @@
 #include <kvm/disk-image.h>
 #include <kvm/util.h>
 #include <kvm/pci.h>
+#include <kvm/rtc.h>
 #include <kvm/term.h>
 #include <kvm/ioport.h>
 #include <kvm/threadpool.h>
@@ -415,6 +416,8 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 		die("unable to load kernel %s", kernel_filename);
 
 	ioport__setup_legacy();
+
+	rtc__init();
 
 	kvm__setup_bios(kvm);
 

@@ -12,28 +12,6 @@
 
 bool ioport_debug;
 
-static uint8_t ioport_to_uint8(void *data)
-{
-	uint8_t *p = data;
-
-	return *p;
-}
-
-static bool cmos_ram_rtc_io_out(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
-{
-	uint8_t value;
-
-	value	= ioport_to_uint8(data);
-
-	self->nmi_disabled	= value & (1UL << 7);
-
-	return true;
-}
-
-static struct ioport_operations cmos_ram_rtc_ops = {
-	.io_out		= cmos_ram_rtc_io_out,
-};
-
 static bool debug_io_out(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
 {
 	exit(EXIT_SUCCESS);
@@ -127,10 +105,6 @@ void ioport__setup_legacy(void)
 	/* PORT 0060-006F - KEYBOARD CONTROLLER 804x (8041, 8042) (or PPI (8255) on PC,XT) */
 	ioport__register(0x0060, &dummy_read_write_ioport_ops, 2);
 	ioport__register(0x0064, &dummy_read_write_ioport_ops, 1);
-
-	/* PORT 0070-007F - CMOS RAM/RTC (REAL TIME CLOCK) */
-	ioport__register(0x0070, &cmos_ram_rtc_ops, 1);
-	ioport__register(0x0071, &dummy_read_write_ioport_ops, 1);
 
 	/* 0x00A0 - 0x00AF - 8259A PIC 2 */
 	ioport__register(0x00A0, &dummy_read_write_ioport_ops, 2);
