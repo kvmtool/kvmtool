@@ -36,6 +36,7 @@ OBJS    += kvm-cmd.o
 OBJS    += kvm-run.o
 OBJS    += qcow.o
 OBJS    += mptable.o
+OBJS    += threadpool.o
 
 DEPS	:= $(patsubst %.o,%.d,$(OBJS))
 

@@ -24,6 +24,7 @@
 #include <kvm/pci.h>
 #include <kvm/term.h>
 #include <kvm/ioport.h>
+#include <kvm/threadpool.h>
 
 /* header files for gitish interface  */
 #include <kvm/kvm-run.h>
@@ -312,6 +313,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	int i;
 	struct virtio_net_parameters net_params;
 	char *hi;
+	unsigned int nr_online_cpus;
 
 	signal(SIGALRM, handle_sigalrm);
 	signal(SIGQUIT, handle_sigquit);
@@ -456,6 +458,9 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	}
 
 	kvm__init_ram(kvm);
+
+	nr_online_cpus = sysconf(_SC_NPROCESSORS_ONLN);
+	thread_pool__init(nr_online_cpus);
 
 	for (i = 0; i < nrcpus; i++) {
 		if (pthread_create(&kvm_cpus[i]->thread, NULL, kvm_cpu_thread, kvm_cpus[i]) != 0)
