@@ -9,6 +9,7 @@
 #include "kvm/util.h"
 #include "kvm/kvm.h"
 #include "kvm/pci.h"
+#include "kvm/threadpool.h"
 
 #include <linux/virtio_ring.h>
 #include <linux/virtio_blk.h>
@@ -31,15 +32,13 @@ struct blk_device {
 	uint32_t			guest_features;
 	uint16_t			config_vector;
 	uint8_t				status;
-	pthread_t			io_thread;
-	pthread_mutex_t		io_mutex;
-	pthread_cond_t		io_cond;
 
 	/* virtio queue */
 	uint16_t			queue_selector;
-	uint64_t			virtio_blk_queue_set_flags;
 
 	struct virt_queue		vqs[NUM_VIRT_QUEUES];
+
+	void			*jobs[NUM_VIRT_QUEUES];
 };
 
 #define DISK_SEG_MAX	126
@@ -57,9 +56,6 @@ static struct blk_device blk_device = {
 	 * same applies to VIRTIO_BLK_F_BLK_SIZE
 	 */
 	.host_features		= (1UL << VIRTIO_BLK_F_SEG_MAX),
-
-	.io_mutex			= PTHREAD_MUTEX_INITIALIZER,
-	.io_cond			= PTHREAD_COND_INITIALIZER
 };
 
 static bool virtio_blk_pci_io_device_specific_in(void *data, unsigned long offset, int size, uint32_t count)
@@ -156,73 +152,14 @@ static bool virtio_blk_do_io_request(struct kvm *self, struct virt_queue *queue)
 	return true;
 }
 
-
-
-static int virtio_blk_get_selected_queue(struct blk_device *dev)
+static void virtio_blk_do_io(struct kvm *kvm, void *param)
 {
-	int i;
+	struct virt_queue *vq = param;
 
-	for (i = 0 ; i < NUM_VIRT_QUEUES ; i++) {
-		if (dev->virtio_blk_queue_set_flags & (1 << i)) {
-			dev->virtio_blk_queue_set_flags &= ~(1 << i);
-			return i;
-		}
-	}
+	while (virt_queue__available(vq))
+		virtio_blk_do_io_request(kvm, vq);
 
-	return -1;
-}
-
-static void virtio_blk_do_io(struct kvm *kvm, struct blk_device *dev)
-{
-	for (;;) {
-		struct virt_queue *vq;
-		int queue_index;
-
-		mutex_lock(&dev->io_mutex);
-		queue_index = virtio_blk_get_selected_queue(dev);
-		mutex_unlock(&dev->io_mutex);
-
-		if (queue_index < 0)
-			break;
-
-		vq = &dev->vqs[queue_index];
-
-		while (virt_queue__available(vq))
-			virtio_blk_do_io_request(kvm, vq);
-
-		kvm__irq_line(kvm, VIRTIO_BLK_IRQ, 1);
-	}
-}
-
-static void *virtio_blk_io_thread(void *ptr)
-{
-	struct kvm *self = ptr;
-
-	for (;;) {
-		int ret;
-
-		mutex_lock(&blk_device.io_mutex);
-		ret = pthread_cond_wait(&blk_device.io_cond, &blk_device.io_mutex);
-		mutex_unlock(&blk_device.io_mutex);
-
-		if (ret != 0)
-			break;
-
-		virtio_blk_do_io(self, &blk_device);
-	}
-
-	return NULL;
-}
-
-static void virtio_blk_handle_callback(struct blk_device *dev, uint16_t queue_index)
-{
-	mutex_lock(&dev->io_mutex);
-
-	dev->virtio_blk_queue_set_flags |= (1 << queue_index);
-
-	mutex_unlock(&dev->io_mutex);
-
-	pthread_cond_signal(&dev->io_cond);
+	kvm__irq_line(kvm, VIRTIO_BLK_IRQ, 1);
 }
 
 static bool virtio_blk_pci_io_out(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
@@ -250,6 +187,9 @@ static bool virtio_blk_pci_io_out(struct kvm *self, uint16_t port, void *data, i
 
 		vring_init(&queue->vring, VIRTIO_BLK_QUEUE_SIZE, p, 4096);
 
+		blk_device.jobs[blk_device.queue_selector] =
+			thread_pool__add_jobtype(self, virtio_blk_do_io, queue);
+
 		break;
 	}
 	case VIRTIO_PCI_QUEUE_SEL:
@@ -258,7 +198,7 @@ static bool virtio_blk_pci_io_out(struct kvm *self, uint16_t port, void *data, i
 	case VIRTIO_PCI_QUEUE_NOTIFY: {
 		uint16_t queue_index;
 		queue_index		= ioport__read16(data);
-		virtio_blk_handle_callback(&blk_device, queue_index);
+		thread_pool__signal_work(blk_device.jobs[queue_index]);
 		break;
 	}
 	case VIRTIO_PCI_STATUS:
@@ -307,8 +247,6 @@ void virtio_blk__init(struct kvm *self)
 {
 	if (!self->disk_image)
 		return;
-
-	pthread_create(&blk_device.io_thread, NULL, virtio_blk_io_thread, self);
 
 	blk_device.blk_config.capacity = self->disk_image->size / SECTOR_SIZE;
 
