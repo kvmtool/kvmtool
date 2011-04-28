@@ -51,8 +51,10 @@
 #define MB_BIOS_SS			0xfff7
 #define MB_BIOS_SP			0x40
 
+#ifndef ALIGN
 #define ALIGN(x, a)	\
 	(((x) + ((a) - 1)) & ~((a) - 1))
+#endif
 
 /*
  * note we use 16 bytes alignment which makes segment based
