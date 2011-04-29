@@ -85,7 +85,7 @@ static void virtio_console__inject_interrupt_callback(struct kvm *self, void *pa
 
 void virtio_console__inject_interrupt(struct kvm *self)
 {
-	thread_pool__signal_work(console_device.jobs[VIRTIO_CONSOLE_RX_QUEUE]);
+	thread_pool__do_job(console_device.jobs[VIRTIO_CONSOLE_RX_QUEUE]);
 }
 
 static bool virtio_console_pci_io_device_specific_in(void *data, unsigned long offset, int size, uint32_t count)
@@ -190,10 +190,10 @@ static bool virtio_console_pci_io_out(struct kvm *self, uint16_t port, void *dat
 
 		if (console_device.queue_selector == VIRTIO_CONSOLE_TX_QUEUE)
 			console_device.jobs[console_device.queue_selector] =
-				thread_pool__add_jobtype(self, virtio_console_handle_callback, queue);
+				thread_pool__add_job(self, virtio_console_handle_callback, queue);
 		else if (console_device.queue_selector == VIRTIO_CONSOLE_RX_QUEUE)
 			console_device.jobs[console_device.queue_selector] =
-				thread_pool__add_jobtype(self, virtio_console__inject_interrupt_callback, queue);
+				thread_pool__add_job(self, virtio_console__inject_interrupt_callback, queue);
 
 		break;
 	}
@@ -203,7 +203,7 @@ static bool virtio_console_pci_io_out(struct kvm *self, uint16_t port, void *dat
 	case VIRTIO_PCI_QUEUE_NOTIFY: {
 		uint16_t queue_index;
 		queue_index	= ioport__read16(data);
-		thread_pool__signal_work(console_device.jobs[queue_index]);
+		thread_pool__do_job(console_device.jobs[queue_index]);
 		break;
 	}
 	case VIRTIO_PCI_STATUS:

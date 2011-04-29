@@ -6,7 +6,7 @@
 #include <pthread.h>
 #include <stdbool.h>
 
-struct thread_pool__job_info {
+struct thread_pool__job {
 	kvm_thread_callback_fn_t	callback;
 	struct kvm			*kvm;
 	void				*data;
@@ -26,42 +26,42 @@ static LIST_HEAD(head);
 static pthread_t	*threads;
 static long		threadcount;
 
-static struct thread_pool__job_info *thread_pool__job_info_pop(void)
+static struct thread_pool__job *thread_pool__job_pop(void)
 {
-	struct thread_pool__job_info *job;
+	struct thread_pool__job *job;
 
 	if (list_empty(&head))
 		return NULL;
 
-	job = list_first_entry(&head, struct thread_pool__job_info, queue);
+	job = list_first_entry(&head, struct thread_pool__job, queue);
 	list_del(&job->queue);
 
 	return job;
 }
 
-static void thread_pool__job_info_push(struct thread_pool__job_info *job)
+static void thread_pool__job_push(struct thread_pool__job *job)
 {
 	list_add_tail(&job->queue, &head);
 }
 
-static struct thread_pool__job_info *thread_pool__job_info_pop_locked(void)
+static struct thread_pool__job *thread_pool__job_pop_locked(void)
 {
-	struct thread_pool__job_info *job;
+	struct thread_pool__job *job;
 
 	mutex_lock(&job_mutex);
-	job = thread_pool__job_info_pop();
+	job = thread_pool__job_pop();
 	mutex_unlock(&job_mutex);
 	return job;
 }
 
-static void thread_pool__job_info_push_locked(struct thread_pool__job_info *job)
+static void thread_pool__job_push_locked(struct thread_pool__job *job)
 {
 	mutex_lock(&job_mutex);
-	thread_pool__job_info_push(job);
+	thread_pool__job_push(job);
 	mutex_unlock(&job_mutex);
 }
 
-static void thread_pool__handle_job(struct thread_pool__job_info *job)
+static void thread_pool__handle_job(struct thread_pool__job *job)
 {
 	while (job) {
 		job->callback(job->kvm, job->data);
@@ -70,11 +70,11 @@ static void thread_pool__handle_job(struct thread_pool__job_info *job)
 
 		if (--job->signalcount > 0)
 			/* If the job was signaled again while we were working */
-			thread_pool__job_info_push_locked(job);
+			thread_pool__job_push_locked(job);
 
 		mutex_unlock(&job->mutex);
 
-		job = thread_pool__job_info_pop_locked();
+		job = thread_pool__job_pop_locked();
 	}
 }
 
@@ -88,11 +88,11 @@ static void *thread_pool__threadfunc(void *param)
 	pthread_cleanup_push(thread_pool__threadfunc_cleanup, NULL);
 
 	for (;;) {
-		struct thread_pool__job_info *curjob;
+		struct thread_pool__job *curjob;
 
 		mutex_lock(&job_mutex);
 		pthread_cond_wait(&job_cond, &job_mutex);
-		curjob = thread_pool__job_info_pop();
+		curjob = thread_pool__job_pop();
 		mutex_unlock(&job_mutex);
 
 		if (curjob)
@@ -139,12 +139,12 @@ int thread_pool__init(unsigned long thread_count)
 	return i;
 }
 
-void *thread_pool__add_jobtype(struct kvm *kvm,
+void *thread_pool__add_job(struct kvm *kvm,
 			       kvm_thread_callback_fn_t callback, void *data)
 {
-	struct thread_pool__job_info *job = calloc(1, sizeof(*job));
+	struct thread_pool__job *job = calloc(1, sizeof(*job));
 
-	*job = (struct thread_pool__job_info) {
+	*job = (struct thread_pool__job) {
 		.kvm		= kvm,
 		.data		= data,
 		.callback	= callback,
@@ -154,16 +154,16 @@ void *thread_pool__add_jobtype(struct kvm *kvm,
 	return job;
 }
 
-void thread_pool__signal_work(void *job)
+void thread_pool__do_job(void *job)
 {
-	struct thread_pool__job_info *jobinfo = job;
+	struct thread_pool__job *jobinfo = job;
 
 	if (jobinfo == NULL)
 		return;
 
 	mutex_lock(&jobinfo->mutex);
 	if (jobinfo->signalcount++ == 0)
-		thread_pool__job_info_push_locked(job);
+		thread_pool__job_push_locked(job);
 	mutex_unlock(&jobinfo->mutex);
 
 	pthread_cond_signal(&job_cond);

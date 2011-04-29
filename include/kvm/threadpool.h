@@ -9,8 +9,8 @@ typedef void (*kvm_thread_callback_fn_t)(struct kvm *kvm, void *data);
 
 int thread_pool__init(unsigned long thread_count);
 
-void *thread_pool__add_jobtype(struct kvm *kvm, kvm_thread_callback_fn_t callback, void *data);
+void *thread_pool__add_job(struct kvm *kvm, kvm_thread_callback_fn_t callback, void *data);
 
-void thread_pool__signal_work(void *job);
+void thread_pool__do_job(void *job);
 
 #endif
