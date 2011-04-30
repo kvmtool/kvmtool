@@ -19,6 +19,7 @@
 #include <kvm/virtio-blk.h>
 #include <kvm/virtio-net.h>
 #include <kvm/virtio-console.h>
+#include <kvm/virtio-rng.h>
 #include <kvm/disk-image.h>
 #include <kvm/util.h>
 #include <kvm/pci.h>
@@ -59,6 +60,7 @@ static const char *guest_mac;
 static const char *script;
 static bool single_step;
 static bool readonly_image;
+static bool virtio_rng;
 extern bool ioport_debug;
 extern int  active_console;
 
@@ -78,6 +80,8 @@ static const struct option options[] = {
 			"Don't write changes back to disk image"),
 	OPT_STRING('c', "console", &console, "serial or virtio",
 			"Console to use"),
+	OPT_BOOLEAN('\0', "virtio-rng", &virtio_rng,
+			"Enable virtio Random Number Generator"),
 
 	OPT_GROUP("Kernel options:"),
 	OPT_STRING('k', "kernel", &kernel_filename, "kernel",
@@ -428,6 +432,9 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	virtio_blk__init(kvm);
 
 	virtio_console__init(kvm);
+
+	if (virtio_rng)
+		virtio_rng__init(kvm);
 
 	if (!network)
 		network = DEFAULT_NETWORK;
