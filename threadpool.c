@@ -166,5 +166,7 @@ void thread_pool__do_job(void *job)
 		thread_pool__job_push_locked(job);
 	mutex_unlock(&jobinfo->mutex);
 
+	mutex_lock(&job_mutex);
 	pthread_cond_signal(&job_cond);
+	mutex_unlock(&job_mutex);
 }
