@@ -51,19 +51,6 @@
 #define MB_BIOS_SS			0xfff7
 #define MB_BIOS_SP			0x40
 
-#ifndef ALIGN
-#define ALIGN(x, a)	\
-	(((x) + ((a) - 1)) & ~((a) - 1))
-#endif
-
-/*
- * note we use 16 bytes alignment which makes segment based
- * addressing easy to compute, dont change it otherwise you
- * may break local variables offsets in BIOS irq routines
- */
-#define BIOS_NEXT_IRQ_ADDR(addr, size)	\
-	ALIGN((addr + size + 1), 16)
-
 /*
  * When interfere with assembler code we need to be sure how
  * arguments are passed in real mode.

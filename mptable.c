@@ -4,6 +4,7 @@
 #include "kvm/mptable.h"
 #include "kvm/util.h"
 
+#include <linux/kernel.h>
 #include <string.h>
 
 /*
