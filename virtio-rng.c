@@ -128,7 +128,7 @@ static bool virtio_rng_pci_io_out(struct kvm *kvm, uint16_t port, void *data, in
 		vring_init(&queue->vring, VIRTIO_RNG_QUEUE_SIZE, p, 4096);
 
 		rng_device.jobs[rng_device.queue_selector] =
-			thread_pool__add_jobtype(kvm, virtio_rng_do_io, queue);
+			thread_pool__add_job(kvm, virtio_rng_do_io, queue);
 
 		break;
 	}
@@ -138,7 +138,7 @@ static bool virtio_rng_pci_io_out(struct kvm *kvm, uint16_t port, void *data, in
 	case VIRTIO_PCI_QUEUE_NOTIFY: {
 		uint16_t queue_index;
 		queue_index		= ioport__read16(data);
-		thread_pool__signal_work(rng_device.jobs[queue_index]);
+		thread_pool__do_job(rng_device.jobs[queue_index]);
 		break;
 	}
 	case VIRTIO_PCI_STATUS:
