@@ -16,6 +16,7 @@
 #endif
 
 #include <asm/mpspec_def.h>
+#include <linux/types.h>
 
 /*
  * FIXME: please make sure the addresses borrowed
@@ -58,6 +59,21 @@ static unsigned int gen_cpu_flag(unsigned int cpu, unsigned int ncpu)
  * here for a while.
  */
 #define MPTABLE_MAX_CPUS	255
+
+static void mptable_add_irq_src(struct mpc_intsrc *mpc_intsrc,
+				u16 srcbusid,	u16 srcbusirq,
+				u16 dstapic,	u16 dstirq)
+{
+	*mpc_intsrc = (struct mpc_intsrc) {
+		.type		= MP_INTSRC,
+		.irqtype	= mp_INT,
+		.irqflag	= MP_IRQDIR_DEFAULT,
+		.srcbus		= srcbusid,
+		.srcbusirq	= srcbusirq,
+		.dstapic	= dstapic,
+		.dstirq		= dstirq
+	};
+}
 
 /**
  * mptable_setup - create mptable and fill guest memory with it
@@ -171,38 +187,26 @@ void mptable_setup(struct kvm *kvm, unsigned int ncpus)
 	 * Also note we use PCI irqs here, no for ISA bus yet.
 	 */
 	mpc_intsrc		= last_addr;
-	mpc_intsrc->type	= MP_INTSRC;
-	mpc_intsrc->irqtype	= mp_INT;
-	mpc_intsrc->irqflag	= MP_IRQDIR_DEFAULT;
-	mpc_intsrc->srcbus	= pcibusid;
-	mpc_intsrc->srcbusirq	= 2; /* virtio console irq pin */
-	mpc_intsrc->dstapic	= ioapicid;
-	mpc_intsrc->dstirq	= 13; /* VIRTIO_CONSOLE_IRQ */
 
+	/* src irq = virtio console irq pin, dst irq = virtio console irq */
+	mptable_add_irq_src(mpc_intsrc, pcibusid, 2, ioapicid, 13);
 	last_addr = (void *)&mpc_intsrc[1];
 	nentries++;
 
-	mpc_intsrc		= last_addr;
-	mpc_intsrc->type	= MP_INTSRC;
-	mpc_intsrc->irqtype	= mp_INT;
-	mpc_intsrc->irqflag	= MP_IRQDIR_DEFAULT;
-	mpc_intsrc->srcbus	= pcibusid;
-	mpc_intsrc->srcbusirq	= 1; /* virtio block irq pin */
-	mpc_intsrc->dstapic	= ioapicid;
-	mpc_intsrc->dstirq	= 15; /* VIRTIO_BLK_IRQ */
+	/* Currently we define 4 possible virtio-blk devices */
+	for (i = 0; i < 4; i++) {
+		mpc_intsrc		= last_addr;
 
-	last_addr = (void *)&mpc_intsrc[1];
-	nentries++;
+		/* src irq = virtio blk irq pin, dst irq = virtio blk irq */
+		mptable_add_irq_src(mpc_intsrc, pcibusid, 1, ioapicid, 9 + i);
+		last_addr = (void *)&mpc_intsrc[1];
+		nentries++;
+	}
 
 	mpc_intsrc		= last_addr;
-	mpc_intsrc->type	= MP_INTSRC;
-	mpc_intsrc->irqtype	= mp_INT;
-	mpc_intsrc->irqflag	= MP_IRQDIR_DEFAULT;
-	mpc_intsrc->srcbus	= pcibusid;
-	mpc_intsrc->srcbusirq	= 3; /* virtio net irq pin */
-	mpc_intsrc->dstapic	= ioapicid;
-	mpc_intsrc->dstirq	= 14; /* VIRTIO_NET_IRQ */
 
+	/* src irq = virtio net irq pin, dst irq = virtio net irq */
+	mptable_add_irq_src(mpc_intsrc, pcibusid, 3, ioapicid, 14);
 	last_addr = (void *)&mpc_intsrc[1];
 	nentries++;
 
