@@ -1,7 +1,9 @@
 #include <linux/virtio_ring.h>
 #include <stdint.h>
 #include <sys/uio.h>
-#include <asm/system.h>
+
+#include "kvm/barrier.h"
+
 #include "kvm/kvm.h"
 #include "kvm/virtio.h"
 
