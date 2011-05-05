@@ -1,6 +1,7 @@
 #include "kvm/virtio-rng.h"
 
 #include "kvm/virtio-pci.h"
+#include "kvm/virtio-pci-dev.h"
 
 #include "kvm/disk-image.h"
 #include "kvm/virtio.h"
@@ -18,15 +19,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <pthread.h>
-
-#define PCI_VENDOR_ID_REDHAT_QUMRANET		0x1af4
-#define PCI_DEVICE_ID_VIRTIO_RNG		0x1004
-#define PCI_SUBSYSTEM_VENDOR_ID_REDHAT_QUMRANET	0x1af4
-#define PCI_SUBSYSTEM_ID_VIRTIO_RNG		0x0004
-#define PCI_VIRTIO_RNG_DEVNUM			4
-
-#define VIRTIO_RNG_IRQ				11
-#define VIRTIO_RNG_PIN				1
 
 #define NUM_VIRT_QUEUES				1
 #define VIRTIO_RNG_QUEUE_SIZE			128

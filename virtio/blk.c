@@ -1,6 +1,7 @@
 #include "kvm/virtio-blk.h"
 
 #include "kvm/virtio-pci.h"
+#include "kvm/virtio-pci-dev.h"
 
 #include "kvm/disk-image.h"
 #include "kvm/virtio.h"
@@ -17,8 +18,6 @@
 #include <linux/types.h>
 #include <pthread.h>
 
-#define VIRTIO_BLK_IRQ			9
-#define VIRTIO_BLK_PIN			1
 #define VIRTIO_BLK_MAX_DEV		4
 #define NUM_VIRT_QUEUES			1
 
@@ -242,12 +241,6 @@ static struct ioport_operations virtio_blk_io_ops = {
 	.io_in		= virtio_blk_pci_io_in,
 	.io_out		= virtio_blk_pci_io_out,
 };
-
-#define PCI_VENDOR_ID_REDHAT_QUMRANET		0x1af4
-#define PCI_DEVICE_ID_VIRTIO_BLK		0x1001
-#define PCI_SUBSYSTEM_VENDOR_ID_REDHAT_QUMRANET	0x1af4
-#define PCI_SUBSYSTEM_ID_VIRTIO_BLK		0x0002
-#define PCI_VIRTIO_BLK_DEVNUM 10
 
 static int virtio_blk_find_empty_dev(void)
 {

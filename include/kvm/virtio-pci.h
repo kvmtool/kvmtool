@@ -34,26 +34,41 @@
 /* A 16-bit r/w queue notifier */
 #define VIRTIO_PCI_QUEUE_NOTIFY		16
 
-/* An 8-bit device status register.  */
+/* An 8-bit device status register */
 #define VIRTIO_PCI_STATUS		18
 
-/* An 8-bit r/o interrupt status register.  Reading the value will return the
- * current contents of the ISR and will also clear it.  This is effectively
- * a read-and-acknowledge. */
+/*
+ * An 8-bit r/o interrupt status register.
+ *
+ * Reading the value will return the current contents of
+ * the ISR and will also clear it. This is effectively
+ * a read-and-acknowledge.
+ */
 #define VIRTIO_PCI_ISR			19
 
-/* MSI-X registers: only enabled if MSI-X is enabled. */
-/* A 16-bit vector for configuration changes. */
+/*
+ * MSI-X registers: only enabled if MSI-X is enabled.
+ */
+
+/* A 16-bit vector for configuration changes */
 #define VIRTIO_MSI_CONFIG_VECTOR        20
 
-/* A 16-bit vector for selected queue notifications. */
+/* A 16-bit vector for selected queue notifications */
 #define VIRTIO_MSI_QUEUE_VECTOR         22
 
 /* Vector value used to disable MSI for queue */
 #define VIRTIO_MSI_NO_VECTOR            0xffff
 
-/* Config space size */
+/*
+ * Config space size.
+ */
 #define VIRTIO_PCI_CONFIG_NOMSI         20
 #define VIRTIO_PCI_CONFIG_MSI           24
+
+/*
+ * Virtio config space constants.
+ */
+#define PCI_VENDOR_ID_REDHAT_QUMRANET		0x1af4
+#define PCI_SUBSYSTEM_VENDOR_ID_REDHAT_QUMRANET	0x1af4
 
 #endif /* _LINUX_VIRTIO_PCI_H */

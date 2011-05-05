@@ -1,0 +1,40 @@
+#ifndef VIRTIO_PCI_DEV_H_
+#define VIRTIO_PCI_DEV_H_
+
+/*
+ * Virtio PCI device constants and resources
+ * they do use (such as irqs and pins).
+ */
+
+#define PCI_DEVICE_ID_VIRTIO_NET		0x1000
+#define PCI_DEVICE_ID_VIRTIO_BLK		0x1001
+#define PCI_DEVICE_ID_VIRTIO_CONSOLE		0x1003
+#define PCI_DEVICE_ID_VIRTIO_RNG		0x1004
+
+#define PCI_SUBSYSTEM_ID_VIRTIO_NET		0x0001
+#define PCI_SUBSYSTEM_ID_VIRTIO_BLK		0x0002
+#define PCI_SUBSYSTEM_ID_VIRTIO_CONSOLE		0x0003
+#define PCI_SUBSYSTEM_ID_VIRTIO_RNG		0x0004
+
+enum {
+	PCI_VIRTIO_BLK_DEVNUM			= 10,
+	PCI_VIRTIO_CONSOLE_DEVNUM		= 2,
+	PCI_VIRTIO_NET_DEVNUM			= 3,
+	PCI_VIRTIO_RNG_DEVNUM			= 4,
+};
+
+enum {
+	VIRTIO_BLK_PIN				= 1,
+	VIRTIO_CONSOLE_PIN			= 2,
+	VIRTIO_NET_PIN				= 3,
+	VIRTIO_RNG_PIN				= 4,
+};
+
+enum {
+	VIRTIO_RNG_IRQ				= 11,
+	VIRTIO_CONSOLE_IRQ			= 13,
+	VIRTIO_NET_IRQ				= 14,
+	VIRTIO_BLK_IRQ				= 15,
+};
+
+#endif /* VIRTIO_PCI_DEV_H_ */

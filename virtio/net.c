@@ -1,5 +1,6 @@
 #include "kvm/virtio-net.h"
 #include "kvm/virtio-pci.h"
+#include "kvm/virtio-pci-dev.h"
 #include "kvm/virtio.h"
 #include "kvm/ioport.h"
 #include "kvm/types.h"
@@ -20,14 +21,10 @@
 #include <unistd.h>
 #include <sys/wait.h>
 
-#define VIRTIO_NET_IRQ			14
-#define VIRTIO_NET_PIN			3
-
 #define VIRTIO_NET_QUEUE_SIZE		128
 #define VIRTIO_NET_NUM_QUEUES		2
 #define VIRTIO_NET_RX_QUEUE		0
 #define VIRTIO_NET_TX_QUEUE		1
-#define PCI_VIRTIO_NET_DEVNUM		3
 
 struct net_device {
 	pthread_mutex_t			mutex;
@@ -268,11 +265,6 @@ static struct ioport_operations virtio_net_io_ops = {
 	.io_in	= virtio_net_pci_io_in,
 	.io_out	= virtio_net_pci_io_out,
 };
-
-#define PCI_VENDOR_ID_REDHAT_QUMRANET		0x1af4
-#define PCI_DEVICE_ID_VIRTIO_NET		0x1000
-#define PCI_SUBSYSTEM_VENDOR_ID_REDHAT_QUMRANET	0x1af4
-#define PCI_SUBSYSTEM_ID_VIRTIO_NET		0x0001
 
 static struct pci_device_header virtio_net_pci_device = {
 	.vendor_id		= PCI_VENDOR_ID_REDHAT_QUMRANET,

@@ -1,5 +1,6 @@
 #include "kvm/virtio-console.h"
 #include "kvm/virtio-pci.h"
+#include "kvm/virtio-pci-dev.h"
 #include "kvm/disk-image.h"
 #include "kvm/virtio.h"
 #include "kvm/ioport.h"
@@ -22,14 +23,10 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-#define VIRTIO_CONSOLE_IRQ		13
-#define VIRTIO_CONSOLE_PIN		2
-
 #define VIRTIO_CONSOLE_QUEUE_SIZE	128
 #define VIRTIO_CONSOLE_NUM_QUEUES	2
 #define VIRTIO_CONSOLE_RX_QUEUE		0
 #define VIRTIO_CONSOLE_TX_QUEUE		1
-#define PCI_VIRTIO_CONSOLE_DEVNUM	2
 
 struct con_dev {
 	pthread_mutex_t			mutex;
@@ -224,11 +221,6 @@ static struct ioport_operations virtio_console_io_ops = {
 	.io_in			= virtio_console_pci_io_in,
 	.io_out			= virtio_console_pci_io_out,
 };
-
-#define PCI_VENDOR_ID_REDHAT_QUMRANET		0x1af4
-#define PCI_DEVICE_ID_VIRTIO_CONSOLE		0x1003
-#define PCI_SUBSYSTEM_VENDOR_ID_REDHAT_QUMRANET	0x1af4
-#define PCI_SUBSYSTEM_ID_VIRTIO_CONSOLE		0x0003
 
 static struct pci_device_header virtio_console_pci_device = {
 	.vendor_id		= PCI_VENDOR_ID_REDHAT_QUMRANET,
