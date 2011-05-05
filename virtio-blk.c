@@ -28,6 +28,7 @@ struct blk_device {
 	pthread_mutex_t			mutex;
 
 	struct virtio_blk_config	blk_config;
+	struct disk_image		*disk;
 	uint32_t			host_features;
 	uint32_t			guest_features;
 	uint16_t			config_vector;
@@ -130,11 +131,11 @@ static bool virtio_blk_do_io_request(struct kvm *self, struct virt_queue *queue)
 
 	switch (req->type) {
 	case VIRTIO_BLK_T_IN:
-		block_cnt = disk_image__read_sector_iov(self->disk_image, req->sector, iov + 1, in + out - 2);
+		block_cnt = disk_image__read_sector_iov(blk_device.disk, req->sector, iov + 1, in + out - 2);
 
 		break;
 	case VIRTIO_BLK_T_OUT:
-		block_cnt = disk_image__write_sector_iov(self->disk_image, req->sector, iov + 1, in + out - 2);
+		block_cnt = disk_image__write_sector_iov(blk_device.disk, req->sector, iov + 1, in + out - 2);
 
 		break;
 
@@ -243,12 +244,14 @@ static struct pci_device_header virtio_blk_pci_device = {
 
 #define PCI_VIRTIO_BLK_DEVNUM 1
 
-void virtio_blk__init(struct kvm *self)
+void virtio_blk__init(struct kvm *self, struct disk_image *disk)
 {
-	if (!self->disk_image)
+	if (!disk)
 		return;
 
-	blk_device.blk_config.capacity = self->disk_image->size / SECTOR_SIZE;
+	blk_device.disk = disk;
+
+	blk_device.blk_config.capacity = disk->size / SECTOR_SIZE;
 
 	pci__register(&virtio_blk_pci_device, PCI_VIRTIO_BLK_DEVNUM);
 

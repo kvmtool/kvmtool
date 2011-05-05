@@ -409,9 +409,11 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 		strlcat(real_cmdline, " root=/dev/vda rw ", sizeof(real_cmdline));
 
 	if (image_filename) {
-		kvm->disk_image	= disk_image__open(image_filename, readonly_image);
-		if (!kvm->disk_image)
+		struct disk_image *disk = disk_image__open(image_filename, readonly_image);
+		if (!disk)
 			die("unable to load disk image %s", image_filename);
+
+		virtio_blk__init(kvm, disk);
 	}
 	free(hi);
 
@@ -428,8 +430,6 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	serial8250__init(kvm);
 
 	pci__init();
-
-	virtio_blk__init(kvm);
 
 	virtio_console__init(kvm);
 
@@ -487,7 +487,6 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 			exit_code	= 1;
 	}
 
-	disk_image__close(kvm->disk_image);
 	kvm__delete(kvm);
 
 	if (!exit_code)

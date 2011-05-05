@@ -16,7 +16,6 @@ struct kvm {
 
 	int			nrcpus;		/* Number of cpus to run */
 
-	struct disk_image	*disk_image;
 	uint64_t		ram_size;
 	void			*ram_start;
 
