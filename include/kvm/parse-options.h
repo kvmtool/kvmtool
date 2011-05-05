@@ -138,6 +138,41 @@ intptr_t defval;
 	.help = (h)                         \
 }
 
+#define OPT_CALLBACK(s, l, v, a, h, f)      \
+{					    \
+	.type = OPTION_CALLBACK,	    \
+	.short_name = (s),		    \
+	.long_name = (l),		    \
+	.value = (v),			    \
+	(a),				    \
+	.help = (h),			    \
+	.callback = (f)			    \
+}
+
+#define OPT_CALLBACK_NOOPT(s, l, v, a, h, f) \
+{					    \
+	.type = OPTION_CALLBACK,	    \
+	.short_name = (s),		    \
+	.long_name = (l),		    \
+	.value = (v),			    \
+	(a),				    \
+	.help = (h),			    \
+	.callback = (f),		    \
+	.flags = PARSE_OPT_NOARG	    \
+}
+
+#define OPT_CALLBACK_DEFAULT(s, l, v, a, h, f, d) \
+{					    \
+	.type = OPTION_CALLBACK,	    \
+	.short_name = (s),		    \
+	.long_name = (l),		    \
+	.value = (v), (a),		    \
+	.help = (h),			    \
+	.callback = (f),		    \
+	.defval = (intptr_t)d,		    \
+	.flags = PARSE_OPT_LASTARG_DEFAULT  \
+}
+
 #define OPT_END() { .type = OPTION_END }
 
 enum {

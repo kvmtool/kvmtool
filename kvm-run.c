@@ -42,16 +42,18 @@
 #define MB_SHIFT		(20)
 #define MIN_RAM_SIZE_MB		(64ULL)
 #define MIN_RAM_SIZE_BYTE	(MIN_RAM_SIZE_MB << MB_SHIFT)
+#define MAX_DISK_IMAGES		4
 
 static struct kvm *kvm;
 static struct kvm_cpu *kvm_cpus[KVM_NR_CPUS];
 static __thread struct kvm_cpu *current_kvm_cpu;
 
 static u64 ram_size = MIN_RAM_SIZE_MB;
+static u8  image_count;
 static const char *kernel_cmdline;
 static const char *kernel_filename;
 static const char *initrd_filename;
-static const char *image_filename;
+static const char *image_filename[MAX_DISK_IMAGES];
 static const char *console;
 static const char *kvm_dev;
 static const char *network;
@@ -59,7 +61,7 @@ static const char *host_ip_addr;
 static const char *guest_mac;
 static const char *script;
 static bool single_step;
-static bool readonly_image;
+static bool readonly_image[MAX_DISK_IMAGES];
 static bool virtio_rng;
 extern bool ioport_debug;
 extern int  active_console;
@@ -71,13 +73,31 @@ static const char * const run_usage[] = {
 	NULL
 };
 
+static int img_name_parser(const struct option *opt, const char *arg, int unset)
+{
+	char *sep;
+
+	if (image_count >= MAX_DISK_IMAGES)
+		die("Currently only 4 images are supported");
+
+	image_filename[image_count] = arg;
+	sep = strstr(arg, ",");
+	if (sep) {
+		if (strcmp(sep + 1, "ro") == 0)
+			readonly_image[image_count] = 1;
+		*sep = 0;
+	}
+
+	image_count++;
+
+	return 0;
+}
+
 static const struct option options[] = {
 	OPT_GROUP("Basic options:"),
 	OPT_INTEGER('\0', "cpus", &nrcpus, "Number of CPUs"),
 	OPT_U64('m', "mem", &ram_size, "Virtual machine memory size in MiB."),
-	OPT_STRING('i', "image", &image_filename, "image", "Disk image"),
-	OPT_BOOLEAN('\0', "readonly", &readonly_image,
-			"Don't write changes back to disk image"),
+	OPT_CALLBACK('i', "image", NULL, "image", "Disk image", img_name_parser),
 	OPT_STRING('c', "console", &console, "serial or virtio",
 			"Console to use"),
 	OPT_BOOLEAN('\0', "virtio-rng", &virtio_rng,
@@ -397,23 +417,25 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 		strlcat(real_cmdline, kernel_cmdline, sizeof(real_cmdline));
 
 	hi = NULL;
-	if (!image_filename) {
+	if (!image_filename[0]) {
 		hi = host_image(real_cmdline, sizeof(real_cmdline));
 		if (hi) {
-			image_filename = hi;
-			readonly_image = true;
+			image_filename[0] = hi;
+			readonly_image[0] = true;
 		}
 	}
 
 	if (!strstr(real_cmdline, "root="))
 		strlcat(real_cmdline, " root=/dev/vda rw ", sizeof(real_cmdline));
 
-	if (image_filename) {
-		struct disk_image *disk = disk_image__open(image_filename, readonly_image);
-		if (!disk)
-			die("unable to load disk image %s", image_filename);
+	for (i = 0; i < image_count; i++) {
+		if (image_filename[i]) {
+			struct disk_image *disk = disk_image__open(image_filename[i], readonly_image[i]);
+			if (!disk)
+				die("unable to load disk image %s", image_filename[i]);
 
-		virtio_blk__init(kvm, disk);
+			virtio_blk__init(kvm, disk);
+		}
 	}
 	free(hi);
 
