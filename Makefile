@@ -13,9 +13,6 @@ CSCOPE = cscope
 TAGS = ctags
 
 OBJS	+= 8250-serial.o
-OBJS	+= virtio-blk.o
-OBJS	+= virtio-net.o
-OBJS	+= virtio-console.o
 OBJS	+= cpuid.o
 OBJS	+= read-write.o
 OBJS	+= disk-image.o
@@ -29,7 +26,11 @@ OBJS	+= pci.o
 OBJS	+= rtc.o
 OBJS	+= term.o
 OBJS	+= util.o
-OBJS	+= virtio.o
+OBJS	+= virtio/blk.o
+OBJS	+= virtio/console.o
+OBJS	+= virtio/core.o
+OBJS	+= virtio/net.o
+OBJS	+= virtio/rng.o
 OBJS    += util/parse-options.o
 OBJS    += util/strbuf.o
 OBJS    += kvm-help.o
@@ -38,7 +39,6 @@ OBJS    += kvm-run.o
 OBJS    += qcow.o
 OBJS    += mptable.o
 OBJS    += threadpool.o
-OBJS    += virtio-rng.o
 
 DEPS	:= $(patsubst %.o,%.d,$(OBJS))
 
