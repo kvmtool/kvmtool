@@ -420,6 +420,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 		if (hi) {
 			image_filename[0] = hi;
 			readonly_image[0] = true;
+			image_count++;
 		}
 	}
 
