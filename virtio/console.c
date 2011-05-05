@@ -31,7 +31,7 @@
 #define VIRTIO_CONSOLE_TX_QUEUE		1
 #define PCI_VIRTIO_CONSOLE_DEVNUM	2
 
-struct console_device {
+struct con_dev {
 	pthread_mutex_t			mutex;
 
 	struct virt_queue		vqs[VIRTIO_CONSOLE_NUM_QUEUES];
@@ -45,7 +45,7 @@ struct console_device {
 	void				*jobs[VIRTIO_CONSOLE_NUM_QUEUES];
 };
 
-static struct console_device console_device = {
+static struct con_dev cdev = {
 	.mutex				= PTHREAD_MUTEX_INITIALIZER,
 
 	.console_config = {
@@ -68,7 +68,7 @@ static void virtio_console__inject_interrupt_callback(struct kvm *self, void *pa
 	u16 head;
 	int len;
 
-	mutex_lock(&console_device.mutex);
+	mutex_lock(&cdev.mutex);
 
 	vq = param;
 
@@ -79,17 +79,17 @@ static void virtio_console__inject_interrupt_callback(struct kvm *self, void *pa
 		kvm__irq_line(self, VIRTIO_CONSOLE_IRQ, 1);
 	}
 
-	mutex_unlock(&console_device.mutex);
+	mutex_unlock(&cdev.mutex);
 }
 
 void virtio_console__inject_interrupt(struct kvm *self)
 {
-	thread_pool__do_job(console_device.jobs[VIRTIO_CONSOLE_RX_QUEUE]);
+	thread_pool__do_job(cdev.jobs[VIRTIO_CONSOLE_RX_QUEUE]);
 }
 
 static bool virtio_console_pci_io_device_specific_in(void *data, unsigned long offset, int size, u32 count)
 {
-	u8 *config_space = (u8 *) &console_device.console_config;
+	u8 *config_space = (u8 *) &cdev.console_config;
 
 	if (size != 1 || count != 1)
 		return false;
@@ -107,17 +107,17 @@ static bool virtio_console_pci_io_in(struct kvm *self, u16 port, void *data, int
 	unsigned long offset = port - IOPORT_VIRTIO_CONSOLE;
 	bool ret = true;
 
-	mutex_lock(&console_device.mutex);
+	mutex_lock(&cdev.mutex);
 
 	switch (offset) {
 	case VIRTIO_PCI_HOST_FEATURES:
-		ioport__write32(data, console_device.host_features);
+		ioport__write32(data, cdev.host_features);
 		break;
 	case VIRTIO_PCI_GUEST_FEATURES:
 		ret = false;
 		break;
 	case VIRTIO_PCI_QUEUE_PFN:
-		ioport__write32(data, console_device.vqs[console_device.queue_selector].pfn);
+		ioport__write32(data, cdev.vqs[cdev.queue_selector].pfn);
 		break;
 	case VIRTIO_PCI_QUEUE_NUM:
 		ioport__write16(data, VIRTIO_CONSOLE_QUEUE_SIZE);
@@ -127,31 +127,31 @@ static bool virtio_console_pci_io_in(struct kvm *self, u16 port, void *data, int
 		ret = false;
 		break;
 	case VIRTIO_PCI_STATUS:
-		ioport__write8(data, console_device.status);
+		ioport__write8(data, cdev.status);
 		break;
 	case VIRTIO_PCI_ISR:
 		ioport__write8(data, 0x1);
 		kvm__irq_line(self, VIRTIO_CONSOLE_IRQ, 0);
 		break;
 	case VIRTIO_MSI_CONFIG_VECTOR:
-		ioport__write16(data, console_device.config_vector);
+		ioport__write16(data, cdev.config_vector);
 		break;
 	default:
 		ret = virtio_console_pci_io_device_specific_in(data, offset, size, count);
 	};
 
-	mutex_unlock(&console_device.mutex);
+	mutex_unlock(&cdev.mutex);
 
 	return ret;
 }
 
 static void virtio_console_handle_callback(struct kvm *self, void *param)
 {
-	struct iovec iov[VIRTIO_CONSOLE_QUEUE_SIZE];
-	struct virt_queue *vq;
-	u16 out, in;
-	u16 head;
-	u32 len;
+	struct iovec		iov[VIRTIO_CONSOLE_QUEUE_SIZE];
+	struct virt_queue	*vq;
+	u16			out, in;
+	u16			head;
+	u32			len;
 
 	vq = param;
 
@@ -166,58 +166,57 @@ static void virtio_console_handle_callback(struct kvm *self, void *param)
 
 static bool virtio_console_pci_io_out(struct kvm *self, u16 port, void *data, int size, u32 count)
 {
-	unsigned long offset = port - IOPORT_VIRTIO_CONSOLE;
-	bool ret = true;
+	unsigned long	offset = port - IOPORT_VIRTIO_CONSOLE;
+	bool		ret = true;
 
-	mutex_lock(&console_device.mutex);
+	mutex_lock(&cdev.mutex);
 
 	switch (offset) {
 	case VIRTIO_PCI_GUEST_FEATURES:
-		console_device.guest_features	= ioport__read32(data);
+		cdev.guest_features	= ioport__read32(data);
 		break;
 	case VIRTIO_PCI_QUEUE_PFN: {
 		struct virt_queue *queue;
 		void *p;
 
-		assert(console_device.queue_selector < VIRTIO_CONSOLE_NUM_QUEUES);
+		assert(cdev.queue_selector < VIRTIO_CONSOLE_NUM_QUEUES);
 
-		queue		= &console_device.vqs[console_device.queue_selector];
+		queue		= &cdev.vqs[cdev.queue_selector];
 		queue->pfn	= ioport__read32(data);
 		p		= guest_flat_to_host(self, queue->pfn << 12);
 
 		vring_init(&queue->vring, VIRTIO_CONSOLE_QUEUE_SIZE, p, 4096);
 
-		if (console_device.queue_selector == VIRTIO_CONSOLE_TX_QUEUE)
-			console_device.jobs[console_device.queue_selector] =
+		if (cdev.queue_selector == VIRTIO_CONSOLE_TX_QUEUE)
+			cdev.jobs[cdev.queue_selector] =
 				thread_pool__add_job(self, virtio_console_handle_callback, queue);
-		else if (console_device.queue_selector == VIRTIO_CONSOLE_RX_QUEUE)
-			console_device.jobs[console_device.queue_selector] =
+		else if (cdev.queue_selector == VIRTIO_CONSOLE_RX_QUEUE)
+			cdev.jobs[cdev.queue_selector] =
 				thread_pool__add_job(self, virtio_console__inject_interrupt_callback, queue);
 
 		break;
 	}
 	case VIRTIO_PCI_QUEUE_SEL:
-		console_device.queue_selector	= ioport__read16(data);
+		cdev.queue_selector	= ioport__read16(data);
 		break;
 	case VIRTIO_PCI_QUEUE_NOTIFY: {
-		u16 queue_index;
-		queue_index	= ioport__read16(data);
-		thread_pool__do_job(console_device.jobs[queue_index]);
+		u16 queue_index		= ioport__read16(data);
+		thread_pool__do_job(cdev.jobs[queue_index]);
 		break;
 	}
 	case VIRTIO_PCI_STATUS:
-		console_device.status		= ioport__read8(data);
+		cdev.status		= ioport__read8(data);
 		break;
 	case VIRTIO_MSI_CONFIG_VECTOR:
-		console_device.config_vector	= VIRTIO_MSI_NO_VECTOR;
+		cdev.config_vector	= VIRTIO_MSI_NO_VECTOR;
 		break;
 	case VIRTIO_MSI_QUEUE_VECTOR:
 		break;
 	default:
-		ret = false;
+		ret			= false;
 	};
 
-	mutex_unlock(&console_device.mutex);
+	mutex_unlock(&cdev.mutex);
 	return ret;
 }
 
