@@ -2,7 +2,8 @@
 #define KVM__IOPORT_H
 
 #include <stdbool.h>
-#include <stdint.h>
+#include <asm/types.h>
+#include <linux/types.h>
 
 /* some ports we reserve for own use */
 #define IOPORT_DBG			0xe0
@@ -18,40 +19,40 @@
 struct kvm;
 
 struct ioport_operations {
-	bool (*io_in)(struct kvm *self, uint16_t port, void *data, int size, uint32_t count);
-	bool (*io_out)(struct kvm *self, uint16_t port, void *data, int size, uint32_t count);
+	bool (*io_in)(struct kvm *self, u16 port, void *data, int size, u32 count);
+	bool (*io_out)(struct kvm *self, u16 port, void *data, int size, u32 count);
 };
 
 void ioport__setup_legacy(void);
 
-void ioport__register(uint16_t port, struct ioport_operations *ops, int count);
+void ioport__register(u16 port, struct ioport_operations *ops, int count);
 
-static inline uint8_t ioport__read8(uint8_t *data)
+static inline u8 ioport__read8(u8 *data)
 {
 	return *data;
 }
 
-static inline uint16_t ioport__read16(uint16_t *data)
+static inline u16 ioport__read16(u16 *data)
 {
 	return *data;
 }
 
-static inline uint32_t ioport__read32(uint32_t *data)
+static inline u32 ioport__read32(u32 *data)
 {
 	return *data;
 }
 
-static inline void ioport__write8(uint8_t *data, uint8_t value)
+static inline void ioport__write8(u8 *data, u8 value)
 {
 	*data		 = value;
 }
 
-static inline void ioport__write16(uint16_t *data, uint16_t value)
+static inline void ioport__write16(u16 *data, u16 value)
 {
 	*data		 = value;
 }
 
-static inline void ioport__write32(uint32_t *data, uint32_t value)
+static inline void ioport__write32(u32 *data, u32 value)
 {
 	*data		 = value;
 }

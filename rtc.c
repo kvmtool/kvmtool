@@ -5,7 +5,7 @@
 
 #include <time.h>
 
-static uint8_t cmos_index;
+static u8 cmos_index;
 
 #define CMOS_RTC_SECONDS		0x00
 #define CMOS_RTC_MINUTES		0x02
@@ -19,7 +19,7 @@ static inline unsigned char bin2bcd(unsigned val)
 	return ((val / 10) << 4) + val % 10;
 }
 
-static bool cmos_ram_data_in(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
+static bool cmos_ram_data_in(struct kvm *self, u16 port, void *data, int size, u32 count)
 {
 	struct tm *tm;
 	time_t ti;
@@ -52,7 +52,7 @@ static bool cmos_ram_data_in(struct kvm *self, uint16_t port, void *data, int si
 	return true;
 }
 
-static bool cmos_ram_data_out(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
+static bool cmos_ram_data_out(struct kvm *self, u16 port, void *data, int size, u32 count)
 {
 	return true;
 }
@@ -62,9 +62,9 @@ static struct ioport_operations cmos_ram_data_ioport_ops = {
 	.io_in		= cmos_ram_data_in,
 };
 
-static bool cmos_ram_index_out(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
+static bool cmos_ram_index_out(struct kvm *self, u16 port, void *data, int size, u32 count)
 {
-	uint8_t value;
+	u8 value;
 
 	value	= ioport__read8(data);
 

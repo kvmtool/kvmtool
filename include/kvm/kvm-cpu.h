@@ -4,7 +4,6 @@
 #include <linux/kvm.h>	/* for struct kvm_regs */
 
 #include <pthread.h>
-#include <stdint.h>
 
 struct kvm;
 

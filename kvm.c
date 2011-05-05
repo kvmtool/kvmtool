@@ -11,7 +11,6 @@
 #include <asm/bootparam.h>
 
 #include <sys/ioctl.h>
-#include <inttypes.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <stdbool.h>
@@ -115,7 +114,7 @@ void kvm__delete(struct kvm *self)
 static bool kvm__cpu_supports_vm(void)
 {
 	struct cpuid_regs regs;
-	uint32_t eax_base;
+	u32 eax_base;
 	int feature;
 
 	regs	= (struct cpuid_regs) {

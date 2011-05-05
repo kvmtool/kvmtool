@@ -1,14 +1,14 @@
 #ifndef KVM_SEGMENT_H
 #define KVM_SEGMENT_H
 
-#include <stdint.h>
+#include <linux/types.h>
 
-static inline uint16_t flat_to_seg16(uint32_t address)
+static inline u16 flat_to_seg16(u32 address)
 {
 	return address >> 4;
 }
 
-static inline uint16_t flat_to_off16(uint32_t address, uint32_t segment)
+static inline u16 flat_to_off16(u32 address, u32 segment)
 {
 	return address - (segment << 4);
 }

@@ -7,6 +7,7 @@
 #include "kvm/term.h"
 #include "kvm/kvm.h"
 
+#include <linux/types.h>
 #include <linux/serial_reg.h>
 
 #include <pthread.h>
@@ -14,20 +15,20 @@
 struct serial8250_device {
 	pthread_mutex_t		mutex;
 
-	uint16_t		iobase;
-	uint8_t			irq;
+	u16			iobase;
+	u8			irq;
 
-	uint8_t			rbr;		/* receive buffer */
-	uint8_t			dll;
-	uint8_t			dlm;
-	uint8_t			iir;
-	uint8_t			ier;
-	uint8_t			fcr;
-	uint8_t			lcr;
-	uint8_t			mcr;
-	uint8_t			lsr;
-	uint8_t			msr;
-	uint8_t			scr;
+	u8			rbr;		/* receive buffer */
+	u8			dll;
+	u8			dlm;
+	u8			iir;
+	u8			ier;
+	u8			fcr;
+	u8			lcr;
+	u8			mcr;
+	u8			lsr;
+	u8			msr;
+	u8			scr;
 };
 
 static struct serial8250_device devices[] = {
@@ -141,7 +142,7 @@ void serial8250__inject_sysrq(struct kvm *self)
 	sysrq_pending	= SYSRQ_PENDING_BREAK;
 }
 
-static struct serial8250_device *find_device(uint16_t port)
+static struct serial8250_device *find_device(u16 port)
 {
 	unsigned int i;
 
@@ -154,10 +155,10 @@ static struct serial8250_device *find_device(uint16_t port)
 	return NULL;
 }
 
-static bool serial8250_out(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
+static bool serial8250_out(struct kvm *self, u16 port, void *data, int size, u32 count)
 {
 	struct serial8250_device *dev;
-	uint16_t offset;
+	u16 offset;
 	bool ret = true;
 
 	dev		= find_device(port);
@@ -242,10 +243,10 @@ out_unlock:
 	return ret;
 }
 
-static bool serial8250_in(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
+static bool serial8250_in(struct kvm *self, u16 port, void *data, int size, u32 count)
 {
 	struct serial8250_device *dev;
-	uint16_t offset;
+	u16 offset;
 	bool ret = true;
 
 	dev		= find_device(port);
@@ -288,7 +289,7 @@ static bool serial8250_in(struct kvm *self, uint16_t port, void *data, int size,
 
 	switch (offset) {
 	case UART_IIR: {
-		uint8_t iir = dev->iir;
+		u8 iir = dev->iir;
 
 		if (dev->fcr & UART_FCR_ENABLE_FIFO)
 			iir		|= 0xc0;

@@ -1,8 +1,6 @@
 #ifndef KVM__THREADPOOL_H
 #define KVM__THREADPOOL_H
 
-#include <stdint.h>
-
 struct kvm;
 
 typedef void (*kvm_thread_callback_fn_t)(struct kvm *kvm, void *data);

@@ -17,7 +17,6 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <inttypes.h>
 #include <pthread.h>
 
 #define PCI_VENDOR_ID_REDHAT_QUMRANET			0x1af4
@@ -34,19 +33,19 @@
 #define VIRTIO_RNG_QUEUE_SIZE	128
 
 struct rng_device {
-	uint8_t				status;
-	uint16_t			config_vector;
+	u8				status;
+	u16			config_vector;
 	int					fd_rng;
 
 	/* virtio queue */
-	uint16_t			queue_selector;
+	u16			queue_selector;
 	struct virt_queue	vqs[NUM_VIRT_QUEUES];
 	void				*jobs[NUM_VIRT_QUEUES];
 };
 
 static struct rng_device rng_device;
 
-static bool virtio_rng_pci_io_in(struct kvm *kvm, uint16_t port, void *data, int size, uint32_t count)
+static bool virtio_rng_pci_io_in(struct kvm *kvm, u16 port, void *data, int size, u32 count)
 {
 	unsigned long offset;
 	bool ret = true;
@@ -86,7 +85,7 @@ static bool virtio_rng_pci_io_in(struct kvm *kvm, uint16_t port, void *data, int
 static bool virtio_rng_do_io_request(struct kvm *self, struct virt_queue *queue)
 {
 	struct iovec iov[VIRTIO_RNG_QUEUE_SIZE];
-	uint16_t out, in, head;
+	u16 out, in, head;
 	unsigned int len = 0;
 
 	head = virt_queue__get_iov(queue, iov, &out, &in, self);
@@ -106,7 +105,7 @@ static void virtio_rng_do_io(struct kvm *kvm, void *param)
 	}
 }
 
-static bool virtio_rng_pci_io_out(struct kvm *kvm, uint16_t port, void *data, int size, uint32_t count)
+static bool virtio_rng_pci_io_out(struct kvm *kvm, u16 port, void *data, int size, u32 count)
 {
 	unsigned long offset;
 	bool ret = true;
@@ -136,7 +135,7 @@ static bool virtio_rng_pci_io_out(struct kvm *kvm, uint16_t port, void *data, in
 		rng_device.queue_selector	= ioport__read16(data);
 		break;
 	case VIRTIO_PCI_QUEUE_NOTIFY: {
-		uint16_t queue_index;
+		u16 queue_index;
 		queue_index		= ioport__read16(data);
 		thread_pool__do_job(rng_device.jobs[queue_index]);
 		break;

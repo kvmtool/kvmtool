@@ -1,13 +1,13 @@
 #ifndef KVM__INTERRUPT_H
 #define KVM__INTERRUPT_H
 
-#include <inttypes.h>
+#include <linux/types.h>
 #include "kvm/bios.h"
 #include "kvm/bios-export.h"
 
 struct real_intr_desc {
-	uint16_t offset;
-	uint16_t segment;
+	u16 offset;
+	u16 segment;
 } __attribute__((packed));
 
 #define REAL_SEGMENT_SHIFT	4

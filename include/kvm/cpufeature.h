@@ -22,10 +22,10 @@
 	((reg) |  (1 << (feature)))
 
 struct cpuid_regs {
-	uint32_t	eax;
-	uint32_t	ebx;
-	uint32_t	ecx;
-	uint32_t	edx;
+	u32	eax;
+	u32	ebx;
+	u32	ecx;
+	u32	edx;
 };
 
 static inline void host_cpuid(struct cpuid_regs *regs)

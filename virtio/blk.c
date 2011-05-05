@@ -14,7 +14,7 @@
 #include <linux/virtio_ring.h>
 #include <linux/virtio_blk.h>
 
-#include <inttypes.h>
+#include <linux/types.h>
 #include <pthread.h>
 
 #define VIRTIO_BLK_IRQ		9
@@ -35,14 +35,14 @@ struct blk_device {
 
 	struct virtio_blk_config	blk_config;
 	struct disk_image		*disk;
-	uint32_t			host_features;
-	uint32_t			guest_features;
-	uint16_t			config_vector;
-	uint8_t				status;
+	u32				host_features;
+	u32				guest_features;
+	u16				config_vector;
+	u8				status;
 	u8				idx;
 
 	/* virtio queue */
-	uint16_t			queue_selector;
+	u16				queue_selector;
 
 	struct virt_queue		vqs[NUM_VIRT_QUEUES];
 	struct blk_device_job		jobs[NUM_VIRT_QUEUES];
@@ -55,9 +55,9 @@ static bool virtio_blk_pci_io_device_specific_in(struct blk_device *blk_device,
 						void *data,
 						unsigned long offset,
 						int size,
-						uint32_t count)
+						u32 count)
 {
-	uint8_t *config_space = (uint8_t *) &blk_device->blk_config;
+	u8 *config_space = (u8 *) &blk_device->blk_config;
 
 	if (size != 1 || count != 1)
 		return false;
@@ -77,7 +77,7 @@ static void virtio_blk_port2dev(u16 port,
 	*dev_idx	= (port - base) / size;
 	*offset		= port - (base + *dev_idx * size);
 }
-static bool virtio_blk_pci_io_in(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
+static bool virtio_blk_pci_io_in(struct kvm *self, u16 port, void *data, int size, u32 count)
 {
 	u16 offset, dev_idx;
 	bool ret = true;
@@ -133,8 +133,8 @@ static bool virtio_blk_do_io_request(struct kvm *self,
 	struct iovec iov[VIRTIO_BLK_QUEUE_SIZE];
 	struct virtio_blk_outhdr *req;
 	ssize_t block_cnt = -1;
-	uint16_t out, in, head;
-	uint8_t *status;
+	u16 out, in, head;
+	u8 *status;
 
 	head		= virt_queue__get_iov(queue, iov, &out, &in, self);
 
@@ -177,7 +177,7 @@ static void virtio_blk_do_io(struct kvm *kvm, void *param)
 	kvm__irq_line(kvm, VIRTIO_BLK_IRQ + blk_device->idx, 1);
 }
 
-static bool virtio_blk_pci_io_out(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
+static bool virtio_blk_pci_io_out(struct kvm *self, u16 port, void *data, int size, u32 count)
 {
 	u16 offset, dev_idx;
 	bool ret = true;
@@ -220,7 +220,7 @@ static bool virtio_blk_pci_io_out(struct kvm *self, uint16_t port, void *data, i
 		blk_device->queue_selector	= ioport__read16(data);
 		break;
 	case VIRTIO_PCI_QUEUE_NOTIFY: {
-		uint16_t queue_index;
+		u16 queue_index;
 		queue_index		= ioport__read16(data);
 		thread_pool__do_job(blk_device->jobs[queue_index].job_id);
 		break;

@@ -17,9 +17,9 @@ static inline bool is_in_protected_mode(struct kvm_cpu *self)
 	return self->sregs.cr0 & 0x01;
 }
 
-static inline uint64_t ip_to_flat(struct kvm_cpu *self, uint64_t ip)
+static inline u64 ip_to_flat(struct kvm_cpu *self, u64 ip)
 {
-	uint64_t cs;
+	u64 cs;
 
 	/*
 	 * NOTE! We should take code segment base address into account here.
@@ -33,12 +33,12 @@ static inline uint64_t ip_to_flat(struct kvm_cpu *self, uint64_t ip)
 	return ip + (cs << 4);
 }
 
-static inline uint32_t selector_to_base(uint16_t selector)
+static inline u32 selector_to_base(u16 selector)
 {
 	/*
 	 * KVM on Intel requires 'base' to be 'selector * 16' in real mode.
 	 */
-	return (uint32_t)selector * 16;
+	return (u32)selector * 16;
 }
 
 static struct kvm_cpu *kvm_cpu__new(struct kvm *kvm)
@@ -158,7 +158,7 @@ static void kvm_cpu__setup_regs(struct kvm_cpu *self)
 	};
 
 	if (self->regs.rip > USHRT_MAX)
-		die("ip 0x%" PRIx64 " is too high for real mode", (uint64_t) self->regs.rip);
+		die("ip 0x%llx is too high for real mode", (u64) self->regs.rip);
 
 	if (ioctl(self->vcpu_fd, KVM_SET_REGS, &self->regs) < 0)
 		die_perror("KVM_SET_REGS failed");
@@ -200,15 +200,15 @@ void kvm_cpu__reset_vcpu(struct kvm_cpu *self)
 
 static void print_dtable(const char *name, struct kvm_dtable *dtable)
 {
-	printf(" %s                 %016" PRIx64 "  %08" PRIx16 "\n",
-		name, (uint64_t) dtable->base, (uint16_t) dtable->limit);
+	printf(" %s                 %016llx %08hx\n",
+		name, (u64) dtable->base, (u16) dtable->limit);
 }
 
 static void print_segment(const char *name, struct kvm_segment *seg)
 {
-	printf(" %s       %04" PRIx16 "      %016" PRIx64 "  %08" PRIx32 "  %02" PRIx8 "    %x %x   %x  %x %x %x %x\n",
-		name, (uint16_t) seg->selector, (uint64_t) seg->base, (uint32_t) seg->limit,
-		(uint8_t) seg->type, seg->present, seg->dpl, seg->db, seg->s, seg->l, seg->g, seg->avl);
+	printf(" %s       %04hx      %016llx  %08x  %02hhx    %x %x   %x  %x %x %x %x\n",
+		name, (u16) seg->selector, (u64) seg->base, (u32) seg->limit,
+		(u8) seg->type, seg->present, seg->dpl, seg->db, seg->s, seg->l, seg->g, seg->avl);
 }
 
 void kvm_cpu__show_registers(struct kvm_cpu *self)
@@ -266,13 +266,13 @@ void kvm_cpu__show_registers(struct kvm_cpu *self)
 	print_segment("ldt", &sregs.ldt);
 	print_dtable("gdt", &sregs.gdt);
 	print_dtable("idt", &sregs.idt);
-	printf(" [ efer: %016" PRIx64 "  apic base: %016" PRIx64 "  nmi: %s ]\n",
-		(uint64_t) sregs.efer, (uint64_t) sregs.apic_base,
+	printf(" [ efer: %016llx  apic base: %016llx  nmi: %s ]\n",
+		(u64) sregs.efer, (u64) sregs.apic_base,
 		(self->kvm->nmi_disabled ? "disabled" : "enabled"));
 	printf("Interrupt bitmap:\n");
 	printf(" ");
 	for (i = 0; i < (KVM_NR_INTERRUPTS + 63) / 64; i++)
-		printf("%016" PRIx64 " ", (uint64_t) sregs.interrupt_bitmap[i]);
+		printf("%016llx ", (u64) sregs.interrupt_bitmap[i]);
 	printf("\n");
 }
 
@@ -283,7 +283,7 @@ void kvm_cpu__show_code(struct kvm_cpu *self)
 	unsigned int code_len = code_bytes;
 	unsigned char c;
 	unsigned int i;
-	uint8_t *ip;
+	u8 *ip;
 
 	if (ioctl(self->vcpu_fd, KVM_GET_REGS, &self->regs) < 0)
 		die("KVM_GET_REGS failed");
@@ -315,10 +315,10 @@ void kvm_cpu__show_code(struct kvm_cpu *self)
 
 void kvm_cpu__show_page_tables(struct kvm_cpu *self)
 {
-	uint64_t *pte1;
-	uint64_t *pte2;
-	uint64_t *pte3;
-	uint64_t *pte4;
+	u64 *pte1;
+	u64 *pte2;
+	u64 *pte3;
+	u64 *pte4;
 
 	if (!is_in_protected_mode(self))
 		return;
@@ -344,12 +344,12 @@ void kvm_cpu__show_page_tables(struct kvm_cpu *self)
 
 	printf("Page Tables:\n");
 	if (*pte2 & (1 << 7))
-		printf(" pte4: %016" PRIx64 "   pte3: %016" PRIx64
-			"   pte2: %016" PRIx64 "\n",
+		printf(" pte4: %016llx   pte3: %016llx"
+			"   pte2: %016llx\n",
 			*pte4, *pte3, *pte2);
 	else
-		printf(" pte4: %016" PRIx64 "   pte3: %016" PRIx64 "   pte2: %016"
-			PRIx64 "   pte1: %016" PRIx64 "\n",
+		printf(" pte4: %016llx  pte3: %016llx   pte2: %016"
+			"llx   pte1: %016llx\n",
 			*pte4, *pte3, *pte2, *pte1);
 }
 
@@ -387,7 +387,7 @@ int kvm_cpu__start(struct kvm_cpu *cpu)
 
 			ret = kvm__emulate_io(cpu->kvm,
 					cpu->kvm_run->io.port,
-					(uint8_t *)cpu->kvm_run +
+					(u8 *)cpu->kvm_run +
 					cpu->kvm_run->io.data_offset,
 					cpu->kvm_run->io.direction,
 					cpu->kvm_run->io.size,

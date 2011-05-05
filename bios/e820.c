@@ -4,25 +4,25 @@
 #include "kvm/bios.h"
 #include "kvm/util.h"
 
-static inline void set_fs(uint16_t seg)
+static inline void set_fs(u16 seg)
 {
 	asm volatile("movw %0,%%fs" : : "rm" (seg));
 }
 
-static inline uint8_t rdfs8(unsigned long addr)
+static inline u8 rdfs8(unsigned long addr)
 {
-	uint8_t v;
+	u8 v;
 
-	asm volatile("addr32 movb %%fs:%1,%0" : "=q" (v) : "m" (*(uint8_t *)addr));
+	asm volatile("addr32 movb %%fs:%1,%0" : "=q" (v) : "m" (*(u8 *)addr));
 
 	return v;
 }
 
 bioscall void e820_query_map(struct e820_query *query)
 {
-	uint8_t map_size;
-	uint16_t fs_seg;
-	uint32_t ndx;
+	u8 map_size;
+	u16 fs_seg;
+	u32 ndx;
 
 	fs_seg		= flat_to_seg16(E820_MAP_SIZE);
 	set_fs(fs_seg);
@@ -34,7 +34,7 @@ bioscall void e820_query_map(struct e820_query *query)
 	if (ndx < map_size) {
 		unsigned long start;
 		unsigned int i;
-		uint8_t *p;
+		u8 *p;
 
 		fs_seg		= flat_to_seg16(E820_MAP_START);
 		set_fs(fs_seg);

@@ -33,7 +33,7 @@ struct qcow_header {
 	u32			l1_size;
 	u8			cluster_bits;
 	u8			l2_bits;
-	uint64_t		oflag_mask;
+	u64			oflag_mask;
 };
 
 struct qcow1_header_disk {

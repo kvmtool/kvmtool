@@ -1,8 +1,9 @@
 #include "kvm/kvm.h"
 
 #include <stdio.h>
+#include <linux/types.h>
 
-static const char *to_direction(uint8_t is_write)
+static const char *to_direction(u8 is_write)
 {
 	if (is_write)
 		return "write";
@@ -10,9 +11,9 @@ static const char *to_direction(uint8_t is_write)
 	return "read";
 }
 
-bool kvm__emulate_mmio(struct kvm *self, uint64_t phys_addr, uint8_t *data, uint32_t len, uint8_t is_write)
+bool kvm__emulate_mmio(struct kvm *self, u64 phys_addr, u8 *data, u32 len, u8 is_write)
 {
-	fprintf(stderr, "Warning: Ignoring MMIO %s at %016" PRIx64 " (length %" PRIu32 ")\n",
+	fprintf(stderr, "Warning: Ignoring MMIO %s at %016llx (length %u)\n",
 		to_direction(is_write), phys_addr, len);
 
 	return true;

@@ -4,7 +4,7 @@
 #include "kvm/interrupt.h"
 
 #include <stdbool.h>
-#include <stdint.h>
+#include <linux/types.h>
 #include <time.h>
 
 #define KVM_NR_CPUS		(255)
@@ -16,14 +16,14 @@ struct kvm {
 
 	int			nrcpus;		/* Number of cpus to run */
 
-	uint64_t		ram_size;
+	u64			ram_size;
 	void			*ram_start;
 
 	bool			nmi_disabled;
 
-	uint16_t		boot_selector;
-	uint16_t		boot_ip;
-	uint16_t		boot_sp;
+	u16			boot_selector;
+	u16			boot_ip;
+	u16			boot_sp;
 
 	struct interrupt_table	interrupt_table;
 };
@@ -37,8 +37,8 @@ void kvm__setup_bios(struct kvm *self);
 void kvm__start_timer(struct kvm *self);
 void kvm__stop_timer(struct kvm *self);
 void kvm__irq_line(struct kvm *self, int irq, int level);
-bool kvm__emulate_io(struct kvm *self, uint16_t port, void *data, int direction, int size, uint32_t count);
-bool kvm__emulate_mmio(struct kvm *self, uint64_t phys_addr, uint8_t *data, uint32_t len, uint8_t is_write);
+bool kvm__emulate_io(struct kvm *self, u16 port, void *data, int direction, int size, u32 count);
+bool kvm__emulate_mmio(struct kvm *self, u64 phys_addr, u8 *data, u32 len, u8 is_write);
 
 /*
  * Debugging
@@ -52,9 +52,9 @@ static inline bool host_ptr_in_ram(struct kvm *self, void *p)
 	return self->ram_start <= p && p < (self->ram_start + self->ram_size);
 }
 
-static inline uint32_t segment_to_flat(uint16_t selector, uint16_t offset)
+static inline u32 segment_to_flat(u16 selector, u16 offset)
 {
-	return ((uint32_t)selector << 4) + (uint32_t) offset;
+	return ((u32)selector << 4) + (u32) offset;
 }
 
 static inline void *guest_flat_to_host(struct kvm *self, unsigned long offset)
@@ -62,7 +62,7 @@ static inline void *guest_flat_to_host(struct kvm *self, unsigned long offset)
 	return self->ram_start + offset;
 }
 
-static inline void *guest_real_to_host(struct kvm *self, uint16_t selector, uint16_t offset)
+static inline void *guest_real_to_host(struct kvm *self, u16 selector, u16 offset)
 {
 	unsigned long flat = segment_to_flat(selector, offset);
 

@@ -34,11 +34,11 @@ struct net_device {
 
 	struct virt_queue		vqs[VIRTIO_NET_NUM_QUEUES];
 	struct virtio_net_config	net_config;
-	uint32_t			host_features;
-	uint32_t			guest_features;
-	uint16_t			config_vector;
-	uint8_t				status;
-	uint16_t			queue_selector;
+	u32				host_features;
+	u32				guest_features;
+	u16				config_vector;
+	u8				status;
+	u16				queue_selector;
 
 	pthread_t			io_rx_thread;
 	pthread_mutex_t			io_rx_mutex;
@@ -74,8 +74,8 @@ static void *virtio_net_rx_thread(void *p)
 	struct iovec iov[VIRTIO_NET_QUEUE_SIZE];
 	struct virt_queue *vq;
 	struct kvm *self;
-	uint16_t out, in;
-	uint16_t head;
+	u16 out, in;
+	u16 head;
 	int len;
 
 	self = p;
@@ -107,8 +107,8 @@ static void *virtio_net_tx_thread(void *p)
 	struct iovec iov[VIRTIO_NET_QUEUE_SIZE];
 	struct virt_queue *vq;
 	struct kvm *self;
-	uint16_t out, in;
-	uint16_t head;
+	u16 out, in;
+	u16 head;
 	int len;
 
 	self = p;
@@ -133,9 +133,9 @@ static void *virtio_net_tx_thread(void *p)
 	return NULL;
 
 }
-static bool virtio_net_pci_io_device_specific_in(void *data, unsigned long offset, int size, uint32_t count)
+static bool virtio_net_pci_io_device_specific_in(void *data, unsigned long offset, int size, u32 count)
 {
-	uint8_t *config_space = (uint8_t *) &net_device.net_config;
+	u8 *config_space = (u8 *) &net_device.net_config;
 
 	if (size != 1 || count != 1)
 		return false;
@@ -148,7 +148,7 @@ static bool virtio_net_pci_io_device_specific_in(void *data, unsigned long offse
 	return true;
 }
 
-static bool virtio_net_pci_io_in(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
+static bool virtio_net_pci_io_in(struct kvm *self, u16 port, void *data, int size, u32 count)
 {
 	unsigned long offset = port - IOPORT_VIRTIO_NET;
 	bool ret = true;
@@ -191,7 +191,7 @@ static bool virtio_net_pci_io_in(struct kvm *self, uint16_t port, void *data, in
 	return ret;
 }
 
-static void virtio_net_handle_callback(struct kvm *self, uint16_t queue_index)
+static void virtio_net_handle_callback(struct kvm *self, u16 queue_index)
 {
 	if (queue_index == VIRTIO_NET_TX_QUEUE) {
 
@@ -208,7 +208,7 @@ static void virtio_net_handle_callback(struct kvm *self, uint16_t queue_index)
 	}
 }
 
-static bool virtio_net_pci_io_out(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
+static bool virtio_net_pci_io_out(struct kvm *self, u16 port, void *data, int size, u32 count)
 {
 	unsigned long offset = port - IOPORT_VIRTIO_NET;
 	bool ret = true;
@@ -237,7 +237,7 @@ static bool virtio_net_pci_io_out(struct kvm *self, uint16_t port, void *data, i
 		net_device.queue_selector	= ioport__read16(data);
 		break;
 	case VIRTIO_PCI_QUEUE_NOTIFY: {
-		uint16_t queue_index;
+		u16 queue_index;
 		queue_index	= ioport__read16(data);
 		virtio_net_handle_callback(self, queue_index);
 		break;

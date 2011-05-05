@@ -3,6 +3,7 @@
 #include "kvm/kvm.h"
 
 #include <linux/kvm.h>	/* for KVM_EXIT_* */
+#include <linux/types.h>
 
 #include <stdbool.h>
 #include <assert.h>
@@ -12,7 +13,7 @@
 
 bool ioport_debug;
 
-static bool debug_io_out(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
+static bool debug_io_out(struct kvm *self, u16 port, void *data, int size, u32 count)
 {
 	exit(EXIT_SUCCESS);
 }
@@ -21,12 +22,12 @@ static struct ioport_operations debug_ops = {
 	.io_out		= debug_io_out,
 };
 
-static bool dummy_io_in(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
+static bool dummy_io_in(struct kvm *self, u16 port, void *data, int size, u32 count)
 {
 	return true;
 }
 
-static bool dummy_io_out(struct kvm *self, uint16_t port, void *data, int size, uint32_t count)
+static bool dummy_io_out(struct kvm *self, u16 port, void *data, int size, u32 count)
 {
 	return true;
 }
@@ -42,7 +43,7 @@ static struct ioport_operations dummy_write_only_ioport_ops = {
 
 static struct ioport_operations *ioport_ops[USHRT_MAX];
 
-void ioport__register(uint16_t port, struct ioport_operations *ops, int count)
+void ioport__register(u16 port, struct ioport_operations *ops, int count)
 {
 	int i;
 
@@ -58,12 +59,12 @@ static const char *to_direction(int direction)
 		return "OUT";
 }
 
-static void ioport_error(uint16_t port, void *data, int direction, int size, uint32_t count)
+static void ioport_error(u16 port, void *data, int direction, int size, u32 count)
 {
-	fprintf(stderr, "IO error: %s port=%x, size=%d, count=%" PRIu32 "\n", to_direction(direction), port, size, count);
+	fprintf(stderr, "IO error: %s port=%x, size=%d, count=%u\n", to_direction(direction), port, size, count);
 }
 
-bool kvm__emulate_io(struct kvm *self, uint16_t port, void *data, int direction, int size, uint32_t count)
+bool kvm__emulate_io(struct kvm *self, u16 port, void *data, int direction, int size, u32 count)
 {
 	struct ioport_operations *ops = ioport_ops[port];
 	bool ret;

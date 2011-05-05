@@ -1,9 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <signal.h>
-#include <stdint.h>
 #include <unistd.h>
-#include <inttypes.h>
 #include <stdlib.h>
 #include <termios.h>
 #include <sys/utsname.h>
@@ -162,7 +160,7 @@ static void *kvm_cpu_thread(void *arg)
 	return (void *) (intptr_t) 0;
 
 panic_kvm:
-	fprintf(stderr, "KVM exit reason: %" PRIu32 " (\"%s\")\n",
+	fprintf(stderr, "KVM exit reason: %u (\"%s\")\n",
 		current_kvm_cpu->kvm_run->exit_reason,
 		kvm_exit_reasons[current_kvm_cpu->kvm_run->exit_reason]);
 	if (current_kvm_cpu->kvm_run->exit_reason == KVM_EXIT_UNKNOWN)
