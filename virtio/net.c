@@ -56,17 +56,17 @@ static struct net_device net_device = {
 	.mutex				= PTHREAD_MUTEX_INITIALIZER,
 
 	.net_config = {
-		.mac			= {0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		.mac			= { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55 },
 		.status			= VIRTIO_NET_S_LINK_UP,
 	},
-	.host_features			= 1UL << VIRTIO_NET_F_MAC |
-					1UL << VIRTIO_NET_F_CSUM |
-					1UL << VIRTIO_NET_F_HOST_UFO |
-					1UL << VIRTIO_NET_F_HOST_TSO4 |
-					1UL << VIRTIO_NET_F_HOST_TSO6 |
-					1UL << VIRTIO_NET_F_GUEST_UFO |
-					1UL << VIRTIO_NET_F_GUEST_TSO4 |
-					1UL << VIRTIO_NET_F_GUEST_TSO6,
+	.host_features			= 1UL << VIRTIO_NET_F_MAC
+					| 1UL << VIRTIO_NET_F_CSUM
+					| 1UL << VIRTIO_NET_F_HOST_UFO
+					| 1UL << VIRTIO_NET_F_HOST_TSO4
+					| 1UL << VIRTIO_NET_F_HOST_TSO6
+					| 1UL << VIRTIO_NET_F_GUEST_UFO
+					| 1UL << VIRTIO_NET_F_GUEST_TSO4
+					| 1UL << VIRTIO_NET_F_GUEST_TSO6,
 };
 
 static void *virtio_net_rx_thread(void *p)
@@ -130,9 +130,11 @@ static void *virtio_net_tx_thread(void *p)
 	}
 
 	pthread_exit(NULL);
+
 	return NULL;
 
 }
+
 static bool virtio_net_pci_io_device_specific_in(void *data, unsigned long offset, int size, u32 count)
 {
 	u8 *config_space = (u8 *) &net_device.net_config;
@@ -193,18 +195,21 @@ static bool virtio_net_pci_io_in(struct kvm *self, u16 port, void *data, int siz
 
 static void virtio_net_handle_callback(struct kvm *self, u16 queue_index)
 {
-	if (queue_index == VIRTIO_NET_TX_QUEUE) {
-
+	switch (queue_index) {
+	case VIRTIO_NET_TX_QUEUE: {
 		mutex_lock(&net_device.io_tx_mutex);
 		pthread_cond_signal(&net_device.io_tx_cond);
 		mutex_unlock(&net_device.io_tx_mutex);
-
-	} else if (queue_index == VIRTIO_NET_RX_QUEUE) {
-
+		break;
+	}
+	case VIRTIO_NET_RX_QUEUE: {
 		mutex_lock(&net_device.io_rx_mutex);
 		pthread_cond_signal(&net_device.io_rx_cond);
 		mutex_unlock(&net_device.io_rx_mutex);
-
+		break;
+	}
+	default:
+		warning("Unknown queue index %u", queue_index);
 	}
 }
 
@@ -255,6 +260,7 @@ static bool virtio_net_pci_io_out(struct kvm *self, u16 port, void *data, int si
 	};
 
 	mutex_unlock(&net_device.mutex);
+
 	return ret;
 }
 

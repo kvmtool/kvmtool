@@ -51,11 +51,7 @@ struct blk_dev {
 
 static struct blk_dev *bdevs[VIRTIO_BLK_MAX_DEV];
 
-static bool virtio_blk_pci_io_device_specific_in(struct blk_dev *bdev,
-						void *data,
-						unsigned long offset,
-						int size,
-						u32 count)
+static bool virtio_blk_dev_in(struct blk_dev *bdev, void *data, unsigned long offset, int size, u32 count)
 {
 	u8 *config_space = (u8 *) &bdev->blk_config;
 
@@ -68,23 +64,19 @@ static bool virtio_blk_pci_io_device_specific_in(struct blk_dev *bdev,
 }
 
 /* Translate port into device id + offset in that device addr space */
-static void virtio_blk_port2dev(u16 port,
-				u16 base,
-				u16 size,
-				u16 *dev_idx,
-				u16 *offset)
+static void virtio_blk_port2dev(u16 port, u16 base, u16 size, u16 *dev_idx, u16 *offset)
 {
 	*dev_idx	= (port - base) / size;
 	*offset		= port - (base + *dev_idx * size);
 }
+
 static bool virtio_blk_pci_io_in(struct kvm *self, u16 port, void *data, int size, u32 count)
 {
-	u16			offset, dev_idx;
-	bool			ret = true;
-	struct blk_dev	*bdev;
+	struct blk_dev *bdev;
+	u16 offset, dev_idx;
+	bool ret = true;
 
-	virtio_blk_port2dev(port, IOPORT_VIRTIO_BLK, IOPORT_VIRTIO_BLK_SIZE,
-				&dev_idx, &offset);
+	virtio_blk_port2dev(port, IOPORT_VIRTIO_BLK, IOPORT_VIRTIO_BLK_SIZE, &dev_idx, &offset);
 
 	bdev = bdevs[dev_idx];
 
@@ -118,7 +110,8 @@ static bool virtio_blk_pci_io_in(struct kvm *self, u16 port, void *data, int siz
 		ioport__write16(data, bdev->config_vector);
 		break;
 	default:
-		ret = virtio_blk_pci_io_device_specific_in(bdev, data, offset, size, count);
+		ret = virtio_blk_dev_in(bdev, data, offset, size, count);
+		break;
 	};
 
 	mutex_unlock(&bdev->mutex);
@@ -143,23 +136,15 @@ static bool virtio_blk_do_io_request(struct kvm *self,
 
 	switch (req->type) {
 	case VIRTIO_BLK_T_IN:
-		block_cnt	= disk_image__read_sector_iov(bdev->disk,
-								req->sector,
-								iov + 1,
-								in + out - 2);
-
+		block_cnt	= disk_image__read_sector_iov(bdev->disk, req->sector, iov + 1, in + out - 2);
 		break;
 	case VIRTIO_BLK_T_OUT:
-		block_cnt	= disk_image__write_sector_iov(bdev->disk,
-								req->sector,
-								iov + 1,
-								in + out - 2);
-
+		block_cnt	= disk_image__write_sector_iov(bdev->disk, req->sector, iov + 1, in + out - 2);
 		break;
-
 	default:
 		warning("request type %d", req->type);
 		block_cnt	= -1;
+		break;
 	}
 
 	/* status */
@@ -173,9 +158,12 @@ static bool virtio_blk_do_io_request(struct kvm *self,
 
 static void virtio_blk_do_io(struct kvm *kvm, void *param)
 {
-	struct blk_dev_job *job		= param;
-	struct virt_queue *vq		= job->vq;
-	struct blk_dev *bdev		= job->bdev;
+	struct blk_dev_job *job	= param;
+	struct virt_queue *vq;
+	struct blk_dev *bdev;
+
+	vq			= job->vq;
+	bdev			= job->bdev;
 
 	while (virt_queue__available(vq))
 		virtio_blk_do_io_request(kvm, bdev, vq);
@@ -185,12 +173,11 @@ static void virtio_blk_do_io(struct kvm *kvm, void *param)
 
 static bool virtio_blk_pci_io_out(struct kvm *self, u16 port, void *data, int size, u32 count)
 {
+	struct blk_dev *bdev;
 	u16 offset, dev_idx;
 	bool ret = true;
-	struct blk_dev *bdev;
 
-	virtio_blk_port2dev(port, IOPORT_VIRTIO_BLK, IOPORT_VIRTIO_BLK_SIZE,
-						&dev_idx, &offset);
+	virtio_blk_port2dev(port, IOPORT_VIRTIO_BLK, IOPORT_VIRTIO_BLK_SIZE, &dev_idx, &offset);
 
 	bdev = bdevs[dev_idx];
 
@@ -207,13 +194,13 @@ static bool virtio_blk_pci_io_out(struct kvm *self, u16 port, void *data, int si
 
 		job = &bdev->jobs[bdev->queue_selector];
 
-		queue				= &bdev->vqs[bdev->queue_selector];
-		queue->pfn			= ioport__read32(data);
-		p				= guest_flat_to_host(self, queue->pfn << 12);
+		queue			= &bdev->vqs[bdev->queue_selector];
+		queue->pfn		= ioport__read32(data);
+		p			= guest_flat_to_host(self, queue->pfn << 12);
 
 		vring_init(&queue->vring, VIRTIO_BLK_QUEUE_SIZE, p, 4096);
 
-		*job = (struct blk_dev_job) {
+		*job			= (struct blk_dev_job) {
 			.vq			= queue,
 			.bdev			= bdev,
 		};
@@ -223,24 +210,27 @@ static bool virtio_blk_pci_io_out(struct kvm *self, u16 port, void *data, int si
 		break;
 	}
 	case VIRTIO_PCI_QUEUE_SEL:
-		bdev->queue_selector		= ioport__read16(data);
+		bdev->queue_selector	= ioport__read16(data);
 		break;
 	case VIRTIO_PCI_QUEUE_NOTIFY: {
 		u16 queue_index;
-		queue_index			= ioport__read16(data);
+
+		queue_index		= ioport__read16(data);
 		thread_pool__do_job(bdev->jobs[queue_index].job_id);
+
 		break;
 	}
 	case VIRTIO_PCI_STATUS:
-		bdev->status			= ioport__read8(data);
+		bdev->status		= ioport__read8(data);
 		break;
 	case VIRTIO_MSI_CONFIG_VECTOR:
-		bdev->config_vector		= VIRTIO_MSI_NO_VECTOR;
+		bdev->config_vector	= VIRTIO_MSI_NO_VECTOR;
 		break;
 	case VIRTIO_MSI_QUEUE_VECTOR:
 		break;
 	default:
-		ret				= false;
+		ret			= false;
+		break;
 	};
 
 	mutex_unlock(&bdev->mutex);
@@ -273,26 +263,26 @@ static int virtio_blk_find_empty_dev(void)
 
 void virtio_blk__init(struct kvm *self, struct disk_image *disk)
 {
-	int new_dev_idx;
 	u16 blk_dev_base_addr;
 	struct blk_dev *bdev;
+	int new_dev_idx;
 
 	if (!disk)
 		return;
 
-	new_dev_idx = virtio_blk_find_empty_dev();
+	new_dev_idx		= virtio_blk_find_empty_dev();
 	if (new_dev_idx < 0)
 		die("Could not find an empty block device slot");
 
-	bdevs[new_dev_idx] = calloc(1, sizeof(struct blk_dev));
+	bdevs[new_dev_idx]	= calloc(1, sizeof(struct blk_dev));
 	if (bdevs[new_dev_idx] == NULL)
 		die("Failed allocating bdev");
 
-	bdev = bdevs[new_dev_idx];
+	bdev			= bdevs[new_dev_idx];
 
-	blk_dev_base_addr = IOPORT_VIRTIO_BLK + new_dev_idx * IOPORT_VIRTIO_BLK_SIZE;
+	blk_dev_base_addr	= IOPORT_VIRTIO_BLK + new_dev_idx * IOPORT_VIRTIO_BLK_SIZE;
 
-	*bdev = (struct blk_dev) {
+	*bdev			= (struct blk_dev) {
 		.mutex			= PTHREAD_MUTEX_INITIALIZER,
 		.disk			= disk,
 		.idx			= new_dev_idx,

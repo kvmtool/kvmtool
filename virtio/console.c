@@ -147,11 +147,11 @@ static bool virtio_console_pci_io_in(struct kvm *self, u16 port, void *data, int
 
 static void virtio_console_handle_callback(struct kvm *self, void *param)
 {
-	struct iovec		iov[VIRTIO_CONSOLE_QUEUE_SIZE];
-	struct virt_queue	*vq;
-	u16			out, in;
-	u16			head;
-	u32			len;
+	struct iovec iov[VIRTIO_CONSOLE_QUEUE_SIZE];
+	struct virt_queue *vq;
+	u16 out, in;
+	u16 head;
+	u32 len;
 
 	vq = param;
 
@@ -166,8 +166,8 @@ static void virtio_console_handle_callback(struct kvm *self, void *param)
 
 static bool virtio_console_pci_io_out(struct kvm *self, u16 port, void *data, int size, u32 count)
 {
-	unsigned long	offset = port - IOPORT_VIRTIO_CONSOLE;
-	bool		ret = true;
+	unsigned long offset = port - IOPORT_VIRTIO_CONSOLE;
+	bool ret = true;
 
 	mutex_lock(&cdev.mutex);
 
@@ -181,18 +181,16 @@ static bool virtio_console_pci_io_out(struct kvm *self, u16 port, void *data, in
 
 		assert(cdev.queue_selector < VIRTIO_CONSOLE_NUM_QUEUES);
 
-		queue		= &cdev.vqs[cdev.queue_selector];
-		queue->pfn	= ioport__read32(data);
-		p		= guest_flat_to_host(self, queue->pfn << 12);
+		queue			= &cdev.vqs[cdev.queue_selector];
+		queue->pfn		= ioport__read32(data);
+		p			= guest_flat_to_host(self, queue->pfn << 12);
 
 		vring_init(&queue->vring, VIRTIO_CONSOLE_QUEUE_SIZE, p, 4096);
 
 		if (cdev.queue_selector == VIRTIO_CONSOLE_TX_QUEUE)
-			cdev.jobs[cdev.queue_selector] =
-				thread_pool__add_job(self, virtio_console_handle_callback, queue);
+			cdev.jobs[cdev.queue_selector] = thread_pool__add_job(self, virtio_console_handle_callback, queue);
 		else if (cdev.queue_selector == VIRTIO_CONSOLE_RX_QUEUE)
-			cdev.jobs[cdev.queue_selector] =
-				thread_pool__add_job(self, virtio_console__inject_interrupt_callback, queue);
+			cdev.jobs[cdev.queue_selector] = thread_pool__add_job(self, virtio_console__inject_interrupt_callback, queue);
 
 		break;
 	}
@@ -214,15 +212,17 @@ static bool virtio_console_pci_io_out(struct kvm *self, u16 port, void *data, in
 		break;
 	default:
 		ret			= false;
+		break;
 	};
 
 	mutex_unlock(&cdev.mutex);
+
 	return ret;
 }
 
 static struct ioport_operations virtio_console_io_ops = {
-	.io_in	= virtio_console_pci_io_in,
-	.io_out	= virtio_console_pci_io_out,
+	.io_in			= virtio_console_pci_io_in,
+	.io_out			= virtio_console_pci_io_out,
 };
 
 #define PCI_VENDOR_ID_REDHAT_QUMRANET		0x1af4

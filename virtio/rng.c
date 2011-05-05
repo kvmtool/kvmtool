@@ -46,8 +46,8 @@ static struct rng_dev rdev;
 
 static bool virtio_rng_pci_io_in(struct kvm *kvm, u16 port, void *data, int size, u32 count)
 {
-	unsigned long	offset;
-	bool		ret = true;
+	unsigned long offset;
+	bool ret = true;
 
 	offset = port - IOPORT_VIRTIO_RNG;
 
@@ -76,6 +76,7 @@ static bool virtio_rng_pci_io_in(struct kvm *kvm, u16 port, void *data, int size
 		break;
 	default:
 		ret		= false;
+		break;
 	};
 
 	return ret;
@@ -84,11 +85,12 @@ static bool virtio_rng_pci_io_in(struct kvm *kvm, u16 port, void *data, int size
 static bool virtio_rng_do_io_request(struct kvm *kvm, struct virt_queue *queue)
 {
 	struct iovec iov[VIRTIO_RNG_QUEUE_SIZE];
-	u16 out, in, head;
 	unsigned int len = 0;
+	u16 out, in, head;
 
-	head	= virt_queue__get_iov(queue, iov, &out, &in, kvm);
-	len	= readv(rdev.fd, iov, in);
+	head		= virt_queue__get_iov(queue, iov, &out, &in, kvm);
+	len		= readv(rdev.fd, iov, in);
+
 	virt_queue__set_used_elem(queue, head, len);
 
 	return true;
@@ -109,7 +111,7 @@ static bool virtio_rng_pci_io_out(struct kvm *kvm, u16 port, void *data, int siz
 	unsigned long offset;
 	bool ret = true;
 
-	offset = port - IOPORT_VIRTIO_RNG;
+	offset		= port - IOPORT_VIRTIO_RNG;
 
 	switch (offset) {
 	case VIRTIO_MSI_QUEUE_VECTOR:
@@ -125,8 +127,7 @@ static bool virtio_rng_pci_io_out(struct kvm *kvm, u16 port, void *data, int siz
 
 		vring_init(&queue->vring, VIRTIO_RNG_QUEUE_SIZE, p, 4096);
 
-		rdev.jobs[rdev.queue_selector] =
-			thread_pool__add_job(kvm, virtio_rng_do_io, queue);
+		rdev.jobs[rdev.queue_selector] = thread_pool__add_job(kvm, virtio_rng_do_io, queue);
 
 		break;
 	}
@@ -147,6 +148,7 @@ static bool virtio_rng_pci_io_out(struct kvm *kvm, u16 port, void *data, int siz
 		break;
 	default:
 		ret			= false;
+		break;
 	};
 
 	return ret;
