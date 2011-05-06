@@ -372,12 +372,6 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	if (nrcpus < 1 || nrcpus > KVM_NR_CPUS)
 		die("Number of CPUs %d is out of [1;%d] range", nrcpus, KVM_NR_CPUS);
 
-	/* FIXME: Remove as only SMP gets fully supported */
-	if (nrcpus > 1) {
-		warning("Limiting CPUs to 1, true SMP is not yet implemented");
-		nrcpus = 1;
-	}
-
 	if (ram_size < MIN_RAM_SIZE_MB)
 		die("Not enough memory specified: %lluMB (min %lluMB)", ram_size, MIN_RAM_SIZE_MB);
 
@@ -410,7 +404,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	kvm->nrcpus = nrcpus;
 
 	memset(real_cmdline, 0, sizeof(real_cmdline));
-	strcpy(real_cmdline, "notsc nolapic noacpi pci=conf1 console=ttyS0 ");
+	strcpy(real_cmdline, "notsc noapic noacpi pci=conf1 console=ttyS0 ");
 	if (kernel_cmdline)
 		strlcat(real_cmdline, kernel_cmdline, sizeof(real_cmdline));
 
@@ -452,7 +446,8 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	pci__init();
 
-	virtio_console__init(kvm);
+	if (active_console == CONSOLE_VIRTIO)
+		virtio_console__init(kvm);
 
 	if (virtio_rng)
 		virtio_rng__init(kvm);
