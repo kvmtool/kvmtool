@@ -249,56 +249,14 @@ static const char *find_kernel(void)
 
 static int root_device(char *dev, long *part)
 {
-	FILE   *fp;
-	char   *line;
-	int    tmp;
-	size_t nr_read;
-	char   device[PATH_MAX];
-	char   mnt_pt[PATH_MAX];
-	char   resolved_path[PATH_MAX];
-	char   *p;
 	struct stat st;
 
-	fp = fopen("/proc/mounts", "r");
-	if (!fp)
+	if (stat("/", &st) < 0)
 		return -1;
 
-	line = NULL;
-	tmp  = 0;
-	while (!feof(fp)) {
-		if (getline(&line, &nr_read, fp) < 0)
-			break;
-		sscanf(line, "%s %s", device, mnt_pt);
-		if (!strncmp(device, "/dev", 4) && !strcmp(mnt_pt, "/")) {
-			tmp = 1;
-			break;
-		}
-	}
-	fclose(fp);
-	free(line);
+	*part = minor(st.st_dev);
 
-	if (!tmp)
-		return -1;
-
-	/* get the absolute path */
-	if (!realpath(device, resolved_path))
-		return -1;
-
-	/* find the partition number */
-	p = resolved_path;
-	while (*p) {
-		if (isdigit(*p)) {
-			strncpy(dev, resolved_path, p - resolved_path);
-			*part = atol(p);
-			break;
-		}
-		p++;
-	}
-
-	/* verify the device path */
-	if (stat(dev, &st) < 0)
-		return -1;
-
+	sprintf(dev, "/dev/block/%u:0", major(st.st_dev));
 	if (access(dev, R_OK) < 0)
 		return -1;
 
