@@ -8,6 +8,7 @@
 #include "kvm/util.h"
 #include "kvm/kvm.h"
 #include "kvm/pci.h"
+#include "kvm/irq.h"
 
 #include <linux/virtio_net.h>
 #include <linux/if_tun.h>
@@ -25,6 +26,17 @@
 #define VIRTIO_NET_NUM_QUEUES		2
 #define VIRTIO_NET_RX_QUEUE		0
 #define VIRTIO_NET_TX_QUEUE		1
+
+static struct pci_device_header virtio_net_pci_device = {
+	.vendor_id		= PCI_VENDOR_ID_REDHAT_QUMRANET,
+	.device_id		= PCI_DEVICE_ID_VIRTIO_NET,
+	.header_type		= PCI_HEADER_TYPE_NORMAL,
+	.revision_id		= 0,
+	.class			= 0x020000,
+	.subsys_vendor_id	= PCI_SUBSYSTEM_VENDOR_ID_REDHAT_QUMRANET,
+	.subsys_id		= PCI_SUBSYSTEM_ID_VIRTIO_NET,
+	.bar[0]			= IOPORT_VIRTIO_NET | PCI_BASE_ADDRESS_SPACE_IO,
+};
 
 struct net_device {
 	pthread_mutex_t			mutex;
@@ -91,7 +103,7 @@ static void *virtio_net_rx_thread(void *p)
 			virt_queue__set_used_elem(vq, head, len);
 
 			/* We should interrupt guest right now, otherwise latency is huge. */
-			virt_queue__trigger_irq(vq, VIRTIO_NET_IRQ, &net_device.isr, self);
+			virt_queue__trigger_irq(vq, virtio_net_pci_device.irq_line, &net_device.isr, self);
 		}
 
 	}
@@ -125,7 +137,7 @@ static void *virtio_net_tx_thread(void *p)
 			virt_queue__set_used_elem(vq, head, len);
 		}
 
-		virt_queue__trigger_irq(vq, VIRTIO_NET_IRQ, &net_device.isr, self);
+		virt_queue__trigger_irq(vq, virtio_net_pci_device.irq_line, &net_device.isr, self);
 
 	}
 
@@ -179,7 +191,7 @@ static bool virtio_net_pci_io_in(struct kvm *self, u16 port, void *data, int siz
 		break;
 	case VIRTIO_PCI_ISR:
 		ioport__write8(data, net_device.isr);
-		kvm__irq_line(self, VIRTIO_NET_IRQ, VIRTIO_IRQ_LOW);
+		kvm__irq_line(self, virtio_net_pci_device.irq_line, VIRTIO_IRQ_LOW);
 		net_device.isr = VIRTIO_IRQ_LOW;
 		break;
 	case VIRTIO_MSI_CONFIG_VECTOR:
@@ -268,19 +280,6 @@ static bool virtio_net_pci_io_out(struct kvm *self, u16 port, void *data, int si
 static struct ioport_operations virtio_net_io_ops = {
 	.io_in	= virtio_net_pci_io_in,
 	.io_out	= virtio_net_pci_io_out,
-};
-
-static struct pci_device_header virtio_net_pci_device = {
-	.vendor_id		= PCI_VENDOR_ID_REDHAT_QUMRANET,
-	.device_id		= PCI_DEVICE_ID_VIRTIO_NET,
-	.header_type		= PCI_HEADER_TYPE_NORMAL,
-	.revision_id		= 0,
-	.class			= 0x020000,
-	.subsys_vendor_id	= PCI_SUBSYSTEM_VENDOR_ID_REDHAT_QUMRANET,
-	.subsys_id		= PCI_SUBSYSTEM_ID_VIRTIO_NET,
-	.bar[0]			= IOPORT_VIRTIO_NET | PCI_BASE_ADDRESS_SPACE_IO,
-	.irq_pin		= VIRTIO_NET_PIN,
-	.irq_line		= VIRTIO_NET_IRQ,
 };
 
 static bool virtio_net__tap_init(const struct virtio_net_parameters *params)
@@ -384,7 +383,14 @@ static void virtio_net__io_thread_init(struct kvm *self)
 void virtio_net__init(const struct virtio_net_parameters *params)
 {
 	if (virtio_net__tap_init(params)) {
-		pci__register(&virtio_net_pci_device, PCI_VIRTIO_NET_DEVNUM);
+		u8 dev, line, pin;
+
+		if (irq__register_device(PCI_DEVICE_ID_VIRTIO_NET, &dev, &pin, &line) < 0)
+			return;
+
+		virtio_net_pci_device.irq_pin	= pin;
+		virtio_net_pci_device.irq_line	= line;
+		pci__register(&virtio_net_pci_device, dev);
 		ioport__register(IOPORT_VIRTIO_NET, &virtio_net_io_ops, IOPORT_VIRTIO_NET_SIZE);
 
 		virtio_net__io_thread_init(params->self);

@@ -11,6 +11,7 @@
 #include "kvm/kvm.h"
 #include "kvm/pci.h"
 #include "kvm/threadpool.h"
+#include "kvm/irq.h"
 
 #include <linux/virtio_ring.h>
 #include <linux/virtio_rng.h>
@@ -23,15 +24,26 @@
 #define NUM_VIRT_QUEUES				1
 #define VIRTIO_RNG_QUEUE_SIZE			128
 
+static struct pci_device_header virtio_rng_pci_device = {
+	.vendor_id		= PCI_VENDOR_ID_REDHAT_QUMRANET,
+	.device_id		= PCI_DEVICE_ID_VIRTIO_RNG,
+	.header_type		= PCI_HEADER_TYPE_NORMAL,
+	.revision_id		= 0,
+	.class			= 0x010000,
+	.subsys_vendor_id	= PCI_SUBSYSTEM_VENDOR_ID_REDHAT_QUMRANET,
+	.subsys_id		= PCI_SUBSYSTEM_ID_VIRTIO_RNG,
+	.bar[0]			= IOPORT_VIRTIO_RNG | PCI_BASE_ADDRESS_SPACE_IO,
+};
+
 struct rng_dev {
-	u8					status;
-	u16					config_vector;
-	int					fd;
+	u8			status;
+	u16			config_vector;
+	int			fd;
 
 	/* virtio queue */
-	u16					queue_selector;
-	struct virt_queue			vqs[NUM_VIRT_QUEUES];
-	void					*jobs[NUM_VIRT_QUEUES];
+	u16			queue_selector;
+	struct virt_queue	vqs[NUM_VIRT_QUEUES];
+	void			*jobs[NUM_VIRT_QUEUES];
 };
 
 static struct rng_dev rdev;
@@ -61,7 +73,7 @@ static bool virtio_rng_pci_io_in(struct kvm *kvm, u16 port, void *data, int size
 		break;
 	case VIRTIO_PCI_ISR:
 		ioport__write8(data, 0x1);
-		kvm__irq_line(kvm, VIRTIO_RNG_IRQ, 0);
+		kvm__irq_line(kvm, virtio_rng_pci_device.irq_line, 0);
 		break;
 	case VIRTIO_MSI_CONFIG_VECTOR:
 		ioport__write16(data, rdev.config_vector);
@@ -94,7 +106,7 @@ static void virtio_rng_do_io(struct kvm *kvm, void *param)
 
 	while (virt_queue__available(vq)) {
 		virtio_rng_do_io_request(kvm, vq);
-		kvm__irq_line(kvm, VIRTIO_RNG_IRQ, 1);
+		kvm__irq_line(kvm, virtio_rng_pci_device.irq_line, 1);
 	}
 }
 
@@ -151,26 +163,20 @@ static struct ioport_operations virtio_rng_io_ops = {
 	.io_out				= virtio_rng_pci_io_out,
 };
 
-static struct pci_device_header virtio_rng_pci_device = {
-	.vendor_id			= PCI_VENDOR_ID_REDHAT_QUMRANET,
-	.device_id			= PCI_DEVICE_ID_VIRTIO_RNG,
-	.header_type			= PCI_HEADER_TYPE_NORMAL,
-	.revision_id			= 0,
-	.class				= 0x010000,
-	.subsys_vendor_id		= PCI_SUBSYSTEM_VENDOR_ID_REDHAT_QUMRANET,
-	.subsys_id			= PCI_SUBSYSTEM_ID_VIRTIO_RNG,
-	.bar[0]				= IOPORT_VIRTIO_RNG | PCI_BASE_ADDRESS_SPACE_IO,
-	.irq_pin			= VIRTIO_RNG_PIN,
-	.irq_line			= VIRTIO_RNG_IRQ,
-};
-
 void virtio_rng__init(struct kvm *kvm)
 {
+	u8 pin, line, dev;
+
 	rdev.fd = open("/dev/urandom", O_RDONLY);
 	if (rdev.fd < 0)
 		die("Failed initializing RNG");
 
-	pci__register(&virtio_rng_pci_device, PCI_VIRTIO_RNG_DEVNUM);
+	if (irq__register_device(PCI_DEVICE_ID_VIRTIO_RNG, &dev, &pin, &line) < 0)
+		return;
+
+	virtio_rng_pci_device.irq_pin	= pin;
+	virtio_rng_pci_device.irq_line	= line;
+	pci__register(&virtio_rng_pci_device, dev);
 
 	ioport__register(IOPORT_VIRTIO_RNG, &virtio_rng_io_ops, IOPORT_VIRTIO_RNG_SIZE);
 }

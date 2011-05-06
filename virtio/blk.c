@@ -2,7 +2,7 @@
 
 #include "kvm/virtio-pci.h"
 #include "kvm/virtio-pci-dev.h"
-
+#include "kvm/irq.h"
 #include "kvm/disk-image.h"
 #include "kvm/virtio.h"
 #include "kvm/ioport.h"
@@ -103,7 +103,7 @@ static bool virtio_blk_pci_io_in(struct kvm *self, u16 port, void *data, int siz
 		break;
 	case VIRTIO_PCI_ISR:
 		ioport__write8(data, 0x1);
-		kvm__irq_line(self, VIRTIO_BLK_IRQ + bdev->idx, 0);
+		kvm__irq_line(self, bdev->pci_device.irq_line, 0);
 		break;
 	case VIRTIO_MSI_CONFIG_VECTOR:
 		ioport__write16(data, bdev->config_vector);
@@ -167,7 +167,7 @@ static void virtio_blk_do_io(struct kvm *kvm, void *param)
 	while (virt_queue__available(vq))
 		virtio_blk_do_io_request(kvm, bdev, vq);
 
-	kvm__irq_line(kvm, VIRTIO_BLK_IRQ + bdev->idx, 1);
+	kvm__irq_line(kvm, bdev->pci_device.irq_line, 1);
 }
 
 static bool virtio_blk_pci_io_out(struct kvm *self, u16 port, void *data, int size, u32 count)
@@ -257,6 +257,7 @@ static int virtio_blk_find_empty_dev(void)
 void virtio_blk__init(struct kvm *self, struct disk_image *disk)
 {
 	u16 blk_dev_base_addr;
+	u8 dev, pin, line;
 	struct blk_dev *bdev;
 	int new_dev_idx;
 
@@ -291,12 +292,16 @@ void virtio_blk__init(struct kvm *self, struct disk_image *disk)
 			.subsys_vendor_id	= PCI_SUBSYSTEM_VENDOR_ID_REDHAT_QUMRANET,
 			.subsys_id		= PCI_SUBSYSTEM_ID_VIRTIO_BLK,
 			.bar[0]			= blk_dev_base_addr | PCI_BASE_ADDRESS_SPACE_IO,
-			.irq_pin		= VIRTIO_BLK_PIN,
-			.irq_line		= VIRTIO_BLK_IRQ + new_dev_idx,
 		},
 	};
 
-	pci__register(&bdev->pci_device, PCI_VIRTIO_BLK_DEVNUM + new_dev_idx);
+	if (irq__register_device(PCI_DEVICE_ID_VIRTIO_BLK, &dev, &pin, &line) < 0)
+		return;
+
+	bdev->pci_device.irq_pin	= pin;
+	bdev->pci_device.irq_line	= line;
+
+	pci__register(&bdev->pci_device, dev);
 
 	ioport__register(blk_dev_base_addr, &virtio_blk_io_ops, IOPORT_VIRTIO_BLK_SIZE);
 }

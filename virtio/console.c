@@ -10,6 +10,7 @@
 #include "kvm/kvm.h"
 #include "kvm/pci.h"
 #include "kvm/threadpool.h"
+#include "kvm/irq.h"
 
 #include <linux/virtio_console.h>
 #include <linux/virtio_ring.h>
@@ -27,6 +28,17 @@
 #define VIRTIO_CONSOLE_NUM_QUEUES	2
 #define VIRTIO_CONSOLE_RX_QUEUE		0
 #define VIRTIO_CONSOLE_TX_QUEUE		1
+
+static struct pci_device_header virtio_console_pci_device = {
+	.vendor_id		= PCI_VENDOR_ID_REDHAT_QUMRANET,
+	.device_id		= PCI_DEVICE_ID_VIRTIO_CONSOLE,
+	.header_type		= PCI_HEADER_TYPE_NORMAL,
+	.revision_id		= 0,
+	.class			= 0x078000,
+	.subsys_vendor_id	= PCI_SUBSYSTEM_VENDOR_ID_REDHAT_QUMRANET,
+	.subsys_id		= PCI_SUBSYSTEM_ID_VIRTIO_CONSOLE,
+	.bar[0]			= IOPORT_VIRTIO_CONSOLE | PCI_BASE_ADDRESS_SPACE_IO,
+};
 
 struct con_dev {
 	pthread_mutex_t			mutex;
@@ -73,7 +85,7 @@ static void virtio_console__inject_interrupt_callback(struct kvm *self, void *pa
 		head = virt_queue__get_iov(vq, iov, &out, &in, self);
 		len = term_getc_iov(CONSOLE_VIRTIO, iov, in);
 		virt_queue__set_used_elem(vq, head, len);
-		kvm__irq_line(self, VIRTIO_CONSOLE_IRQ, 1);
+		kvm__irq_line(self, virtio_console_pci_device.irq_line, 1);
 	}
 
 	mutex_unlock(&cdev.mutex);
@@ -128,7 +140,7 @@ static bool virtio_console_pci_io_in(struct kvm *self, u16 port, void *data, int
 		break;
 	case VIRTIO_PCI_ISR:
 		ioport__write8(data, 0x1);
-		kvm__irq_line(self, VIRTIO_CONSOLE_IRQ, 0);
+		kvm__irq_line(self, virtio_console_pci_device.irq_line, 0);
 		break;
 	case VIRTIO_MSI_CONFIG_VECTOR:
 		ioport__write16(data, cdev.config_vector);
@@ -158,7 +170,7 @@ static void virtio_console_handle_callback(struct kvm *self, void *param)
 		virt_queue__set_used_elem(vq, head, len);
 	}
 
-	kvm__irq_line(self, VIRTIO_CONSOLE_IRQ, 1);
+	kvm__irq_line(self, virtio_console_pci_device.irq_line, 1);
 }
 
 static bool virtio_console_pci_io_out(struct kvm *self, u16 port, void *data, int size, u32 count)
@@ -222,21 +234,15 @@ static struct ioport_operations virtio_console_io_ops = {
 	.io_out			= virtio_console_pci_io_out,
 };
 
-static struct pci_device_header virtio_console_pci_device = {
-	.vendor_id		= PCI_VENDOR_ID_REDHAT_QUMRANET,
-	.device_id		= PCI_DEVICE_ID_VIRTIO_CONSOLE,
-	.header_type		= PCI_HEADER_TYPE_NORMAL,
-	.revision_id		= 0,
-	.class			= 0x078000,
-	.subsys_vendor_id	= PCI_SUBSYSTEM_VENDOR_ID_REDHAT_QUMRANET,
-	.subsys_id		= PCI_SUBSYSTEM_ID_VIRTIO_CONSOLE,
-	.bar[0]			= IOPORT_VIRTIO_CONSOLE | PCI_BASE_ADDRESS_SPACE_IO,
-	.irq_pin		= VIRTIO_CONSOLE_PIN,
-	.irq_line		= VIRTIO_CONSOLE_IRQ,
-};
-
 void virtio_console__init(struct kvm *self)
 {
-	pci__register(&virtio_console_pci_device, PCI_VIRTIO_CONSOLE_DEVNUM);
+	u8 dev, line, pin;
+
+	if (irq__register_device(PCI_DEVICE_ID_VIRTIO_CONSOLE, &dev, &pin, &line) < 0)
+		return;
+
+	virtio_console_pci_device.irq_pin	= pin;
+	virtio_console_pci_device.irq_line	= line;
+	pci__register(&virtio_console_pci_device, dev);
 	ioport__register(IOPORT_VIRTIO_CONSOLE, &virtio_console_io_ops, IOPORT_VIRTIO_CONSOLE_SIZE);
 }
