@@ -186,8 +186,10 @@ static void *qcow2_read_header(int fd)
 	if (!header)
 		return NULL;
 
-	if (pread_in_full(fd, &f_header, sizeof(struct qcow2_header_disk), 0) < 0)
+	if (pread_in_full(fd, &f_header, sizeof(struct qcow2_header_disk), 0) < 0) {
+		free(header);
 		return NULL;
+	}
 
 	be32_to_cpus(&f_header.magic);
 	be32_to_cpus(&f_header.version);
