@@ -398,8 +398,6 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	rtc__init();
 
-	kvm__setup_bios(kvm);
-
 	serial8250__init(kvm);
 
 	pci__init();
@@ -431,6 +429,8 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	}
 
 	kvm__start_timer(kvm);
+
+	kvm__setup_bios(kvm);
 
 	for (i = 0; i < nrcpus; i++) {
 		kvm_cpus[i] = kvm_cpu__init(kvm, i);

@@ -3,6 +3,7 @@
 #include "kvm/apic.h"
 #include "kvm/mptable.h"
 #include "kvm/util.h"
+#include "kvm/irq.h"
 
 #include <linux/kernel.h>
 #include <string.h>
@@ -87,6 +88,7 @@ void mptable_setup(struct kvm *kvm, unsigned int ncpus)
 	struct mpc_bus *mpc_bus;
 	struct mpc_ioapic *mpc_ioapic;
 	struct mpc_intsrc *mpc_intsrc;
+	struct rb_node *pci_tree;
 
 	const int pcibusid = 0;
 	const int isabusid = 1;
@@ -186,29 +188,19 @@ void mptable_setup(struct kvm *kvm, unsigned int ncpus)
 	 *
 	 * Also note we use PCI irqs here, no for ISA bus yet.
 	 */
-	mpc_intsrc		= last_addr;
 
-	/* src irq = virtio console irq pin, dst irq = virtio console irq */
-	mptable_add_irq_src(mpc_intsrc, pcibusid, 2, ioapicid, 13);
-	last_addr = (void *)&mpc_intsrc[1];
-	nentries++;
+	for (pci_tree = irq__get_pci_tree(); pci_tree; pci_tree = rb_next(pci_tree)) {
+		struct pci_dev *dev = rb_entry(pci_tree, struct pci_dev, node);
+		struct irq_line *tmp;
 
-	/* Currently we define 4 possible virtio-blk devices */
-	for (i = 0; i < 4; i++) {
-		mpc_intsrc		= last_addr;
+		list_for_each_entry(tmp, &dev->lines, node) {
+			mpc_intsrc = last_addr;
 
-		/* src irq = virtio blk irq pin, dst irq = virtio blk irq */
-		mptable_add_irq_src(mpc_intsrc, pcibusid, 1, ioapicid, 9 + i);
-		last_addr = (void *)&mpc_intsrc[1];
-		nentries++;
+			mptable_add_irq_src(mpc_intsrc, pcibusid, dev->pin, ioapicid, tmp->line);
+			last_addr = (void *)&mpc_intsrc[1];
+			nentries++;
+		}
 	}
-
-	mpc_intsrc		= last_addr;
-
-	/* src irq = virtio net irq pin, dst irq = virtio net irq */
-	mptable_add_irq_src(mpc_intsrc, pcibusid, 3, ioapicid, 14);
-	last_addr = (void *)&mpc_intsrc[1];
-	nentries++;
 
 	/*
 	 * Local IRQs assignment (LINT0, LINT1)
