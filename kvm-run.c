@@ -46,7 +46,7 @@ static struct kvm *kvm;
 static struct kvm_cpu *kvm_cpus[KVM_NR_CPUS];
 static __thread struct kvm_cpu *current_kvm_cpu;
 
-static u64 ram_size = MIN_RAM_SIZE_MB;
+static u64 ram_size;
 static u8  image_count;
 static const char *kernel_cmdline;
 static const char *kernel_filename;
@@ -213,6 +213,27 @@ static void kernel_usage_with_options(void)
 	fprintf(stderr, "\nPlease see 'kvm run --help' for more options.\n\n");
 }
 
+static u64 get_ram_size(int nr_cpus)
+{
+	long available;
+	long page_size;
+	long nr_pages;
+	long ram_size;
+
+	ram_size	= 64 * (nr_cpus + 3);
+
+	nr_pages	= sysconf(_SC_PHYS_PAGES);
+
+	page_size	= sysconf(_SC_PAGE_SIZE);
+
+	available	= (nr_pages * page_size) >> MB_SHIFT;
+
+	if (ram_size > available)
+		ram_size	= available;
+
+	return ram_size;
+}
+
 static const char *find_kernel(void)
 {
 	const char **k;
@@ -329,6 +350,9 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	if (nrcpus < 1 || nrcpus > KVM_NR_CPUS)
 		die("Number of CPUs %d is out of [1;%d] range", nrcpus, KVM_NR_CPUS);
+
+	if (!ram_size)
+		ram_size	= get_ram_size(nrcpus);
 
 	if (ram_size < MIN_RAM_SIZE_MB)
 		die("Not enough memory specified: %lluMB (min %lluMB)", ram_size, MIN_RAM_SIZE_MB);
