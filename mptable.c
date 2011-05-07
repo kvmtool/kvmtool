@@ -191,12 +191,16 @@ void mptable_setup(struct kvm *kvm, unsigned int ncpus)
 
 	for (pci_tree = irq__get_pci_tree(); pci_tree; pci_tree = rb_next(pci_tree)) {
 		struct pci_dev *dev = rb_entry(pci_tree, struct pci_dev, node);
-		struct irq_line *tmp;
+		struct irq_line *irq_line;
 
-		list_for_each_entry(tmp, &dev->lines, node) {
+		list_for_each_entry(irq_line, &dev->lines, node) {
+			unsigned char srcbusirq;
+
+			srcbusirq = (dev->id << 2) | (dev->pin - 1);
+
 			mpc_intsrc = last_addr;
 
-			mptable_add_irq_src(mpc_intsrc, pcibusid, dev->pin, ioapicid, tmp->line);
+			mptable_add_irq_src(mpc_intsrc, pcibusid, srcbusirq, ioapicid, irq_line->line);
 			last_addr = (void *)&mpc_intsrc[1];
 			nentries++;
 		}
