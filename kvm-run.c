@@ -213,6 +213,18 @@ static void kernel_usage_with_options(void)
 	fprintf(stderr, "\nPlease see 'kvm run --help' for more options.\n\n");
 }
 
+static u64 host_ram_size(void)
+{
+	long page_size;
+	long nr_pages;
+
+	nr_pages	= sysconf(_SC_PHYS_PAGES);
+
+	page_size	= sysconf(_SC_PAGE_SIZE);
+
+	return (nr_pages * page_size) >> MB_SHIFT;
+}
+
 /*
  * If user didn't specify how much memory it wants to allocate for the guest,
  * avoid filling the whole host RAM.
@@ -222,17 +234,11 @@ static void kernel_usage_with_options(void)
 static u64 get_ram_size(int nr_cpus)
 {
 	long available;
-	long page_size;
-	long nr_pages;
 	long ram_size;
 
 	ram_size	= 64 * (nr_cpus + 3);
 
-	nr_pages	= sysconf(_SC_PHYS_PAGES);
-
-	page_size	= sysconf(_SC_PAGE_SIZE);
-
-	available	= ((nr_pages * page_size) >> MB_SHIFT) * RAM_SIZE_RATIO;
+	available	= host_ram_size() * RAM_SIZE_RATIO;
 
 	if (ram_size > available)
 		ram_size	= available;
@@ -363,6 +369,9 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	if (ram_size < MIN_RAM_SIZE_MB)
 		die("Not enough memory specified: %lluMB (min %lluMB)", ram_size, MIN_RAM_SIZE_MB);
+
+	if (ram_size > host_ram_size())
+		warning("Guest memory size %lluMB exceeds host physical RAM size %lluMB", ram_size, host_ram_size());
 
 	ram_size <<= MB_SHIFT;
 
