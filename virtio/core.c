@@ -60,6 +60,9 @@ u16 virt_queue__get_iov(struct virt_queue *queue, struct iovec iov[], u16 *out, 
 
 void virt_queue__trigger_irq(struct virt_queue *vq, int irq, u8 *isr, struct kvm *kvm)
 {
+	if (vq->vring.avail->flags & VRING_AVAIL_F_NO_INTERRUPT)
+		return;
+
 	if (*isr == VIRTIO_IRQ_LOW) {
 		*isr = VIRTIO_IRQ_HIGH;
 		kvm__irq_line(kvm, irq, VIRTIO_IRQ_HIGH);
