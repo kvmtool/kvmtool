@@ -29,6 +29,7 @@ struct kvm {
 };
 
 struct kvm *kvm__init(const char *kvm_dev, unsigned long ram_size);
+int kvm__max_cpus(struct kvm *self);
 void kvm__init_ram(struct kvm *self);
 void kvm__delete(struct kvm *self);
 bool kvm__load_kernel(struct kvm *kvm, const char *kernel_filename,

@@ -311,11 +311,12 @@ static char *host_image(char *cmd_line, size_t size)
 int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 {
 	static char real_cmdline[2048];
+	unsigned int nr_online_cpus;
+	int max_cpus;
 	int exit_code = 0;
 	int i;
 	struct virtio_net_parameters net_params;
 	char *hi;
-	unsigned int nr_online_cpus;
 
 	signal(SIGALRM, handle_sigalrm);
 	signal(SIGQUIT, handle_sigquit);
@@ -382,6 +383,13 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	term_init();
 
 	kvm = kvm__init(kvm_dev, ram_size);
+
+	max_cpus = kvm__max_cpus(kvm);
+
+	if (nrcpus > max_cpus) {
+		printf("  # Limit the number of CPUs to %d\n", max_cpus);
+		kvm->nrcpus	= max_cpus;
+	}
 
 	kvm->nrcpus = nrcpus;
 

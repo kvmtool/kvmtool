@@ -170,6 +170,17 @@ void kvm__init_ram(struct kvm *self)
 		die_perror("KVM_SET_USER_MEMORY_REGION ioctl");
 }
 
+int kvm__max_cpus(struct kvm *self)
+{
+	int ret;
+
+	ret = ioctl(self->sys_fd, KVM_CHECK_EXTENSION, KVM_CAP_NR_VCPUS);
+	if (ret < 0)
+		die_perror("KVM_CAP_NR_VCPUS");
+
+	return ret;
+}
+
 struct kvm *kvm__init(const char *kvm_dev, unsigned long ram_size)
 {
 	struct kvm_pit_config pit_config = { .flags = 0, };
