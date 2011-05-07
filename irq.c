@@ -7,7 +7,6 @@
 #include <stddef.h>
 #include <stdlib.h>
 
-static u8		next_pin	= 1;
 static u8		next_line	= 3;
 static u8		next_dev	= 1;
 static struct rb_root	pci_tree	= RB_ROOT;
@@ -71,7 +70,13 @@ int irq__register_device(u32 dev, u8 *num, u8 *pin, u8 *line)
 
 		*node = (struct pci_dev) {
 			.id	= dev,
-			.pin	= next_pin++,
+			/*
+			 * PCI supports only INTA#,B#,C#,D# per device.
+			 * A#,B#,C#,D# are allowed for multifunctional
+			 * devices so stick with A# for our single
+			 * function devices.
+			 */
+			.pin	= 1,
 		};
 
 		INIT_LIST_HEAD(&node->lines);
