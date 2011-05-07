@@ -35,6 +35,7 @@ struct net_device {
 	u32				guest_features;
 	u16				config_vector;
 	u8				status;
+	u8				isr;
 	u16				queue_selector;
 
 	pthread_t			io_rx_thread;
@@ -88,8 +89,9 @@ static void *virtio_net_rx_thread(void *p)
 			head	= virt_queue__get_iov(vq, iov, &out, &in, self);
 			len	= readv(net_device.tap_fd, iov, in);
 			virt_queue__set_used_elem(vq, head, len);
+
 			/* We should interrupt guest right now, otherwise latency is huge. */
-			kvm__irq_line(self, VIRTIO_NET_IRQ, 1);
+			virt_queue__trigger_irq(vq, VIRTIO_NET_IRQ, &net_device.isr, self);
 		}
 
 	}
@@ -123,7 +125,8 @@ static void *virtio_net_tx_thread(void *p)
 			virt_queue__set_used_elem(vq, head, len);
 		}
 
-		kvm__irq_line(self, VIRTIO_NET_IRQ, 1);
+		virt_queue__trigger_irq(vq, VIRTIO_NET_IRQ, &net_device.isr, self);
+
 	}
 
 	pthread_exit(NULL);
@@ -175,8 +178,9 @@ static bool virtio_net_pci_io_in(struct kvm *self, u16 port, void *data, int siz
 		ioport__write8(data, net_device.status);
 		break;
 	case VIRTIO_PCI_ISR:
-		ioport__write8(data, 0x1);
-		kvm__irq_line(self, VIRTIO_NET_IRQ, 0);
+		ioport__write8(data, net_device.isr);
+		kvm__irq_line(self, VIRTIO_NET_IRQ, VIRTIO_IRQ_LOW);
+		net_device.isr = VIRTIO_IRQ_LOW;
 		break;
 	case VIRTIO_MSI_CONFIG_VECTOR:
 		ioport__write16(data, net_device.config_vector);

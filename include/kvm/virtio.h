@@ -8,6 +8,9 @@
 
 #include "kvm/kvm.h"
 
+#define VIRTIO_IRQ_LOW		0
+#define VIRTIO_IRQ_HIGH		1
+
 struct virt_queue {
 	struct vring	vring;
 	u32		pfn;
@@ -36,5 +39,7 @@ static inline bool virt_queue__available(struct virt_queue *vq)
 struct vring_used_elem *virt_queue__set_used_elem(struct virt_queue *queue, u32 head, u32 len);
 
 u16 virt_queue__get_iov(struct virt_queue *queue, struct iovec iov[], u16 *out, u16 *in, struct kvm *kvm);
+
+void virt_queue__trigger_irq(struct virt_queue *vq, int irq, u8 *isr, struct kvm *kvm);
 
 #endif /* KVM__VIRTIO_H */
