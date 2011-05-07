@@ -213,6 +213,12 @@ static void kernel_usage_with_options(void)
 	fprintf(stderr, "\nPlease see 'kvm run --help' for more options.\n\n");
 }
 
+/*
+ * If user didn't specify how much memory it wants to allocate for the guest,
+ * avoid filling the whole host RAM.
+ */
+#define RAM_SIZE_RATIO		0.8
+
 static u64 get_ram_size(int nr_cpus)
 {
 	long available;
@@ -226,7 +232,7 @@ static u64 get_ram_size(int nr_cpus)
 
 	page_size	= sysconf(_SC_PAGE_SIZE);
 
-	available	= (nr_pages * page_size) >> MB_SHIFT;
+	available	= ((nr_pages * page_size) >> MB_SHIFT) * RAM_SIZE_RATIO;
 
 	if (ram_size > available)
 		ram_size	= available;
