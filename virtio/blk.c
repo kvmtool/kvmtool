@@ -45,7 +45,7 @@ struct blk_dev {
 
 	struct virt_queue		vqs[NUM_VIRT_QUEUES];
 	struct blk_dev_job		jobs[NUM_VIRT_QUEUES];
-	struct pci_device_header	pci_device;
+	struct pci_device_header	pci_hdr;
 };
 
 static struct blk_dev *bdevs[VIRTIO_BLK_MAX_DEV];
@@ -103,7 +103,7 @@ static bool virtio_blk_pci_io_in(struct kvm *self, u16 port, void *data, int siz
 		break;
 	case VIRTIO_PCI_ISR:
 		ioport__write8(data, 0x1);
-		kvm__irq_line(self, bdev->pci_device.irq_line, 0);
+		kvm__irq_line(self, bdev->pci_hdr.irq_line, 0);
 		break;
 	case VIRTIO_MSI_CONFIG_VECTOR:
 		ioport__write16(data, bdev->config_vector);
@@ -167,7 +167,7 @@ static void virtio_blk_do_io(struct kvm *kvm, void *param)
 	while (virt_queue__available(vq))
 		virtio_blk_do_io_request(kvm, bdev, vq);
 
-	kvm__irq_line(kvm, bdev->pci_device.irq_line, 1);
+	kvm__irq_line(kvm, bdev->pci_hdr.irq_line, 1);
 }
 
 static bool virtio_blk_pci_io_out(struct kvm *self, u16 port, void *data, int size, u32 count)
@@ -283,7 +283,7 @@ void virtio_blk__init(struct kvm *self, struct disk_image *disk)
 		.blk_config		= (struct virtio_blk_config) {
 			.capacity		= disk->size / SECTOR_SIZE,
 		},
-		.pci_device = (struct pci_device_header) {
+		.pci_hdr = (struct pci_device_header) {
 			.vendor_id		= PCI_VENDOR_ID_REDHAT_QUMRANET,
 			.device_id		= PCI_DEVICE_ID_VIRTIO_BLK,
 			.header_type		= PCI_HEADER_TYPE_NORMAL,
@@ -298,10 +298,10 @@ void virtio_blk__init(struct kvm *self, struct disk_image *disk)
 	if (irq__register_device(PCI_DEVICE_ID_VIRTIO_BLK, &dev, &pin, &line) < 0)
 		return;
 
-	bdev->pci_device.irq_pin	= pin;
-	bdev->pci_device.irq_line	= line;
+	bdev->pci_hdr.irq_pin	= pin;
+	bdev->pci_hdr.irq_line	= line;
 
-	pci__register(&bdev->pci_device, dev);
+	pci__register(&bdev->pci_hdr, dev);
 
 	ioport__register(blk_dev_base_addr, &virtio_blk_io_ops, IOPORT_VIRTIO_BLK_SIZE);
 }
