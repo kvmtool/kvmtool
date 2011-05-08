@@ -37,6 +37,7 @@ static struct pci_device_header virtio_rng_pci_device = {
 
 struct rng_dev {
 	u8			status;
+	u8			isr;
 	u16			config_vector;
 	int			fd;
 
@@ -72,8 +73,9 @@ static bool virtio_rng_pci_io_in(struct kvm *kvm, u16 port, void *data, int size
 		ioport__write8(data, rdev.status);
 		break;
 	case VIRTIO_PCI_ISR:
-		ioport__write8(data, 0x1);
-		kvm__irq_line(kvm, virtio_rng_pci_device.irq_line, 0);
+		ioport__write8(data, rdev.isr);
+		kvm__irq_line(kvm, virtio_rng_pci_device.irq_line, VIRTIO_IRQ_LOW);
+		rdev.isr = VIRTIO_IRQ_LOW;
 		break;
 	case VIRTIO_MSI_CONFIG_VECTOR:
 		ioport__write16(data, rdev.config_vector);
@@ -106,7 +108,7 @@ static void virtio_rng_do_io(struct kvm *kvm, void *param)
 
 	while (virt_queue__available(vq)) {
 		virtio_rng_do_io_request(kvm, vq);
-		kvm__irq_line(kvm, virtio_rng_pci_device.irq_line, 1);
+		virt_queue__trigger_irq(vq, virtio_rng_pci_device.irq_line, &rdev.isr, kvm);
 	}
 }
 
