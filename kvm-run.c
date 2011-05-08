@@ -409,7 +409,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	kvm->nrcpus = nrcpus;
 
 	memset(real_cmdline, 0, sizeof(real_cmdline));
-	strcpy(real_cmdline, "notsc noapic noacpi pci=conf1 console=ttyS0 ");
+	strcpy(real_cmdline, "notsc noapic noacpi pci=conf1 console=ttyS0 earlyprintk=serial");
 	if (kernel_cmdline)
 		strlcat(real_cmdline, kernel_cmdline, sizeof(real_cmdline));
 
