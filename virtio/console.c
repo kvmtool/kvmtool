@@ -49,6 +49,7 @@ struct con_dev {
 	u32				guest_features;
 	u16				config_vector;
 	u8				status;
+	u8				isr;
 	u16				queue_selector;
 
 	void				*jobs[VIRTIO_CONSOLE_NUM_QUEUES];
@@ -85,7 +86,7 @@ static void virtio_console__inject_interrupt_callback(struct kvm *self, void *pa
 		head = virt_queue__get_iov(vq, iov, &out, &in, self);
 		len = term_getc_iov(CONSOLE_VIRTIO, iov, in);
 		virt_queue__set_used_elem(vq, head, len);
-		kvm__irq_line(self, virtio_console_pci_device.irq_line, 1);
+		virt_queue__trigger_irq(vq, virtio_console_pci_device.irq_line, &cdev.isr, self);
 	}
 
 	mutex_unlock(&cdev.mutex);
@@ -139,8 +140,9 @@ static bool virtio_console_pci_io_in(struct kvm *self, u16 port, void *data, int
 		ioport__write8(data, cdev.status);
 		break;
 	case VIRTIO_PCI_ISR:
-		ioport__write8(data, 0x1);
-		kvm__irq_line(self, virtio_console_pci_device.irq_line, 0);
+		ioport__write8(data, cdev.isr);
+		kvm__irq_line(self, virtio_console_pci_device.irq_line, VIRTIO_IRQ_LOW);
+		cdev.isr = VIRTIO_IRQ_LOW;
 		break;
 	case VIRTIO_MSI_CONFIG_VECTOR:
 		ioport__write16(data, cdev.config_vector);
@@ -170,7 +172,7 @@ static void virtio_console_handle_callback(struct kvm *self, void *param)
 		virt_queue__set_used_elem(vq, head, len);
 	}
 
-	kvm__irq_line(self, virtio_console_pci_device.irq_line, 1);
+	virt_queue__trigger_irq(vq, virtio_console_pci_device.irq_line, &cdev.isr, self);
 }
 
 static bool virtio_console_pci_io_out(struct kvm *self, u16 port, void *data, int size, u32 count)
