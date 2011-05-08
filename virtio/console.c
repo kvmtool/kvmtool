@@ -166,13 +166,18 @@ static void virtio_console_handle_callback(struct kvm *self, void *param)
 
 	vq = param;
 
+	/*
+	 * The current Linux implementation polls for the buffer
+	 * to be used, rather than waiting for an interrupt.
+	 * So there is no need to inject an interrupt for the tx path.
+	 */
+
 	while (virt_queue__available(vq)) {
 		head = virt_queue__get_iov(vq, iov, &out, &in, self);
 		len = term_putc_iov(CONSOLE_VIRTIO, iov, out);
 		virt_queue__set_used_elem(vq, head, len);
 	}
 
-	virt_queue__trigger_irq(vq, virtio_console_pci_device.irq_line, &cdev.isr, self);
 }
 
 static bool virtio_console_pci_io_out(struct kvm *self, u16 port, void *data, int size, u32 count)
