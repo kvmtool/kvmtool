@@ -424,6 +424,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	memset(real_cmdline, 0, sizeof(real_cmdline));
 	strcpy(real_cmdline, "notsc noapic noacpi pci=conf1 console=ttyS0 earlyprintk=serial");
+	strcat(real_cmdline, " ");
 	if (kernel_cmdline)
 		strlcat(real_cmdline, kernel_cmdline, sizeof(real_cmdline));
 
