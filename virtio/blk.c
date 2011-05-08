@@ -38,6 +38,7 @@ struct blk_dev {
 	u32				guest_features;
 	u16				config_vector;
 	u8				status;
+	u8				isr;
 	u8				idx;
 
 	/* virtio queue */
@@ -102,8 +103,9 @@ static bool virtio_blk_pci_io_in(struct kvm *self, u16 port, void *data, int siz
 		ioport__write8(data, bdev->status);
 		break;
 	case VIRTIO_PCI_ISR:
-		ioport__write8(data, 0x1);
-		kvm__irq_line(self, bdev->pci_hdr.irq_line, 0);
+		ioport__write8(data, bdev->isr);
+		kvm__irq_line(self, bdev->pci_hdr.irq_line, VIRTIO_IRQ_LOW);
+		bdev->isr = VIRTIO_IRQ_LOW;
 		break;
 	case VIRTIO_MSI_CONFIG_VECTOR:
 		ioport__write16(data, bdev->config_vector);
@@ -167,7 +169,7 @@ static void virtio_blk_do_io(struct kvm *kvm, void *param)
 	while (virt_queue__available(vq))
 		virtio_blk_do_io_request(kvm, bdev, vq);
 
-	kvm__irq_line(kvm, bdev->pci_hdr.irq_line, 1);
+	virt_queue__trigger_irq(vq, bdev->pci_hdr.irq_line, &bdev->isr, kvm);
 }
 
 static bool virtio_blk_pci_io_out(struct kvm *self, u16 port, void *data, int size, u32 count)
