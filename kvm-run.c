@@ -127,6 +127,18 @@ static const struct option options[] = {
 	OPT_END()
 };
 
+static void handle_sigusr1(int sig)
+{
+	struct kvm_cpu *cpu = current_kvm_cpu;
+
+	if (!cpu)
+		return;
+
+	kvm_cpu__show_registers(cpu);
+	kvm_cpu__show_code(cpu);
+	kvm_cpu__show_page_tables(cpu);
+}
+
 static void handle_sigquit(int sig)
 {
 	int i;
@@ -134,9 +146,10 @@ static void handle_sigquit(int sig)
 	for (i = 0; i < nrcpus; i++) {
 		struct kvm_cpu *cpu = kvm_cpus[i];
 
-		kvm_cpu__show_registers(cpu);
-		kvm_cpu__show_code(cpu);
-		kvm_cpu__show_page_tables(cpu);
+		if (!cpu)
+			continue;
+
+		pthread_kill(cpu->thread, SIGUSR1);
 	}
 
 	serial8250__inject_sysrq(kvm);
@@ -332,6 +345,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	signal(SIGALRM, handle_sigalrm);
 	signal(SIGQUIT, handle_sigquit);
+	signal(SIGUSR1, handle_sigusr1);
 
 	while (argc != 0) {
 		argc = parse_options(argc, argv, options, run_usage,
