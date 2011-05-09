@@ -5,6 +5,13 @@
 
 #include "kvm/util.h"
 
+/*
+ * Kernel-alike mutex API - to make it easier for kernel developers
+ * to write user-space code! :-)
+ */
+
+#define DEFINE_MUTEX(mutex) pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER
+
 static inline void mutex_lock(pthread_mutex_t *mutex)
 {
 	if (pthread_mutex_lock(mutex) != 0)

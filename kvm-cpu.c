@@ -200,7 +200,7 @@ void kvm_cpu__reset_vcpu(struct kvm_cpu *self)
 
 static void print_dtable(const char *name, struct kvm_dtable *dtable)
 {
-	printf(" %s                 %016llx %08hx\n",
+	printf(" %s                 %016llx  %08hx\n",
 		name, (u64) dtable->base, (u16) dtable->limit);
 }
 
@@ -238,11 +238,12 @@ void kvm_cpu__show_registers(struct kvm_cpu *self)
 	r10 = regs.r10; r11 = regs.r11; r12 = regs.r12;
 	r13 = regs.r13; r14 = regs.r14; r15 = regs.r15;
 
-	printf("Registers:\n");
+	printf("\n Registers:\n");
+	printf(  " ----------\n");
 	printf(" rip: %016lx   rsp: %016lx flags: %016lx\n", rip, rsp, rflags);
 	printf(" rax: %016lx   rbx: %016lx   rcx: %016lx\n", rax, rbx, rcx);
 	printf(" rdx: %016lx   rsi: %016lx   rdi: %016lx\n", rdx, rsi, rdi);
-	printf(" rbp: %016lx   r8:  %016lx   r9:  %016lx\n", rbp, r8,  r9);
+	printf(" rbp: %016lx    r8: %016lx    r9: %016lx\n", rbp, r8,  r9);
 	printf(" r10: %016lx   r11: %016lx   r12: %016lx\n", r10, r11, r12);
 	printf(" r13: %016lx   r14: %016lx   r15: %016lx\n", r13, r14, r15);
 
@@ -254,7 +255,8 @@ void kvm_cpu__show_registers(struct kvm_cpu *self)
 
 	printf(" cr0: %016lx   cr2: %016lx   cr3: %016lx\n", cr0, cr2, cr3);
 	printf(" cr4: %016lx   cr8: %016lx\n", cr4, cr8);
-	printf("Segment registers:\n");
+	printf("\n Segment registers:\n");
+	printf(  " ------------------\n");
 	printf(" register  selector  base              limit     type  p dpl db s l g avl\n");
 	print_segment("cs ", &sregs.cs);
 	print_segment("ss ", &sregs.ss);
@@ -266,13 +268,17 @@ void kvm_cpu__show_registers(struct kvm_cpu *self)
 	print_segment("ldt", &sregs.ldt);
 	print_dtable("gdt", &sregs.gdt);
 	print_dtable("idt", &sregs.idt);
-	printf(" [ efer: %016llx  apic base: %016llx  nmi: %s ]\n",
+
+	printf("\n APIC:\n");
+	printf(  " -----\n");
+	printf(" efer: %016llx  apic base: %016llx  nmi: %s\n",
 		(u64) sregs.efer, (u64) sregs.apic_base,
 		(self->kvm->nmi_disabled ? "disabled" : "enabled"));
-	printf("Interrupt bitmap:\n");
-	printf(" ");
+
+	printf("\n Interrupt bitmap:\n");
+	printf(  " -----------------\n");
 	for (i = 0; i < (KVM_NR_INTERRUPTS + 63) / 64; i++)
-		printf("%016llx ", (u64) sregs.interrupt_bitmap[i]);
+		printf(" %016llx", (u64) sregs.interrupt_bitmap[i]);
 	printf("\n");
 }
 
@@ -293,7 +299,8 @@ void kvm_cpu__show_code(struct kvm_cpu *self)
 
 	ip = guest_flat_to_host(self->kvm, ip_to_flat(self, self->regs.rip) - code_prologue);
 
-	printf("Code: ");
+	printf("\n Code:\n");
+	printf(  " -----\n");
 
 	for (i = 0; i < code_len; i++, ip++) {
 		if (!host_ptr_in_ram(self->kvm, ip))
@@ -302,14 +309,15 @@ void kvm_cpu__show_code(struct kvm_cpu *self)
 		c = *ip;
 
 		if (ip == guest_flat_to_host(self->kvm, ip_to_flat(self, self->regs.rip)))
-			printf("<%02x> ", c);
+			printf(" <%02x>", c);
 		else
-			printf("%02x ", c);
+			printf(" %02x", c);
 	}
 
 	printf("\n");
 
-	printf("Stack:\n");
+	printf("\n Stack:\n");
+	printf(  " ------\n");
 	kvm__dump_mem(self->kvm, self->regs.rsp, 32);
 }
 

@@ -29,6 +29,7 @@
 /* header files for gitish interface  */
 #include <kvm/kvm-run.h>
 #include <kvm/parse-options.h>
+#include <kvm/mutex.h>
 
 #define DEFAULT_KVM_DEV		"/dev/kvm"
 #define DEFAULT_CONSOLE		"serial"
@@ -127,6 +128,12 @@ static const struct option options[] = {
 	OPT_END()
 };
 
+/*
+ * Serialize debug printout so that the output of multiple vcpus does not
+ * get mixed up:
+ */
+static DEFINE_MUTEX(printout_mutex);
+
 static void handle_sigusr1(int sig)
 {
 	struct kvm_cpu *cpu = current_kvm_cpu;
@@ -134,9 +141,13 @@ static void handle_sigusr1(int sig)
 	if (!cpu)
 		return;
 
+	mutex_lock(&printout_mutex);
+	printf("\n#\n# vCPU #%ld's dump:\n#\n", cpu->cpu_id);
 	kvm_cpu__show_registers(cpu);
 	kvm_cpu__show_code(cpu);
 	kvm_cpu__show_page_tables(cpu);
+	fflush(stdout);
+	mutex_unlock(&printout_mutex);
 }
 
 static void handle_sigquit(int sig)
