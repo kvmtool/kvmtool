@@ -25,6 +25,7 @@
 #include <kvm/term.h>
 #include <kvm/ioport.h>
 #include <kvm/threadpool.h>
+#include <kvm/barrier.h>
 
 /* header files for gitish interface  */
 #include <kvm/kvm-run.h>
@@ -132,7 +133,7 @@ static const struct option options[] = {
  * Serialize debug printout so that the output of multiple vcpus does not
  * get mixed up:
  */
-static DEFINE_MUTEX(printout_mutex);
+static int printout_done;
 
 static void handle_sigusr1(int sig)
 {
@@ -141,13 +142,13 @@ static void handle_sigusr1(int sig)
 	if (!cpu)
 		return;
 
-	mutex_lock(&printout_mutex);
-	printf("\n#\n# vCPU #%ld's dump:\n#\n", cpu->cpu_id);
+	printf("\n #\n # vCPU #%ld's dump:\n #\n", cpu->cpu_id);
 	kvm_cpu__show_registers(cpu);
 	kvm_cpu__show_code(cpu);
 	kvm_cpu__show_page_tables(cpu);
 	fflush(stdout);
-	mutex_unlock(&printout_mutex);
+	printout_done = 1;
+	mb();
 }
 
 static void handle_sigquit(int sig)
@@ -160,7 +161,15 @@ static void handle_sigquit(int sig)
 		if (!cpu)
 			continue;
 
+		printout_done = 0;
 		pthread_kill(cpu->thread, SIGUSR1);
+		/*
+		 * Wait for the vCPU to dump state before signalling
+		 * the next thread. Since this is debug code it does
+		 * not matter that we are burning CPU time a bit:
+		 */
+		while (!printout_done)
+			mb();
 	}
 
 	serial8250__inject_sysrq(kvm);
