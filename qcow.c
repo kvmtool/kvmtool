@@ -14,6 +14,7 @@
 
 #include <linux/byteorder.h>
 #include <linux/types.h>
+#include <linux/kernel.h>
 
 static inline u64 get_l1_index(struct qcow *q, u64 offset)
 {
@@ -130,8 +131,185 @@ out_error:
 	return -1;
 }
 
+static inline u64 file_size(int fd)
+{
+	struct stat st;
+	if (fstat(fd, &st) < 0)
+		return 0;
+	return st.st_size;
+}
+
+static inline int pwrite_sync(int fd, void *buf, size_t count, off_t offset)
+{
+	if (pwrite_in_full(fd, buf, count, offset) < 0)
+		return -1;
+	if (sync_file_range(fd, offset, count,
+				SYNC_FILE_RANGE_WAIT_BEFORE |
+				SYNC_FILE_RANGE_WRITE) < 0)
+		return -1;
+	return 0;
+}
+
+/* Writes a level 2 table at the end of the file. */
+static u64 qcow1_write_l2_table(struct qcow *q, u64 *table)
+{
+	struct qcow_header *header = q->header;
+	u64 sz;
+	u64 clust_sz;
+	u64 off;
+	u64 f_sz;
+
+	f_sz     = file_size(q->fd);
+	if (!f_sz)
+		return 0;
+
+	sz       = 1 << header->l2_bits;
+	clust_sz = 1 << header->cluster_bits;
+	off      = ALIGN(f_sz, clust_sz);
+
+	if (pwrite_sync(q->fd, table, sz * sizeof(u64), off) < 0)
+		return 0;
+	return off;
+}
+
+/*
+ * QCOW file might grow during a write operation. Not only data but metadata is
+ * also written at the end of the file. Therefore it is necessary to ensure
+ * every write is committed to disk. Hence we use uses pwrite_sync() to
+ * synchronize the in-core state of QCOW image to disk.
+ *
+ * We also try to restore the image to a consistent state if the metdata
+ * operation fails. The two metadat operations are: level 1 and level 2 table
+ * update. If either of them fails the image is truncated to a consistent state.
+ */
+static ssize_t qcow1_write_cluster(struct qcow *q, u64 offset, void *buf, u32 src_len)
+{
+	struct qcow_header *header = q->header;
+	struct qcow_table  *table  = &q->table;
+
+	u64 l2t_sz;
+	u64 clust_sz;
+	u64 l1t_idx;
+	u64 l2t_idx;
+	u64 clust_off;
+	u64 len;
+	u64 *l2t;
+	u64 f_sz;
+	u64 l2t_off;
+	u64 t;
+	u64 clust_start;
+	bool update_meta = false;
+
+	l2t_sz   = 1 << header->l2_bits;
+	clust_sz = 1 << header->cluster_bits;
+
+	l1t_idx = get_l1_index(q, offset);
+	if (l1t_idx >= table->table_size)
+		goto error;
+
+	l2t_idx = get_l2_index(q, offset);
+	if (l2t_idx >= l2t_sz)
+		goto error;
+
+	clust_off = get_cluster_offset(q, offset);
+	if (clust_off >= clust_sz)
+		goto error;
+
+	len = clust_sz - clust_off;
+	if (len > src_len)
+		len = src_len;
+
+	l2t = calloc(l2t_sz, sizeof(u64));
+	if (!l2t)
+		goto error;
+
+	l2t_off = table->l1_table[l1t_idx] & ~header->oflag_mask;
+	if (l2t_off) {
+		if (pread_in_full(q->fd, l2t, l2t_sz * sizeof(u64), l2t_off) < 0)
+			goto free_l2;
+	} else {
+		/* capture the state of the consistent QCOW image */
+		f_sz = file_size(q->fd);
+		if (!f_sz)
+			goto free_l2;
+
+		/* Write the l2 table of 0's at the end of the file */
+		l2t_off = qcow1_write_l2_table(q, l2t);
+		if (!l2t_off)
+			goto free_l2;
+
+		/* Metadata update: update on disk level 1 table */
+		t = cpu_to_be64(l2t_off);
+		if (pwrite_sync(q->fd, &t, sizeof(t), header->l1_table_offset +
+					l1t_idx * sizeof(u64)) < 0) {
+			/* restore file to consistent state */
+			if (ftruncate(q->fd, f_sz) < 0)
+				goto free_l2;
+			goto free_l2;
+		}
+
+		/* update the in-core entry */
+		table->l1_table[l1t_idx] = l2t_off;
+	}
+
+	/* capture the state of the consistent QCOW image */
+	f_sz = file_size(q->fd);
+	if (!f_sz)
+		goto free_l2;
+
+	clust_start = be64_to_cpu(l2t[l2t_idx]) & ~header->oflag_mask;
+	free(l2t);
+	if (!clust_start) {
+		clust_start = ALIGN(f_sz, clust_sz);
+		update_meta = true;
+	}
+
+	/* write actual data */
+	if (pwrite_in_full(q->fd, buf, len, clust_start + clust_off) < 0)
+		goto error;
+
+	if (update_meta) {
+		t = cpu_to_be64(clust_start);
+		if (pwrite_sync(q->fd, &t, sizeof(t), l2t_off +
+					l2t_idx * sizeof(u64)) < 0) {
+			/* restore the file to consistent state */
+			if (ftruncate(q->fd, f_sz) < 0)
+				goto error;
+			goto error;
+		}
+	}
+	return len;
+free_l2:
+	free(l2t);
+error:
+	return -1;
+}
+
 static int qcow1_write_sector(struct disk_image *disk, u64 sector, void *src, u32 src_len)
 {
+	struct qcow *q = disk->priv;
+	struct qcow_header *header = q->header;
+	char *buf = src;
+	ssize_t nr_write;
+	u64 offset;
+	ssize_t nr;
+
+	nr_write = 0;
+	offset = sector << SECTOR_SHIFT;
+	while (nr_write < src_len) {
+		if (offset >= header->size)
+			goto error;
+
+		nr = qcow1_write_cluster(q, offset, buf, src_len - nr_write);
+		if (nr < 0)
+			goto error;
+
+		nr_write += nr;
+		buf      += nr;
+		offset   += nr;
+	}
+	return 0;
+error:
 	return -1;
 }
 
