@@ -1,6 +1,5 @@
 #include "kvm/virtio-rng.h"
 
-#include "kvm/virtio-pci.h"
 #include "kvm/virtio-pci-dev.h"
 
 #include "kvm/disk-image.h"
@@ -131,7 +130,7 @@ static bool virtio_rng_pci_io_out(struct kvm *kvm, u16 port, void *data, int siz
 		queue->pfn		= ioport__read32(data);
 		p			= guest_pfn_to_host(kvm, queue->pfn);
 
-		vring_init(&queue->vring, VIRTIO_RNG_QUEUE_SIZE, p, 4096);
+		vring_init(&queue->vring, VIRTIO_RNG_QUEUE_SIZE, p, VIRTIO_PCI_VRING_ALIGN);
 
 		rdev.jobs[rdev.queue_selector] = thread_pool__add_job(kvm, virtio_rng_do_io, queue);
 

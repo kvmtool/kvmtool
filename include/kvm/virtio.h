@@ -2,6 +2,7 @@
 #define KVM__VIRTIO_H
 
 #include <linux/virtio_ring.h>
+#include <linux/virtio_pci.h>
 
 #include <linux/types.h>
 #include <sys/uio.h>
@@ -43,7 +44,7 @@ static inline bool virt_queue__available(struct virt_queue *vq)
  */
 static inline void *guest_pfn_to_host(struct kvm *kvm, u32 pfn)
 {
-	return guest_flat_to_host(kvm, (unsigned long)pfn << 12);
+	return guest_flat_to_host(kvm, (unsigned long)pfn << VIRTIO_PCI_QUEUE_ADDR_SHIFT);
 }
 
 struct vring_used_elem *virt_queue__set_used_elem(struct virt_queue *queue, u32 head, u32 len);

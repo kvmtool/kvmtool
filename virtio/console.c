@@ -1,5 +1,4 @@
 #include "kvm/virtio-console.h"
-#include "kvm/virtio-pci.h"
 #include "kvm/virtio-pci-dev.h"
 #include "kvm/disk-image.h"
 #include "kvm/virtio.h"
@@ -104,10 +103,10 @@ static bool virtio_console_pci_io_device_specific_in(void *data, unsigned long o
 	if (size != 1 || count != 1)
 		return false;
 
-	if ((offset - VIRTIO_PCI_CONFIG_NOMSI) > sizeof(struct virtio_console_config))
-		error("config offset is too big: %li", offset - VIRTIO_PCI_CONFIG_NOMSI);
+	if ((offset - VIRTIO_MSI_CONFIG_VECTOR) > sizeof(struct virtio_console_config))
+		error("config offset is too big: %li", offset - VIRTIO_MSI_CONFIG_VECTOR);
 
-	ioport__write8(data, config_space[offset - VIRTIO_PCI_CONFIG_NOMSI]);
+	ioport__write8(data, config_space[offset - VIRTIO_MSI_CONFIG_VECTOR]);
 
 	return true;
 }
@@ -201,7 +200,7 @@ static bool virtio_console_pci_io_out(struct kvm *self, u16 port, void *data, in
 		queue->pfn		= ioport__read32(data);
 		p			= guest_pfn_to_host(self, queue->pfn);
 
-		vring_init(&queue->vring, VIRTIO_CONSOLE_QUEUE_SIZE, p, 4096);
+		vring_init(&queue->vring, VIRTIO_CONSOLE_QUEUE_SIZE, p, VIRTIO_PCI_VRING_ALIGN);
 
 		if (cdev.queue_selector == VIRTIO_CONSOLE_TX_QUEUE)
 			cdev.jobs[cdev.queue_selector] = thread_pool__add_job(self, virtio_console_handle_callback, queue);
