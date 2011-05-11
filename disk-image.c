@@ -144,7 +144,7 @@ struct disk_image *disk_image__open(const char *filename, bool readonly)
 	if (fd < 0)
 		return NULL;
 
-	disk = qcow_probe(fd);
+	disk = qcow_probe(fd, readonly);
 	if (disk)
 		return disk;
 

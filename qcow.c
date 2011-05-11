@@ -320,6 +320,12 @@ static int qcow1_write_sector(struct disk_image *disk, u64 sector, void *src, u3
 	return 0;
 }
 
+static int qcow1_nowrite_sector(struct disk_image *disk, u64 sector, void *src, u32 src_len)
+{
+	/* I/O error */
+	return -1;
+}
+
 static void qcow1_disk_close(struct disk_image *disk)
 {
 	struct qcow *q;
@@ -334,7 +340,13 @@ static void qcow1_disk_close(struct disk_image *disk)
 	free(q);
 }
 
-struct disk_image_operations qcow1_disk_ops = {
+static struct disk_image_operations qcow1_disk_readonly_ops = {
+	.read_sector		= qcow1_read_sector,
+	.write_sector		= qcow1_nowrite_sector,
+	.close			= qcow1_disk_close
+};
+
+static struct disk_image_operations qcow1_disk_ops = {
 	.read_sector		= qcow1_read_sector,
 	.write_sector		= qcow1_write_sector,
 	.close			= qcow1_disk_close
@@ -402,7 +414,7 @@ static void *qcow2_read_header(int fd)
 	return header;
 }
 
-static struct disk_image *qcow2_probe(int fd)
+static struct disk_image *qcow2_probe(int fd, bool readonly)
 {
 	struct qcow *q;
 	struct qcow_header *h;
@@ -421,7 +433,11 @@ static struct disk_image *qcow2_probe(int fd)
 	if (qcow_read_l1_table(q) < 0)
 		goto error;
 
-	disk_image = disk_image__new(fd, h->size, &qcow1_disk_ops);
+	if (readonly)
+		disk_image = disk_image__new(fd, h->size, &qcow1_disk_readonly_ops);
+	else
+		disk_image = disk_image__new(fd, h->size, &qcow1_disk_ops);
+
 	if (!disk_image)
 		goto error;
 	disk_image->priv = q;
@@ -492,7 +508,7 @@ static void *qcow1_read_header(int fd)
 	return header;
 }
 
-static struct disk_image *qcow1_probe(int fd)
+static struct disk_image *qcow1_probe(int fd, bool readonly)
 {
 	struct qcow *q;
 	struct qcow_header *h;
@@ -511,7 +527,11 @@ static struct disk_image *qcow1_probe(int fd)
 	if (qcow_read_l1_table(q) < 0)
 		goto error;
 
-	disk_image = disk_image__new(fd, h->size, &qcow1_disk_ops);
+	if (readonly)
+		disk_image = disk_image__new(fd, h->size, &qcow1_disk_readonly_ops);
+	else
+		disk_image = disk_image__new(fd, h->size, &qcow1_disk_ops);
+
 	if (!disk_image)
 		goto error;
 	disk_image->priv = q;
@@ -547,13 +567,13 @@ static bool qcow1_check_image(int fd)
 	return true;
 }
 
-struct disk_image *qcow_probe(int fd)
+struct disk_image *qcow_probe(int fd, bool readonly)
 {
 	if (qcow1_check_image(fd))
-		return qcow1_probe(fd);
+		return qcow1_probe(fd, readonly);
 
 	if (qcow2_check_image(fd))
-		return qcow2_probe(fd);
+		return qcow2_probe(fd, readonly);
 
 	return NULL;
 }

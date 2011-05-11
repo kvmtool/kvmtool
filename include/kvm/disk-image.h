@@ -46,7 +46,9 @@ static inline ssize_t disk_image__read_sector_iov(struct disk_image *disk, u64 s
 		return disk->ops->read_sector_iov(disk, sector, iov, iovcount);
 
 	while (iovcount--) {
-		disk->ops->read_sector(disk, sector, iov->iov_base, iov->iov_len);
+		if (disk->ops->read_sector(disk, sector, iov->iov_base, iov->iov_len) < 0)
+			return -1;
+
 		sector += iov->iov_len >> SECTOR_SHIFT;
 		iov++;
 	}
@@ -60,7 +62,9 @@ static inline ssize_t disk_image__write_sector_iov(struct disk_image *disk, u64 
 		return disk->ops->write_sector_iov(disk, sector, iov, iovcount);
 
 	while (iovcount--) {
-		disk->ops->write_sector(disk, sector, iov->iov_base, iov->iov_len);
+		if (disk->ops->write_sector(disk, sector, iov->iov_base, iov->iov_len) < 0)
+			return -1;
+
 		sector += iov->iov_len >> SECTOR_SHIFT;
 		iov++;
 	}

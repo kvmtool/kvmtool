@@ -2,6 +2,7 @@
 #define KVM__QCOW_H
 
 #include <linux/types.h>
+#include <stdbool.h>
 
 #define QCOW_MAGIC		(('Q' << 24) | ('F' << 16) | ('I' << 8) | 0xfb)
 
@@ -74,6 +75,6 @@ struct qcow2_header_disk {
 	u64			snapshots_offset;
 };
 
-struct disk_image *qcow_probe(int fd);
+struct disk_image *qcow_probe(int fd, bool readonly);
 
 #endif /* KVM__QCOW_H */
