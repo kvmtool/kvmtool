@@ -39,7 +39,7 @@ struct disk_image *disk_image__new_readonly(int fd, u64 size, struct disk_image_
 	if (!disk)
 		return NULL;
 
-	disk->priv = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_NORESERVE, fd, 0);
+	disk->priv = mmap(NULL, size, PROT_RW, MAP_PRIVATE | MAP_NORESERVE, fd, 0);
 	if (disk->priv == MAP_FAILED)
 		die("mmap() failed");
 	return disk;

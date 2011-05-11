@@ -32,6 +32,9 @@
 
 extern bool do_debug_print;
 
+#define PROT_RW (PROT_READ|PROT_WRITE)
+#define MAP_ANON_NORESERVE (MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE)
+
 extern void die(const char *err, ...) NORETURN __attribute__((format (printf, 1, 2)));
 extern void die_perror(const char *s) NORETURN;
 extern int error(const char *err, ...) __attribute__((format (printf, 1, 2)));

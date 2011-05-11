@@ -267,9 +267,9 @@ struct kvm *kvm__init(const char *kvm_dev, unsigned long ram_size)
 	kvm->ram_size		= ram_size;
 
 	if (kvm->ram_size < KVM_32BIT_GAP_START) {
-		kvm->ram_start = mmap(NULL, ram_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
+		kvm->ram_start = mmap(NULL, ram_size, PROT_RW, MAP_ANON_NORESERVE, -1, 0);
 	} else {
-		kvm->ram_start = mmap(NULL, ram_size + KVM_32BIT_GAP_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
+		kvm->ram_start = mmap(NULL, ram_size + KVM_32BIT_GAP_SIZE, PROT_RW, MAP_ANON_NORESERVE, -1, 0);
 		if (kvm->ram_start != MAP_FAILED) {
 			/*
 			 * We mprotect the gap (see kvm__init_ram() for details) PROT_NONE so that
