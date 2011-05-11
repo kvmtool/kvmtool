@@ -4,7 +4,7 @@
 struct kvm;
 
 struct virtio_net_parameters {
-	struct kvm *self;
+	struct kvm *kvm;
 	const char *host_ip;
 	char guest_mac[6];
 	const char *script;

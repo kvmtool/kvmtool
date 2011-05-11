@@ -19,74 +19,74 @@
 
 struct disk_image *disk_image__new(int fd, u64 size, struct disk_image_operations *ops)
 {
-	struct disk_image *self;
+	struct disk_image *disk;
 
-	self		= malloc(sizeof *self);
-	if (!self)
+	disk		= malloc(sizeof *disk);
+	if (!disk)
 		return NULL;
 
-	self->fd	= fd;
-	self->size	= size;
-	self->ops	= ops;
-	return self;
+	disk->fd	= fd;
+	disk->size	= size;
+	disk->ops	= ops;
+	return disk;
 }
 
 struct disk_image *disk_image__new_readonly(int fd, u64 size, struct disk_image_operations *ops)
 {
-	struct disk_image *self;
+	struct disk_image *disk;
 
-	self = disk_image__new(fd, size, ops);
-	if (!self)
+	disk = disk_image__new(fd, size, ops);
+	if (!disk)
 		return NULL;
 
-	self->priv = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_NORESERVE, fd, 0);
-	if (self->priv == MAP_FAILED)
+	disk->priv = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_NORESERVE, fd, 0);
+	if (disk->priv == MAP_FAILED)
 		die("mmap() failed");
-	return self;
+	return disk;
 }
 
-static ssize_t raw_image__read_sector_iov(struct disk_image *self, u64 sector, const struct iovec *iov, int iovcount)
+static ssize_t raw_image__read_sector_iov(struct disk_image *disk, u64 sector, const struct iovec *iov, int iovcount)
 {
 	u64 offset = sector << SECTOR_SHIFT;
 
-	return preadv_in_full(self->fd, iov, iovcount, offset);
+	return preadv_in_full(disk->fd, iov, iovcount, offset);
 }
 
-static ssize_t raw_image__write_sector_iov(struct disk_image *self, u64 sector, const struct iovec *iov, int iovcount)
+static ssize_t raw_image__write_sector_iov(struct disk_image *disk, u64 sector, const struct iovec *iov, int iovcount)
 {
 	u64 offset = sector << SECTOR_SHIFT;
 
-	return pwritev_in_full(self->fd, iov, iovcount, offset);
+	return pwritev_in_full(disk->fd, iov, iovcount, offset);
 }
 
-static int raw_image__read_sector_ro_mmap(struct disk_image *self, u64 sector, void *dst, u32 dst_len)
+static int raw_image__read_sector_ro_mmap(struct disk_image *disk, u64 sector, void *dst, u32 dst_len)
 {
 	u64 offset = sector << SECTOR_SHIFT;
 
-	if (offset + dst_len > self->size)
+	if (offset + dst_len > disk->size)
 		return -1;
 
-	memcpy(dst, self->priv + offset, dst_len);
+	memcpy(dst, disk->priv + offset, dst_len);
 
 	return 0;
 }
 
-static int raw_image__write_sector_ro_mmap(struct disk_image *self, u64 sector, void *src, u32 src_len)
+static int raw_image__write_sector_ro_mmap(struct disk_image *disk, u64 sector, void *src, u32 src_len)
 {
 	u64 offset = sector << SECTOR_SHIFT;
 
-	if (offset + src_len > self->size)
+	if (offset + src_len > disk->size)
 		return -1;
 
-	memcpy(self->priv + offset, src, src_len);
+	memcpy(disk->priv + offset, src, src_len);
 
 	return 0;
 }
 
-static void raw_image__close_ro_mmap(struct disk_image *self)
+static void raw_image__close_ro_mmap(struct disk_image *disk)
 {
-	if (self->priv != MAP_FAILED)
-		munmap(self->priv, self->size);
+	if (disk->priv != MAP_FAILED)
+		munmap(disk->priv, disk->size);
 }
 
 static struct disk_image_operations raw_image_ops = {
@@ -130,7 +130,7 @@ static struct disk_image *blkdev__probe(const char *filename, struct stat *st)
 
 struct disk_image *disk_image__open(const char *filename, bool readonly)
 {
-	struct disk_image *self;
+	struct disk_image *disk;
 	struct stat st;
 	int fd;
 
@@ -144,13 +144,13 @@ struct disk_image *disk_image__open(const char *filename, bool readonly)
 	if (fd < 0)
 		return NULL;
 
-	self = qcow_probe(fd);
-	if (self)
-		return self;
+	disk = qcow_probe(fd);
+	if (disk)
+		return disk;
 
-	self = raw_image__probe(fd, &st, readonly);
-	if (self)
-		return self;
+	disk = raw_image__probe(fd, &st, readonly);
+	if (disk)
+		return disk;
 
 	if (close(fd) < 0)
 		warning("close() failed");
@@ -158,17 +158,17 @@ struct disk_image *disk_image__open(const char *filename, bool readonly)
 	return NULL;
 }
 
-void disk_image__close(struct disk_image *self)
+void disk_image__close(struct disk_image *disk)
 {
 	/* If there was no disk image then there's nothing to do: */
-	if (!self)
+	if (!disk)
 		return;
 
-	if (self->ops->close)
-		self->ops->close(self);
+	if (disk->ops->close)
+		disk->ops->close(disk);
 
-	if (close(self->fd) < 0)
+	if (close(disk->fd) < 0)
 		warning("close() failed");
 
-	free(self);
+	free(disk);
 }

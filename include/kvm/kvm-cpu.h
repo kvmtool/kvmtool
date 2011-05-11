@@ -24,15 +24,15 @@ struct kvm_cpu {
 };
 
 struct kvm_cpu *kvm_cpu__init(struct kvm *kvm, unsigned long cpu_id);
-void kvm_cpu__delete(struct kvm_cpu *self);
-void kvm_cpu__reset_vcpu(struct kvm_cpu *self);
-void kvm_cpu__setup_cpuid(struct kvm_cpu *self);
-void kvm_cpu__enable_singlestep(struct kvm_cpu *self);
-void kvm_cpu__run(struct kvm_cpu *self);
+void kvm_cpu__delete(struct kvm_cpu *vcpu);
+void kvm_cpu__reset_vcpu(struct kvm_cpu *vcpu);
+void kvm_cpu__setup_cpuid(struct kvm_cpu *vcpu);
+void kvm_cpu__enable_singlestep(struct kvm_cpu *vcpu);
+void kvm_cpu__run(struct kvm_cpu *vcpu);
 int kvm_cpu__start(struct kvm_cpu *cpu);
 
-void kvm_cpu__show_code(struct kvm_cpu *self);
-void kvm_cpu__show_registers(struct kvm_cpu *self);
-void kvm_cpu__show_page_tables(struct kvm_cpu *self);
+void kvm_cpu__show_code(struct kvm_cpu *vcpu);
+void kvm_cpu__show_registers(struct kvm_cpu *vcpu);
+void kvm_cpu__show_page_tables(struct kvm_cpu *vcpu);
 
 #endif /* KVM__KVM_CPU_H */

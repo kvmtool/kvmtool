@@ -500,7 +500,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	if (!strncmp(network, "virtio", 6)) {
 		net_params = (struct virtio_net_parameters) {
 			.host_ip = host_ip_addr,
-			.self = kvm,
+			.kvm = kvm,
 			.script = script
 		};
 		sscanf(guest_mac,	"%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",

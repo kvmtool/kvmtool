@@ -19,8 +19,8 @@ struct interrupt_table {
 	struct real_intr_desc entries[REAL_INTR_VECTORS];
 };
 
-void interrupt_table__copy(struct interrupt_table *self, void *dst, unsigned int size);
-void interrupt_table__setup(struct interrupt_table *self, struct real_intr_desc *entry);
-void interrupt_table__set(struct interrupt_table *self, struct real_intr_desc *entry, unsigned int num);
+void interrupt_table__copy(struct interrupt_table *itable, void *dst, unsigned int size);
+void interrupt_table__setup(struct interrupt_table *itable, struct real_intr_desc *entry);
+void interrupt_table__set(struct interrupt_table *itable, struct real_intr_desc *entry, unsigned int num);
 
 #endif /* KVM__INTERRUPT_H */

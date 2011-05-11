@@ -69,7 +69,7 @@ static struct con_dev cdev = {
 /*
  * Interrupts are injected for hvc0 only.
  */
-static void virtio_console__inject_interrupt_callback(struct kvm *self, void *param)
+static void virtio_console__inject_interrupt_callback(struct kvm *kvm, void *param)
 {
 	struct iovec iov[VIRTIO_CONSOLE_QUEUE_SIZE];
 	struct virt_queue *vq;
@@ -82,16 +82,16 @@ static void virtio_console__inject_interrupt_callback(struct kvm *self, void *pa
 	vq = param;
 
 	if (term_readable(CONSOLE_VIRTIO) && virt_queue__available(vq)) {
-		head = virt_queue__get_iov(vq, iov, &out, &in, self);
+		head = virt_queue__get_iov(vq, iov, &out, &in, kvm);
 		len = term_getc_iov(CONSOLE_VIRTIO, iov, in);
 		virt_queue__set_used_elem(vq, head, len);
-		virt_queue__trigger_irq(vq, virtio_console_pci_device.irq_line, &cdev.isr, self);
+		virt_queue__trigger_irq(vq, virtio_console_pci_device.irq_line, &cdev.isr, kvm);
 	}
 
 	mutex_unlock(&cdev.mutex);
 }
 
-void virtio_console__inject_interrupt(struct kvm *self)
+void virtio_console__inject_interrupt(struct kvm *kvm)
 {
 	thread_pool__do_job(cdev.jobs[VIRTIO_CONSOLE_RX_QUEUE]);
 }
@@ -111,7 +111,7 @@ static bool virtio_console_pci_io_device_specific_in(void *data, unsigned long o
 	return true;
 }
 
-static bool virtio_console_pci_io_in(struct kvm *self, u16 port, void *data, int size, u32 count)
+static bool virtio_console_pci_io_in(struct kvm *kvm, u16 port, void *data, int size, u32 count)
 {
 	unsigned long offset = port - IOPORT_VIRTIO_CONSOLE;
 	bool ret = true;
@@ -140,7 +140,7 @@ static bool virtio_console_pci_io_in(struct kvm *self, u16 port, void *data, int
 		break;
 	case VIRTIO_PCI_ISR:
 		ioport__write8(data, cdev.isr);
-		kvm__irq_line(self, virtio_console_pci_device.irq_line, VIRTIO_IRQ_LOW);
+		kvm__irq_line(kvm, virtio_console_pci_device.irq_line, VIRTIO_IRQ_LOW);
 		cdev.isr = VIRTIO_IRQ_LOW;
 		break;
 	case VIRTIO_MSI_CONFIG_VECTOR:
@@ -155,7 +155,7 @@ static bool virtio_console_pci_io_in(struct kvm *self, u16 port, void *data, int
 	return ret;
 }
 
-static void virtio_console_handle_callback(struct kvm *self, void *param)
+static void virtio_console_handle_callback(struct kvm *kvm, void *param)
 {
 	struct iovec iov[VIRTIO_CONSOLE_QUEUE_SIZE];
 	struct virt_queue *vq;
@@ -172,14 +172,14 @@ static void virtio_console_handle_callback(struct kvm *self, void *param)
 	 */
 
 	while (virt_queue__available(vq)) {
-		head = virt_queue__get_iov(vq, iov, &out, &in, self);
+		head = virt_queue__get_iov(vq, iov, &out, &in, kvm);
 		len = term_putc_iov(CONSOLE_VIRTIO, iov, out);
 		virt_queue__set_used_elem(vq, head, len);
 	}
 
 }
 
-static bool virtio_console_pci_io_out(struct kvm *self, u16 port, void *data, int size, u32 count)
+static bool virtio_console_pci_io_out(struct kvm *kvm, u16 port, void *data, int size, u32 count)
 {
 	unsigned long offset = port - IOPORT_VIRTIO_CONSOLE;
 	bool ret = true;
@@ -198,14 +198,14 @@ static bool virtio_console_pci_io_out(struct kvm *self, u16 port, void *data, in
 
 		queue			= &cdev.vqs[cdev.queue_selector];
 		queue->pfn		= ioport__read32(data);
-		p			= guest_pfn_to_host(self, queue->pfn);
+		p			= guest_pfn_to_host(kvm, queue->pfn);
 
 		vring_init(&queue->vring, VIRTIO_CONSOLE_QUEUE_SIZE, p, VIRTIO_PCI_VRING_ALIGN);
 
 		if (cdev.queue_selector == VIRTIO_CONSOLE_TX_QUEUE)
-			cdev.jobs[cdev.queue_selector] = thread_pool__add_job(self, virtio_console_handle_callback, queue);
+			cdev.jobs[cdev.queue_selector] = thread_pool__add_job(kvm, virtio_console_handle_callback, queue);
 		else if (cdev.queue_selector == VIRTIO_CONSOLE_RX_QUEUE)
-			cdev.jobs[cdev.queue_selector] = thread_pool__add_job(self, virtio_console__inject_interrupt_callback, queue);
+			cdev.jobs[cdev.queue_selector] = thread_pool__add_job(kvm, virtio_console__inject_interrupt_callback, queue);
 
 		break;
 	}
@@ -240,7 +240,7 @@ static struct ioport_operations virtio_console_io_ops = {
 	.io_out			= virtio_console_pci_io_out,
 };
 
-void virtio_console__init(struct kvm *self)
+void virtio_console__init(struct kvm *kvm)
 {
 	u8 dev, line, pin;
 

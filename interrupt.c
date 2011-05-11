@@ -4,24 +4,24 @@
 
 #include <string.h>
 
-void interrupt_table__copy(struct interrupt_table *self, void *dst, unsigned int size)
+void interrupt_table__copy(struct interrupt_table *itable, void *dst, unsigned int size)
 {
-	if (size < sizeof(self->entries))
+	if (size < sizeof(itable->entries))
 		die("An attempt to overwrite host memory");
 
-	memcpy(dst, self->entries, sizeof(self->entries));
+	memcpy(dst, itable->entries, sizeof(itable->entries));
 }
 
-void interrupt_table__setup(struct interrupt_table *self, struct real_intr_desc *entry)
+void interrupt_table__setup(struct interrupt_table *itable, struct real_intr_desc *entry)
 {
 	unsigned int i;
 
 	for (i = 0; i < REAL_INTR_VECTORS; i++)
-		self->entries[i] = *entry;
+		itable->entries[i] = *entry;
 }
 
-void interrupt_table__set(struct interrupt_table *self, struct real_intr_desc *entry, unsigned int num)
+void interrupt_table__set(struct interrupt_table *itable, struct real_intr_desc *entry, unsigned int num)
 {
 	if (num < REAL_INTR_VECTORS)
-		self->entries[num] = *entry;
+		itable->entries[num] = *entry;
 }

@@ -32,19 +32,19 @@ static void filter_cpuid(struct kvm_cpuid2 *kvm_cpuid)
 	}
 }
 
-void kvm_cpu__setup_cpuid(struct kvm_cpu *self)
+void kvm_cpu__setup_cpuid(struct kvm_cpu *vcpu)
 {
 	struct kvm_cpuid2 *kvm_cpuid;
 
 	kvm_cpuid = calloc(1, sizeof(*kvm_cpuid) + MAX_KVM_CPUID_ENTRIES * sizeof(*kvm_cpuid->entries));
 
 	kvm_cpuid->nent = MAX_KVM_CPUID_ENTRIES;
-	if (ioctl(self->kvm->sys_fd, KVM_GET_SUPPORTED_CPUID, kvm_cpuid) < 0)
+	if (ioctl(vcpu->kvm->sys_fd, KVM_GET_SUPPORTED_CPUID, kvm_cpuid) < 0)
 		die_perror("KVM_GET_SUPPORTED_CPUID failed");
 
 	filter_cpuid(kvm_cpuid);
 
-	if (ioctl(self->vcpu_fd, KVM_SET_CPUID2, kvm_cpuid) < 0)
+	if (ioctl(vcpu->vcpu_fd, KVM_SET_CPUID2, kvm_cpuid) < 0)
 		die_perror("KVM_SET_CPUID2 failed");
 
 	free(kvm_cpuid);

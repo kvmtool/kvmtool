@@ -260,7 +260,7 @@ void mptable_setup(struct kvm *kvm, unsigned int ncpus)
 
 	/*
 	 * We will copy the whole table, no need to separate
-	 * floating structure and table itself.
+	 * floating structure and table itkvm.
 	 */
 	size = (unsigned long)mpf_intel + sizeof(*mpf_intel) - (unsigned long)mpc_table;
 

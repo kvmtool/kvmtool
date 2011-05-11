@@ -67,23 +67,23 @@ struct {
 	{ DEFINE_KVM_EXT(KVM_CAP_EXT_CPUID) },
 };
 
-static bool kvm__supports_extension(struct kvm *self, unsigned int extension)
+static bool kvm__supports_extension(struct kvm *kvm, unsigned int extension)
 {
 	int ret;
 
-	ret = ioctl(self->sys_fd, KVM_CHECK_EXTENSION, extension);
+	ret = ioctl(kvm->sys_fd, KVM_CHECK_EXTENSION, extension);
 	if (ret < 0)
 		return false;
 
 	return ret;
 }
 
-static int kvm__check_extensions(struct kvm *self)
+static int kvm__check_extensions(struct kvm *kvm)
 {
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(kvm_req_ext); i++) {
-		if (!kvm__supports_extension(self, kvm_req_ext[i].code)) {
+		if (!kvm__supports_extension(kvm, kvm_req_ext[i].code)) {
 			error("Unsuppored KVM extension detected: %s",
 				kvm_req_ext[i].name);
 			return (int)-i;
@@ -95,20 +95,20 @@ static int kvm__check_extensions(struct kvm *self)
 
 static struct kvm *kvm__new(void)
 {
-	struct kvm *self = calloc(1, sizeof *self);
+	struct kvm *kvm = calloc(1, sizeof *kvm);
 
-	if (!self)
+	if (!kvm)
 		die("out of memory");
 
-	return self;
+	return kvm;
 }
 
-void kvm__delete(struct kvm *self)
+void kvm__delete(struct kvm *kvm)
 {
-	kvm__stop_timer(self);
+	kvm__stop_timer(kvm);
 
-	munmap(self->ram_start, self->ram_size);
-	free(self);
+	munmap(kvm->ram_start, kvm->ram_size);
+	free(kvm);
 }
 
 static bool kvm__cpu_supports_vm(void)
@@ -179,43 +179,43 @@ static void kvm_register_mem_slot(struct kvm *kvm, u32 slot, u64 guest_phys, u64
  * a gap between 0xe0000000 and 0x100000000 in the guest virtual mem space.
  */
 
-void kvm__init_ram(struct kvm *self)
+void kvm__init_ram(struct kvm *kvm)
 {
 	u64	phys_start, phys_size;
 	void	*host_mem;
 
-	if (self->ram_size < KVM_32BIT_GAP_START) {
+	if (kvm->ram_size < KVM_32BIT_GAP_START) {
 		/* Use a single block of RAM for 32bit RAM */
 
 		phys_start = 0;
-		phys_size  = self->ram_size;
-		host_mem   = self->ram_start;
+		phys_size  = kvm->ram_size;
+		host_mem   = kvm->ram_start;
 
-		kvm_register_mem_slot(self, 0, 0, self->ram_size, self->ram_start);
+		kvm_register_mem_slot(kvm, 0, 0, kvm->ram_size, kvm->ram_start);
 	} else {
 		/* First RAM range from zero to the PCI gap: */
 
 		phys_start = 0;
 		phys_size  = KVM_32BIT_GAP_START;
-		host_mem   = self->ram_start;
+		host_mem   = kvm->ram_start;
 
-		kvm_register_mem_slot(self, 0, phys_start, phys_size, host_mem);
+		kvm_register_mem_slot(kvm, 0, phys_start, phys_size, host_mem);
 
 		/* Second RAM range from 4GB to the end of RAM: */
 
 		phys_start = 0x100000000ULL;
-		phys_size  = self->ram_size - phys_size;
-		host_mem   = self->ram_start + phys_start;
+		phys_size  = kvm->ram_size - phys_size;
+		host_mem   = kvm->ram_start + phys_start;
 
-		kvm_register_mem_slot(self, 1, phys_start, phys_size, host_mem);
+		kvm_register_mem_slot(kvm, 1, phys_start, phys_size, host_mem);
 	}
 }
 
-int kvm__max_cpus(struct kvm *self)
+int kvm__max_cpus(struct kvm *kvm)
 {
 	int ret;
 
-	ret = ioctl(self->sys_fd, KVM_CHECK_EXTENSION, KVM_CAP_NR_VCPUS);
+	ret = ioctl(kvm->sys_fd, KVM_CHECK_EXTENSION, KVM_CAP_NR_VCPUS);
 	if (ret < 0)
 		die_perror("KVM_CAP_NR_VCPUS");
 
@@ -225,16 +225,16 @@ int kvm__max_cpus(struct kvm *self)
 struct kvm *kvm__init(const char *kvm_dev, unsigned long ram_size)
 {
 	struct kvm_pit_config pit_config = { .flags = 0, };
-	struct kvm *self;
+	struct kvm *kvm;
 	int ret;
 
 	if (!kvm__cpu_supports_vm())
 		die("Your CPU does not support hardware virtualization");
 
-	self = kvm__new();
+	kvm = kvm__new();
 
-	self->sys_fd = open(kvm_dev, O_RDWR);
-	if (self->sys_fd < 0) {
+	kvm->sys_fd = open(kvm_dev, O_RDWR);
+	if (kvm->sys_fd < 0) {
 		if (errno == ENOENT)
 			die("'%s' not found. Please make sure your kernel has CONFIG_KVM enabled and that the KVM modules are loaded.", kvm_dev);
 		if (errno == ENODEV)
@@ -245,47 +245,47 @@ struct kvm *kvm__init(const char *kvm_dev, unsigned long ram_size)
 		exit(1);
 	}
 
-	ret = ioctl(self->sys_fd, KVM_GET_API_VERSION, 0);
+	ret = ioctl(kvm->sys_fd, KVM_GET_API_VERSION, 0);
 	if (ret != KVM_API_VERSION)
 		die_perror("KVM_API_VERSION ioctl");
 
-	self->vm_fd = ioctl(self->sys_fd, KVM_CREATE_VM, 0);
-	if (self->vm_fd < 0)
+	kvm->vm_fd = ioctl(kvm->sys_fd, KVM_CREATE_VM, 0);
+	if (kvm->vm_fd < 0)
 		die_perror("KVM_CREATE_VM ioctl");
 
-	if (kvm__check_extensions(self))
+	if (kvm__check_extensions(kvm))
 		die("A required KVM extention is not supported by OS");
 
-	ret = ioctl(self->vm_fd, KVM_SET_TSS_ADDR, 0xfffbd000);
+	ret = ioctl(kvm->vm_fd, KVM_SET_TSS_ADDR, 0xfffbd000);
 	if (ret < 0)
 		die_perror("KVM_SET_TSS_ADDR ioctl");
 
-	ret = ioctl(self->vm_fd, KVM_CREATE_PIT2, &pit_config);
+	ret = ioctl(kvm->vm_fd, KVM_CREATE_PIT2, &pit_config);
 	if (ret < 0)
 		die_perror("KVM_CREATE_PIT2 ioctl");
 
-	self->ram_size		= ram_size;
+	kvm->ram_size		= ram_size;
 
-	if (self->ram_size < KVM_32BIT_GAP_START) {
-		self->ram_start = mmap(NULL, ram_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
+	if (kvm->ram_size < KVM_32BIT_GAP_START) {
+		kvm->ram_start = mmap(NULL, ram_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
 	} else {
-		self->ram_start = mmap(NULL, ram_size + KVM_32BIT_GAP_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
-		if (self->ram_start != MAP_FAILED) {
+		kvm->ram_start = mmap(NULL, ram_size + KVM_32BIT_GAP_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
+		if (kvm->ram_start != MAP_FAILED) {
 			/*
 			 * We mprotect the gap (see kvm__init_ram() for details) PROT_NONE so that
 			 * if we accidently write to it, we will know.
 			 */
-			mprotect(self->ram_start + KVM_32BIT_GAP_START, KVM_32BIT_GAP_SIZE, PROT_NONE);
+			mprotect(kvm->ram_start + KVM_32BIT_GAP_START, KVM_32BIT_GAP_SIZE, PROT_NONE);
 		}
 	}
-	if (self->ram_start == MAP_FAILED)
+	if (kvm->ram_start == MAP_FAILED)
 		die("out of memory");
 
-	ret = ioctl(self->vm_fd, KVM_CREATE_IRQCHIP);
+	ret = ioctl(kvm->vm_fd, KVM_CREATE_IRQCHIP);
 	if (ret < 0)
 		die_perror("KVM_CREATE_IRQCHIP ioctl");
 
-	return self;
+	return kvm;
 }
 
 #define BOOT_LOADER_SELECTOR	0x1000
@@ -296,7 +296,7 @@ struct kvm *kvm__init(const char *kvm_dev, unsigned long ram_size)
 #define BOOT_PROTOCOL_REQUIRED	0x206
 #define LOAD_HIGH		0x01
 
-static int load_flat_binary(struct kvm *self, int fd)
+static int load_flat_binary(struct kvm *kvm, int fd)
 {
 	void *p;
 	int nr;
@@ -304,21 +304,21 @@ static int load_flat_binary(struct kvm *self, int fd)
 	if (lseek(fd, 0, SEEK_SET) < 0)
 		die_perror("lseek");
 
-	p = guest_real_to_host(self, BOOT_LOADER_SELECTOR, BOOT_LOADER_IP);
+	p = guest_real_to_host(kvm, BOOT_LOADER_SELECTOR, BOOT_LOADER_IP);
 
 	while ((nr = read(fd, p, 65536)) > 0)
 		p += nr;
 
-	self->boot_selector	= BOOT_LOADER_SELECTOR;
-	self->boot_ip		= BOOT_LOADER_IP;
-	self->boot_sp		= BOOT_LOADER_SP;
+	kvm->boot_selector	= BOOT_LOADER_SELECTOR;
+	kvm->boot_ip		= BOOT_LOADER_IP;
+	kvm->boot_sp		= BOOT_LOADER_SP;
 
 	return true;
 }
 
 static const char *BZIMAGE_MAGIC	= "HdrS";
 
-static bool load_bzimage(struct kvm *self, int fd_kernel,
+static bool load_bzimage(struct kvm *kvm, int fd_kernel,
 			int fd_initrd, const char *kernel_cmdline)
 {
 	struct boot_params *kern_boot;
@@ -354,19 +354,19 @@ static bool load_bzimage(struct kvm *self, int fd_kernel,
 	setup_sects = boot.hdr.setup_sects + 1;
 
 	setup_size = setup_sects << 9;
-	p = guest_real_to_host(self, BOOT_LOADER_SELECTOR, BOOT_LOADER_IP);
+	p = guest_real_to_host(kvm, BOOT_LOADER_SELECTOR, BOOT_LOADER_IP);
 
 	/* copy setup.bin to mem*/
 	if (read(fd_kernel, p, setup_size) != setup_size)
 		die_perror("read");
 
 	/* copy vmlinux.bin to BZ_KERNEL_START*/
-	p = guest_flat_to_host(self, BZ_KERNEL_START);
+	p = guest_flat_to_host(kvm, BZ_KERNEL_START);
 
 	while ((nr = read(fd_kernel, p, 65536)) > 0)
 		p += nr;
 
-	p = guest_flat_to_host(self, BOOT_CMDLINE_OFFSET);
+	p = guest_flat_to_host(kvm, BOOT_CMDLINE_OFFSET);
 	if (kernel_cmdline) {
 		cmdline_size = strlen(kernel_cmdline) + 1;
 		if (cmdline_size > boot.hdr.cmdline_size)
@@ -376,7 +376,7 @@ static bool load_bzimage(struct kvm *self, int fd_kernel,
 		memcpy(p, kernel_cmdline, cmdline_size - 1);
 	}
 
-	kern_boot	= guest_real_to_host(self, BOOT_LOADER_SELECTOR, 0x00);
+	kern_boot	= guest_real_to_host(kvm, BOOT_LOADER_SELECTOR, 0x00);
 
 	kern_boot->hdr.cmd_line_ptr	= BOOT_CMDLINE_OFFSET;
 	kern_boot->hdr.type_of_loader	= 0xff;
@@ -397,12 +397,12 @@ static bool load_bzimage(struct kvm *self, int fd_kernel,
 		for (;;) {
 			if (addr < BZ_KERNEL_START)
 				die("Not enough memory for initrd");
-			else if (addr < (self->ram_size - initrd_stat.st_size))
+			else if (addr < (kvm->ram_size - initrd_stat.st_size))
 				break;
 			addr -= 0x100000;
 		}
 
-		p = guest_flat_to_host(self, addr);
+		p = guest_flat_to_host(kvm, addr);
 		nr = read(fd_initrd, p, initrd_stat.st_size);
 		if (nr != initrd_stat.st_size)
 			die("Failed to read initrd");
@@ -411,13 +411,13 @@ static bool load_bzimage(struct kvm *self, int fd_kernel,
 		kern_boot->hdr.ramdisk_size	= initrd_stat.st_size;
 	}
 
-	self->boot_selector	= BOOT_LOADER_SELECTOR;
+	kvm->boot_selector	= BOOT_LOADER_SELECTOR;
 	/*
 	 * The real-mode setup code starts at offset 0x200 of a bzImage. See
 	 * Documentation/x86/boot.txt for details.
 	 */
-	self->boot_ip		= BOOT_LOADER_IP + 0x200;
-	self->boot_sp		= BOOT_LOADER_SP;
+	kvm->boot_ip		= BOOT_LOADER_IP + 0x200;
+	kvm->boot_sp		= BOOT_LOADER_SP;
 
 	return true;
 }
@@ -464,20 +464,20 @@ found_kernel:
 
 /**
  * kvm__setup_bios - inject BIOS into guest system memory
- * @self - guest system descriptor
+ * @kvm - guest system descriptor
  *
  * This function is a main routine where we poke guest memory
  * and install BIOS there.
  */
-void kvm__setup_bios(struct kvm *self)
+void kvm__setup_bios(struct kvm *kvm)
 {
 	/* standart minimal configuration */
-	setup_bios(self);
+	setup_bios(kvm);
 
 	/* FIXME: SMP, ACPI and friends here */
 
 	/* MP table */
-	mptable_setup(self, self->nrcpus);
+	mptable_setup(kvm, kvm->nrcpus);
 }
 
 #define TIMER_INTERVAL_NS 1000000	/* 1 msec */
@@ -487,7 +487,7 @@ void kvm__setup_bios(struct kvm *self)
  * userspace hypervisor into the guest at periodical intervals. Please note
  * that clock interrupt, for example, is not handled here.
  */
-void kvm__start_timer(struct kvm *self)
+void kvm__start_timer(struct kvm *kvm)
 {
 	struct itimerspec its;
 	struct sigevent sev;
@@ -497,7 +497,7 @@ void kvm__start_timer(struct kvm *self)
 	sev.sigev_notify		= SIGEV_SIGNAL;
 	sev.sigev_signo			= SIGALRM;
 
-	if (timer_create(CLOCK_REALTIME, &sev, &self->timerid) < 0)
+	if (timer_create(CLOCK_REALTIME, &sev, &kvm->timerid) < 0)
 		die("timer_create()");
 
 	its.it_value.tv_sec		= TIMER_INTERVAL_NS / 1000000000;
@@ -505,20 +505,20 @@ void kvm__start_timer(struct kvm *self)
 	its.it_interval.tv_sec		= its.it_value.tv_sec;
 	its.it_interval.tv_nsec		= its.it_value.tv_nsec;
 
-	if (timer_settime(self->timerid, 0, &its, NULL) < 0)
+	if (timer_settime(kvm->timerid, 0, &its, NULL) < 0)
 		die("timer_settime()");
 }
 
-void kvm__stop_timer(struct kvm *self)
+void kvm__stop_timer(struct kvm *kvm)
 {
-	if (self->timerid)
-		if (timer_delete(self->timerid) < 0)
+	if (kvm->timerid)
+		if (timer_delete(kvm->timerid) < 0)
 			die("timer_delete()");
 
-	self->timerid = 0;
+	kvm->timerid = 0;
 }
 
-void kvm__irq_line(struct kvm *self, int irq, int level)
+void kvm__irq_line(struct kvm *kvm, int irq, int level)
 {
 	struct kvm_irq_level irq_level;
 
@@ -529,11 +529,11 @@ void kvm__irq_line(struct kvm *self, int irq, int level)
 		.level		= level,
 	};
 
-	if (ioctl(self->vm_fd, KVM_IRQ_LINE, &irq_level) < 0)
+	if (ioctl(kvm->vm_fd, KVM_IRQ_LINE, &irq_level) < 0)
 		die_perror("KVM_IRQ_LINE failed");
 }
 
-void kvm__dump_mem(struct kvm *self, unsigned long addr, unsigned long size)
+void kvm__dump_mem(struct kvm *kvm, unsigned long addr, unsigned long size)
 {
 	unsigned char *p;
 	unsigned long n;
@@ -542,10 +542,10 @@ void kvm__dump_mem(struct kvm *self, unsigned long addr, unsigned long size)
 	if (!size)
 		return;
 
-	p = guest_flat_to_host(self, addr);
+	p = guest_flat_to_host(kvm, addr);
 
 	for (n = 0; n < size; n += 8) {
-		if (!host_ptr_in_ram(self, p + n))
+		if (!host_ptr_in_ram(kvm, p + n))
 			break;
 
 		printf("  0x%08lx: %02x %02x %02x %02x  %02x %02x %02x %02x\n",

@@ -101,10 +101,10 @@ out_error:
 	goto out;
 }
 
-static int qcow1_read_sector(struct disk_image *self, u64 sector,
+static int qcow1_read_sector(struct disk_image *disk, u64 sector,
 		void *dst, u32 dst_len)
 {
-	struct qcow *q = self->priv;
+	struct qcow *q = disk->priv;
 	struct qcow_header *header = q->header;
 	char *buf = dst;
 	u64 offset;
@@ -130,19 +130,19 @@ out_error:
 	return -1;
 }
 
-static int qcow1_write_sector(struct disk_image *self, u64 sector, void *src, u32 src_len)
+static int qcow1_write_sector(struct disk_image *disk, u64 sector, void *src, u32 src_len)
 {
 	return -1;
 }
 
-static void qcow1_disk_close(struct disk_image *self)
+static void qcow1_disk_close(struct disk_image *disk)
 {
 	struct qcow *q;
 
-	if (!self)
+	if (!disk)
 		return;
 
-	q = self->priv;
+	q = disk->priv;
 
 	free(q->table.l1_table);
 	free(q->header);

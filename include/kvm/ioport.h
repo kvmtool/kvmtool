@@ -19,8 +19,8 @@
 struct kvm;
 
 struct ioport_operations {
-	bool (*io_in)(struct kvm *self, u16 port, void *data, int size, u32 count);
-	bool (*io_out)(struct kvm *self, u16 port, void *data, int size, u32 count);
+	bool (*io_in)(struct kvm *kvm, u16 port, void *data, int size, u32 count);
+	bool (*io_out)(struct kvm *kvm, u16 port, void *data, int size, u32 count);
 };
 
 void ioport__setup_legacy(void);

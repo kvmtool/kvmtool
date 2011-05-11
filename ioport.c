@@ -13,7 +13,7 @@
 
 bool ioport_debug;
 
-static bool debug_io_out(struct kvm *self, u16 port, void *data, int size, u32 count)
+static bool debug_io_out(struct kvm *kvm, u16 port, void *data, int size, u32 count)
 {
 	exit(EXIT_SUCCESS);
 }
@@ -22,12 +22,12 @@ static struct ioport_operations debug_ops = {
 	.io_out		= debug_io_out,
 };
 
-static bool dummy_io_in(struct kvm *self, u16 port, void *data, int size, u32 count)
+static bool dummy_io_in(struct kvm *kvm, u16 port, void *data, int size, u32 count)
 {
 	return true;
 }
 
-static bool dummy_io_out(struct kvm *self, u16 port, void *data, int size, u32 count)
+static bool dummy_io_out(struct kvm *kvm, u16 port, void *data, int size, u32 count)
 {
 	return true;
 }
@@ -64,7 +64,7 @@ static void ioport_error(u16 port, void *data, int direction, int size, u32 coun
 	fprintf(stderr, "IO error: %s port=%x, size=%d, count=%u\n", to_direction(direction), port, size, count);
 }
 
-bool kvm__emulate_io(struct kvm *self, u16 port, void *data, int direction, int size, u32 count)
+bool kvm__emulate_io(struct kvm *kvm, u16 port, void *data, int direction, int size, u32 count)
 {
 	struct ioport_operations *ops = ioport_ops[port];
 	bool ret;
@@ -76,14 +76,14 @@ bool kvm__emulate_io(struct kvm *self, u16 port, void *data, int direction, int 
 		if (!ops->io_in)
 			goto error;
 
-		ret = ops->io_in(self, port, data, size, count);
+		ret = ops->io_in(kvm, port, data, size, count);
 		if (!ret)
 			goto error;
 	} else {
 		if (!ops->io_out)
 			goto error;
 
-		ret = ops->io_out(self, port, data, size, count);
+		ret = ops->io_out(kvm, port, data, size, count);
 		if (!ret)
 			goto error;
 	}

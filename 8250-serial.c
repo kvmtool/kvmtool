@@ -70,7 +70,7 @@ static struct serial8250_device devices[] = {
 
 static int sysrq_pending;
 
-static void serial8250__sysrq(struct kvm *self, struct serial8250_device *dev)
+static void serial8250__sysrq(struct kvm *kvm, struct serial8250_device *dev)
 {
 	switch (sysrq_pending) {
 	case SYSRQ_PENDING_BREAK:
@@ -87,7 +87,7 @@ static void serial8250__sysrq(struct kvm *self, struct serial8250_device *dev)
 	}
 }
 
-static void serial8250__receive(struct kvm *self, struct serial8250_device *dev)
+static void serial8250__receive(struct kvm *kvm, struct serial8250_device *dev)
 {
 	int c;
 
@@ -95,7 +95,7 @@ static void serial8250__receive(struct kvm *self, struct serial8250_device *dev)
 		return;
 
 	if (sysrq_pending) {
-		serial8250__sysrq(self, dev);
+		serial8250__sysrq(kvm, dev);
 		return;
 	}
 
@@ -114,13 +114,13 @@ static void serial8250__receive(struct kvm *self, struct serial8250_device *dev)
 /*
  * Interrupts are injected for ttyS0 only.
  */
-void serial8250__inject_interrupt(struct kvm *self)
+void serial8250__inject_interrupt(struct kvm *kvm)
 {
 	struct serial8250_device *dev = &devices[0];
 
 	mutex_lock(&dev->mutex);
 
-	serial8250__receive(self, dev);
+	serial8250__receive(kvm, dev);
 
 	if (dev->ier & UART_IER_RDI && dev->lsr & UART_LSR_DR)
 		dev->iir		= UART_IIR_RDI;
@@ -130,14 +130,14 @@ void serial8250__inject_interrupt(struct kvm *self)
 		dev->iir		= UART_IIR_NO_INT;
 
 	if (dev->iir != UART_IIR_NO_INT) {
-		kvm__irq_line(self, dev->irq, 0);
-		kvm__irq_line(self, dev->irq, 1);
+		kvm__irq_line(kvm, dev->irq, 0);
+		kvm__irq_line(kvm, dev->irq, 1);
 	}
 
 	mutex_unlock(&dev->mutex);
 }
 
-void serial8250__inject_sysrq(struct kvm *self)
+void serial8250__inject_sysrq(struct kvm *kvm)
 {
 	sysrq_pending	= SYSRQ_PENDING_BREAK;
 }
@@ -155,7 +155,7 @@ static struct serial8250_device *find_device(u16 port)
 	return NULL;
 }
 
-static bool serial8250_out(struct kvm *self, u16 port, void *data, int size, u32 count)
+static bool serial8250_out(struct kvm *kvm, u16 port, void *data, int size, u32 count)
 {
 	struct serial8250_device *dev;
 	u16 offset;
@@ -243,7 +243,7 @@ out_unlock:
 	return ret;
 }
 
-static bool serial8250_in(struct kvm *self, u16 port, void *data, int size, u32 count)
+static bool serial8250_in(struct kvm *kvm, u16 port, void *data, int size, u32 count)
 {
 	struct serial8250_device *dev;
 	u16 offset;
