@@ -97,10 +97,10 @@ static int img_name_parser(const struct option *opt, const char *arg, int unset)
 
 static const struct option options[] = {
 	OPT_GROUP("Basic options:"),
-	OPT_INTEGER('\0', "cpus", &nrcpus, "Number of CPUs"),
+	OPT_INTEGER('c', "cpus", &nrcpus, "Number of CPUs"),
 	OPT_U64('m', "mem", &ram_size, "Virtual machine memory size in MiB."),
 	OPT_CALLBACK('i', "image", NULL, "image", "Disk image", img_name_parser),
-	OPT_STRING('c', "console", &console, "serial or virtio",
+	OPT_STRING('\0', "console", &console, "serial or virtio",
 			"Console to use"),
 	OPT_BOOLEAN('\0', "virtio-rng", &virtio_rng,
 			"Enable virtio Random Number Generator"),
