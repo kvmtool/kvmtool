@@ -66,6 +66,8 @@ static bool virtio_rng;
 extern bool ioport_debug;
 extern int  active_console;
 
+bool do_debug_print = false;
+
 static int nrcpus = 1;
 
 static const char * const run_usage[] = {
@@ -126,6 +128,8 @@ static const struct option options[] = {
 			"Enable single stepping"),
 	OPT_BOOLEAN('g', "ioport-debug", &ioport_debug,
 			"Enable ioport debugging"),
+	OPT_BOOLEAN('\0', "debug", &do_debug_print,
+			"Enable debug messages"),
 	OPT_END()
 };
 

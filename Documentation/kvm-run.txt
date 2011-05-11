@@ -55,6 +55,9 @@ OPTIONS
 --cpus::
 	The number of virtual CPUs to run.
 
+--debug::
+	Enable debug messages.
+
 SEE ALSO
 --------
 linkkvm:
