@@ -1,5 +1,6 @@
 #include "kvm/kvm-cpu.h"
 
+#include "kvm/symbol.h"
 #include "kvm/util.h"
 #include "kvm/kvm.h"
 
@@ -9,6 +10,7 @@
 #include <sys/mman.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <string.h>
 #include <errno.h>
 #include <stdio.h>
 
@@ -282,11 +284,14 @@ void kvm_cpu__show_registers(struct kvm_cpu *vcpu)
 	printf("\n");
 }
 
+#define MAX_SYM_LEN		128
+
 void kvm_cpu__show_code(struct kvm_cpu *vcpu)
 {
 	unsigned int code_bytes = 64;
 	unsigned int code_prologue = code_bytes * 43 / 64;
 	unsigned int code_len = code_bytes;
+	char sym[MAX_SYM_LEN];
 	unsigned char c;
 	unsigned int i;
 	u8 *ip;
@@ -301,6 +306,10 @@ void kvm_cpu__show_code(struct kvm_cpu *vcpu)
 
 	printf("\n Code:\n");
 	printf(  " -----\n");
+
+	symbol__lookup(vcpu->kvm, vcpu->regs.rip, sym, MAX_SYM_LEN);
+
+	printf(" rip: [<%016lx>] %s\n\n", (unsigned long) vcpu->regs.rip, sym);
 
 	for (i = 0; i < code_len; i++, ip++) {
 		if (!host_ptr_in_ram(vcpu->kvm, ip))

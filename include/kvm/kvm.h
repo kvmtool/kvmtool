@@ -28,6 +28,8 @@ struct kvm {
 	u16			boot_sp;
 
 	struct interrupt_table	interrupt_table;
+
+	const char		*vmlinux;
 };
 
 struct kvm *kvm__init(const char *kvm_dev, unsigned long ram_size);

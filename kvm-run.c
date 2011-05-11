@@ -26,6 +26,7 @@
 #include <kvm/ioport.h>
 #include <kvm/threadpool.h>
 #include <kvm/barrier.h>
+#include <kvm/symbol.h>
 
 /* header files for gitish interface  */
 #include <kvm/kvm-run.h>
@@ -52,6 +53,7 @@ static u64 ram_size;
 static u8  image_count;
 static const char *kernel_cmdline;
 static const char *kernel_filename;
+static const char *vmlinux_filename;
 static const char *initrd_filename;
 static const char *image_filename[MAX_DISK_IMAGES];
 static const char *console;
@@ -214,14 +216,22 @@ panic_kvm:
 }
 
 static char kernel[PATH_MAX];
-const char *host_kernels[] = {
+
+static const char *host_kernels[] = {
 	"/boot/vmlinuz",
 	"/boot/bzImage",
 	NULL
 };
-const char *default_kernels[] = {
+
+static const char *default_kernels[] = {
 	"./bzImage",
 	"../../arch/x86/boot/bzImage",
+	NULL
+};
+
+static const char *default_vmlinux[] = {
+	"../../../vmlinux",
+	"../../vmlinux",
 	NULL
 };
 
@@ -317,6 +327,23 @@ static const char *find_kernel(void)
 	return NULL;
 }
 
+static const char *find_vmlinux(void)
+{
+	const char **vmlinux;
+
+	vmlinux = &default_vmlinux[0];
+	while (*vmlinux) {
+		struct stat st;
+
+		if (stat(*vmlinux, &st) < 0 || !S_ISREG(st.st_mode)) {
+			vmlinux++;
+			continue;
+		}
+		return *vmlinux;
+	}
+	return NULL;
+}
+
 static int root_device(char *dev, long *part)
 {
 	struct stat st;
@@ -359,13 +386,13 @@ static char *host_image(char *cmd_line, size_t size)
 
 int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 {
+	struct virtio_net_parameters net_params;
 	static char real_cmdline[2048];
 	unsigned int nr_online_cpus;
-	int max_cpus;
 	int exit_code = 0;
-	int i;
-	struct virtio_net_parameters net_params;
+	int max_cpus;
 	char *hi;
+	int i;
 
 	signal(SIGALRM, handle_sigalrm);
 	signal(SIGQUIT, handle_sigquit);
@@ -398,6 +425,8 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 		kernel_usage_with_options();
 		return EINVAL;
 	}
+
+	vmlinux_filename = find_vmlinux();
 
 	if (nrcpus < 1 || nrcpus > KVM_NR_CPUS)
 		die("Number of CPUs %d is out of [1;%d] range", nrcpus, KVM_NR_CPUS);
@@ -432,6 +461,8 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	if (!script)
 		script = DEFAULT_SCRIPT;
+
+	symbol__init(vmlinux_filename);
 
 	term_init();
 
@@ -481,6 +512,8 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	if (!kvm__load_kernel(kvm, kernel_filename, initrd_filename,
 				real_cmdline))
 		die("unable to load kernel %s", kernel_filename);
+
+	kvm->vmlinux		= vmlinux_filename;
 
 	ioport__setup_legacy();
 

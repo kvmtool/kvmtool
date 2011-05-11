@@ -24,6 +24,7 @@ OBJS	+= main.o
 OBJS	+= mmio.o
 OBJS	+= pci.o
 OBJS	+= rtc.o
+OBJS	+= symbol.o
 OBJS	+= term.o
 OBJS	+= util.o
 OBJS	+= virtio/blk.o
@@ -50,6 +51,7 @@ OBJS	+= bios/bios.o
 
 LIBS	+= -lrt
 LIBS	+= -lpthread
+LIBS	+= -lbfd
 
 # Additional ARCH settings for x86
 ARCH ?= $(shell echo $(uname_M) | sed -e s/i.86/i386/ -e s/sun4u/sparc64/ \
