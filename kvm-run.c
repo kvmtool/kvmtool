@@ -476,7 +476,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	}
 	free(hi);
 
-	printf("  # kvm run -k %s -m %Lu -c %d\n", kernel_filename, ram_size / 1023 / 1024, nrcpus);
+	printf("  # kvm run -k %s -m %Lu -c %d\n", kernel_filename, ram_size / 1024 / 1024, nrcpus);
 
 	if (!kvm__load_kernel(kvm, kernel_filename, initrd_filename,
 				real_cmdline))
