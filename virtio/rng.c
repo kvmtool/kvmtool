@@ -129,7 +129,7 @@ static bool virtio_rng_pci_io_out(struct kvm *kvm, u16 port, void *data, int siz
 
 		queue			= &rdev.vqs[rdev.queue_selector];
 		queue->pfn		= ioport__read32(data);
-		p			= guest_flat_to_host(kvm, queue->pfn << 12);
+		p			= guest_pfn_to_host(kvm, queue->pfn);
 
 		vring_init(&queue->vring, VIRTIO_RNG_QUEUE_SIZE, p, 4096);
 

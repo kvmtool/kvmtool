@@ -36,6 +36,16 @@ static inline bool virt_queue__available(struct virt_queue *vq)
 	return vq->vring.avail->idx !=  vq->last_avail_idx;
 }
 
+/*
+ * Warning: on 32-bit hosts, shifting pfn left may cause a truncation of pfn values
+ * higher than 4GB - thus, pointing to the wrong area in guest virtual memory space
+ * and breaking the virt queue which owns this pfn.
+ */
+static inline void *guest_pfn_to_host(struct kvm *kvm, u32 pfn)
+{
+	return guest_flat_to_host(kvm, (unsigned long)pfn << 12);
+}
+
 struct vring_used_elem *virt_queue__set_used_elem(struct virt_queue *queue, u32 head, u32 len);
 
 u16 virt_queue__get_iov(struct virt_queue *queue, struct iovec iov[], u16 *out, u16 *in, struct kvm *kvm);

@@ -245,7 +245,7 @@ static bool virtio_net_pci_io_out(struct kvm *self, u16 port, void *data, int si
 
 		queue				= &net_device.vqs[net_device.queue_selector];
 		queue->pfn			= ioport__read32(data);
-		p				= guest_flat_to_host(self, queue->pfn << 12);
+		p				= guest_pfn_to_host(self, queue->pfn);
 
 		vring_init(&queue->vring, VIRTIO_NET_QUEUE_SIZE, p, 4096);
 
