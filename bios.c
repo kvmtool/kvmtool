@@ -61,8 +61,6 @@ static void e820_setup(struct kvm *kvm)
 	size		= guest_flat_to_host(kvm, E820_MAP_SIZE);
 	mem_map		= guest_flat_to_host(kvm, E820_MAP_START);
 
-	*size		= E820_MEM_AREAS;
-
 	mem_map[i++]	= (struct e820_entry) {
 		.addr		= REAL_MODE_IVT_BEGIN,
 		.size		= EBDA_START - REAL_MODE_IVT_BEGIN,
@@ -78,13 +76,28 @@ static void e820_setup(struct kvm *kvm)
 		.size		= MB_BIOS_END - MB_BIOS_BEGIN,
 		.type		= E820_MEM_RESERVED,
 	};
-	mem_map[i++]	= (struct e820_entry) {
-		.addr		= BZ_KERNEL_START,
-		.size		= kvm->ram_size - BZ_KERNEL_START,
-		.type		= E820_MEM_USABLE,
-	};
+	if (kvm->ram_size < KVM_32BIT_GAP_START) {
+		mem_map[i++]	= (struct e820_entry) {
+			.addr		= BZ_KERNEL_START,
+			.size		= kvm->ram_size - BZ_KERNEL_START,
+			.type		= E820_MEM_USABLE,
+		};
+	} else {
+		mem_map[i++]	= (struct e820_entry) {
+			.addr		= BZ_KERNEL_START,
+			.size		= KVM_32BIT_GAP_START - BZ_KERNEL_START,
+			.type		= E820_MEM_USABLE,
+		};
+		mem_map[i++]	= (struct e820_entry) {
+			.addr		= 0x100000000ULL,
+			.size		= kvm->ram_size - KVM_32BIT_GAP_START,
+			.type		= E820_MEM_USABLE,
+		};
+	}
 
 	BUILD_BUG_ON(i > E820_MEM_AREAS);
+
+	*size			= i;
 }
 
 /**

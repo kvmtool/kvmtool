@@ -153,21 +153,62 @@ static bool kvm__cpu_supports_vm(void)
 	return regs.ecx & (1 << feature);
 }
 
-void kvm__init_ram(struct kvm *self)
+static void kvm_register_mem_slot(struct kvm *kvm, u32 slot, u64 guest_phys, u64 size, void *userspace_addr)
 {
 	struct kvm_userspace_memory_region mem;
 	int ret;
 
 	mem = (struct kvm_userspace_memory_region) {
-		.slot			= 0,
-		.guest_phys_addr	= 0x0UL,
-		.memory_size		= self->ram_size,
-		.userspace_addr		= (unsigned long) self->ram_start,
+		.slot			= slot,
+		.guest_phys_addr	= guest_phys,
+		.memory_size		= size,
+		.userspace_addr		= (u64)userspace_addr,
 	};
 
-	ret = ioctl(self->vm_fd, KVM_SET_USER_MEMORY_REGION, &mem);
+	ret = ioctl(kvm->vm_fd, KVM_SET_USER_MEMORY_REGION, &mem);
 	if (ret < 0)
 		die_perror("KVM_SET_USER_MEMORY_REGION ioctl");
+}
+
+/*
+ * Allocating RAM size bigger than 4GB requires us to leave a gap
+ * in the RAM which is used for PCI MMIO, hotplug, and unconfigured
+ * devices (see documentation of e820_setup_gap() for details).
+ *
+ * If we're required to initialize RAM bigger than 4GB, we will create
+ * a gap between 0xe0000000 and 0x100000000 in the guest virtual mem space.
+ */
+
+void kvm__init_ram(struct kvm *self)
+{
+	u64	phys_start, phys_size;
+	void	*host_mem;
+
+	if (self->ram_size < KVM_32BIT_GAP_START) {
+		/* Use a single block of RAM for 32bit RAM */
+
+		phys_start = 0;
+		phys_size  = self->ram_size;
+		host_mem   = self->ram_start;
+
+		kvm_register_mem_slot(self, 0, 0, self->ram_size, self->ram_start);
+	} else {
+		/* First RAM range from zero to the PCI gap: */
+
+		phys_start = 0;
+		phys_size  = KVM_32BIT_GAP_START;
+		host_mem   = self->ram_start;
+
+		kvm_register_mem_slot(self, 0, phys_start, phys_size, host_mem);
+
+		/* Second RAM range from 4GB to the end of RAM: */
+
+		phys_start = 0x100000000ULL;
+		phys_size  = self->ram_size - phys_size;
+		host_mem   = self->ram_start + phys_start;
+
+		kvm_register_mem_slot(self, 1, phys_start, phys_size, host_mem);
+	}
 }
 
 int kvm__max_cpus(struct kvm *self)
@@ -225,7 +266,18 @@ struct kvm *kvm__init(const char *kvm_dev, unsigned long ram_size)
 
 	self->ram_size		= ram_size;
 
-	self->ram_start = mmap(NULL, ram_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
+	if (self->ram_size < KVM_32BIT_GAP_START) {
+		self->ram_start = mmap(NULL, ram_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
+	} else {
+		self->ram_start = mmap(NULL, ram_size + KVM_32BIT_GAP_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
+		if (self->ram_start != MAP_FAILED) {
+			/*
+			 * We mprotect the gap (see kvm__init_ram() for details) PROT_NONE so that
+			 * if we accidently write to it, we will know.
+			 */
+			mprotect(self->ram_start + KVM_32BIT_GAP_START, KVM_32BIT_GAP_SIZE, PROT_NONE);
+		}
+	}
 	if (self->ram_start == MAP_FAILED)
 		die("out of memory");
 

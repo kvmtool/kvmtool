@@ -8,7 +8,7 @@
 #define E820_MEM_USABLE		1
 #define E820_MEM_RESERVED	2
 
-#define E820_MEM_AREAS		4
+#define E820_MEM_AREAS		5
 
 struct e820_entry {
 	u64	addr;	/* start of memory segment */
