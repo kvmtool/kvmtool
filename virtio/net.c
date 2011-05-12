@@ -11,14 +11,17 @@
 
 #include <linux/virtio_net.h>
 #include <linux/if_tun.h>
+
+#include <arpa/inet.h>
 #include <net/if.h>
-#include <sys/ioctl.h>
+
+#include <unistd.h>
 #include <assert.h>
 #include <fcntl.h>
-#include <arpa/inet.h>
-#include <sys/types.h>
+
 #include <sys/socket.h>
-#include <unistd.h>
+#include <sys/ioctl.h>
+#include <sys/types.h>
 #include <sys/wait.h>
 
 #define VIRTIO_NET_QUEUE_SIZE		128
@@ -26,22 +29,22 @@
 #define VIRTIO_NET_RX_QUEUE		0
 #define VIRTIO_NET_TX_QUEUE		1
 
-static struct pci_device_header virtio_net_pci_device = {
-	.vendor_id		= PCI_VENDOR_ID_REDHAT_QUMRANET,
-	.device_id		= PCI_DEVICE_ID_VIRTIO_NET,
-	.header_type		= PCI_HEADER_TYPE_NORMAL,
-	.revision_id		= 0,
-	.class			= 0x020000,
-	.subsys_vendor_id	= PCI_SUBSYSTEM_VENDOR_ID_REDHAT_QUMRANET,
-	.subsys_id		= PCI_SUBSYSTEM_ID_VIRTIO_NET,
-	.bar[0]			= IOPORT_VIRTIO_NET | PCI_BASE_ADDRESS_SPACE_IO,
+static struct pci_device_header pci_header = {
+	.vendor_id			= PCI_VENDOR_ID_REDHAT_QUMRANET,
+	.device_id			= PCI_DEVICE_ID_VIRTIO_NET,
+	.header_type			= PCI_HEADER_TYPE_NORMAL,
+	.revision_id			= 0,
+	.class				= 0x020000,
+	.subsys_vendor_id		= PCI_SUBSYSTEM_VENDOR_ID_REDHAT_QUMRANET,
+	.subsys_id			= PCI_SUBSYSTEM_ID_VIRTIO_NET,
+	.bar[0]				= IOPORT_VIRTIO_NET | PCI_BASE_ADDRESS_SPACE_IO,
 };
 
 struct net_device {
 	pthread_mutex_t			mutex;
 
 	struct virt_queue		vqs[VIRTIO_NET_NUM_QUEUES];
-	struct virtio_net_config	net_config;
+	struct virtio_net_config	config;
 	u32				host_features;
 	u32				guest_features;
 	u16				config_vector;
@@ -50,21 +53,21 @@ struct net_device {
 	u16				queue_selector;
 
 	pthread_t			io_rx_thread;
-	pthread_mutex_t			io_rx_mutex;
+	pthread_mutex_t			io_rx_lock;
 	pthread_cond_t			io_rx_cond;
 
 	pthread_t			io_tx_thread;
-	pthread_mutex_t			io_tx_mutex;
+	pthread_mutex_t			io_tx_lock;
 	pthread_cond_t			io_tx_cond;
 
 	int				tap_fd;
 	char				tap_name[IFNAMSIZ];
 };
 
-static struct net_device net_device = {
+static struct net_device ndev = {
 	.mutex				= PTHREAD_MUTEX_INITIALIZER,
 
-	.net_config = {
+	.config = {
 		.mac			= { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55 },
 		.status			= VIRTIO_NET_S_LINK_UP,
 	},
@@ -88,21 +91,21 @@ static void *virtio_net_rx_thread(void *p)
 	int len;
 
 	kvm	= p;
-	vq	= &net_device.vqs[VIRTIO_NET_RX_QUEUE];
+	vq	= &ndev.vqs[VIRTIO_NET_RX_QUEUE];
 
 	while (1) {
-		mutex_lock(&net_device.io_rx_mutex);
+		mutex_lock(&ndev.io_rx_lock);
 		if (!virt_queue__available(vq))
-			pthread_cond_wait(&net_device.io_rx_cond, &net_device.io_rx_mutex);
-		mutex_unlock(&net_device.io_rx_mutex);
+			pthread_cond_wait(&ndev.io_rx_cond, &ndev.io_rx_lock);
+		mutex_unlock(&ndev.io_rx_lock);
 
 		while (virt_queue__available(vq)) {
-			head	= virt_queue__get_iov(vq, iov, &out, &in, kvm);
-			len	= readv(net_device.tap_fd, iov, in);
+			head = virt_queue__get_iov(vq, iov, &out, &in, kvm);
+			len  = readv(ndev.tap_fd, iov, in);
 			virt_queue__set_used_elem(vq, head, len);
 
 			/* We should interrupt guest right now, otherwise latency is huge. */
-			virt_queue__trigger_irq(vq, virtio_net_pci_device.irq_line, &net_device.isr, kvm);
+			virt_queue__trigger_irq(vq, pci_header.irq_line, &ndev.isr, kvm);
 		}
 
 	}
@@ -122,21 +125,21 @@ static void *virtio_net_tx_thread(void *p)
 	int len;
 
 	kvm	= p;
-	vq	= &net_device.vqs[VIRTIO_NET_TX_QUEUE];
+	vq	= &ndev.vqs[VIRTIO_NET_TX_QUEUE];
 
 	while (1) {
-		mutex_lock(&net_device.io_tx_mutex);
+		mutex_lock(&ndev.io_tx_lock);
 		if (!virt_queue__available(vq))
-			pthread_cond_wait(&net_device.io_tx_cond, &net_device.io_tx_mutex);
-		mutex_unlock(&net_device.io_tx_mutex);
+			pthread_cond_wait(&ndev.io_tx_cond, &ndev.io_tx_lock);
+		mutex_unlock(&ndev.io_tx_lock);
 
 		while (virt_queue__available(vq)) {
-			head	= virt_queue__get_iov(vq, iov, &out, &in, kvm);
-			len	= writev(net_device.tap_fd, iov, out);
+			head = virt_queue__get_iov(vq, iov, &out, &in, kvm);
+			len  = writev(ndev.tap_fd, iov, out);
 			virt_queue__set_used_elem(vq, head, len);
 		}
 
-		virt_queue__trigger_irq(vq, virtio_net_pci_device.irq_line, &net_device.isr, kvm);
+		virt_queue__trigger_irq(vq, pci_header.irq_line, &ndev.isr, kvm);
 
 	}
 
@@ -148,7 +151,7 @@ static void *virtio_net_tx_thread(void *p)
 
 static bool virtio_net_pci_io_device_specific_in(void *data, unsigned long offset, int size, u32 count)
 {
-	u8 *config_space = (u8 *) &net_device.net_config;
+	u8 *config_space = (u8 *)&ndev.config;
 
 	if (size != 1 || count != 1)
 		return false;
@@ -166,17 +169,17 @@ static bool virtio_net_pci_io_in(struct kvm *kvm, u16 port, void *data, int size
 	unsigned long	offset	= port - IOPORT_VIRTIO_NET;
 	bool		ret	= true;
 
-	mutex_lock(&net_device.mutex);
+	mutex_lock(&ndev.mutex);
 
 	switch (offset) {
 	case VIRTIO_PCI_HOST_FEATURES:
-		ioport__write32(data, net_device.host_features);
+		ioport__write32(data, ndev.host_features);
 		break;
 	case VIRTIO_PCI_GUEST_FEATURES:
 		ret = false;
 		break;
 	case VIRTIO_PCI_QUEUE_PFN:
-		ioport__write32(data, net_device.vqs[net_device.queue_selector].pfn);
+		ioport__write32(data, ndev.vqs[ndev.queue_selector].pfn);
 		break;
 	case VIRTIO_PCI_QUEUE_NUM:
 		ioport__write16(data, VIRTIO_NET_QUEUE_SIZE);
@@ -186,21 +189,21 @@ static bool virtio_net_pci_io_in(struct kvm *kvm, u16 port, void *data, int size
 		ret = false;
 		break;
 	case VIRTIO_PCI_STATUS:
-		ioport__write8(data, net_device.status);
+		ioport__write8(data, ndev.status);
 		break;
 	case VIRTIO_PCI_ISR:
-		ioport__write8(data, net_device.isr);
-		kvm__irq_line(kvm, virtio_net_pci_device.irq_line, VIRTIO_IRQ_LOW);
-		net_device.isr = VIRTIO_IRQ_LOW;
+		ioport__write8(data, ndev.isr);
+		kvm__irq_line(kvm, pci_header.irq_line, VIRTIO_IRQ_LOW);
+		ndev.isr = VIRTIO_IRQ_LOW;
 		break;
 	case VIRTIO_MSI_CONFIG_VECTOR:
-		ioport__write16(data, net_device.config_vector);
+		ioport__write16(data, ndev.config_vector);
 		break;
 	default:
 		ret = virtio_net_pci_io_device_specific_in(data, offset, size, count);
 	};
 
-	mutex_unlock(&net_device.mutex);
+	mutex_unlock(&ndev.mutex);
 
 	return ret;
 }
@@ -209,15 +212,15 @@ static void virtio_net_handle_callback(struct kvm *kvm, u16 queue_index)
 {
 	switch (queue_index) {
 	case VIRTIO_NET_TX_QUEUE: {
-		mutex_lock(&net_device.io_tx_mutex);
-		pthread_cond_signal(&net_device.io_tx_cond);
-		mutex_unlock(&net_device.io_tx_mutex);
+		mutex_lock(&ndev.io_tx_lock);
+		pthread_cond_signal(&ndev.io_tx_cond);
+		mutex_unlock(&ndev.io_tx_lock);
 		break;
 	}
 	case VIRTIO_NET_RX_QUEUE: {
-		mutex_lock(&net_device.io_rx_mutex);
-		pthread_cond_signal(&net_device.io_rx_cond);
-		mutex_unlock(&net_device.io_rx_mutex);
+		mutex_lock(&ndev.io_rx_lock);
+		pthread_cond_signal(&ndev.io_rx_cond);
+		mutex_unlock(&ndev.io_rx_lock);
 		break;
 	}
 	default:
@@ -227,51 +230,52 @@ static void virtio_net_handle_callback(struct kvm *kvm, u16 queue_index)
 
 static bool virtio_net_pci_io_out(struct kvm *kvm, u16 port, void *data, int size, u32 count)
 {
-	unsigned long	offset			= port - IOPORT_VIRTIO_NET;
-	bool		ret			= true;
+	unsigned long	offset		= port - IOPORT_VIRTIO_NET;
+	bool		ret		= true;
 
-	mutex_lock(&net_device.mutex);
+	mutex_lock(&ndev.mutex);
 
 	switch (offset) {
 	case VIRTIO_PCI_GUEST_FEATURES:
-		net_device.guest_features	= ioport__read32(data);
+		ndev.guest_features	= ioport__read32(data);
 		break;
 	case VIRTIO_PCI_QUEUE_PFN: {
 		struct virt_queue *queue;
 		void *p;
 
-		assert(net_device.queue_selector < VIRTIO_NET_NUM_QUEUES);
+		assert(ndev.queue_selector < VIRTIO_NET_NUM_QUEUES);
 
-		queue				= &net_device.vqs[net_device.queue_selector];
-		queue->pfn			= ioport__read32(data);
-		p				= guest_pfn_to_host(kvm, queue->pfn);
+		queue			= &ndev.vqs[ndev.queue_selector];
+		queue->pfn		= ioport__read32(data);
+		p			= guest_pfn_to_host(kvm, queue->pfn);
 
 		vring_init(&queue->vring, VIRTIO_NET_QUEUE_SIZE, p, VIRTIO_PCI_VRING_ALIGN);
 
 		break;
 	}
 	case VIRTIO_PCI_QUEUE_SEL:
-		net_device.queue_selector	= ioport__read16(data);
+		ndev.queue_selector	= ioport__read16(data);
 		break;
 	case VIRTIO_PCI_QUEUE_NOTIFY: {
 		u16 queue_index;
-		queue_index	= ioport__read16(data);
+
+		queue_index		= ioport__read16(data);
 		virtio_net_handle_callback(kvm, queue_index);
 		break;
 	}
 	case VIRTIO_PCI_STATUS:
-		net_device.status		= ioport__read8(data);
+		ndev.status		= ioport__read8(data);
 		break;
 	case VIRTIO_MSI_CONFIG_VECTOR:
-		net_device.config_vector	= VIRTIO_MSI_NO_VECTOR;
+		ndev.config_vector	= VIRTIO_MSI_NO_VECTOR;
 		break;
 	case VIRTIO_MSI_QUEUE_VECTOR:
 		break;
 	default:
-		ret				= false;
+		ret			= false;
 	};
 
-	mutex_unlock(&net_device.mutex);
+	mutex_unlock(&ndev.mutex);
 
 	return ret;
 }
@@ -289,36 +293,36 @@ static bool virtio_net__tap_init(const struct virtio_net_parameters *params)
 	struct ifreq ifr;
 
 	for (i = 0 ; i < 6 ; i++)
-		net_device.net_config.mac[i] = params->guest_mac[i];
+		ndev.config.mac[i] = params->guest_mac[i];
 
-	net_device.tap_fd = open("/dev/net/tun", O_RDWR);
-	if (net_device.tap_fd < 0) {
+	ndev.tap_fd = open("/dev/net/tun", O_RDWR);
+	if (ndev.tap_fd < 0) {
 		warning("Unable to open /dev/net/tun");
 		goto fail;
 	}
 
 	memset(&ifr, 0, sizeof(ifr));
 	ifr.ifr_flags = IFF_TAP | IFF_NO_PI | IFF_VNET_HDR;
-	if (ioctl(net_device.tap_fd, TUNSETIFF, &ifr) < 0) {
+	if (ioctl(ndev.tap_fd, TUNSETIFF, &ifr) < 0) {
 		warning("Config tap device error. Are you root?");
 		goto fail;
 	}
 
-	strncpy(net_device.tap_name, ifr.ifr_name, sizeof(net_device.tap_name));
+	strncpy(ndev.tap_name, ifr.ifr_name, sizeof(ndev.tap_name));
 
-	if (ioctl(net_device.tap_fd, TUNSETNOCSUM, 1) < 0) {
+	if (ioctl(ndev.tap_fd, TUNSETNOCSUM, 1) < 0) {
 		warning("Config tap device TUNSETNOCSUM error");
 		goto fail;
 	}
 
 	hdr_len = sizeof(struct virtio_net_hdr);
-	if (ioctl(net_device.tap_fd, TUNSETVNETHDRSZ, &hdr_len) < 0) {
+	if (ioctl(ndev.tap_fd, TUNSETVNETHDRSZ, &hdr_len) < 0) {
 		warning("Config tap device TUNSETVNETHDRSZ error");
 		goto fail;
 	}
 
 	offload = TUN_F_CSUM | TUN_F_TSO4 | TUN_F_TSO6 | TUN_F_UFO;
-	if (ioctl(net_device.tap_fd, TUNSETOFFLOAD, offload) < 0) {
+	if (ioctl(ndev.tap_fd, TUNSETOFFLOAD, offload) < 0) {
 		warning("Config tap device TUNSETOFFLOAD error");
 		goto fail;
 	}
@@ -326,7 +330,7 @@ static bool virtio_net__tap_init(const struct virtio_net_parameters *params)
 	if (strcmp(params->script, "none")) {
 		pid = fork();
 		if (pid == 0) {
-			execl(params->script, params->script, net_device.tap_name, NULL);
+			execl(params->script, params->script, ndev.tap_name, NULL);
 			_exit(1);
 		} else {
 			waitpid(pid, &status, 0);
@@ -337,7 +341,7 @@ static bool virtio_net__tap_init(const struct virtio_net_parameters *params)
 		}
 	} else {
 		memset(&ifr, 0, sizeof(ifr));
-		strncpy(ifr.ifr_name, net_device.tap_name, sizeof(net_device.tap_name));
+		strncpy(ifr.ifr_name, ndev.tap_name, sizeof(ndev.tap_name));
 		sin.sin_addr.s_addr = inet_addr(params->host_ip);
 		memcpy(&(ifr.ifr_addr), &sin, sizeof(ifr.ifr_addr));
 		ifr.ifr_addr.sa_family = AF_INET;
@@ -348,7 +352,7 @@ static bool virtio_net__tap_init(const struct virtio_net_parameters *params)
 	}
 
 	memset(&ifr, 0, sizeof(ifr));
-	strncpy(ifr.ifr_name, net_device.tap_name, sizeof(net_device.tap_name));
+	strncpy(ifr.ifr_name, ndev.tap_name, sizeof(ndev.tap_name));
 	ioctl(sock, SIOCGIFFLAGS, &ifr);
 	ifr.ifr_flags |= IFF_UP | IFF_RUNNING;
 	if (ioctl(sock, SIOCSIFFLAGS, &ifr) < 0)
@@ -361,22 +365,22 @@ static bool virtio_net__tap_init(const struct virtio_net_parameters *params)
 fail:
 	if (sock >= 0)
 		close(sock);
-	if (net_device.tap_fd >= 0)
-		close(net_device.tap_fd);
+	if (ndev.tap_fd >= 0)
+		close(ndev.tap_fd);
 
 	return 0;
 }
 
 static void virtio_net__io_thread_init(struct kvm *kvm)
 {
-	pthread_mutex_init(&net_device.io_rx_mutex, NULL);
-	pthread_cond_init(&net_device.io_tx_cond, NULL);
+	pthread_mutex_init(&ndev.io_rx_lock, NULL);
+	pthread_cond_init(&ndev.io_tx_cond, NULL);
 
-	pthread_mutex_init(&net_device.io_rx_mutex, NULL);
-	pthread_cond_init(&net_device.io_tx_cond, NULL);
+	pthread_mutex_init(&ndev.io_rx_lock, NULL);
+	pthread_cond_init(&ndev.io_tx_cond, NULL);
 
-	pthread_create(&net_device.io_rx_thread, NULL, virtio_net_rx_thread, (void *)kvm);
-	pthread_create(&net_device.io_tx_thread, NULL, virtio_net_tx_thread, (void *)kvm);
+	pthread_create(&ndev.io_rx_thread, NULL, virtio_net_rx_thread, (void *)kvm);
+	pthread_create(&ndev.io_tx_thread, NULL, virtio_net_tx_thread, (void *)kvm);
 }
 
 void virtio_net__init(const struct virtio_net_parameters *params)
@@ -387,9 +391,9 @@ void virtio_net__init(const struct virtio_net_parameters *params)
 		if (irq__register_device(PCI_DEVICE_ID_VIRTIO_NET, &dev, &pin, &line) < 0)
 			return;
 
-		virtio_net_pci_device.irq_pin	= pin;
-		virtio_net_pci_device.irq_line	= line;
-		pci__register(&virtio_net_pci_device, dev);
+		pci_header.irq_pin	= pin;
+		pci_header.irq_line	= line;
+		pci__register(&pci_header, dev);
 		ioport__register(IOPORT_VIRTIO_NET, &virtio_net_io_ops, IOPORT_VIRTIO_NET_SIZE);
 
 		virtio_net__io_thread_init(params->kvm);
