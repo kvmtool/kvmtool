@@ -148,6 +148,7 @@ bios/bios-rom.bin: bios/bios-rom.S bios/e820.c
 check: $(PROGRAM)
 	$(MAKE) -C tests
 	./$(PROGRAM) run tests/pit/tick.bin
+	./$(PROGRAM) run -d tests/boot/boot_test.iso -p "init=init"
 .PHONY: check
 
 clean:
@@ -156,6 +157,8 @@ clean:
 	$(Q) rm -f bios/*.elf
 	$(Q) rm -f bios/*.o
 	$(Q) rm -f bios/bios-rom.h
+	$(Q) rm -f tests/boot/boot_test.iso
+	$(Q) rm -rf tests/boot/rootfs/
 	$(Q) rm -f $(DEPS) $(OBJS) $(PROGRAM)
 	$(Q) rm -f cscope.*
 	$(Q) rm -f $(KVM_INCLUDE)/common-cmds.h
