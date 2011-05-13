@@ -21,6 +21,10 @@
 #define NUM_VIRT_QUEUES			1
 
 #define VIRTIO_BLK_QUEUE_SIZE		128
+/*
+ * the header and status consume too entries
+ */
+#define DISK_SEG_MAX			(VIRTIO_BLK_QUEUE_SIZE - 2)
 
 struct blk_dev_job {
 	struct virt_queue		*vq;
@@ -278,11 +282,12 @@ void virtio_blk__init(struct kvm *kvm, struct disk_image *disk)
 	blk_dev_base_addr	= IOPORT_VIRTIO_BLK + new_dev_idx * IOPORT_VIRTIO_BLK_SIZE;
 
 	*bdev			= (struct blk_dev) {
-		.mutex			= PTHREAD_MUTEX_INITIALIZER,
-		.disk			= disk,
-		.idx			= new_dev_idx,
-		.blk_config		= (struct virtio_blk_config) {
+		.mutex				= PTHREAD_MUTEX_INITIALIZER,
+		.disk				= disk,
+		.idx				= new_dev_idx,
+		.blk_config			= (struct virtio_blk_config) {
 			.capacity		= disk->size / SECTOR_SIZE,
+			.seg_max		= DISK_SEG_MAX,
 		},
 		.pci_hdr = (struct pci_device_header) {
 			.vendor_id		= PCI_VENDOR_ID_REDHAT_QUMRANET,
@@ -294,6 +299,12 @@ void virtio_blk__init(struct kvm *kvm, struct disk_image *disk)
 			.subsys_id		= PCI_SUBSYSTEM_ID_VIRTIO_BLK,
 			.bar[0]			= blk_dev_base_addr | PCI_BASE_ADDRESS_SPACE_IO,
 		},
+		/*
+		 * Note we don't set VIRTIO_BLK_F_GEOMETRY here so the
+		 * guest kernel will compute disk geometry by own, the
+		 * same applies to VIRTIO_BLK_F_BLK_SIZE
+		 */
+		.host_features			= (1UL << VIRTIO_BLK_F_SEG_MAX),
 	};
 
 	if (irq__register_device(PCI_DEVICE_ID_VIRTIO_BLK, &dev, &pin, &line) < 0)
