@@ -295,7 +295,7 @@ static int qcow1_write_sector(struct disk_image *disk, u64 sector, void *src, u3
 {
 	struct qcow *q = disk->priv;
 	struct qcow_header *header = q->header;
-	ssize_t nr_written;
+	u32 nr_written;
 	char *buf;
 	u64 offset;
 	ssize_t nr;

@@ -162,7 +162,7 @@ static void kvm_register_mem_slot(struct kvm *kvm, u32 slot, u64 guest_phys, u64
 		.slot			= slot,
 		.guest_phys_addr	= guest_phys,
 		.memory_size		= size,
-		.userspace_addr		= (u64)userspace_addr,
+		.userspace_addr		= (unsigned long)userspace_addr,
 	};
 
 	ret = ioctl(kvm->vm_fd, KVM_SET_USER_MEMORY_REGION, &mem);
