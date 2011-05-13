@@ -145,6 +145,9 @@ static bool virtio_blk_do_io_request(struct kvm *kvm,
 	case VIRTIO_BLK_T_OUT:
 		block_cnt	= disk_image__write_sector_iov(bdev->disk, req->sector, iov + 1, in + out - 2);
 		break;
+	case VIRTIO_BLK_T_FLUSH:
+		block_cnt       = disk_image__flush(bdev->disk);
+		break;
 	default:
 		warning("request type %d", req->type);
 		block_cnt	= -1;
@@ -304,7 +307,7 @@ void virtio_blk__init(struct kvm *kvm, struct disk_image *disk)
 		 * guest kernel will compute disk geometry by own, the
 		 * same applies to VIRTIO_BLK_F_BLK_SIZE
 		 */
-		.host_features			= (1UL << VIRTIO_BLK_F_SEG_MAX),
+		.host_features			= (1UL << VIRTIO_BLK_F_SEG_MAX | 1UL << VIRTIO_BLK_F_FLUSH),
 	};
 
 	if (irq__register_device(PCI_DEVICE_ID_VIRTIO_BLK, &dev, &pin, &line) < 0)
