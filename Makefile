@@ -42,6 +42,7 @@ OBJS    += mptable.o
 OBJS    += threadpool.o
 OBJS    += irq.o
 OBJS    += ../../lib/rbtree.o
+OBJS    += util/rbtree-interval.o
 
 DEPS	:= $(patsubst %.o,%.d,$(OBJS))
 
