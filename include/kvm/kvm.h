@@ -44,6 +44,8 @@ void kvm__stop_timer(struct kvm *kvm);
 void kvm__irq_line(struct kvm *kvm, int irq, int level);
 bool kvm__emulate_io(struct kvm *kvm, u16 port, void *data, int direction, int size, u32 count);
 bool kvm__emulate_mmio(struct kvm *kvm, u64 phys_addr, u8 *data, u32 len, u8 is_write);
+bool kvm__register_mmio(u64 phys_addr, u64 phys_addr_len, void (*kvm_mmio_callback_fn)(u64 addr, u8 *data, u32 len, u8 is_write));
+bool kvm__deregister_mmio(u64 phys_addr);
 
 /*
  * Debugging
