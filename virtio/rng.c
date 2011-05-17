@@ -30,7 +30,7 @@ static struct pci_device_header virtio_rng_pci_device = {
 	.revision_id		= 0,
 	.class			= 0x010000,
 	.subsys_vendor_id	= PCI_SUBSYSTEM_VENDOR_ID_REDHAT_QUMRANET,
-	.subsys_id		= PCI_SUBSYSTEM_ID_VIRTIO_RNG,
+	.subsys_id		= VIRTIO_ID_RNG,
 	.bar[0]			= IOPORT_VIRTIO_RNG | PCI_BASE_ADDRESS_SPACE_IO,
 };
 
@@ -172,7 +172,7 @@ void virtio_rng__init(struct kvm *kvm)
 	if (rdev.fd < 0)
 		die("Failed initializing RNG");
 
-	if (irq__register_device(PCI_DEVICE_ID_VIRTIO_RNG, &dev, &pin, &line) < 0)
+	if (irq__register_device(VIRTIO_ID_RNG, &dev, &pin, &line) < 0)
 		return;
 
 	virtio_rng_pci_device.irq_pin	= pin;

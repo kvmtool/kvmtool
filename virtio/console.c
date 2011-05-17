@@ -35,7 +35,7 @@ static struct pci_device_header virtio_console_pci_device = {
 	.revision_id		= 0,
 	.class			= 0x078000,
 	.subsys_vendor_id	= PCI_SUBSYSTEM_VENDOR_ID_REDHAT_QUMRANET,
-	.subsys_id		= PCI_SUBSYSTEM_ID_VIRTIO_CONSOLE,
+	.subsys_id		= VIRTIO_ID_CONSOLE,
 	.bar[0]			= IOPORT_VIRTIO_CONSOLE | PCI_BASE_ADDRESS_SPACE_IO,
 };
 
@@ -244,7 +244,7 @@ void virtio_console__init(struct kvm *kvm)
 {
 	u8 dev, line, pin;
 
-	if (irq__register_device(PCI_DEVICE_ID_VIRTIO_CONSOLE, &dev, &pin, &line) < 0)
+	if (irq__register_device(VIRTIO_ID_CONSOLE, &dev, &pin, &line) < 0)
 		return;
 
 	virtio_console_pci_device.irq_pin	= pin;

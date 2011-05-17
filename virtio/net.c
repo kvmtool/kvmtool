@@ -36,7 +36,7 @@ static struct pci_device_header pci_header = {
 	.revision_id			= 0,
 	.class				= 0x020000,
 	.subsys_vendor_id		= PCI_SUBSYSTEM_VENDOR_ID_REDHAT_QUMRANET,
-	.subsys_id			= PCI_SUBSYSTEM_ID_VIRTIO_NET,
+	.subsys_id			= VIRTIO_ID_NET,
 	.bar[0]				= IOPORT_VIRTIO_NET | PCI_BASE_ADDRESS_SPACE_IO,
 };
 
@@ -388,7 +388,7 @@ void virtio_net__init(const struct virtio_net_parameters *params)
 	if (virtio_net__tap_init(params)) {
 		u8 dev, line, pin;
 
-		if (irq__register_device(PCI_DEVICE_ID_VIRTIO_NET, &dev, &pin, &line) < 0)
+		if (irq__register_device(VIRTIO_ID_NET, &dev, &pin, &line) < 0)
 			return;
 
 		pci_header.irq_pin	= pin;

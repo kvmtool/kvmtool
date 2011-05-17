@@ -299,7 +299,7 @@ void virtio_blk__init(struct kvm *kvm, struct disk_image *disk)
 			.revision_id		= 0,
 			.class			= 0x010000,
 			.subsys_vendor_id	= PCI_SUBSYSTEM_VENDOR_ID_REDHAT_QUMRANET,
-			.subsys_id		= PCI_SUBSYSTEM_ID_VIRTIO_BLK,
+			.subsys_id		= VIRTIO_ID_BLOCK,
 			.bar[0]			= blk_dev_base_addr | PCI_BASE_ADDRESS_SPACE_IO,
 		},
 		/*
@@ -310,7 +310,7 @@ void virtio_blk__init(struct kvm *kvm, struct disk_image *disk)
 		.host_features			= (1UL << VIRTIO_BLK_F_SEG_MAX | 1UL << VIRTIO_BLK_F_FLUSH),
 	};
 
-	if (irq__register_device(PCI_DEVICE_ID_VIRTIO_BLK, &dev, &pin, &line) < 0)
+	if (irq__register_device(VIRTIO_ID_BLOCK, &dev, &pin, &line) < 0)
 		return;
 
 	bdev->pci_hdr.irq_pin	= pin;
