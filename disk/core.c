@@ -84,40 +84,79 @@ int disk_image__close(struct disk_image *disk)
 	return 0;
 }
 
-/* Fill iov with disk data, starting from sector 'sector'. Return amount of bytes read. */
+/*
+ * Fill iov with disk data, starting from sector 'sector'.
+ * Return amount of bytes read.
+ */
 ssize_t disk_image__read(struct disk_image *disk, u64 sector, const struct iovec *iov, int iovcount)
 {
-	u64 first_sector = sector;
+	ssize_t total = 0;
+	ssize_t nr;
 
-	if (disk->ops->read_sector_iov)
-		return disk->ops->read_sector_iov(disk, sector, iov, iovcount);
-
-	while (iovcount--) {
-		if (disk->ops->read_sector(disk, sector, iov->iov_base, iov->iov_len) < 0)
+	if (disk->ops->read_sector_iov) {
+		/*
+		 * Try mulitple buffer based operation first
+		 */
+		total		= disk->ops->read_sector_iov(disk, sector, iov, iovcount);
+		if (total < 0) {
+			info("disk_image__read error: total=%ld\n", (long)total);
 			return -1;
+		}
+	} else if (disk->ops->read_sector) {
+		/*
+		 * Fallback to single buffer based operation
+		 */
+		while (iovcount--) {
+			nr 	= disk->ops->read_sector(disk, sector, iov->iov_base, iov->iov_len);
+			if (nr != (ssize_t)iov->iov_len) {
+				info("disk_image__read error: nr = %ld iov_len=%ld\n", (long)nr, (long)iov->iov_len);
+				return -1;
+			}
+			sector	+= iov->iov_len >> SECTOR_SHIFT;
+			iov++;
+			total 	+= nr;
+		}
+	} else
+		die("No disk image operation for read\n");
 
-		sector += iov->iov_len >> SECTOR_SHIFT;
-		iov++;
-	}
-
-	return (sector - first_sector) << SECTOR_SHIFT;
+	return total;
 }
 
-/* Write iov to disk, starting from sector 'sector'. Return amount of bytes written. */
+/*
+ * Write iov to disk, starting from sector 'sector'.
+ * Return amount of bytes written.
+ */
 ssize_t disk_image__write(struct disk_image *disk, u64 sector, const struct iovec *iov, int iovcount)
 {
-	u64 first_sector = sector;
+	ssize_t total = 0;
+	ssize_t nr;
 
-	if (disk->ops->write_sector_iov)
-		return disk->ops->write_sector_iov(disk, sector, iov, iovcount);
-
-	while (iovcount--) {
-		if (disk->ops->write_sector(disk, sector, iov->iov_base, iov->iov_len) < 0)
+	if (disk->ops->write_sector_iov) {
+		/*
+		 * Try writev based operation first
+		 */
+		total = disk->ops->write_sector_iov(disk, sector, iov, iovcount);
+		if (total < 0) {
+			info("disk_image__write error: total=%ld\n", (long)total);
 			return -1;
+		}
+	} else if (disk->ops->write_sector) {
+		/*
+		 * Fallback to single buffer based operation
+		 */
+		while (iovcount--) {
+			nr	 = disk->ops->write_sector(disk, sector, iov->iov_base, iov->iov_len);
+			if (nr != (ssize_t)iov->iov_len) {
+				info("disk_image__write error: nr=%ld iov_len=%ld\n", (long)nr, (long)iov->iov_len);
+				return -1;
+			}
 
-		sector += iov->iov_len >> SECTOR_SHIFT;
-		iov++;
-	}
+			sector	+= iov->iov_len >> SECTOR_SHIFT;
+			iov++;
+			total	+= nr;
+		}
+	} else
+		die("No disk image operation for read\n");
 
-	return (sector - first_sector) << SECTOR_SHIFT;
+	return total;
 }
