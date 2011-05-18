@@ -3,10 +3,10 @@
 /*
  * raw image and blk dev are similar, so reuse raw image ops.
  */
-static struct disk_image_operations raw_image_ro_mmap_ops = {
-	.read_sector		= raw_image__read_sector_ro_mmap,
-	.write_sector		= raw_image__write_sector_ro_mmap,
-	.close			= raw_image__close_ro_mmap,
+static struct disk_image_operations raw_image_ops = {
+	.read_sector		= raw_image__read_sector,
+	.write_sector		= raw_image__write_sector,
+	.close			= raw_image__close,
 };
 
 struct disk_image *blkdev__probe(const char *filename, struct stat *st)
@@ -26,5 +26,5 @@ struct disk_image *blkdev__probe(const char *filename, struct stat *st)
 		return NULL;
 	}
 
-	return disk_image__new(fd, size, &raw_image_ro_mmap_ops, DISK_IMAGE_MMAP);
+	return disk_image__new(fd, size, &raw_image_ops, DISK_IMAGE_MMAP);
 }

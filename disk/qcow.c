@@ -351,7 +351,7 @@ static struct disk_image_operations qcow1_disk_readonly_ops = {
 static struct disk_image_operations qcow1_disk_ops = {
 	.read_sector		= qcow1_read_sector,
 	.write_sector		= qcow1_write_sector,
-	.close			= qcow1_disk_close
+	.close			= qcow1_disk_close,
 };
 
 static int qcow_read_l1_table(struct qcow *q)

@@ -69,8 +69,8 @@ struct disk_image *blkdev__probe(const char *filename, struct stat *st);
 
 ssize_t raw_image__read_sector_iov(struct disk_image *disk, u64 sector, const struct iovec *iov, int iovcount);
 ssize_t raw_image__write_sector_iov(struct disk_image *disk, u64 sector, const struct iovec *iov, int iovcount);
-ssize_t raw_image__read_sector_ro_mmap(struct disk_image *disk, u64 sector, void *dst, u32 dst_len);
-ssize_t raw_image__write_sector_ro_mmap(struct disk_image *disk, u64 sector, void *src, u32 src_len);
-int raw_image__close_ro_mmap(struct disk_image *disk);
+ssize_t raw_image__read_sector(struct disk_image *disk, u64 sector, void *dst, u32 dst_len);
+ssize_t raw_image__write_sector(struct disk_image *disk, u64 sector, void *src, u32 src_len);
+int raw_image__close(struct disk_image *disk);
 
 #endif /* KVM__DISK_IMAGE_H */
