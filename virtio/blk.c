@@ -140,10 +140,10 @@ static bool virtio_blk_do_io_request(struct kvm *kvm,
 
 	switch (req->type) {
 	case VIRTIO_BLK_T_IN:
-		block_cnt	= disk_image__read_sector_iov(bdev->disk, req->sector, iov + 1, in + out - 2);
+		block_cnt	= disk_image__read(bdev->disk, req->sector, iov + 1, in + out - 2);
 		break;
 	case VIRTIO_BLK_T_OUT:
-		block_cnt	= disk_image__write_sector_iov(bdev->disk, req->sector, iov + 1, in + out - 2);
+		block_cnt	= disk_image__write(bdev->disk, req->sector, iov + 1, in + out - 2);
 		break;
 	case VIRTIO_BLK_T_FLUSH:
 		block_cnt       = disk_image__flush(bdev->disk);

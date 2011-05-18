@@ -54,8 +54,8 @@ static inline int disk_image__write_sector(struct disk_image *disk, u64 sector, 
 	return disk->ops->write_sector(disk, sector, src, src_len);
 }
 
-ssize_t disk_image__read_sector_iov(struct disk_image *disk, u64 sector, const struct iovec *iov, int iovcount);
-ssize_t disk_image__write_sector_iov(struct disk_image *disk, u64 sector, const struct iovec *iov, int iovcount);
+ssize_t disk_image__read(struct disk_image *disk, u64 sector, const struct iovec *iov, int iovcount);
+ssize_t disk_image__write(struct disk_image *disk, u64 sector, const struct iovec *iov, int iovcount);
 
 static inline int disk_image__flush(struct disk_image *disk)
 {

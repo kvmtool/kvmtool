@@ -75,7 +75,7 @@ void disk_image__close(struct disk_image *disk)
 }
 
 /* Fill iov with disk data, starting from sector 'sector'. Return amount of bytes read. */
-ssize_t disk_image__read_sector_iov(struct disk_image *disk, u64 sector, const struct iovec *iov, int iovcount)
+ssize_t disk_image__read(struct disk_image *disk, u64 sector, const struct iovec *iov, int iovcount)
 {
 	u64 first_sector = sector;
 
@@ -94,7 +94,7 @@ ssize_t disk_image__read_sector_iov(struct disk_image *disk, u64 sector, const s
 }
 
 /* Write iov to disk, starting from sector 'sector'. Return amount of bytes written. */
-ssize_t disk_image__write_sector_iov(struct disk_image *disk, u64 sector, const struct iovec *iov, int iovcount)
+ssize_t disk_image__write(struct disk_image *disk, u64 sector, const struct iovec *iov, int iovcount)
 {
 	u64 first_sector = sector;
 
