@@ -15,7 +15,6 @@ FIND = find
 CSCOPE = cscope
 TAGS = ctags
 
-OBJS	+= 8250-serial.o
 OBJS	+= cpuid.o
 OBJS	+= read-write.o
 OBJS	+= interrupt.o
@@ -25,7 +24,8 @@ OBJS	+= kvm-cpu.o
 OBJS	+= main.o
 OBJS	+= mmio.o
 OBJS	+= pci.o
-OBJS	+= rtc.o
+OBJS	+= hw/rtc.o
+OBJS	+= hw/serial.o
 OBJS	+= term.o
 OBJS	+= util.o
 OBJS	+= virtio/blk.o
