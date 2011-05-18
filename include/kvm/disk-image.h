@@ -1,10 +1,22 @@
 #ifndef KVM__DISK_IMAGE_H
 #define KVM__DISK_IMAGE_H
 
+#include "kvm/read-write.h"
+#include "kvm/util.h"
+
 #include <linux/types.h>
+#include <linux/fs.h>	/* for BLKGETSIZE64 */
+#include <sys/ioctl.h>
+#include <sys/types.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
 #include <stdbool.h>
 #include <sys/uio.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdlib.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 #define SECTOR_SHIFT		9
 #define SECTOR_SIZE		(1UL << SECTOR_SHIFT)
@@ -51,5 +63,8 @@ static inline int disk_image__flush(struct disk_image *disk)
 		return disk->ops->flush(disk);
 	return fsync(disk->fd);
 }
+
+struct disk_image *raw_image__probe(int fd, struct stat *st, bool readonly);
+struct disk_image *blkdev__probe(const char *filename, struct stat *st);
 
 #endif /* KVM__DISK_IMAGE_H */
