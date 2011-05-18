@@ -70,7 +70,7 @@ extern int  active_console;
 
 bool do_debug_print = false;
 
-static int nrcpus = 1;
+static int nrcpus;
 
 static const char * const run_usage[] = {
 	"kvm run [<options>] [<kernel image>]",
@@ -410,6 +410,8 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	signal(SIGQUIT, handle_sigquit);
 	signal(SIGUSR1, handle_sigusr1);
 
+	nr_online_cpus = sysconf(_SC_NPROCESSORS_ONLN);
+
 	while (argc != 0) {
 		argc = parse_options(argc, argv, options, run_usage,
 				PARSE_OPT_STOP_AT_NON_OPTION);
@@ -440,7 +442,9 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	vmlinux_filename = find_vmlinux();
 
-	if (nrcpus < 1 || nrcpus > KVM_NR_CPUS)
+	if (nrcpus == 0)
+		nrcpus = nr_online_cpus;
+	else if (nrcpus < 1 || nrcpus > KVM_NR_CPUS)
 		die("Number of CPUs %d is out of [1;%d] range", nrcpus, KVM_NR_CPUS);
 
 	if (!ram_size)
@@ -576,7 +580,6 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	kvm__init_ram(kvm);
 
-	nr_online_cpus = sysconf(_SC_NPROCESSORS_ONLN);
 	thread_pool__init(nr_online_cpus);
 
 	for (i = 0; i < nrcpus; i++) {
