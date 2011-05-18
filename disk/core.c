@@ -59,6 +59,14 @@ struct disk_image *disk_image__open(const char *filename, bool readonly)
 	return NULL;
 }
 
+int disk_image__flush(struct disk_image *disk)
+{
+	if (disk->ops->flush)
+		return disk->ops->flush(disk);
+
+	return fsync(disk->fd);
+}
+
 int disk_image__close(struct disk_image *disk)
 {
 	/* If there was no disk image then there's nothing to do: */

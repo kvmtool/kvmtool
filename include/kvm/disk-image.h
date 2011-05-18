@@ -53,16 +53,9 @@ struct disk_image {
 struct disk_image *disk_image__open(const char *filename, bool readonly);
 struct disk_image *disk_image__new(int fd, u64 size, struct disk_image_operations *ops, int mmap);
 int disk_image__close(struct disk_image *disk);
-
+int disk_image__flush(struct disk_image *disk);
 ssize_t disk_image__read(struct disk_image *disk, u64 sector, const struct iovec *iov, int iovcount);
 ssize_t disk_image__write(struct disk_image *disk, u64 sector, const struct iovec *iov, int iovcount);
-
-static inline int disk_image__flush(struct disk_image *disk)
-{
-	if (disk->ops->flush)
-		return disk->ops->flush(disk);
-	return fsync(disk->fd);
-}
 
 struct disk_image *raw_image__probe(int fd, struct stat *st, bool readonly);
 struct disk_image *blkdev__probe(const char *filename, struct stat *st);
