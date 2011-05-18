@@ -268,13 +268,13 @@ static u64 host_ram_size(void)
 
 	nr_pages	= sysconf(_SC_PHYS_PAGES);
 	if (nr_pages < 0) {
-		warning("sysconf(_SC_PHYS_PAGES) failed");
+		pr_warning("sysconf(_SC_PHYS_PAGES) failed");
 		return 0;
 	}
 
 	page_size	= sysconf(_SC_PAGE_SIZE);
 	if (page_size < 0) {
-		warning("sysconf(_SC_PAGE_SIZE) failed");
+		pr_warning("sysconf(_SC_PAGE_SIZE) failed");
 		return 0;
 	}
 
@@ -449,7 +449,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 		die("Not enough memory specified: %lluMB (min %lluMB)", ram_size, MIN_RAM_SIZE_MB);
 
 	if (ram_size > host_ram_size())
-		warning("Guest memory size %lluMB exceeds host physical RAM size %lluMB", ram_size, host_ram_size());
+		pr_warning("Guest memory size %lluMB exceeds host physical RAM size %lluMB", ram_size, host_ram_size());
 
 	ram_size <<= MB_SHIFT;
 

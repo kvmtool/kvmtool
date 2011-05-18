@@ -157,7 +157,7 @@ static bool virtio_net_pci_io_device_specific_in(void *data, unsigned long offse
 		return false;
 
 	if ((offset - VIRTIO_MSI_CONFIG_VECTOR) > sizeof(struct virtio_net_config))
-		error("config offset is too big: %li", offset - VIRTIO_MSI_CONFIG_VECTOR);
+		pr_error("config offset is too big: %li", offset - VIRTIO_MSI_CONFIG_VECTOR);
 
 	ioport__write8(data, config_space[offset - VIRTIO_MSI_CONFIG_VECTOR]);
 
@@ -224,7 +224,7 @@ static void virtio_net_handle_callback(struct kvm *kvm, u16 queue_index)
 		break;
 	}
 	default:
-		warning("Unknown queue index %u", queue_index);
+		pr_warning("Unknown queue index %u", queue_index);
 	}
 }
 
@@ -297,33 +297,33 @@ static bool virtio_net__tap_init(const struct virtio_net_parameters *params)
 
 	ndev.tap_fd = open("/dev/net/tun", O_RDWR);
 	if (ndev.tap_fd < 0) {
-		warning("Unable to open /dev/net/tun");
+		pr_warning("Unable to open /dev/net/tun");
 		goto fail;
 	}
 
 	memset(&ifr, 0, sizeof(ifr));
 	ifr.ifr_flags = IFF_TAP | IFF_NO_PI | IFF_VNET_HDR;
 	if (ioctl(ndev.tap_fd, TUNSETIFF, &ifr) < 0) {
-		warning("Config tap device error. Are you root?");
+		pr_warning("Config tap device error. Are you root?");
 		goto fail;
 	}
 
 	strncpy(ndev.tap_name, ifr.ifr_name, sizeof(ndev.tap_name));
 
 	if (ioctl(ndev.tap_fd, TUNSETNOCSUM, 1) < 0) {
-		warning("Config tap device TUNSETNOCSUM error");
+		pr_warning("Config tap device TUNSETNOCSUM error");
 		goto fail;
 	}
 
 	hdr_len = sizeof(struct virtio_net_hdr);
 	if (ioctl(ndev.tap_fd, TUNSETVNETHDRSZ, &hdr_len) < 0) {
-		warning("Config tap device TUNSETVNETHDRSZ error");
+		pr_warning("Config tap device TUNSETVNETHDRSZ error");
 		goto fail;
 	}
 
 	offload = TUN_F_CSUM | TUN_F_TSO4 | TUN_F_TSO6 | TUN_F_UFO;
 	if (ioctl(ndev.tap_fd, TUNSETOFFLOAD, offload) < 0) {
-		warning("Config tap device TUNSETOFFLOAD error");
+		pr_warning("Config tap device TUNSETOFFLOAD error");
 		goto fail;
 	}
 
@@ -335,7 +335,7 @@ static bool virtio_net__tap_init(const struct virtio_net_parameters *params)
 		} else {
 			waitpid(pid, &status, 0);
 			if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
-				warning("Fail to setup tap by %s", params->script);
+				pr_warning("Fail to setup tap by %s", params->script);
 				goto fail;
 			}
 		}
@@ -346,7 +346,7 @@ static bool virtio_net__tap_init(const struct virtio_net_parameters *params)
 		memcpy(&(ifr.ifr_addr), &sin, sizeof(ifr.ifr_addr));
 		ifr.ifr_addr.sa_family = AF_INET;
 		if (ioctl(sock, SIOCSIFADDR, &ifr) < 0) {
-			warning("Could not set ip address on tap device");
+			pr_warning("Could not set ip address on tap device");
 			goto fail;
 		}
 	}
@@ -356,7 +356,7 @@ static bool virtio_net__tap_init(const struct virtio_net_parameters *params)
 	ioctl(sock, SIOCGIFFLAGS, &ifr);
 	ifr.ifr_flags |= IFF_UP | IFF_RUNNING;
 	if (ioctl(sock, SIOCSIFFLAGS, &ifr) < 0)
-		warning("Could not bring tap device up");
+		pr_warning("Could not bring tap device up");
 
 	close(sock);
 

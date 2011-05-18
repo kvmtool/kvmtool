@@ -149,7 +149,7 @@ static bool virtio_blk_do_io_request(struct kvm *kvm,
 		block_cnt       = disk_image__flush(bdev->disk);
 		break;
 	default:
-		warning("request type %d", req->type);
+		pr_warning("request type %d", req->type);
 		block_cnt	= -1;
 		break;
 	}

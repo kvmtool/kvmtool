@@ -97,7 +97,7 @@ void kvm_cpu__enable_singlestep(struct kvm_cpu *vcpu)
 	};
 
 	if (ioctl(vcpu->vcpu_fd, KVM_SET_GUEST_DEBUG, &debug) < 0)
-		warning("KVM_SET_GUEST_DEBUG failed");
+		pr_warning("KVM_SET_GUEST_DEBUG failed");
 }
 
 static struct kvm_msrs *kvm_msrs__new(size_t nmsrs)

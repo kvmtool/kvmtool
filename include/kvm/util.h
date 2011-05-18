@@ -37,15 +37,15 @@ extern bool do_debug_print;
 
 extern void die(const char *err, ...) NORETURN __attribute__((format (printf, 1, 2)));
 extern void die_perror(const char *s) NORETURN;
-extern int error(const char *err, ...) __attribute__((format (printf, 1, 2)));
-extern void warning(const char *err, ...) __attribute__((format (printf, 1, 2)));
-extern void info(const char *err, ...) __attribute__((format (printf, 1, 2)));
+extern int pr_error(const char *err, ...) __attribute__((format (printf, 1, 2)));
+extern void pr_warning(const char *err, ...) __attribute__((format (printf, 1, 2)));
+extern void pr_info(const char *err, ...) __attribute__((format (printf, 1, 2)));
 extern void set_die_routine(void (*routine)(const char *err, va_list params) NORETURN);
 
-#define debug(fmt, ...)							\
+#define pr_debug(fmt, ...)						\
 	do {								\
 		if (do_debug_print)					\
-			info("(%s) %s:%d: " fmt, __FILE__,		\
+			pr_info("(%s) %s:%d: " fmt, __FILE__,		\
 				__func__, __LINE__, ##__VA_ARGS__);	\
 	} while (0)
 

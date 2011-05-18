@@ -16,10 +16,10 @@
 static int opterror(const struct option *opt, const char *reason, int flags)
 {
 	if (flags & OPT_SHORT)
-		return error("switch `%c' %s", opt->short_name, reason);
+		return pr_error("switch `%c' %s", opt->short_name, reason);
 	if (flags & OPT_UNSET)
-		return error("option `no-%s' %s", opt->long_name, reason);
-	return error("option `%s' %s", opt->long_name, reason);
+		return pr_error("option `no-%s' %s", opt->long_name, reason);
+	return pr_error("option `%s' %s", opt->long_name, reason);
 }
 
 static int get_arg(struct parse_opt_ctx_t *p, const struct option *opt,
@@ -316,7 +316,7 @@ static void check_typos(const char *arg, const struct option *options)
 		return;
 
 	if (!prefixcmp(arg, "no-")) {
-		error ("did you mean `--%s` (with two dashes ?)", arg);
+		pr_error ("did you mean `--%s` (with two dashes ?)", arg);
 		exit(129);
 	}
 
@@ -324,7 +324,7 @@ static void check_typos(const char *arg, const struct option *options)
 		if (!options->long_name)
 			continue;
 		if (!prefixcmp(options->long_name, arg)) {
-			error ("did you mean `--%s` (with two dashes ?)", arg);
+			pr_error ("did you mean `--%s` (with two dashes ?)", arg);
 			exit(129);
 		}
 	}
@@ -422,7 +422,7 @@ is_abbreviated:
 	}
 
 	if (ambiguous_option)
-		return error("Ambiguous option: %s "
+		return pr_error("Ambiguous option: %s "
 				"(could be --%s%s or --%s%s)",
 				arg,
 				(ambiguous_flags & OPT_UNSET) ?  "no-" : "",
@@ -558,9 +558,9 @@ int parse_options(int argc, const char **argv, const struct option *options,
 		break;
 	default: /* PARSE_OPT_UNKNOWN */
 		if (ctx.argv[0][1] == '-') {
-			error("unknown option `%s'", ctx.argv[0] + 2);
+			pr_error("unknown option `%s'", ctx.argv[0] + 2);
 		} else {
-			error("unknown switch `%c'", *ctx.opt);
+			pr_error("unknown switch `%c'", *ctx.opt);
 		}
 		usage_with_options(usagestr, options);
 	}

@@ -41,7 +41,7 @@ void die(const char *err, ...)
 	va_end(params);
 }
 
-int error(const char *err, ...)
+int pr_error(const char *err, ...)
 {
 	va_list params;
 
@@ -51,7 +51,7 @@ int error(const char *err, ...)
 	return -1;
 }
 
-void warning(const char *warn, ...)
+void pr_warning(const char *warn, ...)
 {
 	va_list params;
 
@@ -60,7 +60,7 @@ void warning(const char *warn, ...)
 	va_end(params);
 }
 
-void info(const char *info, ...)
+void pr_info(const char *info, ...)
 {
 	va_list params;
 

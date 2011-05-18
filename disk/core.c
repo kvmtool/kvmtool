@@ -54,7 +54,7 @@ struct disk_image *disk_image__open(const char *filename, bool readonly)
 		return disk;
 
 	if (close(fd) < 0)
-		warning("close() failed");
+		pr_warning("close() failed");
 
 	return NULL;
 }
@@ -77,7 +77,7 @@ int disk_image__close(struct disk_image *disk)
 		return disk->ops->close(disk);
 
 	if (close(disk->fd) < 0)
-		warning("close() failed");
+		pr_warning("close() failed");
 
 	free(disk);
 
@@ -99,7 +99,7 @@ ssize_t disk_image__read(struct disk_image *disk, u64 sector, const struct iovec
 		 */
 		total		= disk->ops->read_sector_iov(disk, sector, iov, iovcount);
 		if (total < 0) {
-			info("disk_image__read error: total=%ld\n", (long)total);
+			pr_info("disk_image__read error: total=%ld\n", (long)total);
 			return -1;
 		}
 	} else if (disk->ops->read_sector) {
@@ -109,7 +109,7 @@ ssize_t disk_image__read(struct disk_image *disk, u64 sector, const struct iovec
 		while (iovcount--) {
 			nr 	= disk->ops->read_sector(disk, sector, iov->iov_base, iov->iov_len);
 			if (nr != (ssize_t)iov->iov_len) {
-				info("disk_image__read error: nr = %ld iov_len=%ld\n", (long)nr, (long)iov->iov_len);
+				pr_info("disk_image__read error: nr = %ld iov_len=%ld\n", (long)nr, (long)iov->iov_len);
 				return -1;
 			}
 			sector	+= iov->iov_len >> SECTOR_SHIFT;
@@ -137,7 +137,7 @@ ssize_t disk_image__write(struct disk_image *disk, u64 sector, const struct iove
 		 */
 		total = disk->ops->write_sector_iov(disk, sector, iov, iovcount);
 		if (total < 0) {
-			info("disk_image__write error: total=%ld\n", (long)total);
+			pr_info("disk_image__write error: total=%ld\n", (long)total);
 			return -1;
 		}
 	} else if (disk->ops->write_sector) {
@@ -147,7 +147,7 @@ ssize_t disk_image__write(struct disk_image *disk, u64 sector, const struct iove
 		while (iovcount--) {
 			nr	 = disk->ops->write_sector(disk, sector, iov->iov_base, iov->iov_len);
 			if (nr != (ssize_t)iov->iov_len) {
-				info("disk_image__write error: nr=%ld iov_len=%ld\n", (long)nr, (long)iov->iov_len);
+				pr_info("disk_image__write error: nr=%ld iov_len=%ld\n", (long)nr, (long)iov->iov_len);
 				return -1;
 			}
 

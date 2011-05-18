@@ -84,7 +84,7 @@ static int kvm__check_extensions(struct kvm *kvm)
 
 	for (i = 0; i < ARRAY_SIZE(kvm_req_ext); i++) {
 		if (!kvm__supports_extension(kvm, kvm_req_ext[i].code)) {
-			error("Unsuppored KVM extension detected: %s",
+			pr_error("Unsuppored KVM extension detected: %s",
 				kvm_req_ext[i].name);
 			return (int)-i;
 		}
@@ -446,7 +446,7 @@ bool kvm__load_kernel(struct kvm *kvm, const char *kernel_filename,
 	if (ret)
 		goto found_kernel;
 
-	warning("%s is not a bzImage. Trying to load it as a flat binary...", kernel_filename);
+	pr_warning("%s is not a bzImage. Trying to load it as a flat binary...", kernel_filename);
 
 	ret = load_flat_binary(kvm, fd_kernel);
 	if (ret)

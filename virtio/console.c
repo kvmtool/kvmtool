@@ -104,7 +104,7 @@ static bool virtio_console_pci_io_device_specific_in(void *data, unsigned long o
 		return false;
 
 	if ((offset - VIRTIO_MSI_CONFIG_VECTOR) > sizeof(struct virtio_console_config))
-		error("config offset is too big: %li", offset - VIRTIO_MSI_CONFIG_VECTOR);
+		pr_error("config offset is too big: %li", offset - VIRTIO_MSI_CONFIG_VECTOR);
 
 	ioport__write8(data, config_space[offset - VIRTIO_MSI_CONFIG_VECTOR]);
 

@@ -101,7 +101,7 @@ void mptable_setup(struct kvm *kvm, unsigned int ncpus)
 	real_mpc_table = ALIGN(MB_BIOS_BEGIN + bios_rom_size, 16);
 
 	if (ncpus > MPTABLE_MAX_CPUS) {
-		warning("Too many cpus: %d limited to %d",
+		pr_warning("Too many cpus: %d limited to %d",
 			ncpus, MPTABLE_MAX_CPUS);
 		ncpus = MPTABLE_MAX_CPUS;
 	}

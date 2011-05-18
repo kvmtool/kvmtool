@@ -323,7 +323,7 @@ static ssize_t qcow1_write_sector(struct disk_image *disk, u64 sector, void *src
 static ssize_t qcow1_nowrite_sector(struct disk_image *disk, u64 sector, void *src, u32 src_len)
 {
 	/* I/O error */
-	info("qcow1_nowrite_sector: no write support\n");
+	pr_info("qcow1_nowrite_sector: no write support\n");
 	return -1;
 }
 
