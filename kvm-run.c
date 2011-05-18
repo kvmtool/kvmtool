@@ -267,8 +267,16 @@ static u64 host_ram_size(void)
 	long nr_pages;
 
 	nr_pages	= sysconf(_SC_PHYS_PAGES);
+	if (nr_pages < 0) {
+		warning("sysconf(_SC_PHYS_PAGES) failed");
+		return 0;
+	}
 
 	page_size	= sysconf(_SC_PAGE_SIZE);
+	if (page_size < 0) {
+		warning("sysconf(_SC_PAGE_SIZE) failed");
+		return 0;
+	}
 
 	return (nr_pages * page_size) >> MB_SHIFT;
 }
@@ -287,6 +295,8 @@ static u64 get_ram_size(int nr_cpus)
 	ram_size	= 64 * (nr_cpus + 3);
 
 	available	= host_ram_size() * RAM_SIZE_RATIO;
+	if (!available)
+		available = MIN_RAM_SIZE_MB;
 
 	if (ram_size > available)
 		ram_size	= available;
