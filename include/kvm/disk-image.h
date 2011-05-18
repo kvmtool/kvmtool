@@ -44,16 +44,6 @@ struct disk_image *disk_image__new(int fd, u64 size, struct disk_image_operation
 struct disk_image *disk_image__new_readonly(int fd, u64 size, struct disk_image_operations *ops);
 void disk_image__close(struct disk_image *disk);
 
-static inline int disk_image__read_sector(struct disk_image *disk, u64 sector, void *dst, u32 dst_len)
-{
-	return disk->ops->read_sector(disk, sector, dst, dst_len);
-}
-
-static inline int disk_image__write_sector(struct disk_image *disk, u64 sector, void *src, u32 src_len)
-{
-	return disk->ops->write_sector(disk, sector, src, src_len);
-}
-
 ssize_t disk_image__read(struct disk_image *disk, u64 sector, const struct iovec *iov, int iovcount);
 ssize_t disk_image__write(struct disk_image *disk, u64 sector, const struct iovec *iov, int iovcount);
 
