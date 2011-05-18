@@ -7,6 +7,9 @@ else
 endif
 export E Q
 
+include config/utilities.mak
+include config/feature-tests.mak
+
 PROGRAM	= kvm
 FIND = find
 CSCOPE = cscope
@@ -23,7 +26,6 @@ OBJS	+= main.o
 OBJS	+= mmio.o
 OBJS	+= pci.o
 OBJS	+= rtc.o
-OBJS	+= symbol.o
 OBJS	+= term.o
 OBJS	+= util.o
 OBJS	+= virtio/blk.o
@@ -46,6 +48,14 @@ OBJS    += irq.o
 OBJS    += ../../lib/rbtree.o
 OBJS    += util/rbtree-interval.o
 
+FLAGS_BFD=$(CFLAGS) -lbfd
+has_bfd := $(call try-cc,$(SOURCE_BFD),$(FLAGS_BFD))
+ifeq ($(has_bfd),y)
+	CFLAGS	+= -DCONFIG_HAS_BFD
+	OBJS	+= symbol.o
+	LIBS	+= -lbfd
+endif
+
 DEPS	:= $(patsubst %.o,%.d,$(OBJS))
 
 # Exclude BIOS object files from header dependencies.
@@ -54,7 +64,6 @@ OBJS	+= bios/bios.o
 
 LIBS	+= -lrt
 LIBS	+= -lpthread
-LIBS	+= -lbfd
 
 # Additional ARCH settings for x86
 ARCH ?= $(shell echo $(uname_M) | sed -e s/i.86/i386/ -e s/sun4u/sparc64/ \
