@@ -39,6 +39,7 @@ OBJS    += kvm-run.o
 OBJS    += disk/qcow.o
 OBJS	+= disk/core.o
 OBJS    += disk/raw.o
+OBJS    += disk/blk.o
 OBJS    += mptable.o
 OBJS    += threadpool.o
 OBJS    += irq.o
