@@ -1,10 +1,11 @@
 #include "kvm/kvm.h"
 
-#include "kvm/cpufeature.h"
-#include "kvm/interrupt.h"
 #include "kvm/boot-protocol.h"
-#include "kvm/util.h"
+#include "kvm/cpufeature.h"
+#include "kvm/read-write.h"
+#include "kvm/interrupt.h"
 #include "kvm/mptable.h"
+#include "kvm/util.h"
 
 #include <linux/kvm.h>
 
@@ -422,6 +423,23 @@ static bool load_bzimage(struct kvm *kvm, int fd_kernel,
 	return true;
 }
 
+/* RFC 1952 */
+#define GZIP_ID1		0x1f
+#define GZIP_ID2		0x8b
+
+static bool initrd_check(int fd)
+{
+	unsigned char id[2];
+
+	if (read_in_full(fd, id, ARRAY_SIZE(id)) < 0)
+		return false;
+
+	if (lseek(fd, 0, SEEK_SET) < 0)
+		die_perror("lseek");
+
+	return id[0] == GZIP_ID1 && id[1] == GZIP_ID2;
+}
+
 bool kvm__load_kernel(struct kvm *kvm, const char *kernel_filename,
 		const char *initrd_filename, const char *kernel_cmdline)
 {
@@ -436,6 +454,9 @@ bool kvm__load_kernel(struct kvm *kvm, const char *kernel_filename,
 		fd_initrd = open(initrd_filename, O_RDONLY);
 		if (fd_initrd < 0)
 			die("Unable to open initrd %s", initrd_filename);
+
+		if (!initrd_check(fd_initrd))
+			die("%s is not an initrd", initrd_filename);
 	}
 
 	ret = load_bzimage(kvm, fd_kernel, fd_initrd, kernel_cmdline);
