@@ -21,6 +21,9 @@
 #define SECTOR_SHIFT		9
 #define SECTOR_SIZE		(1UL << SECTOR_SHIFT)
 
+#define DISK_IMAGE_MMAP		0
+#define DISK_IMAGE_NOMMAP	1
+
 struct disk_image;
 
 struct disk_image_operations {
@@ -40,8 +43,7 @@ struct disk_image {
 };
 
 struct disk_image *disk_image__open(const char *filename, bool readonly);
-struct disk_image *disk_image__new(int fd, u64 size, struct disk_image_operations *ops);
-struct disk_image *disk_image__new_readonly(int fd, u64 size, struct disk_image_operations *ops);
+struct disk_image *disk_image__new(int fd, u64 size, struct disk_image_operations *ops, int mmap);
 void disk_image__close(struct disk_image *disk);
 
 ssize_t disk_image__read(struct disk_image *disk, u64 sector, const struct iovec *iov, int iovcount);

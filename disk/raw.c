@@ -57,10 +57,18 @@ static struct disk_image_operations raw_image_ro_mmap_ops = {
 
 struct disk_image *raw_image__probe(int fd, struct stat *st, bool readonly)
 {
+
 	if (readonly)
-		return disk_image__new_readonly(fd, st->st_size, &raw_image_ro_mmap_ops);
+		/*
+		 * Use mmap's MAP_PRIVATE to implement non-persistent write
+		 * FIXME: This does not work on 32-bit host.
+		 */
+		return disk_image__new(fd, st->st_size, &raw_image_ro_mmap_ops, DISK_IMAGE_MMAP);
 	else
-		return disk_image__new(fd, st->st_size, &raw_image_ops);
+		/*
+		 * Use read/write instead of mmap
+		 */
+		return disk_image__new(fd, st->st_size, &raw_image_ops, DISK_IMAGE_NOMMAP);
 }
 
 struct disk_image *blkdev__probe(const char *filename, struct stat *st)
@@ -80,5 +88,5 @@ struct disk_image *blkdev__probe(const char *filename, struct stat *st)
 		return NULL;
 	}
 
-	return disk_image__new_readonly(fd, size, &raw_image_ro_mmap_ops);
+	return disk_image__new(fd, size, &raw_image_ro_mmap_ops, DISK_IMAGE_MMAP);
 }

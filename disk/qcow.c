@@ -433,10 +433,13 @@ static struct disk_image *qcow2_probe(int fd, bool readonly)
 	if (qcow_read_l1_table(q) < 0)
 		goto error;
 
+	/*
+	 * Do not use mmap use read/write instead
+	 */
 	if (readonly)
-		disk_image = disk_image__new(fd, h->size, &qcow1_disk_readonly_ops);
+		disk_image = disk_image__new(fd, h->size, &qcow1_disk_readonly_ops, DISK_IMAGE_NOMMAP);
 	else
-		disk_image = disk_image__new(fd, h->size, &qcow1_disk_ops);
+		disk_image = disk_image__new(fd, h->size, &qcow1_disk_ops, DISK_IMAGE_NOMMAP);
 
 	if (!disk_image)
 		goto error;
@@ -527,10 +530,13 @@ static struct disk_image *qcow1_probe(int fd, bool readonly)
 	if (qcow_read_l1_table(q) < 0)
 		goto error;
 
+	/*
+	 * Do not use mmap use read/write instead
+	 */
 	if (readonly)
-		disk_image = disk_image__new(fd, h->size, &qcow1_disk_readonly_ops);
+		disk_image = disk_image__new(fd, h->size, &qcow1_disk_readonly_ops, DISK_IMAGE_NOMMAP);
 	else
-		disk_image = disk_image__new(fd, h->size, &qcow1_disk_ops);
+		disk_image = disk_image__new(fd, h->size, &qcow1_disk_ops, DISK_IMAGE_NOMMAP);
 
 	if (!disk_image)
 		goto error;

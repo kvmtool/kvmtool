@@ -1,7 +1,7 @@
 #include "kvm/disk-image.h"
 #include "kvm/qcow.h"
 
-struct disk_image *disk_image__new(int fd, u64 size, struct disk_image_operations *ops)
+struct disk_image *disk_image__new(int fd, u64 size, struct disk_image_operations *ops, int use_mmap)
 {
 	struct disk_image *disk;
 
@@ -12,20 +12,16 @@ struct disk_image *disk_image__new(int fd, u64 size, struct disk_image_operation
 	disk->fd	= fd;
 	disk->size	= size;
 	disk->ops	= ops;
-	return disk;
-}
 
-struct disk_image *disk_image__new_readonly(int fd, u64 size, struct disk_image_operations *ops)
-{
-	struct disk_image *disk;
+	if (use_mmap == DISK_IMAGE_MMAP) {
+		/*
+		 * The write to disk image will be discarded
+		 */
+		disk->priv = mmap(NULL, size, PROT_RW, MAP_PRIVATE | MAP_NORESERVE, fd, 0);
+		if (disk->priv == MAP_FAILED)
+			die("mmap() failed");
+	}
 
-	disk = disk_image__new(fd, size, ops);
-	if (!disk)
-		return NULL;
-
-	disk->priv = mmap(NULL, size, PROT_RW, MAP_PRIVATE | MAP_NORESERVE, fd, 0);
-	if (disk->priv == MAP_FAILED)
-		die("mmap() failed");
 	return disk;
 }
 
