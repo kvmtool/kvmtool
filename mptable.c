@@ -81,7 +81,7 @@ static void mptable_add_irq_src(struct mpc_intsrc *mpc_intsrc,
  */
 void mptable_setup(struct kvm *kvm, unsigned int ncpus)
 {
-	unsigned long real_mpc_table, size;
+	unsigned long real_mpc_table, real_mpf_intel, size;
 	struct mpf_intel *mpf_intel;
 	struct mpc_table *mpc_table;
 	struct mpc_cpu *mpc_cpu;
@@ -237,7 +237,8 @@ void mptable_setup(struct kvm *kvm, unsigned int ncpus)
 	/*
 	 * Floating MP table finally.
 	 */
-	mpf_intel = (void *)ALIGN((unsigned long)last_addr, 16);
+	real_mpf_intel	= ALIGN((unsigned long)last_addr - (unsigned long)mpc_table, 16);
+	mpf_intel	= (void *)((unsigned long)mpc_table + real_mpf_intel);
 
 	MPTABLE_STRNCPY(mpf_intel->signature, MPTABLE_SIG_FLOATING);
 	mpf_intel->length	= 1;
