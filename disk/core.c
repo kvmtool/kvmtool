@@ -55,19 +55,21 @@ struct disk_image *disk_image__open(const char *filename, bool readonly)
 	return NULL;
 }
 
-void disk_image__close(struct disk_image *disk)
+int disk_image__close(struct disk_image *disk)
 {
 	/* If there was no disk image then there's nothing to do: */
 	if (!disk)
-		return;
+		return 0;
 
 	if (disk->ops->close)
-		disk->ops->close(disk);
+		return disk->ops->close(disk);
 
 	if (close(disk->fd) < 0)
 		warning("close() failed");
 
 	free(disk);
+
+	return 0;
 }
 
 /* Fill iov with disk data, starting from sector 'sector'. Return amount of bytes read. */

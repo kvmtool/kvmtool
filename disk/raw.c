@@ -14,7 +14,7 @@ ssize_t raw_image__write_sector_iov(struct disk_image *disk, u64 sector, const s
 	return pwritev_in_full(disk->fd, iov, iovcount, offset);
 }
 
-int raw_image__read_sector_ro_mmap(struct disk_image *disk, u64 sector, void *dst, u32 dst_len)
+ssize_t raw_image__read_sector_ro_mmap(struct disk_image *disk, u64 sector, void *dst, u32 dst_len)
 {
 	u64 offset = sector << SECTOR_SHIFT;
 
@@ -23,10 +23,10 @@ int raw_image__read_sector_ro_mmap(struct disk_image *disk, u64 sector, void *ds
 
 	memcpy(dst, disk->priv + offset, dst_len);
 
-	return 0;
+	return dst_len;
 }
 
-int raw_image__write_sector_ro_mmap(struct disk_image *disk, u64 sector, void *src, u32 src_len)
+ssize_t raw_image__write_sector_ro_mmap(struct disk_image *disk, u64 sector, void *src, u32 src_len)
 {
 	u64 offset = sector << SECTOR_SHIFT;
 
@@ -35,13 +35,17 @@ int raw_image__write_sector_ro_mmap(struct disk_image *disk, u64 sector, void *s
 
 	memcpy(disk->priv + offset, src, src_len);
 
-	return 0;
+	return src_len;
 }
 
-void raw_image__close_ro_mmap(struct disk_image *disk)
+int raw_image__close_ro_mmap(struct disk_image *disk)
 {
+	int ret = 0;
+
 	if (disk->priv != MAP_FAILED)
-		munmap(disk->priv, disk->size);
+		ret = munmap(disk->priv, disk->size);
+
+	return ret;
 }
 
 static struct disk_image_operations raw_image_ops = {
