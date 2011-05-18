@@ -34,18 +34,22 @@ struct disk_image *disk_image__open(const char *filename, bool readonly)
 	if (stat(filename, &st) < 0)
 		return NULL;
 
-	if (S_ISBLK(st.st_mode))
-		return blkdev__probe(filename, &st);
+	/* blk device ?*/
+	disk		= blkdev__probe(filename, &st);
+	if (disk)
+		return disk;
 
 	fd		= open(filename, readonly ? O_RDONLY : O_RDWR);
 	if (fd < 0)
 		return NULL;
 
-	disk = qcow_probe(fd, readonly);
+	/* qcow image ?*/
+	disk		= qcow_probe(fd, readonly);
 	if (disk)
 		return disk;
 
-	disk = raw_image__probe(fd, &st, readonly);
+	/* raw image ?*/
+	disk		= raw_image__probe(fd, &st, readonly);
 	if (disk)
 		return disk;
 
