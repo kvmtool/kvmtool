@@ -6,10 +6,6 @@ hobby, won't be big and professional like QEMU) with no BIOS
 dependencies and with only the minimal amount of legacy device
 emulation.
 
-Note that this is a development prototype for the time being: there's no
-networking support and no graphics support, amongst other missing
-essentials.
-
 It's great as a learning tool if you want to get your feet wet in
 virtualization land: it's only 5 KLOC of clean C code that can already
 boot a guest Linux image.
@@ -37,17 +33,31 @@ or alternatively, if you already have a kernel source tree:
   wget http://wiki.qemu.org/download/linux-0.2.img.bz2 && bunzip2
 linux-0.2.img.bz2
 
-4. Build a kernel with CONFIG_VIRTIO_BLK=y and
-CONFIG_SERIAL_8250_CONSOLE=y configuration options. Note: also make sure
-you have CONFIG_EXT2_FS or CONFIG_EXT4_FS if you use the above image.
+4. Build a kernel with
+
+  CONFIG_VIRTIO_BLK=y
+  CONFIG_VIRTIO_NET=y
+  CONFIG_VIRTIO_CONSOLE=y
+  CONFIG_SERIAL_8250_CONSOLE=y
+  CONFIG_HW_RANDOM_VIRTIO=y
+
+configuration options.
+Note: also make sure you have CONFIG_EXT2_FS or
+CONFIG_EXT4_FS if you use the above image.
 
 5. And finally, launch the hypervisor:
 
-  ./kvm --image=linux-0.2.img --kernel=../../arch/x86/boot/bzImage
+  ./kvm run --disk linux-0.2.img \
+	    --kernel ../../arch/x86/boot/bzImage \
+or
 
-The tool has been written by Pekka Enberg, Cyrill Gorcunov, and Asias
-He. Special thanks to Avi Kivity for his help on KVM internals and Ingo
-Molnar for all-around support and encouragement!
+  sudo ./kvm run --disk linux-0.2.img \
+		 --kernel ../../arch/x86/boot/bzImage \
+		 --network virtio
+
+The tool has been written by Pekka Enberg, Cyrill Gorcunov, Asias He,
+Sasha Levin and Prasad Joshi. Special thanks to Avi Kivity for his help
+on KVM internals and Ingo Molnar for all-around support and encouragement!
 
 See the following thread for original discussion for motivation of this
 project:
