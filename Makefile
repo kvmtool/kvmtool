@@ -45,8 +45,9 @@ OBJS    += disk/blk.o
 OBJS    += mptable.o
 OBJS    += threadpool.o
 OBJS    += irq.o
-OBJS    += ../../lib/rbtree.o
+OBJS    += rbtree.o
 OBJS    += util/rbtree-interval.o
+
 
 FLAGS_BFD=$(CFLAGS) -lbfd
 has_bfd := $(call try-cc,$(SOURCE_BFD),$(FLAGS_BFD))
@@ -123,6 +124,8 @@ kvm-help.d: $(KVM_INCLUDE)/common-cmds.h
 
 $(OBJS):
 
+rbtree.o: ../../lib/rbtree.c
+	$(Q) $(CC) -c $(CFLAGS) $< -o $@
 %.o: %.c
 	$(E) "  CC      " $@
 	$(Q) $(CC) -c $(CFLAGS) $< -o $@
