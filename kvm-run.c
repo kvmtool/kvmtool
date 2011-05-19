@@ -404,6 +404,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	int max_cpus;
 	char *hi;
 	int i;
+	void *ret;
 
 	signal(SIGALRM, handle_sigalrm);
 	signal(SIGQUIT, handle_sigquit);
@@ -583,14 +584,17 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 			die("unable to create KVM VCPU thread");
 	}
 
-	for (i = 0; i < nrcpus; i++) {
-		void *ret;
+	/* Only VCPU #0 is going to exit by itself when shutting down */
+	if (pthread_join(kvm_cpus[0]->thread, &ret) != 0)
+		exit_code = 1;
 
+	for (i = 1; i < nrcpus; i++) {
+		pthread_kill(kvm_cpus[i]->thread, SIGKVMEXIT);
 		if (pthread_join(kvm_cpus[i]->thread, &ret) != 0)
 			die("pthread_join");
 
 		if (ret != NULL)
-			exit_code	= 1;
+			exit_code = 1;
 	}
 
 	kvm__delete(kvm);

@@ -11,6 +11,8 @@
 #define KVM_32BIT_GAP_SIZE	(512 << 20)
 #define KVM_32BIT_GAP_START	((1ULL << 32) - KVM_32BIT_GAP_SIZE)
 
+#define SIGKVMEXIT		(SIGUSR1 + 2)
+
 struct kvm {
 	int			sys_fd;		/* For system ioctls(), i.e. /dev/kvm */
 	int			vm_fd;		/* For VM ioctls() */
