@@ -47,6 +47,7 @@ OBJS    += threadpool.o
 OBJS    += irq.o
 OBJS    += rbtree.o
 OBJS    += util/rbtree-interval.o
+OBJS    += virtio/9p.o
 
 
 FLAGS_BFD=$(CFLAGS) -lbfd

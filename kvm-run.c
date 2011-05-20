@@ -27,6 +27,7 @@
 #include <kvm/threadpool.h>
 #include <kvm/barrier.h>
 #include <kvm/symbol.h>
+#include <kvm/virtio-9p.h>
 
 /* header files for gitish interface  */
 #include <kvm/kvm-run.h>
@@ -62,6 +63,7 @@ static const char *network;
 static const char *host_ip_addr;
 static const char *guest_mac;
 static const char *script;
+static const char *virtio_9p_dir;
 static bool single_step;
 static bool readonly_image[MAX_DISK_IMAGES];
 static bool virtio_rng;
@@ -107,6 +109,8 @@ static const struct option options[] = {
 	OPT_BOOLEAN('\0', "rng", &virtio_rng,
 			"Enable virtio Random Number Generator"),
 	OPT_STRING('\0', "kvm-dev", &kvm_dev, "kvm-dev", "KVM device file"),
+	OPT_STRING('\0', "virtio-9p", &virtio_9p_dir, "root dir",
+			"Enable 9p over virtio"),
 
 	OPT_GROUP("Kernel options:"),
 	OPT_STRING('k', "kernel", &kernel_filename, "kernel",
@@ -482,6 +486,15 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	if (!script)
 		script = DEFAULT_SCRIPT;
+
+	if (virtio_9p_dir) {
+		char tmp[PATH_MAX];
+
+		if (realpath(virtio_9p_dir, tmp))
+			virtio_9p__init(kvm, tmp);
+		else
+			die("Failed resolving 9p path");
+	}
 
 	symbol__init(vmlinux_filename);
 
