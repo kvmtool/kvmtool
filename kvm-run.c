@@ -395,6 +395,11 @@ static char *host_image(char *cmd_line, size_t size)
 	return t;
 }
 
+void kvm_run_help(void)
+{
+	usage_with_options(run_usage, options);
+}
+
 int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 {
 	struct virtio_net_parameters net_params;

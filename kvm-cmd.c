@@ -6,6 +6,14 @@
 
 /* user defined header files */
 #include <kvm/kvm-cmd.h>
+#include <kvm/kvm-help.h>
+#include <kvm/kvm-run.h>
+
+struct cmd_struct kvm_commands[] = {
+	{ "help",  kvm_cmd_help,  NULL,         0 },
+	{ "run",   kvm_cmd_run,   kvm_run_help, 0 },
+	{ NULL,    NULL,          NULL,         0 },
+};
 
 /*
  * kvm_get_command: Searches the command in an array of the commands and
@@ -20,7 +28,7 @@
  * NULL: If the cmd is not matched with any of the command in the command array
  * p: Pointer to cmd_struct of the matching command
  */
-static struct cmd_struct *kvm_get_command(struct cmd_struct *command,
+struct cmd_struct *kvm_get_command(struct cmd_struct *command,
 		const char *cmd)
 {
 	struct cmd_struct *p = command;

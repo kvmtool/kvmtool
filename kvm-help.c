@@ -5,6 +5,7 @@
 #include <common-cmds.h>
 
 #include <kvm/util.h>
+#include <kvm/kvm-cmd.h>
 #include <kvm/kvm-help.h>
 
 
@@ -31,13 +32,30 @@ static void list_common_cmds_help(void)
 	}
 }
 
+static void kvm_help(void)
+{
+	printf("\n usage: %s\n\n", kvm_usage_string);
+	list_common_cmds_help();
+	printf("\n %s\n\n", kvm_more_info_string);
+}
+
+
+static void help_cmd(const char *cmd)
+{
+	struct cmd_struct *p;
+	p = kvm_get_command(kvm_commands, cmd);
+	if (!p)
+		kvm_help();
+	else if (p->help)
+		p->help();
+}
+
 int kvm_cmd_help(int argc, const char **argv, const char *prefix)
 {
 	if (!argv || !*argv) {
-		printf("\n usage: %s\n\n", kvm_usage_string);
-		list_common_cmds_help();
-		printf("\n %s\n\n", kvm_more_info_string);
+		kvm_help();
 		return 0;
 	}
+	help_cmd(argv[0]);
 	return 0;
 }
