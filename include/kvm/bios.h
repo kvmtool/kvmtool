@@ -24,8 +24,7 @@
 #define EBDA_START			0x0009fc00
 #define EBDA_END			0x0009ffff
 
-#define E820_MAP_SIZE			EBDA_START
-#define E820_MAP_START			(EBDA_START + 0x01)
+#define E820_MAP_START			EBDA_START
 
 #define MB_BIOS_BEGIN			0x000f0000
 #define MB_BIOS_END			0x000fffff

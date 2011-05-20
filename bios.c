@@ -5,6 +5,7 @@
 #include "kvm/util.h"
 
 #include <string.h>
+#include <asm/e820.h>
 
 #include "bios/bios-rom.h"
 
@@ -54,50 +55,50 @@ static void setup_irq_handler(struct kvm *kvm, struct irq_handler *handler)
  */
 static void e820_setup(struct kvm *kvm)
 {
-	struct e820_entry *mem_map;
-	unsigned char *size;
+	struct e820map *e820;
+	struct e820entry *mem_map;
 	unsigned int i = 0;
 
-	size		= guest_flat_to_host(kvm, E820_MAP_SIZE);
-	mem_map		= guest_flat_to_host(kvm, E820_MAP_START);
+	e820		= guest_flat_to_host(kvm, E820_MAP_START);
+	mem_map		= e820->map;
 
-	mem_map[i++]	= (struct e820_entry) {
+	mem_map[i++]	= (struct e820entry) {
 		.addr		= REAL_MODE_IVT_BEGIN,
 		.size		= EBDA_START - REAL_MODE_IVT_BEGIN,
-		.type		= E820_MEM_USABLE,
+		.type		= E820_RAM,
 	};
-	mem_map[i++]	= (struct e820_entry) {
+	mem_map[i++]	= (struct e820entry) {
 		.addr		= EBDA_START,
 		.size		= VGA_RAM_BEGIN - EBDA_START,
-		.type		= E820_MEM_RESERVED,
+		.type		= E820_RESERVED,
 	};
-	mem_map[i++]	= (struct e820_entry) {
+	mem_map[i++]	= (struct e820entry) {
 		.addr		= MB_BIOS_BEGIN,
 		.size		= MB_BIOS_END - MB_BIOS_BEGIN,
-		.type		= E820_MEM_RESERVED,
+		.type		= E820_RESERVED,
 	};
 	if (kvm->ram_size < KVM_32BIT_GAP_START) {
-		mem_map[i++]	= (struct e820_entry) {
+		mem_map[i++]	= (struct e820entry) {
 			.addr		= BZ_KERNEL_START,
 			.size		= kvm->ram_size - BZ_KERNEL_START,
-			.type		= E820_MEM_USABLE,
+			.type		= E820_RAM,
 		};
 	} else {
-		mem_map[i++]	= (struct e820_entry) {
+		mem_map[i++]	= (struct e820entry) {
 			.addr		= BZ_KERNEL_START,
 			.size		= KVM_32BIT_GAP_START - BZ_KERNEL_START,
-			.type		= E820_MEM_USABLE,
+			.type		= E820_RAM,
 		};
-		mem_map[i++]	= (struct e820_entry) {
+		mem_map[i++]	= (struct e820entry) {
 			.addr		= 0x100000000ULL,
 			.size		= kvm->ram_size - KVM_32BIT_GAP_START,
-			.type		= E820_MEM_USABLE,
+			.type		= E820_RAM,
 		};
 	}
 
-	BUILD_BUG_ON(i > E820_MEM_AREAS);
+	BUILD_BUG_ON(i > E820_X_MAX);
 
-	*size			= i;
+	e820->nr_map			= i;
 }
 
 /**
