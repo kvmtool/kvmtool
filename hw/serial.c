@@ -62,6 +62,15 @@ static struct serial8250_device devices[] = {
 
 		.iir			= UART_IIR_NO_INT,
 	},
+	/* ttyS3 */
+	[3]	= {
+		.mutex			= PTHREAD_MUTEX_INITIALIZER,
+
+		.iobase			= 0x2e8,
+		.irq			= 3,
+
+		.iir			= UART_IIR_NO_INT,
+	},
 };
 
 #define SYSRQ_PENDING_NONE		0
