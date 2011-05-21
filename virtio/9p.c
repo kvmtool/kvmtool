@@ -445,7 +445,7 @@ static bool virtio_p9_wstat(struct p9_msg *msg, u32 len, struct iovec *iov, u32 
 	struct p9_twstat *twstat = (struct p9_twstat *)msg->msg;
 	struct p9_str *str;
 	struct p9_fid *fid = &p9dev.fids[twstat->fid];
-	int res;
+	int res = 0;
 
 	if (twstat->stat.length != -1UL)
 		res = ftruncate(fid->fd, twstat->stat.length);
@@ -472,7 +472,8 @@ static bool virtio_p9_wstat(struct p9_msg *msg, u32 len, struct iovec *iov, u32 
 
 	*outlen = VIRTIO_P9_HDR_LEN;
 	set_p9msg_hdr(outmsg, *outlen, P9_RWSTAT, msg->tag);
-	return true;
+
+	return res == 0;
 }
 
 static bool virtio_p9_remove(struct p9_msg *msg, u32 len, struct iovec *iov, u32 *outlen)
