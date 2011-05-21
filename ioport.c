@@ -1,6 +1,8 @@
 #include "kvm/ioport.h"
 
 #include "kvm/kvm.h"
+#include "kvm/util.h"
+#include "kvm/rbtree-interval.h"
 
 #include <linux/kvm.h>	/* for KVM_EXIT_* */
 #include <linux/types.h>
@@ -11,7 +13,31 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#define ioport_node(n) rb_entry(n, struct ioport_entry, node)
+
+struct ioport_entry {
+	struct rb_int_node		node;
+	struct ioport_operations	*ops;
+};
+
+static struct rb_root ioport_tree = RB_ROOT;
 bool ioport_debug;
+
+static struct ioport_entry *ioport_search(struct rb_root *root, u64 addr)
+{
+	struct rb_int_node *node;
+
+	node = rb_int_search_single(root, addr);
+	if (node == NULL)
+		return NULL;
+
+	return ioport_node(node);
+}
+
+static int ioport_insert(struct rb_root *root, struct ioport_entry *data)
+{
+	return rb_int_insert(root, &data->node);
+}
 
 static bool debug_io_out(struct kvm *kvm, u16 port, void *data, int size, u32 count)
 {
@@ -41,14 +67,24 @@ static struct ioport_operations dummy_write_only_ioport_ops = {
 	.io_out		= dummy_io_out,
 };
 
-static struct ioport_operations *ioport_ops[USHRT_MAX];
-
 void ioport__register(u16 port, struct ioport_operations *ops, int count)
 {
-	int i;
+	struct ioport_entry *entry;
 
-	for (i = 0; i < count; i++)
-		ioport_ops[port + i]	= ops;
+	entry = ioport_search(&ioport_tree, port);
+	if (entry)
+		rb_int_erase(&ioport_tree, &entry->node);
+
+	entry = malloc(sizeof(*entry));
+	if (entry == NULL)
+		die("Failed allocating new ioport entry");
+
+	*entry = (struct ioport_entry) {
+		.node	= RB_INT_INIT(port, port + count),
+		.ops	= ops,
+	};
+
+	ioport_insert(&ioport_tree, entry);
 }
 
 static const char *to_direction(int direction)
@@ -66,11 +102,15 @@ static void ioport_error(u16 port, void *data, int direction, int size, u32 coun
 
 bool kvm__emulate_io(struct kvm *kvm, u16 port, void *data, int direction, int size, u32 count)
 {
-	struct ioport_operations *ops = ioport_ops[port];
+	struct ioport_operations *ops;
 	bool ret;
+	struct ioport_entry *entry;
 
-	if (!ops)
+	entry = ioport_search(&ioport_tree, port);
+	if (!entry)
 		goto error;
+
+	ops = entry->ops;
 
 	if (direction == KVM_EXIT_IO_IN) {
 		if (!ops->io_in)
