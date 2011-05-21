@@ -51,9 +51,9 @@ static void update_node_max_high(struct rb_node *node, void *arg)
 	i_node->max_high = i_node->high;
 
 	if (node->rb_left)
-		i_node->max_high = max(i_node->max_high, rb_int(node->rb_left)->high);
+		i_node->max_high = max(i_node->max_high, rb_int(node->rb_left)->max_high);
 	if (node->rb_right)
-		i_node->max_high = max(i_node->max_high, rb_int(node->rb_right)->high);
+		i_node->max_high = max(i_node->max_high, rb_int(node->rb_right)->max_high);
 }
 
 int rb_int_insert(struct rb_root *root, struct rb_int_node *i_node)
@@ -75,7 +75,7 @@ int rb_int_insert(struct rb_root *root, struct rb_int_node *i_node)
 	rb_link_node(&i_node->node, parent, node);
 	rb_insert_color(&i_node->node, root);
 
-	rb_augment_insert(*node, update_node_max_high, NULL);
+	rb_augment_insert(&i_node->node, update_node_max_high, NULL);
 	return 1;
 }
 
