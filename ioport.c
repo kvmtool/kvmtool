@@ -72,8 +72,10 @@ void ioport__register(u16 port, struct ioport_operations *ops, int count)
 	struct ioport_entry *entry;
 
 	entry = ioport_search(&ioport_tree, port);
-	if (entry)
+	if (entry) {
+		pr_warning("ioport re-registered: %x", port);
 		rb_int_erase(&ioport_tree, &entry->node);
+	}
 
 	entry = malloc(sizeof(*entry));
 	if (entry == NULL)
