@@ -44,7 +44,6 @@
 #define MB_SHIFT		(20)
 #define MIN_RAM_SIZE_MB		(64ULL)
 #define MIN_RAM_SIZE_BYTE	(MIN_RAM_SIZE_MB << MB_SHIFT)
-#define MAX_DISK_IMAGES		4
 
 static struct kvm *kvm;
 static struct kvm_cpu *kvm_cpus[KVM_NR_CPUS];
@@ -530,15 +529,15 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	if (!strstr(real_cmdline, "root="))
 		strlcat(real_cmdline, " root=/dev/vda rw ", sizeof(real_cmdline));
 
-	for (i = 0; i < image_count; i++) {
-		if (image_filename[i]) {
-			struct disk_image *disk = disk_image__open(image_filename[i], readonly_image[i]);
-			if (!disk)
-				die("unable to load disk image %s", image_filename[i]);
+	if (image_count) {
+		kvm->disks = disk_image__open_all(image_filename, readonly_image, image_count);
+		if (!kvm->disks)
+			die("Unable to load all disk images.");
 
-			virtio_blk__init(kvm, disk);
-		}
+		for (i = 0; i < image_count; i++)
+			virtio_blk__init(kvm, kvm->disks[i]);
 	}
+
 	free(hi);
 
 	printf("  # kvm run -k %s -m %Lu -c %d\n", kernel_filename, ram_size / 1024 / 1024, nrcpus);

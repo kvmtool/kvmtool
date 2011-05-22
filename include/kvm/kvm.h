@@ -32,6 +32,7 @@ struct kvm {
 	struct interrupt_table	interrupt_table;
 
 	const char		*vmlinux;
+	struct disk_image       **disks;
 };
 
 struct kvm *kvm__init(const char *kvm_dev, unsigned long ram_size);

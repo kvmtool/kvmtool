@@ -59,6 +59,37 @@ struct disk_image *disk_image__open(const char *filename, bool readonly)
 	return NULL;
 }
 
+struct disk_image **disk_image__open_all(const char **filenames, bool *readonly, int count)
+{
+	struct disk_image **disks;
+	int i;
+
+	if (!count || count > MAX_DISK_IMAGES)
+		return NULL;
+
+	disks = calloc(count, sizeof(*disks));
+	if (!disks)
+		return NULL;
+
+	for (i = 0; i < count; i++) {
+		if (!filenames[i])
+			continue;
+
+		disks[i] = disk_image__open(filenames[i], readonly[i]);
+		if (!disks[i]) {
+			pr_error("Loading disk image '%s' failed", filenames[i]);
+			goto error;
+		}
+	}
+	return disks;
+error:
+	for (i = 0; i < count; i++)
+		disk_image__close(disks[i]);
+
+	free(disks);
+	return NULL;
+}
+
 int disk_image__flush(struct disk_image *disk)
 {
 	if (disk->ops->flush)

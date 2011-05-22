@@ -23,6 +23,7 @@
 
 #define DISK_IMAGE_MMAP		0
 #define DISK_IMAGE_NOMMAP	1
+#define MAX_DISK_IMAGES         4
 
 struct disk_image;
 
@@ -51,6 +52,7 @@ struct disk_image {
 };
 
 struct disk_image *disk_image__open(const char *filename, bool readonly);
+struct disk_image **disk_image__open_all(const char **filenames, bool *readonly, int count);
 struct disk_image *disk_image__new(int fd, u64 size, struct disk_image_operations *ops, int mmap);
 int disk_image__close(struct disk_image *disk);
 int disk_image__flush(struct disk_image *disk);
