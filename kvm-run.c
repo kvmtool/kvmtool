@@ -530,12 +530,12 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 		strlcat(real_cmdline, " root=/dev/vda rw ", sizeof(real_cmdline));
 
 	if (image_count) {
-		kvm->disks = disk_image__open_all(image_filename, readonly_image, image_count);
+		kvm->nr_disks = image_count;
+		kvm->disks    = disk_image__open_all(image_filename, readonly_image, image_count);
 		if (!kvm->disks)
 			die("Unable to load all disk images.");
 
-		for (i = 0; i < image_count; i++)
-			virtio_blk__init(kvm, kvm->disks[i]);
+		virtio_blk__init_all(kvm);
 	}
 
 	free(hi);

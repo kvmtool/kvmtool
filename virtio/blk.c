@@ -320,3 +320,11 @@ void virtio_blk__init(struct kvm *kvm, struct disk_image *disk)
 
 	ioport__register(blk_dev_base_addr, &virtio_blk_io_ops, IOPORT_VIRTIO_BLK_SIZE);
 }
+
+void virtio_blk__init_all(struct kvm *kvm)
+{
+	int i;
+
+	for (i = 0; i < kvm->nr_disks; i++)
+		virtio_blk__init(kvm, kvm->disks[i]);
+}

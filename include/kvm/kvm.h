@@ -33,6 +33,7 @@ struct kvm {
 
 	const char		*vmlinux;
 	struct disk_image       **disks;
+	int                     nr_disks;
 };
 
 struct kvm *kvm__init(const char *kvm_dev, unsigned long ram_size);
