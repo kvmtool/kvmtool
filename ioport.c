@@ -165,9 +165,4 @@ void ioport__setup_legacy(void)
 	/* PORT 03D4-03D5 - COLOR VIDEO - CRT CONTROL REGISTERS */
 	ioport__register(0x03D4, &dummy_read_write_ioport_ops, 1);
 	ioport__register(0x03D5, &dummy_write_only_ioport_ops, 1);
-
-	/* PORT 0CF8-0CFF - PCI Configuration Mechanism 1 - Configuration Registers */
-	ioport__register(0x0CF8, &dummy_write_only_ioport_ops, 1);
-	ioport__register(0x0CFC, &dummy_read_write_ioport_ops, 1);
-	ioport__register(0x0CFE, &dummy_read_write_ioport_ops, 1);
 }
