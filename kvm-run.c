@@ -617,6 +617,8 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 			exit_code = 1;
 	}
 
+	virtio_blk__delete_all(kvm);
+
 	disk_image__close_all(kvm->disks, image_count);
 	kvm__delete(kvm);
 

@@ -328,3 +328,11 @@ void virtio_blk__init_all(struct kvm *kvm)
 	for (i = 0; i < kvm->nr_disks; i++)
 		virtio_blk__init(kvm, kvm->disks[i]);
 }
+
+void virtio_blk__delete_all(struct kvm *kvm)
+{
+	int i;
+
+	for (i = 0; i < kvm->nr_disks; i++)
+		free(bdevs[i]);
+}
