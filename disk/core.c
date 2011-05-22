@@ -115,6 +115,14 @@ int disk_image__close(struct disk_image *disk)
 	return 0;
 }
 
+void disk_image__close_all(struct disk_image **disks, int count)
+{
+	while (count)
+		disk_image__close(disks[--count]);
+
+	free(disks);
+}
+
 /*
  * Fill iov with disk data, starting from sector 'sector'.
  * Return amount of bytes read.

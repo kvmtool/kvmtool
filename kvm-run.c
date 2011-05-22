@@ -617,6 +617,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 			exit_code = 1;
 	}
 
+	disk_image__close_all(kvm->disks, image_count);
 	kvm__delete(kvm);
 
 	if (!exit_code)
