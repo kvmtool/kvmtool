@@ -7,6 +7,8 @@
 
 /* some ports we reserve for own use */
 #define IOPORT_DBG			0xe0
+#define IOPORT_VESA			0xa200
+#define IOPORT_VESA_SIZE		256
 #define IOPORT_VIRTIO_P9		0xb200	/* Virtio 9P device */
 #define IOPORT_VIRTIO_P9_SIZE		256
 #define IOPORT_VIRTIO_BLK		0xc200	/* Virtio block device */
