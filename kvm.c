@@ -320,7 +320,7 @@ static int load_flat_binary(struct kvm *kvm, int fd)
 static const char *BZIMAGE_MAGIC	= "HdrS";
 
 static bool load_bzimage(struct kvm *kvm, int fd_kernel,
-			int fd_initrd, const char *kernel_cmdline)
+			int fd_initrd, const char *kernel_cmdline, u16 vidmode)
 {
 	struct boot_params *kern_boot;
 	unsigned long setup_sects;
@@ -383,6 +383,7 @@ static bool load_bzimage(struct kvm *kvm, int fd_kernel,
 	kern_boot->hdr.type_of_loader	= 0xff;
 	kern_boot->hdr.heap_end_ptr	= 0xfe00;
 	kern_boot->hdr.loadflags	|= CAN_USE_HEAP;
+	kern_boot->hdr.vid_mode		= vidmode;
 
 	/*
 	 * Read initrd image into guest memory
@@ -441,7 +442,7 @@ static bool initrd_check(int fd)
 }
 
 bool kvm__load_kernel(struct kvm *kvm, const char *kernel_filename,
-		const char *initrd_filename, const char *kernel_cmdline)
+		const char *initrd_filename, const char *kernel_cmdline, u16 vidmode)
 {
 	bool ret;
 	int fd_kernel = -1, fd_initrd = -1;
@@ -459,7 +460,7 @@ bool kvm__load_kernel(struct kvm *kvm, const char *kernel_filename,
 			die("%s is not an initrd", initrd_filename);
 	}
 
-	ret = load_bzimage(kvm, fd_kernel, fd_initrd, kernel_cmdline);
+	ret = load_bzimage(kvm, fd_kernel, fd_initrd, kernel_cmdline, vidmode);
 
 	if (initrd_filename)
 		close(fd_initrd);
