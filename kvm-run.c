@@ -28,6 +28,7 @@
 #include <kvm/barrier.h>
 #include <kvm/symbol.h>
 #include <kvm/virtio-9p.h>
+#include <kvm/vesa.h>
 
 /* header files for gitish interface  */
 #include <kvm/kvm-run.h>
@@ -66,6 +67,7 @@ static const char *virtio_9p_dir;
 static bool single_step;
 static bool readonly_image[MAX_DISK_IMAGES];
 static bool virtio_rng;
+static bool vnc;
 extern bool ioport_debug;
 extern int  active_console;
 
@@ -110,6 +112,7 @@ static const struct option options[] = {
 	OPT_STRING('\0', "kvm-dev", &kvm_dev, "kvm-dev", "KVM device file"),
 	OPT_STRING('\0', "virtio-9p", &virtio_9p_dir, "root dir",
 			"Enable 9p over virtio"),
+	OPT_BOOLEAN('\0', "vnc", &vnc, "Enable VNC framebuffer"),
 
 	OPT_GROUP("Kernel options:"),
 	OPT_STRING('k', "kernel", &kernel_filename, "kernel",
@@ -413,6 +416,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	char *hi;
 	int i;
 	void *ret;
+	u16 vidmode = 0;
 
 	signal(SIGALRM, handle_sigalrm);
 	signal(SIGQUIT, handle_sigquit);
@@ -511,7 +515,13 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	kvm->nrcpus = nrcpus;
 
 	memset(real_cmdline, 0, sizeof(real_cmdline));
-	strcpy(real_cmdline, "notsc noapic noacpi pci=conf1 console=ttyS0 earlyprintk=serial");
+	strcpy(real_cmdline, "notsc noapic noacpi pci=conf1");
+	if (vnc) {
+		strcat(real_cmdline, " video=vesafb console=tty0");
+		vidmode = 0x312;
+	} else {
+		strcat(real_cmdline, " console=ttyS0 earlyprintk=serial");
+	}
 	strcat(real_cmdline, " ");
 	if (kernel_cmdline)
 		strlcat(real_cmdline, kernel_cmdline, sizeof(real_cmdline));
@@ -543,7 +553,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	printf("  # kvm run -k %s -m %Lu -c %d\n", kernel_filename, ram_size / 1024 / 1024, nrcpus);
 
 	if (!kvm__load_kernel(kvm, kernel_filename, initrd_filename,
-				real_cmdline))
+				real_cmdline, vidmode))
 		die("unable to load kernel %s", kernel_filename);
 
 	kvm->vmlinux		= vmlinux_filename;
@@ -596,6 +606,9 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	}
 
 	kvm__init_ram(kvm);
+
+	if (vnc)
+		vesa__init(kvm);
 
 	thread_pool__init(nr_online_cpus);
 
