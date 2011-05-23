@@ -58,6 +58,14 @@ ifeq ($(has_bfd),y)
 	LIBS	+= -lbfd
 endif
 
+FLAGS_VNCSERVER=$(CFLAGS) -lvncserver
+has_vncserver := $(call try-cc,$(SOURCE_VNCSERVER),$(FLAGS_VNCSERVER))
+ifeq ($(has_vncserver),y)
+	CFLAGS	+= -DCONFIG_HAS_VNCSERVER
+	OBJS	+= hw/vesa.o
+	LIBS	+= -lvncserver
+endif
+
 DEPS	:= $(patsubst %.o,%.d,$(OBJS))
 
 # Exclude BIOS object files from header dependencies.
@@ -153,9 +161,10 @@ bios/bios.o: bios/bios.S bios/bios-rom.bin
 bios/bios-rom.bin: bios/bios-rom.S bios/e820.c
 	$(E) "  CC      " $@
 	$(Q) $(CC) -include code16gcc.h $(CFLAGS) $(BIOS_CFLAGS) -c -s bios/e820.c -o bios/e820.o
+	$(Q) $(CC) -include code16gcc.h $(CFLAGS) $(BIOS_CFLAGS) -c -s bios/int10.c -o bios/int10.o
 	$(Q) $(CC) $(CFLAGS) $(BIOS_CFLAGS) -c -s bios/bios-rom.S -o bios/bios-rom.o
 	$(E) "  LD      " $@
-	$(Q) ld -T bios/rom.ld.S -o bios/bios-rom.bin.elf bios/bios-rom.o bios/e820.o
+	$(Q) ld -T bios/rom.ld.S -o bios/bios-rom.bin.elf bios/bios-rom.o bios/e820.o bios/int10.o
 	$(E) "  OBJCOPY " $@
 	$(Q) objcopy -O binary -j .text bios/bios-rom.bin.elf bios/bios-rom.bin
 	$(E) "  NM      " $@

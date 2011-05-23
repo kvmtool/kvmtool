@@ -126,3 +126,13 @@ int main(void)
 	return 0;
 }
 endef
+
+define SOURCE_VNCSERVER
+#include <rfb/rfb.h>
+
+int main(void)
+{
+	rfbIsActive((void *)0);
+	return 0;
+}
+endef
