@@ -83,22 +83,18 @@ static inline void outb(unsigned short port, unsigned char val)
  */
 static inline void int10_putchar(struct int10_args *args)
 {
-	u8 al, ah;
-
-	al = args->eax & 0xFF;
-	ah = (args->eax & 0xFF00) >> 8;
+	u8 al = args->eax & 0xFF;
 
 	outb(0x3f8, al);
 }
 
 static void int10_vesa(struct int10_args *args)
 {
-	u8 al, ah;
+	u8 al;
 	struct vesa_general_info *destination;
 	struct vminfo *vi;
 
 	al = args->eax;
-	ah = args->eax >> 8;
 
 	switch (al) {
 	case 0:
