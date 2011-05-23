@@ -27,36 +27,36 @@ ENTRY_END(bios_intfake)
  * We ignore bx settings
  */
 ENTRY(bios_int10)
-	test $0x0e, %ah
-	jne 1f
+	pushw	%fs
+	pushl	%es
+	pushl	%edi
+	pushl	%esi
+	pushl	%ebp
+	pushl	%esp
+	pushl	%edx
+	pushl	%ecx
+	pushl	%ebx
+	pushl	%eax
 
-/*
- * put char in AL at current cursor and
- * increment cursor position
- */
-putchar:
-	stack_swap
+	movl		%esp, %eax
+	/* this is way easier than doing it in assembly */
+	/* just push all the regs and jump to a C handler */
+	call	int10_handler
 
-	push %fs
-	push %bx
+	popl	%eax
+	popl	%ebx
+	popl	%ecx
+	popl	%edx
+	popl	%esp
+	popl	%ebp
+	popl	%esi
+	popl	%edi
+	popl	%es
+	popw	%fs
 
-	mov $VGA_RAM_SEG, %bx
-	mov %bx, %fs
-	mov %cs:(cursor), %bx
-	mov %al, %fs:(%bx)
-	inc %bx
-	test $VGA_PAGE_SIZE, %bx
-	jb putchar_new
-	xor %bx, %bx
-putchar_new:
-	mov %bx, %fs:(cursor)
-
-	pop %bx
-	pop %fs
-
-	stack_restore
-1:
 	IRET
+
+
 /*
  * private IRQ data
  */
