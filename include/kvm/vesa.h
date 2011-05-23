@@ -22,6 +22,4 @@ void int10_handler(struct int10_args *args);
 void vesa__init(struct kvm *self) { }
 #endif
 
-extern u8 videomem[VESA_MEM_SIZE];
-
 #endif
