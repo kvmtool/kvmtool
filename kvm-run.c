@@ -48,7 +48,7 @@
 
 static struct kvm *kvm;
 static struct kvm_cpu *kvm_cpus[KVM_NR_CPUS];
-static __thread struct kvm_cpu *current_kvm_cpu;
+__thread struct kvm_cpu *current_kvm_cpu;
 
 static u64 ram_size;
 static u8  image_count;

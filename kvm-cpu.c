@@ -14,6 +14,8 @@
 #include <errno.h>
 #include <stdio.h>
 
+extern __thread struct kvm_cpu *current_kvm_cpu;
+
 static inline bool is_in_protected_mode(struct kvm_cpu *vcpu)
 {
 	return vcpu->sregs.cr0 & 0x01;
@@ -86,6 +88,8 @@ struct kvm_cpu *kvm_cpu__init(struct kvm *kvm, unsigned long cpu_id)
 	vcpu->kvm_run = mmap(NULL, mmap_size, PROT_RW, MAP_SHARED, vcpu->vcpu_fd, 0);
 	if (vcpu->kvm_run == MAP_FAILED)
 		die("unable to mmap vcpu fd");
+
+	vcpu->is_running = true;
 
 	return vcpu;
 }
@@ -381,7 +385,10 @@ void kvm_cpu__run(struct kvm_cpu *vcpu)
 
 static void kvm_cpu_exit_handler(int signum)
 {
-	/* Don't do anything here */
+	if (current_kvm_cpu->is_running) {
+		current_kvm_cpu->is_running = false;
+		pthread_kill(pthread_self(), SIGKVMEXIT);
+	}
 }
 
 int kvm_cpu__start(struct kvm_cpu *cpu)
@@ -437,10 +444,8 @@ int kvm_cpu__start(struct kvm_cpu *cpu)
 			break;
 		}
 		case KVM_EXIT_INTR:
-			/*
-			 * Currently we only handle exit signal, which means
-			 * we just exit if KVM_RUN exited due to a signal.
-			 */
+			if (cpu->is_running)
+				break;
 			goto exit_kvm;
 		case KVM_EXIT_SHUTDOWN:
 			goto exit_kvm;
