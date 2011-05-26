@@ -50,7 +50,6 @@ static struct pci_device_header virtio_p9_pci_device = {
 	.class			= 0x010000,
 	.subsys_vendor_id	= PCI_SUBSYSTEM_VENDOR_ID_REDHAT_QUMRANET,
 	.subsys_id		= VIRTIO_ID_9P,
-	.bar[0]			= IOPORT_VIRTIO_P9 | PCI_BASE_ADDRESS_SPACE_IO,
 };
 
 struct p9_dev {
@@ -59,6 +58,7 @@ struct p9_dev {
 	u16			config_vector;
 	u32			features;
 	struct virtio_9p_config	*config;
+	u16			base_addr;
 
 	/* virtio queue */
 	u16			queue_selector;
@@ -96,7 +96,7 @@ static bool virtio_p9_pci_io_in(struct ioport *ioport, struct kvm *kvm, u16 port
 	unsigned long offset;
 	bool ret = true;
 
-	offset = port - IOPORT_VIRTIO_P9;
+	offset = port - p9dev.base_addr;
 
 	switch (offset) {
 	case VIRTIO_PCI_HOST_FEATURES:
@@ -584,7 +584,7 @@ static bool virtio_p9_pci_io_out(struct ioport *ioport, struct kvm *kvm, u16 por
 	unsigned long offset;
 	bool ret = true;
 
-	offset		= port - IOPORT_VIRTIO_P9;
+	offset = port - p9dev.base_addr;
 
 	switch (offset) {
 	case VIRTIO_MSI_QUEUE_VECTOR:
@@ -636,6 +636,7 @@ void virtio_9p__init(struct kvm *kvm, const char *root)
 {
 	u8 pin, line, dev;
 	u32 i, root_len;
+	u16 p9_base_addr;
 
 	p9dev.config = calloc(1, sizeof(*p9dev.config) + sizeof(VIRTIO_P9_TAG));
 	if (p9dev.config == NULL)
@@ -662,7 +663,8 @@ void virtio_9p__init(struct kvm *kvm, const char *root)
 
 	virtio_p9_pci_device.irq_pin	= pin;
 	virtio_p9_pci_device.irq_line	= line;
+	p9_base_addr			= ioport__register(IOPORT_EMPTY, &virtio_p9_io_ops, IOPORT_SIZE, NULL);
+	virtio_p9_pci_device.bar[0]	= p9_base_addr | PCI_BASE_ADDRESS_SPACE_IO;
+	p9dev.base_addr			= p9_base_addr;
 	pci__register(&virtio_p9_pci_device, dev);
-
-	ioport__register(IOPORT_VIRTIO_P9, &virtio_p9_io_ops, IOPORT_VIRTIO_P9_SIZE, NULL);
 }

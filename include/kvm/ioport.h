@@ -12,8 +12,6 @@
 #define IOPORT_START			0x6200
 #define IOPORT_SIZE			0x400
 
-#define IOPORT_VIRTIO_P9		0xb200	/* Virtio 9P device */
-#define IOPORT_VIRTIO_P9_SIZE		256
 #define IOPORT_VIRTIO_CONSOLE		0xd200	/* Virtio console device */
 #define IOPORT_VIRTIO_CONSOLE_SIZE	256
 #define IOPORT_VIRTIO_NET		0xe200	/* Virtio network device */
