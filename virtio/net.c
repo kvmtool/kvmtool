@@ -37,7 +37,6 @@ static struct pci_device_header pci_header = {
 	.class				= 0x020000,
 	.subsys_vendor_id		= PCI_SUBSYSTEM_VENDOR_ID_REDHAT_QUMRANET,
 	.subsys_id			= VIRTIO_ID_NET,
-	.bar[0]				= IOPORT_VIRTIO_NET | PCI_BASE_ADDRESS_SPACE_IO,
 };
 
 struct net_device {
@@ -51,6 +50,7 @@ struct net_device {
 	u8				status;
 	u8				isr;
 	u16				queue_selector;
+	u16				base_addr;
 
 	pthread_t			io_rx_thread;
 	pthread_mutex_t			io_rx_lock;
@@ -166,7 +166,7 @@ static bool virtio_net_pci_io_device_specific_in(void *data, unsigned long offse
 
 static bool virtio_net_pci_io_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
 {
-	unsigned long	offset	= port - IOPORT_VIRTIO_NET;
+	unsigned long	offset	= port - ndev.base_addr;
 	bool		ret	= true;
 
 	mutex_lock(&ndev.mutex);
@@ -230,7 +230,7 @@ static void virtio_net_handle_callback(struct kvm *kvm, u16 queue_index)
 
 static bool virtio_net_pci_io_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
 {
-	unsigned long	offset		= port - IOPORT_VIRTIO_NET;
+	unsigned long	offset		= port - ndev.base_addr;
 	bool		ret		= true;
 
 	mutex_lock(&ndev.mutex);
@@ -387,14 +387,18 @@ void virtio_net__init(const struct virtio_net_parameters *params)
 {
 	if (virtio_net__tap_init(params)) {
 		u8 dev, line, pin;
+		u16 net_base_addr;
 
 		if (irq__register_device(VIRTIO_ID_NET, &dev, &pin, &line) < 0)
 			return;
 
 		pci_header.irq_pin	= pin;
 		pci_header.irq_line	= line;
+		net_base_addr		= ioport__register(IOPORT_EMPTY, &virtio_net_io_ops, IOPORT_SIZE, NULL);
+		pci_header.bar[0]	= net_base_addr | PCI_BASE_ADDRESS_SPACE_IO;
+		ndev.base_addr		= net_base_addr;
+
 		pci__register(&pci_header, dev);
-		ioport__register(IOPORT_VIRTIO_NET, &virtio_net_io_ops, IOPORT_VIRTIO_NET_SIZE, NULL);
 
 		virtio_net__io_thread_init(params->kvm);
 	}
