@@ -9,6 +9,9 @@
 
 /* some ports we reserve for own use */
 #define IOPORT_DBG			0xe0
+#define IOPORT_START			0x6200
+#define IOPORT_SIZE			0x400
+
 #define IOPORT_VESA			0xa200
 #define IOPORT_VESA_SIZE		256
 #define IOPORT_VIRTIO_P9		0xb200	/* Virtio 9P device */
@@ -21,6 +24,8 @@
 #define IOPORT_VIRTIO_NET_SIZE		256
 #define IOPORT_VIRTIO_RNG		0xf200	/* Virtio network device */
 #define IOPORT_VIRTIO_RNG_SIZE		256
+
+#define IOPORT_EMPTY			USHRT_MAX
 
 struct kvm;
 
@@ -37,7 +42,7 @@ struct ioport_operations {
 
 void ioport__setup_legacy(void);
 
-void ioport__register(u16 port, struct ioport_operations *ops, int count, void *param);
+u16 ioport__register(u16 port, struct ioport_operations *ops, int count, void *param);
 
 static inline u8 ioport__read8(u8 *data)
 {

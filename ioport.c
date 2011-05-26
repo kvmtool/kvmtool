@@ -3,6 +3,9 @@
 #include "kvm/kvm.h"
 #include "kvm/util.h"
 
+#include "kvm/rbtree-interval.h"
+#include "kvm/mutex.h"
+
 #include <linux/kvm.h>	/* for KVM_EXIT_* */
 #include <linux/types.h>
 
@@ -14,8 +17,22 @@
 
 #define ioport_node(n) rb_entry(n, struct ioport, node)
 
+static u16 free_io_port_idx;
+DEFINE_MUTEX(free_io_port_idx_lock);
 static struct rb_root ioport_tree = RB_ROOT;
 bool ioport_debug;
+
+static u16 ioport__find_free_port(void)
+{
+	u16 free_port;
+
+	mutex_lock(&free_io_port_idx_lock);
+	free_port = IOPORT_START + free_io_port_idx * IOPORT_SIZE;
+	free_io_port_idx++;
+	mutex_unlock(&free_io_port_idx_lock);
+
+	return free_port;
+}
 
 static struct ioport *ioport_search(struct rb_root *root, u64 addr)
 {
@@ -61,9 +78,12 @@ static struct ioport_operations dummy_write_only_ioport_ops = {
 	.io_out		= dummy_io_out,
 };
 
-void ioport__register(u16 port, struct ioport_operations *ops, int count, void *param)
+u16 ioport__register(u16 port, struct ioport_operations *ops, int count, void *param)
 {
 	struct ioport *entry;
+
+	if (port == IOPORT_EMPTY)
+		port = ioport__find_free_port();
 
 	entry = ioport_search(&ioport_tree, port);
 	if (entry) {
@@ -82,6 +102,8 @@ void ioport__register(u16 port, struct ioport_operations *ops, int count, void *
 	};
 
 	ioport_insert(&ioport_tree, entry);
+
+	return port;
 }
 
 static const char *to_direction(int direction)
