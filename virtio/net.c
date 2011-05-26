@@ -164,7 +164,7 @@ static bool virtio_net_pci_io_device_specific_in(void *data, unsigned long offse
 	return true;
 }
 
-static bool virtio_net_pci_io_in(struct kvm *kvm, u16 port, void *data, int size, u32 count)
+static bool virtio_net_pci_io_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
 {
 	unsigned long	offset	= port - IOPORT_VIRTIO_NET;
 	bool		ret	= true;
@@ -228,7 +228,7 @@ static void virtio_net_handle_callback(struct kvm *kvm, u16 queue_index)
 	}
 }
 
-static bool virtio_net_pci_io_out(struct kvm *kvm, u16 port, void *data, int size, u32 count)
+static bool virtio_net_pci_io_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
 {
 	unsigned long	offset		= port - IOPORT_VIRTIO_NET;
 	bool		ret		= true;
@@ -394,7 +394,7 @@ void virtio_net__init(const struct virtio_net_parameters *params)
 		pci_header.irq_pin	= pin;
 		pci_header.irq_line	= line;
 		pci__register(&pci_header, dev);
-		ioport__register(IOPORT_VIRTIO_NET, &virtio_net_io_ops, IOPORT_VIRTIO_NET_SIZE);
+		ioport__register(IOPORT_VIRTIO_NET, &virtio_net_io_ops, IOPORT_VIRTIO_NET_SIZE, NULL);
 
 		virtio_net__io_thread_init(params->kvm);
 	}

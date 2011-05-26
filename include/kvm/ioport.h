@@ -1,6 +1,8 @@
 #ifndef KVM__IOPORT_H
 #define KVM__IOPORT_H
 
+#include "kvm/rbtree-interval.h"
+
 #include <stdbool.h>
 #include <asm/types.h>
 #include <linux/types.h>
@@ -22,14 +24,20 @@
 
 struct kvm;
 
+struct ioport {
+	struct rb_int_node		node;
+	struct ioport_operations	*ops;
+	void				*priv;
+};
+
 struct ioport_operations {
-	bool (*io_in)(struct kvm *kvm, u16 port, void *data, int size, u32 count);
-	bool (*io_out)(struct kvm *kvm, u16 port, void *data, int size, u32 count);
+	bool (*io_in)(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count);
+	bool (*io_out)(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count);
 };
 
 void ioport__setup_legacy(void);
 
-void ioport__register(u16 port, struct ioport_operations *ops, int count);
+void ioport__register(u16 port, struct ioport_operations *ops, int count, void *param);
 
 static inline u8 ioport__read8(u8 *data)
 {

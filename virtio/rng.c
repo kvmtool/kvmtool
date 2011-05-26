@@ -48,7 +48,7 @@ struct rng_dev {
 
 static struct rng_dev rdev;
 
-static bool virtio_rng_pci_io_in(struct kvm *kvm, u16 port, void *data, int size, u32 count)
+static bool virtio_rng_pci_io_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
 {
 	unsigned long offset;
 	bool ret = true;
@@ -111,7 +111,7 @@ static void virtio_rng_do_io(struct kvm *kvm, void *param)
 	}
 }
 
-static bool virtio_rng_pci_io_out(struct kvm *kvm, u16 port, void *data, int size, u32 count)
+static bool virtio_rng_pci_io_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
 {
 	unsigned long offset;
 	bool ret = true;
@@ -179,5 +179,5 @@ void virtio_rng__init(struct kvm *kvm)
 	virtio_rng_pci_device.irq_line	= line;
 	pci__register(&virtio_rng_pci_device, dev);
 
-	ioport__register(IOPORT_VIRTIO_RNG, &virtio_rng_io_ops, IOPORT_VIRTIO_RNG_SIZE);
+	ioport__register(IOPORT_VIRTIO_RNG, &virtio_rng_io_ops, IOPORT_VIRTIO_RNG_SIZE, NULL);
 }

@@ -111,7 +111,7 @@ static bool virtio_console_pci_io_device_specific_in(void *data, unsigned long o
 	return true;
 }
 
-static bool virtio_console_pci_io_in(struct kvm *kvm, u16 port, void *data, int size, u32 count)
+static bool virtio_console_pci_io_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
 {
 	unsigned long offset = port - IOPORT_VIRTIO_CONSOLE;
 	bool ret = true;
@@ -179,7 +179,7 @@ static void virtio_console_handle_callback(struct kvm *kvm, void *param)
 
 }
 
-static bool virtio_console_pci_io_out(struct kvm *kvm, u16 port, void *data, int size, u32 count)
+static bool virtio_console_pci_io_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
 {
 	unsigned long offset = port - IOPORT_VIRTIO_CONSOLE;
 	bool ret = true;
@@ -250,5 +250,5 @@ void virtio_console__init(struct kvm *kvm)
 	virtio_console_pci_device.irq_pin	= pin;
 	virtio_console_pci_device.irq_line	= line;
 	pci__register(&virtio_console_pci_device, dev);
-	ioport__register(IOPORT_VIRTIO_CONSOLE, &virtio_console_io_ops, IOPORT_VIRTIO_CONSOLE_SIZE);
+	ioport__register(IOPORT_VIRTIO_CONSOLE, &virtio_console_io_ops, IOPORT_VIRTIO_CONSOLE_SIZE, NULL);
 }

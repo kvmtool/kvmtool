@@ -19,7 +19,7 @@ static inline unsigned char bin2bcd(unsigned val)
 	return ((val / 10) << 4) + val % 10;
 }
 
-static bool cmos_ram_data_in(struct kvm *kvm, u16 port, void *data, int size, u32 count)
+static bool cmos_ram_data_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
 {
 	struct tm *tm;
 	time_t ti;
@@ -52,7 +52,7 @@ static bool cmos_ram_data_in(struct kvm *kvm, u16 port, void *data, int size, u3
 	return true;
 }
 
-static bool cmos_ram_data_out(struct kvm *kvm, u16 port, void *data, int size, u32 count)
+static bool cmos_ram_data_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
 {
 	return true;
 }
@@ -62,7 +62,7 @@ static struct ioport_operations cmos_ram_data_ioport_ops = {
 	.io_in		= cmos_ram_data_in,
 };
 
-static bool cmos_ram_index_out(struct kvm *kvm, u16 port, void *data, int size, u32 count)
+static bool cmos_ram_index_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
 {
 	u8 value;
 
@@ -82,6 +82,6 @@ static struct ioport_operations cmos_ram_index_ioport_ops = {
 void rtc__init(void)
 {
 	/* PORT 0070-007F - CMOS RAM/RTC (REAL TIME CLOCK) */
-	ioport__register(0x0070, &cmos_ram_index_ioport_ops, 1);
-	ioport__register(0x0071, &cmos_ram_data_ioport_ops, 1);
+	ioport__register(0x0070, &cmos_ram_index_ioport_ops, 1, NULL);
+	ioport__register(0x0071, &cmos_ram_data_ioport_ops, 1, NULL);
 }

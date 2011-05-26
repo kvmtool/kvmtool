@@ -164,7 +164,7 @@ static struct serial8250_device *find_device(u16 port)
 	return NULL;
 }
 
-static bool serial8250_out(struct kvm *kvm, u16 port, void *data, int size, u32 count)
+static bool serial8250_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
 {
 	struct serial8250_device *dev;
 	u16 offset;
@@ -252,7 +252,7 @@ out_unlock:
 	return ret;
 }
 
-static bool serial8250_in(struct kvm *kvm, u16 port, void *data, int size, u32 count)
+static bool serial8250_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
 {
 	struct serial8250_device *dev;
 	u16 offset;
@@ -339,7 +339,7 @@ static struct ioport_operations serial8250_ops = {
 
 static void serial8250__device_init(struct kvm *kvm, struct serial8250_device *dev)
 {
-	ioport__register(dev->iobase, &serial8250_ops, 8);
+	ioport__register(dev->iobase, &serial8250_ops, 8, NULL);
 	kvm__irq_line(kvm, dev->irq, 0);
 }
 

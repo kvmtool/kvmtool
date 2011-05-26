@@ -26,12 +26,12 @@
 
 static char videomem[VESA_MEM_SIZE];
 
-static bool vesa_pci_io_in(struct kvm *kvm, u16 port, void *data, int size, u32 count)
+static bool vesa_pci_io_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
 {
 	return true;
 }
 
-static bool vesa_pci_io_out(struct kvm *kvm, u16 port, void *data, int size, u32 count)
+static bool vesa_pci_io_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
 {
 	return true;
 }
@@ -75,7 +75,7 @@ void vesa__init(struct kvm *kvm)
 
 	pci__register(&vesa_pci_device, dev);
 
-	ioport__register(IOPORT_VESA, &vesa_io_ops, IOPORT_VESA_SIZE);
+	ioport__register(IOPORT_VESA, &vesa_io_ops, IOPORT_VESA_SIZE, NULL);
 
 	kvm__register_mmio(VESA_MEM_ADDR, VESA_MEM_SIZE, &vesa_mmio_callback);
 

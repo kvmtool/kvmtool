@@ -73,7 +73,7 @@ static void virtio_blk_port2dev(u16 port, u16 base, u16 size, u16 *dev_idx, u16 
 	*offset		= port - (base + *dev_idx * size);
 }
 
-static bool virtio_blk_pci_io_in(struct kvm *kvm, u16 port, void *data, int size, u32 count)
+static bool virtio_blk_pci_io_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
 {
 	struct blk_dev *bdev;
 	u16 offset, dev_idx;
@@ -178,7 +178,7 @@ static void virtio_blk_do_io(struct kvm *kvm, void *param)
 	virt_queue__trigger_irq(vq, bdev->pci_hdr.irq_line, &bdev->isr, kvm);
 }
 
-static bool virtio_blk_pci_io_out(struct kvm *kvm, u16 port, void *data, int size, u32 count)
+static bool virtio_blk_pci_io_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
 {
 	struct blk_dev *bdev;
 	u16 offset, dev_idx;
@@ -318,7 +318,7 @@ void virtio_blk__init(struct kvm *kvm, struct disk_image *disk)
 
 	pci__register(&bdev->pci_hdr, dev);
 
-	ioport__register(blk_dev_base_addr, &virtio_blk_io_ops, IOPORT_VIRTIO_BLK_SIZE);
+	ioport__register(blk_dev_base_addr, &virtio_blk_io_ops, IOPORT_VIRTIO_BLK_SIZE, NULL);
 }
 
 void virtio_blk__init_all(struct kvm *kvm)

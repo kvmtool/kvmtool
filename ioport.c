@@ -2,7 +2,6 @@
 
 #include "kvm/kvm.h"
 #include "kvm/util.h"
-#include "kvm/rbtree-interval.h"
 
 #include <linux/kvm.h>	/* for KVM_EXIT_* */
 #include <linux/types.h>
@@ -13,17 +12,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#define ioport_node(n) rb_entry(n, struct ioport_entry, node)
-
-struct ioport_entry {
-	struct rb_int_node		node;
-	struct ioport_operations	*ops;
-};
+#define ioport_node(n) rb_entry(n, struct ioport, node)
 
 static struct rb_root ioport_tree = RB_ROOT;
 bool ioport_debug;
 
-static struct ioport_entry *ioport_search(struct rb_root *root, u64 addr)
+static struct ioport *ioport_search(struct rb_root *root, u64 addr)
 {
 	struct rb_int_node *node;
 
@@ -34,12 +28,12 @@ static struct ioport_entry *ioport_search(struct rb_root *root, u64 addr)
 	return ioport_node(node);
 }
 
-static int ioport_insert(struct rb_root *root, struct ioport_entry *data)
+static int ioport_insert(struct rb_root *root, struct ioport *data)
 {
 	return rb_int_insert(root, &data->node);
 }
 
-static bool debug_io_out(struct kvm *kvm, u16 port, void *data, int size, u32 count)
+static bool debug_io_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
 {
 	exit(EXIT_SUCCESS);
 }
@@ -48,12 +42,12 @@ static struct ioport_operations debug_ops = {
 	.io_out		= debug_io_out,
 };
 
-static bool dummy_io_in(struct kvm *kvm, u16 port, void *data, int size, u32 count)
+static bool dummy_io_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
 {
 	return true;
 }
 
-static bool dummy_io_out(struct kvm *kvm, u16 port, void *data, int size, u32 count)
+static bool dummy_io_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
 {
 	return true;
 }
@@ -67,9 +61,9 @@ static struct ioport_operations dummy_write_only_ioport_ops = {
 	.io_out		= dummy_io_out,
 };
 
-void ioport__register(u16 port, struct ioport_operations *ops, int count)
+void ioport__register(u16 port, struct ioport_operations *ops, int count, void *param)
 {
-	struct ioport_entry *entry;
+	struct ioport *entry;
 
 	entry = ioport_search(&ioport_tree, port);
 	if (entry) {
@@ -81,9 +75,10 @@ void ioport__register(u16 port, struct ioport_operations *ops, int count)
 	if (entry == NULL)
 		die("Failed allocating new ioport entry");
 
-	*entry = (struct ioport_entry) {
+	*entry = (struct ioport) {
 		.node	= RB_INT_INIT(port, port + count),
 		.ops	= ops,
+		.priv	= param,
 	};
 
 	ioport_insert(&ioport_tree, entry);
@@ -105,30 +100,26 @@ static void ioport_error(u16 port, void *data, int direction, int size, u32 coun
 bool kvm__emulate_io(struct kvm *kvm, u16 port, void *data, int direction, int size, u32 count)
 {
 	struct ioport_operations *ops;
-	bool ret;
-	struct ioport_entry *entry;
+	bool ret = false;
+	struct ioport *entry;
 
 	entry = ioport_search(&ioport_tree, port);
 	if (!entry)
 		goto error;
 
-	ops = entry->ops;
+	ops	= entry->ops;
 
 	if (direction == KVM_EXIT_IO_IN) {
-		if (!ops->io_in)
-			goto error;
-
-		ret = ops->io_in(kvm, port, data, size, count);
-		if (!ret)
-			goto error;
+		if (ops->io_in)
+			ret = ops->io_in(entry, kvm, port, data, size, count);
 	} else {
-		if (!ops->io_out)
-			goto error;
-
-		ret = ops->io_out(kvm, port, data, size, count);
-		if (!ret)
-			goto error;
+		if (ops->io_out)
+			ret = ops->io_out(entry, kvm, port, data, size, count);
 	}
+
+	if (!ret)
+		goto error;
+
 	return true;
 error:
 	if (ioport_debug)
@@ -140,29 +131,29 @@ error:
 void ioport__setup_legacy(void)
 {
 	/* 0x0020 - 0x003F - 8259A PIC 1 */
-	ioport__register(0x0020, &dummy_read_write_ioport_ops, 2);
+	ioport__register(0x0020, &dummy_read_write_ioport_ops, 2, NULL);
 
 	/* PORT 0040-005F - PIT - PROGRAMMABLE INTERVAL TIMER (8253, 8254) */
-	ioport__register(0x0040, &dummy_read_write_ioport_ops, 4);
+	ioport__register(0x0040, &dummy_read_write_ioport_ops, 4, NULL);
 
 	/* PORT 0060-006F - KEYBOARD CONTROLLER 804x (8041, 8042) (or PPI (8255) on PC,XT) */
-	ioport__register(0x0060, &dummy_read_write_ioport_ops, 2);
-	ioport__register(0x0064, &dummy_read_write_ioport_ops, 1);
+	ioport__register(0x0060, &dummy_read_write_ioport_ops, 2, NULL);
+	ioport__register(0x0064, &dummy_read_write_ioport_ops, 1, NULL);
 
 	/* 0x00A0 - 0x00AF - 8259A PIC 2 */
-	ioport__register(0x00A0, &dummy_read_write_ioport_ops, 2);
+	ioport__register(0x00A0, &dummy_read_write_ioport_ops, 2, NULL);
 
 	/* PORT 00E0-00EF are 'motherboard specific' so we use them for our
 	   internal debugging purposes.  */
-	ioport__register(IOPORT_DBG, &debug_ops, 1);
+	ioport__register(IOPORT_DBG, &debug_ops, 1, NULL);
 
 	/* PORT 00ED - DUMMY PORT FOR DELAY??? */
-	ioport__register(0x00ED, &dummy_write_only_ioport_ops, 1);
+	ioport__register(0x00ED, &dummy_write_only_ioport_ops, 1, NULL);
 
 	/* 0x00F0 - 0x00FF - Math co-processor */
-	ioport__register(0x00F0, &dummy_write_only_ioport_ops, 2);
+	ioport__register(0x00F0, &dummy_write_only_ioport_ops, 2, NULL);
 
 	/* PORT 03D4-03D5 - COLOR VIDEO - CRT CONTROL REGISTERS */
-	ioport__register(0x03D4, &dummy_read_write_ioport_ops, 1);
-	ioport__register(0x03D5, &dummy_write_only_ioport_ops, 1);
+	ioport__register(0x03D4, &dummy_read_write_ioport_ops, 1, NULL);
+	ioport__register(0x03D5, &dummy_write_only_ioport_ops, 1, NULL);
 }
