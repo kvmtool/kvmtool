@@ -49,7 +49,6 @@ static struct pci_device_header vesa_pci_device = {
 	.class			= 0x030000,
 	.subsys_vendor_id	= PCI_SUBSYSTEM_VENDOR_ID_REDHAT_QUMRANET,
 	.subsys_id		= PCI_SUBSYSTEM_ID_VESA,
-	.bar[0]			= IOPORT_VESA   | PCI_BASE_ADDRESS_SPACE_IO,
 	.bar[1]			= VESA_MEM_ADDR | PCI_BASE_ADDRESS_SPACE_MEMORY,
 };
 
@@ -66,16 +65,16 @@ void vesa__init(struct kvm *kvm)
 {
 	u8 dev, line, pin;
 	pthread_t thread;
+	u16 vesa_base_addr;
 
 	if (irq__register_device(PCI_DEVICE_ID_VESA, &dev, &pin, &line) < 0)
 		return;
 
 	vesa_pci_device.irq_pin		= pin;
 	vesa_pci_device.irq_line	= line;
-
+	vesa_base_addr			= ioport__register(IOPORT_EMPTY, &vesa_io_ops, IOPORT_SIZE, NULL);
+	vesa_pci_device.bar[0]		= vesa_base_addr | PCI_BASE_ADDRESS_SPACE_IO;
 	pci__register(&vesa_pci_device, dev);
-
-	ioport__register(IOPORT_VESA, &vesa_io_ops, IOPORT_VESA_SIZE, NULL);
 
 	kvm__register_mmio(VESA_MEM_ADDR, VESA_MEM_SIZE, &vesa_mmio_callback);
 
