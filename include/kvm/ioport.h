@@ -20,8 +20,6 @@
 #define IOPORT_VIRTIO_CONSOLE_SIZE	256
 #define IOPORT_VIRTIO_NET		0xe200	/* Virtio network device */
 #define IOPORT_VIRTIO_NET_SIZE		256
-#define IOPORT_VIRTIO_RNG		0xf200	/* Virtio network device */
-#define IOPORT_VIRTIO_RNG_SIZE		256
 
 #define IOPORT_EMPTY			USHRT_MAX
 

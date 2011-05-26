@@ -52,6 +52,7 @@ static __thread struct kvm_cpu *current_kvm_cpu;
 
 static u64 ram_size;
 static u8  image_count;
+static int virtio_rng;
 static const char *kernel_cmdline;
 static const char *kernel_filename;
 static const char *vmlinux_filename;
@@ -66,7 +67,6 @@ static const char *script;
 static const char *virtio_9p_dir;
 static bool single_step;
 static bool readonly_image[MAX_DISK_IMAGES];
-static bool virtio_rng;
 static bool vnc;
 extern bool ioport_debug;
 extern int  active_console;
@@ -107,7 +107,7 @@ static const struct option options[] = {
 	OPT_CALLBACK('d', "disk", NULL, "image", "Disk image", img_name_parser),
 	OPT_STRING('\0', "console", &console, "serial or virtio",
 			"Console to use"),
-	OPT_BOOLEAN('\0', "rng", &virtio_rng,
+	OPT_INCR('\0', "rng", &virtio_rng,
 			"Enable virtio Random Number Generator"),
 	OPT_STRING('\0', "kvm-dev", &kvm_dev, "kvm-dev", "KVM device file"),
 	OPT_STRING('\0', "virtio-9p", &virtio_9p_dir, "root dir",
@@ -570,7 +570,8 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 		virtio_console__init(kvm);
 
 	if (virtio_rng)
-		virtio_rng__init(kvm);
+		while (virtio_rng--)
+			virtio_rng__init(kvm);
 
 	if (!network)
 		network = DEFAULT_NETWORK;
@@ -631,6 +632,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	}
 
 	virtio_blk__delete_all(kvm);
+	virtio_rng__delete_all(kvm);
 
 	disk_image__close_all(kvm->disks, image_count);
 	kvm__delete(kvm);

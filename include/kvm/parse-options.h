@@ -132,6 +132,15 @@ intptr_t defval;
 	.help = (h)                         \
 }
 
+#define OPT_INCR(s, l, v, h)                \
+{                                           \
+	.type = OPTION_INCR,	            \
+	.short_name = (s),                  \
+	.long_name = (l),                   \
+	.value = check_vtype(v, int *),     \
+	.help = (h)                         \
+}
+
 #define OPT_GROUP(h)                        \
 {                                           \
 	.type = OPTION_GROUP,               \
