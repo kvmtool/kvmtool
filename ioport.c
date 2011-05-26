@@ -17,19 +17,21 @@
 
 #define ioport_node(n) rb_entry(n, struct ioport, node)
 
-static u16 free_io_port_idx;
-DEFINE_MUTEX(free_io_port_idx_lock);
-static struct rb_root ioport_tree = RB_ROOT;
-bool ioport_debug;
+DEFINE_MUTEX(ioport_mutex);
+
+static u16			free_io_port_idx; /* protected by ioport_mutex */
+
+static struct rb_root		ioport_tree = RB_ROOT;
+bool				ioport_debug;
 
 static u16 ioport__find_free_port(void)
 {
 	u16 free_port;
 
-	mutex_lock(&free_io_port_idx_lock);
+	mutex_lock(&ioport_mutex);
 	free_port = IOPORT_START + free_io_port_idx * IOPORT_SIZE;
 	free_io_port_idx++;
-	mutex_unlock(&free_io_port_idx_lock);
+	mutex_unlock(&ioport_mutex);
 
 	return free_port;
 }
