@@ -192,7 +192,7 @@ void kvm__init_ram(struct kvm *kvm)
 		phys_size  = kvm->ram_size;
 		host_mem   = kvm->ram_start;
 
-		kvm_register_mem_slot(kvm, 0, 0, kvm->ram_size, kvm->ram_start);
+		kvm_register_mem_slot(kvm, 0, phys_start, phys_size, host_mem);
 	} else {
 		/* First RAM range from zero to the PCI gap: */
 
