@@ -36,7 +36,6 @@ static struct pci_device_header virtio_console_pci_device = {
 	.class			= 0x078000,
 	.subsys_vendor_id	= PCI_SUBSYSTEM_VENDOR_ID_REDHAT_QUMRANET,
 	.subsys_id		= VIRTIO_ID_CONSOLE,
-	.bar[0]			= IOPORT_VIRTIO_CONSOLE | PCI_BASE_ADDRESS_SPACE_IO,
 };
 
 struct con_dev {
@@ -50,6 +49,7 @@ struct con_dev {
 	u8				status;
 	u8				isr;
 	u16				queue_selector;
+	u16				base_addr;
 
 	void				*jobs[VIRTIO_CONSOLE_NUM_QUEUES];
 };
@@ -113,7 +113,7 @@ static bool virtio_console_pci_io_device_specific_in(void *data, unsigned long o
 
 static bool virtio_console_pci_io_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
 {
-	unsigned long offset = port - IOPORT_VIRTIO_CONSOLE;
+	unsigned long offset = port - cdev.base_addr;
 	bool ret = true;
 
 	mutex_lock(&cdev.mutex);
@@ -181,7 +181,7 @@ static void virtio_console_handle_callback(struct kvm *kvm, void *param)
 
 static bool virtio_console_pci_io_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
 {
-	unsigned long offset = port - IOPORT_VIRTIO_CONSOLE;
+	unsigned long offset = port - cdev.base_addr;
 	bool ret = true;
 
 	mutex_lock(&cdev.mutex);
@@ -243,12 +243,15 @@ static struct ioport_operations virtio_console_io_ops = {
 void virtio_console__init(struct kvm *kvm)
 {
 	u8 dev, line, pin;
+	u16 console_base_addr;
 
 	if (irq__register_device(VIRTIO_ID_CONSOLE, &dev, &pin, &line) < 0)
 		return;
 
 	virtio_console_pci_device.irq_pin	= pin;
 	virtio_console_pci_device.irq_line	= line;
+	console_base_addr			= ioport__register(IOPORT_EMPTY, &virtio_console_io_ops, IOPORT_SIZE, NULL);
+	virtio_console_pci_device.bar[0]	= console_base_addr | PCI_BASE_ADDRESS_SPACE_IO;
+	cdev.base_addr				= console_base_addr;
 	pci__register(&virtio_console_pci_device, dev);
-	ioport__register(IOPORT_VIRTIO_CONSOLE, &virtio_console_io_ops, IOPORT_VIRTIO_CONSOLE_SIZE, NULL);
 }
