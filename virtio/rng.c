@@ -10,6 +10,7 @@
 #include "kvm/pci.h"
 #include "kvm/threadpool.h"
 #include "kvm/irq.h"
+#include "kvm/ioeventfd.h"
 
 #include <linux/virtio_ring.h>
 #include <linux/virtio_rng.h>
@@ -177,11 +178,19 @@ static struct ioport_operations virtio_rng_io_ops = {
 	.io_out				= virtio_rng_pci_io_out,
 };
 
+static void ioevent_callback(struct kvm *kvm, void *param)
+{
+	struct rng_dev_job *job = param;
+
+	thread_pool__do_job(job->job_id);
+}
+
 void virtio_rng__init(struct kvm *kvm)
 {
-	u8 pin, line, dev;
+	u8 pin, line, dev, i;
 	u16 rdev_base_addr;
 	struct rng_dev *rdev;
+	struct ioevent ioevent;
 
 	rdev = malloc(sizeof(*rdev));
 	if (rdev == NULL)
@@ -213,6 +222,20 @@ void virtio_rng__init(struct kvm *kvm)
 	pci__register(&rdev->pci_hdr, dev);
 
 	list_add_tail(&rdev->list, &rdevs);
+
+	for (i = 0; i < NUM_VIRT_QUEUES; i++) {
+		ioevent = (struct ioevent) {
+			.io_addr		= rdev_base_addr + VIRTIO_PCI_QUEUE_NOTIFY,
+			.io_len			= sizeof(u16),
+			.fn			= ioevent_callback,
+			.fn_ptr			= &rdev->jobs[i],
+			.datamatch		= i,
+			.fn_kvm			= kvm,
+			.fd			= eventfd(0, 0),
+		};
+
+		ioeventfd__add_event(&ioevent);
+	}
 }
 
 void virtio_rng__delete_all(struct kvm *kvm)
@@ -222,6 +245,7 @@ void virtio_rng__delete_all(struct kvm *kvm)
 
 		rdev = list_first_entry(&rdevs, struct rng_dev, list);
 		list_del(&rdev->list);
+		ioeventfd__del_event(rdev->base_addr + VIRTIO_PCI_QUEUE_NOTIFY, 0);
 		free(rdev);
 	}
 }
