@@ -29,6 +29,7 @@
 #include <kvm/symbol.h>
 #include <kvm/virtio-9p.h>
 #include <kvm/vesa.h>
+#include <kvm/ioeventfd.h>
 
 /* header files for gitish interface  */
 #include <kvm/kvm-run.h>
@@ -505,6 +506,8 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	kvm = kvm__init(kvm_dev, ram_size);
 
+	ioeventfd__init();
+
 	max_cpus = kvm__max_cpus(kvm);
 
 	if (nrcpus > max_cpus) {
@@ -612,6 +615,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 		vesa__init(kvm);
 
 	thread_pool__init(nr_online_cpus);
+	ioeventfd__start();
 
 	for (i = 0; i < nrcpus; i++) {
 		if (pthread_create(&kvm_cpus[i]->thread, NULL, kvm_cpu_thread, kvm_cpus[i]) != 0)
