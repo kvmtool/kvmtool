@@ -10,6 +10,7 @@
 #include "kvm/kvm.h"
 #include "kvm/pci.h"
 #include "kvm/threadpool.h"
+#include "kvm/ioeventfd.h"
 
 #include <linux/virtio_ring.h>
 #include <linux/virtio_blk.h>
@@ -243,11 +244,19 @@ static struct ioport_operations virtio_blk_io_ops = {
 	.io_out	= virtio_blk_pci_io_out,
 };
 
+static void ioevent_callback(struct kvm *kvm, void *param)
+{
+	struct blk_dev_job *job = param;
+
+	thread_pool__do_job(job->job_id);
+}
+
 void virtio_blk__init(struct kvm *kvm, struct disk_image *disk)
 {
 	u16 blk_dev_base_addr;
-	u8 dev, pin, line;
+	u8 dev, pin, line, i;
 	struct blk_dev *bdev;
+	struct ioevent ioevent;
 
 	if (!disk)
 		return;
@@ -293,6 +302,20 @@ void virtio_blk__init(struct kvm *kvm, struct disk_image *disk)
 	bdev->pci_hdr.irq_line	= line;
 
 	pci__register(&bdev->pci_hdr, dev);
+
+	for (i = 0; i < NUM_VIRT_QUEUES; i++) {
+		ioevent = (struct ioevent) {
+			.io_addr		= blk_dev_base_addr + VIRTIO_PCI_QUEUE_NOTIFY,
+			.io_len			= sizeof(u16),
+			.fn			= ioevent_callback,
+			.datamatch		= i,
+			.fn_ptr			= &bdev->jobs[i],
+			.fn_kvm			= kvm,
+			.fd			= eventfd(0, 0),
+		};
+
+		ioeventfd__add_event(&ioevent);
+	}
 }
 
 void virtio_blk__init_all(struct kvm *kvm)
@@ -309,6 +332,7 @@ void virtio_blk__delete_all(struct kvm *kvm)
 		struct blk_dev *bdev;
 
 		bdev = list_first_entry(&bdevs, struct blk_dev, list);
+		ioeventfd__del_event(bdev->base_addr + VIRTIO_PCI_QUEUE_NOTIFY, 0);
 		list_del(&bdev->list);
 		free(bdev);
 	}
