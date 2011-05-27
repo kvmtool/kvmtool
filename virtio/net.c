@@ -8,6 +8,7 @@
 #include "kvm/kvm.h"
 #include "kvm/pci.h"
 #include "kvm/irq.h"
+#include "kvm/ioeventfd.h"
 
 #include <linux/virtio_net.h>
 #include <linux/if_tun.h>
@@ -280,6 +281,11 @@ static bool virtio_net_pci_io_out(struct ioport *ioport, struct kvm *kvm, u16 po
 	return ret;
 }
 
+static void ioevent_callback(struct kvm *kvm, void *param)
+{
+	virtio_net_handle_callback(kvm, (u64)param);
+}
+
 static struct ioport_operations virtio_net_io_ops = {
 	.io_in	= virtio_net_pci_io_in,
 	.io_out	= virtio_net_pci_io_out,
@@ -388,6 +394,8 @@ void virtio_net__init(const struct virtio_net_parameters *params)
 	if (virtio_net__tap_init(params)) {
 		u8 dev, line, pin;
 		u16 net_base_addr;
+		u64 i;
+		struct ioevent ioevent;
 
 		if (irq__register_device(VIRTIO_ID_NET, &dev, &pin, &line) < 0)
 			return;
@@ -401,5 +409,19 @@ void virtio_net__init(const struct virtio_net_parameters *params)
 		pci__register(&pci_header, dev);
 
 		virtio_net__io_thread_init(params->kvm);
+
+		for (i = 0; i < VIRTIO_NET_NUM_QUEUES; i++) {
+			ioevent = (struct ioevent) {
+				.io_addr		= net_base_addr + VIRTIO_PCI_QUEUE_NOTIFY,
+				.io_len			= sizeof(u16),
+				.fn			= ioevent_callback,
+				.datamatch		= i,
+				.fn_ptr			= (void *)i,
+				.fn_kvm			= params->kvm,
+				.fd			= eventfd(0, 0),
+			};
+
+			ioeventfd__add_event(&ioevent);
+		}
 	}
 }
