@@ -283,7 +283,7 @@ static bool virtio_net_pci_io_out(struct ioport *ioport, struct kvm *kvm, u16 po
 
 static void ioevent_callback(struct kvm *kvm, void *param)
 {
-	virtio_net_handle_callback(kvm, (u64)param);
+	virtio_net_handle_callback(kvm, (u64)(long)param);
 }
 
 static struct ioport_operations virtio_net_io_ops = {
@@ -416,7 +416,7 @@ void virtio_net__init(const struct virtio_net_parameters *params)
 				.io_len			= sizeof(u16),
 				.fn			= ioevent_callback,
 				.datamatch		= i,
-				.fn_ptr			= (void *)i,
+				.fn_ptr			= (void *)(long)i,
 				.fn_kvm			= params->kvm,
 				.fd			= eventfd(0, 0),
 			};
