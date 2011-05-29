@@ -37,7 +37,7 @@ static inline u64 get_cluster_offset(struct qcow *q, u64 offset)
 	return offset & ((1 << header->cluster_bits)-1);
 }
 
-static ssize_t qcow1_read_cluster(struct qcow *q, u64 offset, void *dst, u32 dst_len)
+static ssize_t qcow_read_cluster(struct qcow *q, u64 offset, void *dst, u32 dst_len)
 {
 	struct qcow_header *header = q->header;
 	struct qcow_table *table  = &q->table;
@@ -103,7 +103,7 @@ out_error:
 	goto out;
 }
 
-static ssize_t qcow1_read_sector(struct disk_image *disk, u64 sector, void *dst, u32 dst_len)
+static ssize_t qcow_read_sector(struct disk_image *disk, u64 sector, void *dst, u32 dst_len)
 {
 	struct qcow *q = disk->priv;
 	struct qcow_header *header = q->header;
@@ -120,7 +120,7 @@ static ssize_t qcow1_read_sector(struct disk_image *disk, u64 sector, void *dst,
 		if (offset >= header->size)
 			return -1;
 
-		nr = qcow1_read_cluster(q, offset, buf, dst_len - nr_read);
+		nr = qcow_read_cluster(q, offset, buf, dst_len - nr_read);
 		if (nr <= 0)
 			return -1;
 
@@ -153,7 +153,7 @@ static inline int qcow_pwrite_sync(int fd, void *buf, size_t count, off_t offset
 }
 
 /* Writes a level 2 table at the end of the file. */
-static u64 qcow1_write_l2_table(struct qcow *q, u64 *table)
+static u64 qcow_write_l2_table(struct qcow *q, u64 *table)
 {
 	struct qcow_header *header = q->header;
 	u64 clust_sz;
@@ -185,7 +185,7 @@ static u64 qcow1_write_l2_table(struct qcow *q, u64 *table)
  * operation fails. The two metadat operations are: level 1 and level 2 table
  * update. If either of them fails the image is truncated to a consistent state.
  */
-static ssize_t qcow1_write_cluster(struct qcow *q, u64 offset, void *buf, u32 src_len)
+static ssize_t qcow_write_cluster(struct qcow *q, u64 offset, void *buf, u32 src_len)
 {
 	struct qcow_header *header = q->header;
 	struct qcow_table  *table  = &q->table;
@@ -236,7 +236,7 @@ static ssize_t qcow1_write_cluster(struct qcow *q, u64 offset, void *buf, u32 sr
 			goto free_l2;
 
 		/* Write the l2 table of 0's at the end of the file */
-		l2t_off		= qcow1_write_l2_table(q, l2t);
+		l2t_off		= qcow_write_l2_table(q, l2t);
 		if (!l2t_off)
 			goto free_l2;
 
@@ -291,7 +291,7 @@ error:
 	return -1;
 }
 
-static ssize_t qcow1_write_sector(struct disk_image *disk, u64 sector, void *src, u32 src_len)
+static ssize_t qcow_write_sector(struct disk_image *disk, u64 sector, void *src, u32 src_len)
 {
 	struct qcow *q = disk->priv;
 	struct qcow_header *header = q->header;
@@ -308,7 +308,7 @@ static ssize_t qcow1_write_sector(struct disk_image *disk, u64 sector, void *src
 		if (offset >= header->size)
 			return -1;
 
-		nr = qcow1_write_cluster(q, offset, buf, src_len - nr_written);
+		nr = qcow_write_cluster(q, offset, buf, src_len - nr_written);
 		if (nr < 0)
 			return -1;
 
@@ -320,14 +320,14 @@ static ssize_t qcow1_write_sector(struct disk_image *disk, u64 sector, void *src
 	return nr_written;
 }
 
-static ssize_t qcow1_nowrite_sector(struct disk_image *disk, u64 sector, void *src, u32 src_len)
+static ssize_t qcow_nowrite_sector(struct disk_image *disk, u64 sector, void *src, u32 src_len)
 {
 	/* I/O error */
-	pr_info("qcow1_nowrite_sector: no write support\n");
+	pr_info("%s: no write support\n", __func__);
 	return -1;
 }
 
-static int qcow1_disk_close(struct disk_image *disk)
+static int qcow_disk_close(struct disk_image *disk)
 {
 	struct qcow *q;
 
@@ -343,16 +343,16 @@ static int qcow1_disk_close(struct disk_image *disk)
 	return 0;
 }
 
-static struct disk_image_operations qcow1_disk_readonly_ops = {
-	.read_sector		= qcow1_read_sector,
-	.write_sector		= qcow1_nowrite_sector,
-	.close			= qcow1_disk_close,
+static struct disk_image_operations qcow_disk_readonly_ops = {
+	.read_sector		= qcow_read_sector,
+	.write_sector		= qcow_nowrite_sector,
+	.close			= qcow_disk_close,
 };
 
-static struct disk_image_operations qcow1_disk_ops = {
-	.read_sector		= qcow1_read_sector,
-	.write_sector		= qcow1_write_sector,
-	.close			= qcow1_disk_close,
+static struct disk_image_operations qcow_disk_ops = {
+	.read_sector		= qcow_read_sector,
+	.write_sector		= qcow_write_sector,
+	.close			= qcow_disk_close,
 };
 
 static int qcow_read_l1_table(struct qcow *q)
@@ -440,9 +440,9 @@ static struct disk_image *qcow2_probe(int fd, bool readonly)
 	 * Do not use mmap use read/write instead
 	 */
 	if (readonly)
-		disk_image = disk_image__new(fd, h->size, &qcow1_disk_readonly_ops, DISK_IMAGE_NOMMAP);
+		disk_image = disk_image__new(fd, h->size, &qcow_disk_readonly_ops, DISK_IMAGE_NOMMAP);
 	else
-		disk_image = disk_image__new(fd, h->size, &qcow1_disk_ops, DISK_IMAGE_NOMMAP);
+		disk_image = disk_image__new(fd, h->size, &qcow_disk_ops, DISK_IMAGE_NOMMAP);
 
 	if (!disk_image)
 		goto error;
@@ -537,9 +537,9 @@ static struct disk_image *qcow1_probe(int fd, bool readonly)
 	 * Do not use mmap use read/write instead
 	 */
 	if (readonly)
-		disk_image = disk_image__new(fd, h->size, &qcow1_disk_readonly_ops, DISK_IMAGE_NOMMAP);
+		disk_image = disk_image__new(fd, h->size, &qcow_disk_readonly_ops, DISK_IMAGE_NOMMAP);
 	else
-		disk_image = disk_image__new(fd, h->size, &qcow1_disk_ops, DISK_IMAGE_NOMMAP);
+		disk_image = disk_image__new(fd, h->size, &qcow_disk_ops, DISK_IMAGE_NOMMAP);
 
 	if (!disk_image)
 		goto error;
