@@ -47,8 +47,8 @@
 #define MIN_RAM_SIZE_MB		(64ULL)
 #define MIN_RAM_SIZE_BYTE	(MIN_RAM_SIZE_MB << MB_SHIFT)
 
-static struct kvm *kvm;
-static struct kvm_cpu *kvm_cpus[KVM_NR_CPUS];
+struct kvm *kvm;
+struct kvm_cpu *kvm_cpus[KVM_NR_CPUS];
 __thread struct kvm_cpu *current_kvm_cpu;
 
 static u64 ram_size;

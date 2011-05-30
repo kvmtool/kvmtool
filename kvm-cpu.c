@@ -383,11 +383,15 @@ void kvm_cpu__run(struct kvm_cpu *vcpu)
 		die_perror("KVM_RUN failed");
 }
 
-static void kvm_cpu_exit_handler(int signum)
+static void kvm_cpu_signal_handler(int signum)
 {
-	if (current_kvm_cpu->is_running) {
-		current_kvm_cpu->is_running = false;
-		pthread_kill(pthread_self(), SIGKVMEXIT);
+	if (signum == SIGKVMEXIT) {
+		if (current_kvm_cpu->is_running) {
+			current_kvm_cpu->is_running = false;
+			pthread_kill(pthread_self(), SIGKVMEXIT);
+		}
+	} else if (signum == SIGKVMPAUSE) {
+		current_kvm_cpu->paused = 1;
 	}
 }
 
@@ -400,12 +404,18 @@ int kvm_cpu__start(struct kvm_cpu *cpu)
 
 	pthread_sigmask(SIG_BLOCK, &sigset, NULL);
 
-	signal(SIGKVMEXIT, kvm_cpu_exit_handler);
+	signal(SIGKVMEXIT, kvm_cpu_signal_handler);
+	signal(SIGKVMPAUSE, kvm_cpu_signal_handler);
 
 	kvm_cpu__setup_cpuid(cpu);
 	kvm_cpu__reset_vcpu(cpu);
 
 	for (;;) {
+		if (cpu->paused) {
+			kvm__notify_paused();
+			cpu->paused = 0;
+		}
+
 		kvm_cpu__run(cpu);
 
 		switch (cpu->kvm_run->exit_reason) {

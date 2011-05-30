@@ -12,6 +12,7 @@
 #define KVM_32BIT_GAP_START	((1ULL << 32) - KVM_32BIT_GAP_SIZE)
 
 #define SIGKVMEXIT		(SIGRTMIN + 0)
+#define SIGKVMPAUSE		(SIGRTMIN + 1)
 
 struct kvm {
 	int			sys_fd;		/* For system ioctls(), i.e. /dev/kvm */
@@ -50,6 +51,9 @@ bool kvm__emulate_io(struct kvm *kvm, u16 port, void *data, int direction, int s
 bool kvm__emulate_mmio(struct kvm *kvm, u64 phys_addr, u8 *data, u32 len, u8 is_write);
 bool kvm__register_mmio(u64 phys_addr, u64 phys_addr_len, void (*kvm_mmio_callback_fn)(u64 addr, u8 *data, u32 len, u8 is_write));
 bool kvm__deregister_mmio(u64 phys_addr);
+void kvm__pause(void);
+void kvm__continue(void);
+void kvm__notify_paused(void);
 
 /*
  * Debugging

@@ -6,6 +6,8 @@
 #include "kvm/interrupt.h"
 #include "kvm/mptable.h"
 #include "kvm/util.h"
+#include "kvm/mutex.h"
+#include "kvm/kvm-cpu.h"
 
 #include <linux/kvm.h>
 
@@ -25,6 +27,7 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <time.h>
+#include <sys/eventfd.h>
 
 #define DEFINE_KVM_EXIT_REASON(reason) [reason] = #reason
 
@@ -67,6 +70,11 @@ struct {
 	{ DEFINE_KVM_EXT(KVM_CAP_IRQ_INJECT_STATUS) },
 	{ DEFINE_KVM_EXT(KVM_CAP_EXT_CPUID) },
 };
+
+extern struct kvm *kvm;
+extern struct kvm_cpu *kvm_cpus[KVM_NR_CPUS];
+static int pause_event;
+static DEFINE_MUTEX(pause_lock);
 
 static bool kvm__supports_extension(struct kvm *kvm, unsigned int extension)
 {
@@ -574,4 +582,50 @@ void kvm__dump_mem(struct kvm *kvm, unsigned long addr, unsigned long size)
 			addr + n, p[n + 0], p[n + 1], p[n + 2], p[n + 3],
 				  p[n + 4], p[n + 5], p[n + 6], p[n + 7]);
 	}
+}
+
+void kvm__pause(void)
+{
+	int i, paused_vcpus = 0;
+
+	/* Check if the guest is running */
+	if (!kvm_cpus[0] || kvm_cpus[0]->thread == 0)
+		return;
+
+	mutex_lock(&pause_lock);
+
+	pause_event = eventfd(0, 0);
+	if (pause_event < 0)
+		die("Failed creating pause notification event");
+	for (i = 0; i < kvm->nrcpus; i++)
+		pthread_kill(kvm_cpus[i]->thread, SIGKVMPAUSE);
+
+	while (paused_vcpus < kvm->nrcpus) {
+		u64 cur_read;
+
+		if (read(pause_event, &cur_read, sizeof(cur_read)) < 0)
+			die("Failed reading pause event");
+		paused_vcpus += cur_read;
+	}
+	close(pause_event);
+}
+
+void kvm__continue(void)
+{
+	/* Check if the guest is running */
+	if (!kvm_cpus[0] || kvm_cpus[0]->thread == 0)
+		return;
+
+	mutex_unlock(&pause_lock);
+}
+
+void kvm__notify_paused(void)
+{
+	u64 p = 1;
+
+	if (write(pause_event, &p, sizeof(p)) < 0)
+		die("Failed notifying of paused VCPU.");
+
+	mutex_lock(&pause_lock);
+	mutex_unlock(&pause_lock);
 }
