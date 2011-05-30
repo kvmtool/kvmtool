@@ -2,7 +2,7 @@
 
 #include "kvm/kvm.h"
 #include "kvm/util.h"
-
+#include "kvm/brlock.h"
 #include "kvm/rbtree-interval.h"
 #include "kvm/mutex.h"
 
@@ -84,6 +84,7 @@ u16 ioport__register(u16 port, struct ioport_operations *ops, int count, void *p
 {
 	struct ioport *entry;
 
+	br_write_lock();
 	if (port == IOPORT_EMPTY)
 		port = ioport__find_free_port();
 
@@ -104,6 +105,8 @@ u16 ioport__register(u16 port, struct ioport_operations *ops, int count, void *p
 	};
 
 	ioport_insert(&ioport_tree, entry);
+
+	br_write_unlock();
 
 	return port;
 }
@@ -127,6 +130,7 @@ bool kvm__emulate_io(struct kvm *kvm, u16 port, void *data, int direction, int s
 	bool ret = false;
 	struct ioport *entry;
 
+	br_read_lock();
 	entry = ioport_search(&ioport_tree, port);
 	if (!entry)
 		goto error;
@@ -141,11 +145,15 @@ bool kvm__emulate_io(struct kvm *kvm, u16 port, void *data, int direction, int s
 			ret = ops->io_out(entry, kvm, port, data, size, count);
 	}
 
+	br_read_unlock();
+
 	if (!ret)
 		goto error;
 
 	return true;
 error:
+	br_read_unlock();
+
 	if (ioport_debug)
 		ioport_error(port, data, direction, size, count);
 
