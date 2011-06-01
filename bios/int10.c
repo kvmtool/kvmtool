@@ -20,14 +20,16 @@ struct int10_args {
 
 /* VESA General Information table */
 struct vesa_general_info {
-	u32 signature;			/* 0 Magic number = "VESA" */
-	u16 version;			/* 4 */
-	void *vendor_string;		/* 6 */
-	u32 capabilities;		/* 10 */
-	void *video_mode_ptr;		/* 14 */
-	u16 total_memory;		/* 18 */
+	u32	signature;		/* 0 Magic number = "VESA" */
+	u16	version;		/* 4 */
+	void	*vendor_string;		/* 6 */
+	u32	capabilities;		/* 10 */
+	void	*video_mode_ptr;	/* 14 */
+	u16	total_memory;		/* 18 */
+	u16	modes[2];		/* 20 */
+	char	oem_string[11];		/* 24 */
 
-	u8 reserved[236];		/* 20 */
+	u8 reserved[223];		/* 35 */
 } __attribute__ ((packed));
 
 
@@ -69,9 +71,6 @@ struct vminfo {
 	u8	reserved[206];		/* 50 */
 };
 
-char oemstring[11] = "KVM VESA";
-u16 modes[2] = { 0x0112, 0xffff };
-
 static inline void outb(unsigned short port, unsigned char val)
 {
 	asm volatile("outb %0, %1" : : "a"(val), "Nd"(port));
@@ -104,10 +103,12 @@ static void int10_vesa(struct int10_args *args)
 		*destination = (struct vesa_general_info) {
 			.signature	= VESA_MAGIC,
 			.version	= 0x102,
-			.vendor_string	= oemstring,
+			.vendor_string	= &destination->oem_string,
 			.capabilities	= 0x10,
-			.video_mode_ptr	= modes,
+			.video_mode_ptr	= &destination->modes,
 			.total_memory	= (4*VESA_WIDTH * VESA_HEIGHT) / 0x10000,
+			.oem_string	= "KVM VESA",
+			.modes		= { 0x0112, 0xffff },
 		};
 
 		break;
