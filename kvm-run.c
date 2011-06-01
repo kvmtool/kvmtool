@@ -30,6 +30,7 @@
 #include <kvm/virtio-9p.h>
 #include <kvm/vesa.h>
 #include <kvm/ioeventfd.h>
+#include <kvm/i8042.h>
 
 /* header files for gitish interface  */
 #include <kvm/kvm-run.h>
@@ -626,8 +627,10 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	kvm__init_ram(kvm);
 
-	if (vnc)
+	if (vnc) {
+		kbd__init(kvm);
 		vesa__init(kvm);
+	}
 
 	thread_pool__init(nr_online_cpus);
 	ioeventfd__start();

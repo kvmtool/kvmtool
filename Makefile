@@ -64,6 +64,7 @@ has_vncserver := $(call try-cc,$(SOURCE_VNCSERVER),$(FLAGS_VNCSERVER))
 ifeq ($(has_vncserver),y)
 	CFLAGS	+= -DCONFIG_HAS_VNCSERVER
 	OBJS	+= hw/vesa.o
+	OBJS    += hw/i8042.o
 	LIBS	+= -lvncserver
 endif
 

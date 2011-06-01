@@ -7,6 +7,7 @@
 #include "kvm/irq.h"
 #include "kvm/kvm.h"
 #include "kvm/pci.h"
+#include "kvm/i8042.h"
 
 #include <sys/types.h>
 #include <sys/ioctl.h>
@@ -99,6 +100,8 @@ void *vesa__dovnc(void *v)
 	server = rfbGetScreen(&argc, (char **) argv, VESA_WIDTH, VESA_HEIGHT, 8, 3, 4);
 	server->frameBuffer		= videomem;
 	server->alwaysShared		= TRUE;
+	server->kbdAddEvent		= kbd_handle_key;
+	server->ptrAddEvent		= kbd_handle_ptr;
 	rfbInitServer(server);
 
 	while (rfbIsActive(server)) {
