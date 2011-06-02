@@ -39,11 +39,14 @@
 #define AUX_DEFAULT_RESOLUTION	0x2
 #define AUX_DEFAULT_SAMPLE	100
 
-#define KBD_STATUS_SYS		0x4
-#define KBD_STATUS_A2		0x8
-#define KBD_STATUS_INH		0x10
-#define KBD_STATUS_OBF		0x01
+/*
+ * Status register bits
+ */
 #define KBD_STATUS_AUX_OBF	0x20
+#define KBD_STATUS_INH		0x10
+#define KBD_STATUS_A2		0x08
+#define KBD_STATUS_SYS		0x04
+#define KBD_STATUS_OBF		0x01
 
 #define KBD_MODE_KBD_INT	0x01
 #define KBD_MODE_SYS		0x02
