@@ -5,11 +5,13 @@
 #include <assert.h>
 
 /* user defined header files */
-#include <kvm/kvm-cmd.h>
-#include <kvm/kvm-help.h>
-#include <kvm/kvm-run.h>
+#include "kvm/kvm-debug.h"
+#include "kvm/kvm-help.h"
+#include "kvm/kvm-cmd.h"
+#include "kvm/kvm-run.h"
 
 struct cmd_struct kvm_commands[] = {
+	{ "debug", kvm_cmd_debug, NULL,         0 },
 	{ "help",  kvm_cmd_help,  NULL,         0 },
 	{ "run",   kvm_cmd_run,   kvm_run_help, 0 },
 	{ NULL,    NULL,          NULL,         0 },
