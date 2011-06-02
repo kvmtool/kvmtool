@@ -140,10 +140,7 @@ static void kbd_queue(u8 c)
 	kbd_update_irq();
 }
 
-/*
- * This function is called when the OS issues a write to port 0x64
- */
-static void kbd_write_command(u32 val)
+static void kbd_write_command(u8 val)
 {
 	switch (val) {
 	case I8042_CMD_CTL_RCTR:
@@ -451,27 +448,40 @@ void kbd_handle_ptr(int buttonMask, int x, int y, rfbClientPtr cl)
  */
 static bool kbd_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
 {
-	u32 result;
-
-	if (port == I8042_COMMAND_REG) {
-		result = kbd_read_status();
-		ioport__write8(data, (char)result);
-	} else {
-		result = kbd_read_data();
-		ioport__write32(data, result);
+	switch (port) {
+	case I8042_COMMAND_REG: {
+		u8 value = kbd_read_status();
+		ioport__write8(data, value);
+		break;
 	}
+	case I8042_DATA_REG: {
+		u32 value = kbd_read_data();
+		ioport__write32(data, value);
+		break;
+	}
+	default:
+		return false;
+	}
+
 	return true;
 }
 
-/*
- * Called when the OS attempts to read from a keyboard port (0x60 or 0x64)
- */
 static bool kbd_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
 {
-	if (port == I8042_COMMAND_REG)
-		kbd_write_command(*((u32 *)data));
-	else
-		kbd_write_data(*((u32 *)data));
+	switch (port) {
+	case I8042_COMMAND_REG: {
+		u8 value = ioport__read8(data);
+		kbd_write_command(value);
+		break;
+	}
+	case I8042_DATA_REG: {
+		u32 value = ioport__read32(data);
+		kbd_write_data(value);
+		break;
+	}
+	default:
+		return false;
+	}
 
 	return true;
 }
