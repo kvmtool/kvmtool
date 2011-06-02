@@ -42,11 +42,11 @@
 /*
  * Status register bits
  */
-#define KBD_STATUS_AUX_OBF	0x20
-#define KBD_STATUS_INH		0x10
-#define KBD_STATUS_A2		0x08
-#define KBD_STATUS_SYS		0x04
-#define KBD_STATUS_OBF		0x01
+#define I8042_STR_AUXDATA	0x20
+#define I8042_STR_KEYLOCK	0x10
+#define I8042_STR_CMDDAT	0x08
+#define I8042_STR_MUXERR	0x04
+#define I8042_STR_OBF		0x01
 
 #define KBD_MODE_KBD_INT	0x01
 #define KBD_MODE_SYS		0x02
@@ -92,16 +92,16 @@ static void kbd_update_irq(void)
 	u8 mlevel = 0;
 
 	/* First, clear the kbd and aux output buffer full bits */
-	state.status &= ~(KBD_STATUS_OBF | KBD_STATUS_AUX_OBF);
+	state.status &= ~(I8042_STR_OBF | I8042_STR_AUXDATA);
 
 	if (state.kcount > 0) {
-		state.status |= KBD_STATUS_OBF;
+		state.status |= I8042_STR_OBF;
 		klevel = 1;
 	}
 
 	/* Keyboard has higher priority than mouse */
 	if (klevel == 0 && state.mcount != 0) {
-		state.status |= KBD_STATUS_OBF | KBD_STATUS_AUX_OBF;
+		state.status |= I8042_STR_OBF | I8042_STR_AUXDATA;
 		mlevel = 1;
 	}
 
@@ -281,7 +281,7 @@ static void kbd_write_data(u32 val)
 static void kbd_reset(void)
 {
 	state = (struct kbd_state) {
-		.status		= KBD_STATUS_SYS | KBD_STATUS_A2 | KBD_STATUS_INH, /* 0x1c */
+		.status		= I8042_STR_MUXERR | I8042_STR_CMDDAT | I8042_STR_KEYLOCK, /* 0x1c */
 		.mode		= KBD_MODE_KBD_INT | KBD_MODE_SYS, /* 0x3 */
 		.mres		= AUX_DEFAULT_RESOLUTION,
 		.msample	= AUX_DEFAULT_SAMPLE,
