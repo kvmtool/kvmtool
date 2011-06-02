@@ -22,13 +22,16 @@
 #define I8042_DATA_REG		0x60
 #define I8042_COMMAND_REG	0x64
 
-#define CMD_READ_MODE		0x20
-#define CMD_WRITE_MODE		0x60
-#define CMD_WRITE_AUX_BUF	0xD3
-#define CMD_WRITE_AUX		0xD4
-#define CMD_TEST_AUX		0xA9
-#define CMD_DISABLE_AUX		0xA7
-#define CMD_ENABLE_AUX		0xA8
+/*
+ * Commands
+ */
+#define I8042_CMD_CTL_RCTR	0x20
+#define I8042_CMD_CTL_WCTR	0x60
+#define I8042_CMD_AUX_LOOP	0xD3
+#define I8042_CMD_AUX_SEND	0xD4
+#define I8042_CMD_AUX_TEST	0xA9
+#define I8042_CMD_AUX_DISABLE	0xA7
+#define I8042_CMD_AUX_ENABLE	0xA8
 
 #define RESPONSE_ACK		0xFA
 
@@ -143,22 +146,22 @@ static void kbd_queue(u8 c)
 static void kbd_write_command(u32 val)
 {
 	switch (val) {
-	case CMD_READ_MODE:
+	case I8042_CMD_CTL_RCTR:
 		kbd_queue(state.mode);
 		break;
-	case CMD_WRITE_MODE:
-	case CMD_WRITE_AUX:
-	case CMD_WRITE_AUX_BUF:
+	case I8042_CMD_CTL_WCTR:
+	case I8042_CMD_AUX_SEND:
+	case I8042_CMD_AUX_LOOP:
 		state.write_cmd = val;
 		break;
-	case CMD_TEST_AUX:
+	case I8042_CMD_AUX_TEST:
 		/* 0 means we're a normal PS/2 mouse */
 		mouse_queue(0);
 		break;
-	case CMD_DISABLE_AUX:
+	case I8042_CMD_AUX_DISABLE:
 		state.mode |= MODE_DISABLE_AUX;
 		break;
-	case CMD_ENABLE_AUX:
+	case I8042_CMD_AUX_ENABLE:
 		state.mode &= ~MODE_DISABLE_AUX;
 		break;
 	default:
@@ -211,15 +214,15 @@ static u32 kbd_read_status(void)
 static void kbd_write_data(u32 val)
 {
 	switch (state.write_cmd) {
-	case CMD_WRITE_MODE:
+	case I8042_CMD_CTL_WCTR:
 		state.mode = val;
 		kbd_update_irq();
 		break;
-	case CMD_WRITE_AUX_BUF:
+	case I8042_CMD_AUX_LOOP:
 		mouse_queue(val);
 		mouse_queue(RESPONSE_ACK);
 		break;
-	case CMD_WRITE_AUX:
+	case I8042_CMD_AUX_SEND:
 		/* The OS wants to send a command to the mouse */
 		mouse_queue(RESPONSE_ACK);
 		switch (val) {
