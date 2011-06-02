@@ -10,8 +10,17 @@
 #include <rfb/rfb.h>
 #include <stdint.h>
 
+/*
+ * IRQs
+ */
 #define KBD_IRQ			1
 #define AUX_IRQ			12
+
+/*
+ * Registers
+ */
+#define I8042_DATA_REG		0x60
+#define I8042_COMMAND_REG	0x64
 
 #define CMD_READ_MODE		0x20
 #define CMD_WRITE_MODE		0x60
@@ -438,7 +447,7 @@ static bool kbd_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data,
 {
 	u32 result;
 
-	if (port == 0x64) {
+	if (port == I8042_COMMAND_REG) {
 		result = kbd_read_status();
 		ioport__write8(data, (char)result);
 	} else {
@@ -453,7 +462,7 @@ static bool kbd_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data,
  */
 static bool kbd_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
 {
-	if (port == 0x64)
+	if (port == I8042_COMMAND_REG)
 		kbd_write_command(*((u32 *)data));
 	else
 		kbd_write_data(*((u32 *)data));
@@ -470,6 +479,6 @@ void kbd__init(struct kvm *kvm)
 {
 	kbd_reset();
 	state.kvm = kvm;
-	ioport__register(0x60, &kbd_ops, 2, NULL);
-	ioport__register(0x64, &kbd_ops, 2, NULL);
+	ioport__register(I8042_DATA_REG, &kbd_ops, 2, NULL);
+	ioport__register(I8042_COMMAND_REG, &kbd_ops, 2, NULL);
 }
