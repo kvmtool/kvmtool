@@ -29,9 +29,8 @@ struct vesa_general_info {
 	u16	modes[2];		/* 20 */
 	char	oem_string[11];		/* 24 */
 
-	u8 reserved[223];		/* 35 */
+	u8	reserved[223];		/* 35 */
 } __attribute__ ((packed));
-
 
 struct vminfo {
 	u16	mode_attr;		/* 0 */
@@ -87,56 +86,63 @@ static inline void int10_putchar(struct int10_args *args)
 	outb(0x3f8, al);
 }
 
+static void vbe_get_mode(struct int10_args *args)
+{
+	struct vminfo *info = (struct vminfo *) args->edi;
+
+	*info = (struct vminfo) {
+		.mode_attr		= 0xd9, /* 11011011 */
+		.logical_scan		= VESA_WIDTH*4,
+		.h_res			= VESA_WIDTH,
+		.v_res			= VESA_HEIGHT,
+		.bpp			= VESA_BPP,
+		.memory_layout		= 6,
+		.memory_planes		= 1,
+		.lfb_ptr		= VESA_MEM_ADDR,
+		.rmask			= 8,
+		.gmask			= 8,
+		.bmask			= 8,
+		.resv_mask		= 8,
+		.resv_pos		= 24,
+		.bpos			= 16,
+		.gpos			= 8,
+	};
+}
+
+static void vbe_get_info(struct int10_args *args)
+{
+	struct vesa_general_info *info = (struct vesa_general_info *) args->edi;
+
+	*info = (struct vesa_general_info) {
+		.signature		= VESA_MAGIC,
+		.version		= 0x102,
+		.vendor_string		= &info->oem_string,
+		.capabilities		= 0x10,
+		.video_mode_ptr		= &info->modes,
+		.total_memory		= (4 * VESA_WIDTH * VESA_HEIGHT) / 0x10000,
+		.oem_string		= "KVM VESA",
+		.modes			= { 0x0112, 0xffff },
+	};
+}
+
+#define VBE_STATUS_OK		0x004F
+
 static void int10_vesa(struct int10_args *args)
 {
 	u8 al;
-	struct vesa_general_info *destination;
-	struct vminfo *vi;
 
 	al = args->eax;
 
 	switch (al) {
-	case 0:
-		/* Set controller info */
-
-		destination = (struct vesa_general_info *)args->edi;
-		*destination = (struct vesa_general_info) {
-			.signature	= VESA_MAGIC,
-			.version	= 0x102,
-			.vendor_string	= &destination->oem_string,
-			.capabilities	= 0x10,
-			.video_mode_ptr	= &destination->modes,
-			.total_memory	= (4*VESA_WIDTH * VESA_HEIGHT) / 0x10000,
-			.oem_string	= "KVM VESA",
-			.modes		= { 0x0112, 0xffff },
-		};
-
+	case 0x00:
+		vbe_get_info(args);
 		break;
-	case 1:
-		vi = (struct vminfo *)args->edi;
-		*vi = (struct vminfo) {
-			.mode_attr	= 0xd9, /* 11011011 */
-			.logical_scan	= VESA_WIDTH*4,
-			.h_res		= VESA_WIDTH,
-			.v_res		= VESA_HEIGHT,
-			.bpp		= VESA_BPP,
-			.memory_layout	= 6,
-			.memory_planes	= 1,
-			.lfb_ptr	= VESA_MEM_ADDR,
-			.rmask		= 8,
-			.gmask		= 8,
-			.bmask		= 8,
-			.resv_mask	= 8,
-			.resv_pos	= 24,
-			.bpos		= 16,
-			.gpos		= 8,
-		};
-
+	case 0x01:
+		vbe_get_mode(args);
 		break;
 	}
 
-	args->eax			= 0x004f; /* return success every time */
-
+	args->eax = VBE_STATUS_OK;
 }
 
 bioscall void int10_handler(struct int10_args *args)
