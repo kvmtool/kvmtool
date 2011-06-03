@@ -131,7 +131,7 @@ static void int10_vesa(struct int10_args *args)
 {
 	u8 al;
 
-	al = args->eax;
+	al = args->eax & 0xff;
 
 	switch (al) {
 	case 0x00:
