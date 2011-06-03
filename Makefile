@@ -17,6 +17,7 @@ TAGS = ctags
 
 OBJS	+= cpuid.o
 OBJS	+= disk/core.o
+OBJS	+= framebuffer.o
 OBJS	+= hw/rtc.o
 OBJS	+= hw/serial.o
 OBJS	+= interrupt.o

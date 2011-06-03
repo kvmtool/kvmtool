@@ -1,0 +1,35 @@
+#ifndef KVM__FRAMEBUFFER_H
+#define KVM__FRAMEBUFFER_H
+
+#include <linux/types.h>
+#include <linux/list.h>
+
+struct framebuffer;
+
+struct fb_target_operations {
+	int (*start)(struct framebuffer *fb);
+	void (*write)(struct framebuffer *fb, u64 addr, u8 *data, u32 len);
+};
+
+#define FB_MAX_TARGETS			2
+
+struct framebuffer {
+	struct list_head		node;
+
+	u32				width;
+	u32				height;
+	u8				depth;
+	char				*mem;
+	u64				mem_addr;
+
+	unsigned long			nr_targets;
+	struct fb_target_operations	*targets[FB_MAX_TARGETS];
+};
+
+struct framebuffer *fb__register(struct framebuffer *fb);
+int fb__attach(struct framebuffer *fb, struct fb_target_operations *ops);
+int fb__start(void);
+void fb__stop(void);
+void fb__write(u64 addr, u8 *data, u32 len);
+
+#endif /* KVM__FRAMEBUFFER_H */
