@@ -31,6 +31,8 @@
 #include <kvm/vesa.h>
 #include <kvm/ioeventfd.h>
 #include <kvm/i8042.h>
+#include <kvm/vnc.h>
+#include <kvm/framebuffer.h>
 
 /* header files for gitish interface  */
 #include <kvm/kvm-run.h>
@@ -426,13 +428,14 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 {
 	struct virtio_net_parameters net_params;
 	static char real_cmdline[2048];
+	struct framebuffer *fb = NULL;
 	unsigned int nr_online_cpus;
 	int exit_code = 0;
+	u16 vidmode = 0;
 	int max_cpus;
 	char *hi;
 	int i;
 	void *ret;
-	u16 vidmode = 0;
 
 	signal(SIGALRM, handle_sigalrm);
 	signal(SIGQUIT, handle_sigquit);
@@ -629,8 +632,13 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	if (vnc) {
 		kbd__init(kvm);
-		vesa__init(kvm);
+		fb = vesa__init(kvm);
 	}
+
+	if (fb)
+		vnc__init(fb);
+
+	fb__start();
 
 	thread_pool__init(nr_online_cpus);
 	ioeventfd__start();
@@ -652,6 +660,8 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 		if (ret != NULL)
 			exit_code = 1;
 	}
+
+	fb__stop();
 
 	virtio_blk__delete_all(kvm);
 	virtio_rng__delete_all(kvm);

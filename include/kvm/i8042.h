@@ -1,6 +1,8 @@
 #ifndef KVM__PCKBD_H
 #define KVM__PCKBD_H
 
+struct kvm;
+
 void kbd__init(struct kvm *kvm);
 
 #ifdef CONFIG_HAS_VNCSERVER

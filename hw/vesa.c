@@ -1,31 +1,18 @@
 #include "kvm/vesa.h"
 
 #include "kvm/virtio-pci-dev.h"
+#include "kvm/framebuffer.h"
 #include "kvm/kvm-cpu.h"
 #include "kvm/ioport.h"
 #include "kvm/util.h"
 #include "kvm/irq.h"
 #include "kvm/kvm.h"
 #include "kvm/pci.h"
-#include "kvm/i8042.h"
 
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <inttypes.h>
 #include <unistd.h>
-
-#include <rfb/rfb.h>
-
-#define VESA_QUEUE_SIZE		128
-#define VESA_IRQ		14
-
-/*
- * This "6000" value is pretty much the result of experimentation
- * It seems that around this value, things update pretty smoothly
- */
-#define VESA_UPDATE_TIME	6000
-
-static char videomem[VESA_MEM_SIZE];
 
 static bool vesa_pci_io_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
 {
@@ -53,23 +40,24 @@ static struct pci_device_header vesa_pci_device = {
 	.bar[1]			= VESA_MEM_ADDR | PCI_BASE_ADDRESS_SPACE_MEMORY,
 };
 
-
-void vesa_mmio_callback(u64 addr, u8 *data, u32 len, u8 is_write)
+static void vesa_mmio_callback(u64 addr, u8 *data, u32 len, u8 is_write)
 {
 	if (!is_write)
 		return;
 
-	memcpy(&videomem[addr - VESA_MEM_ADDR], data, len);
+	fb__write(addr, data, len);
 }
 
-void vesa__init(struct kvm *kvm)
+static struct framebuffer vesafb;
+
+struct framebuffer *vesa__init(struct kvm *kvm)
 {
-	u8 dev, line, pin;
-	pthread_t thread;
 	u16 vesa_base_addr;
+	u8 dev, line, pin;
+	char *mem;
 
 	if (irq__register_device(PCI_DEVICE_ID_VESA, &dev, &pin, &line) < 0)
-		return;
+		return NULL;
 
 	vesa_pci_device.irq_pin		= pin;
 	vesa_pci_device.irq_line	= line;
@@ -79,34 +67,16 @@ void vesa__init(struct kvm *kvm)
 
 	kvm__register_mmio(VESA_MEM_ADDR, VESA_MEM_SIZE, &vesa_mmio_callback);
 
-	pthread_create(&thread, NULL, vesa__dovnc, kvm);
-}
+	mem = calloc(1, VESA_MEM_SIZE);
+	if (!mem)
+		return NULL;
 
-/*
- * This starts a VNC server to display the framebuffer.
- * It's not altogether clear this belongs here rather than in kvm-run.c
- */
-void *vesa__dovnc(void *v)
-{
-	/*
-	 * Make a fake argc and argv because the getscreen function
-	 * seems to want it.
-	 */
-	char argv[1][1] = {{0}};
-	int argc = 1;
-
-	rfbScreenInfoPtr server;
-
-	server = rfbGetScreen(&argc, (char **) argv, VESA_WIDTH, VESA_HEIGHT, 8, 3, 4);
-	server->frameBuffer		= videomem;
-	server->alwaysShared		= TRUE;
-	server->kbdAddEvent		= kbd_handle_key;
-	server->ptrAddEvent		= kbd_handle_ptr;
-	rfbInitServer(server);
-
-	while (rfbIsActive(server)) {
-		rfbMarkRectAsModified(server, 0, 0, VESA_WIDTH, VESA_HEIGHT);
-		rfbProcessEvents(server, server->deferUpdateTime * VESA_UPDATE_TIME);
-	}
-	return NULL;
+	vesafb = (struct framebuffer) {
+		.width			= VESA_WIDTH,
+		.height			= VESA_HEIGHT,
+		.depth			= VESA_BPP,
+		.mem			= mem,
+		.mem_addr		= VESA_MEM_ADDR,
+	};
+	return fb__register(&vesafb);
 }

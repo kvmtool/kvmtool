@@ -13,13 +13,7 @@
 struct kvm;
 struct int10_args;
 
-void vesa_mmio_callback(u64, u8*, u32, u8);
-void vesa__init(struct kvm *self);
-void *vesa__dovnc(void *);
+struct framebuffer *vesa__init(struct kvm *self);
 void int10_handler(struct int10_args *args);
-
-#ifndef CONFIG_HAS_VNCSERVER
-void vesa__init(struct kvm *self) { }
-#endif
 
 #endif
