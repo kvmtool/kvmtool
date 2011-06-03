@@ -24,6 +24,8 @@ struct kvm_cpu {
 
 	u8			is_running;
 	u8			paused;
+
+	struct kvm_coalesced_mmio_ring	*ring;
 };
 
 struct kvm_cpu *kvm_cpu__init(struct kvm *kvm, unsigned long cpu_id);

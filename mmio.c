@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <sys/ioctl.h>
+#include <linux/kvm.h>
 #include <linux/types.h>
 #include <linux/rbtree.h>
 
@@ -53,9 +55,10 @@ static const char *to_direction(u8 is_write)
 	return "read";
 }
 
-bool kvm__register_mmio(u64 phys_addr, u64 phys_addr_len, void (*kvm_mmio_callback_fn)(u64 addr, u8 *data, u32 len, u8 is_write))
+bool kvm__register_mmio(struct kvm *kvm, u64 phys_addr, u64 phys_addr_len, void (*kvm_mmio_callback_fn)(u64 addr, u8 *data, u32 len, u8 is_write))
 {
 	struct mmio_mapping *mmio;
+	struct kvm_coalesced_mmio_zone zone;
 	int ret;
 
 	mmio = malloc(sizeof(*mmio));
@@ -67,6 +70,16 @@ bool kvm__register_mmio(u64 phys_addr, u64 phys_addr_len, void (*kvm_mmio_callba
 		.kvm_mmio_callback_fn = kvm_mmio_callback_fn,
 	};
 
+	zone = (struct kvm_coalesced_mmio_zone) {
+		.addr	= phys_addr,
+		.size	= phys_addr_len,
+	};
+	ret = ioctl(kvm->vm_fd, KVM_REGISTER_COALESCED_MMIO, &zone);
+	if (ret < 0) {
+		free(mmio);
+		return false;
+	}
+
 	br_write_lock();
 	ret = mmio_insert(&mmio_tree, mmio);
 	br_write_unlock();
@@ -74,9 +87,10 @@ bool kvm__register_mmio(u64 phys_addr, u64 phys_addr_len, void (*kvm_mmio_callba
 	return ret;
 }
 
-bool kvm__deregister_mmio(u64 phys_addr)
+bool kvm__deregister_mmio(struct kvm *kvm, u64 phys_addr)
 {
 	struct mmio_mapping *mmio;
+	struct kvm_coalesced_mmio_zone zone;
 
 	br_write_lock();
 	mmio = mmio_search_single(&mmio_tree, phys_addr);
@@ -84,6 +98,12 @@ bool kvm__deregister_mmio(u64 phys_addr)
 		br_write_unlock();
 		return false;
 	}
+
+	zone = (struct kvm_coalesced_mmio_zone) {
+		.addr	= phys_addr,
+		.size	= 1,
+	};
+	ioctl(kvm->vm_fd, KVM_UNREGISTER_COALESCED_MMIO, &zone);
 
 	rb_int_erase(&mmio_tree, &mmio->node);
 	br_write_unlock();

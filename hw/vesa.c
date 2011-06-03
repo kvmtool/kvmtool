@@ -65,7 +65,7 @@ struct framebuffer *vesa__init(struct kvm *kvm)
 	vesa_pci_device.bar[0]		= vesa_base_addr | PCI_BASE_ADDRESS_SPACE_IO;
 	pci__register(&vesa_pci_device, dev);
 
-	kvm__register_mmio(VESA_MEM_ADDR, VESA_MEM_SIZE, &vesa_mmio_callback);
+	kvm__register_mmio(kvm, VESA_MEM_ADDR, VESA_MEM_SIZE, &vesa_mmio_callback);
 
 	mem = calloc(1, VESA_MEM_SIZE);
 	if (!mem)

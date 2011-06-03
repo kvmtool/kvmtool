@@ -14,6 +14,8 @@
 #include <errno.h>
 #include <stdio.h>
 
+#define PAGE_SIZE (sysconf(_SC_PAGE_SIZE))
+
 extern __thread struct kvm_cpu *current_kvm_cpu;
 
 static inline bool is_in_protected_mode(struct kvm_cpu *vcpu)
@@ -70,6 +72,7 @@ struct kvm_cpu *kvm_cpu__init(struct kvm *kvm, unsigned long cpu_id)
 {
 	struct kvm_cpu *vcpu;
 	int mmap_size;
+	int coalesced_offset;
 
 	vcpu		= kvm_cpu__new(kvm);
 	if (!vcpu)
@@ -88,6 +91,10 @@ struct kvm_cpu *kvm_cpu__init(struct kvm *kvm, unsigned long cpu_id)
 	vcpu->kvm_run = mmap(NULL, mmap_size, PROT_RW, MAP_SHARED, vcpu->vcpu_fd, 0);
 	if (vcpu->kvm_run == MAP_FAILED)
 		die("unable to mmap vcpu fd");
+
+	coalesced_offset = ioctl(kvm->sys_fd, KVM_CHECK_EXTENSION, KVM_CAP_COALESCED_MMIO);
+	if (coalesced_offset)
+		vcpu->ring = (void *)vcpu->kvm_run + (coalesced_offset * PAGE_SIZE);
 
 	vcpu->is_running = true;
 
@@ -395,6 +402,22 @@ static void kvm_cpu_signal_handler(int signum)
 	}
 }
 
+static void kvm_cpu__handle_coalesced_mmio(struct kvm_cpu *cpu)
+{
+	if (cpu->ring) {
+		while (cpu->ring->first != cpu->ring->last) {
+			struct kvm_coalesced_mmio *m;
+			m = &cpu->ring->coalesced_mmio[cpu->ring->first];
+			kvm__emulate_mmio(cpu->kvm,
+					m->phys_addr,
+					m->data,
+					m->len,
+					1);
+			cpu->ring->first = (cpu->ring->first + 1) % KVM_COALESCED_MMIO_MAX;
+		}
+	}
+}
+
 int kvm_cpu__start(struct kvm_cpu *cpu)
 {
 	sigset_t sigset;
@@ -462,6 +485,7 @@ int kvm_cpu__start(struct kvm_cpu *cpu)
 		default:
 			goto panic_kvm;
 		}
+		kvm_cpu__handle_coalesced_mmio(cpu);
 	}
 
 exit_kvm:
