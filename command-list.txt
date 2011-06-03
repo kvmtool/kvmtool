@@ -3,3 +3,4 @@
 # command name			category [deprecated] [common]
 #
 kvm-run				mainporcelain common
+kvm-pause			common
