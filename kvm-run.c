@@ -32,6 +32,7 @@
 #include <kvm/ioeventfd.h>
 #include <kvm/i8042.h>
 #include <kvm/vnc.h>
+#include <kvm/sdl.h>
 #include <kvm/framebuffer.h>
 
 /* header files for gitish interface  */
@@ -72,6 +73,7 @@ static const char *virtio_9p_dir;
 static bool single_step;
 static bool readonly_image[MAX_DISK_IMAGES];
 static bool vnc;
+static bool sdl;
 extern bool ioport_debug;
 extern int  active_console;
 
@@ -117,6 +119,7 @@ static const struct option options[] = {
 	OPT_STRING('\0', "virtio-9p", &virtio_9p_dir, "root dir",
 			"Enable 9p over virtio"),
 	OPT_BOOLEAN('\0', "vnc", &vnc, "Enable VNC framebuffer"),
+	OPT_BOOLEAN('\0', "sdl", &sdl, "Enable SDL framebuffer"),
 
 	OPT_GROUP("Kernel options:"),
 	OPT_STRING('k', "kernel", &kernel_filename, "kernel",
@@ -538,7 +541,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	memset(real_cmdline, 0, sizeof(real_cmdline));
 	strcpy(real_cmdline, "notsc noapic noacpi pci=conf1");
-	if (vnc) {
+	if (vnc || sdl) {
 		strcat(real_cmdline, " video=vesafb console=tty0");
 		vidmode = 0x312;
 	} else {
@@ -630,13 +633,19 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	kvm__init_ram(kvm);
 
+	if (vnc || sdl)
+		fb = vesa__init(kvm);
+
 	if (vnc) {
 		kbd__init(kvm);
-		fb = vesa__init(kvm);
+		if (fb)
+			vnc__init(fb);
 	}
 
-	if (fb)
-		vnc__init(fb);
+	if (sdl) {
+		if (fb)
+			sdl__init(fb);
+	}
 
 	fb__start();
 

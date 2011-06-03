@@ -136,3 +136,13 @@ int main(void)
 	return 0;
 }
 endef
+
+define SOURCE_SDL
+#include <SDL/SDL.h>
+
+int main(void)
+{
+	SDL_Init(SDL_INIT_VIDEO);
+	return 0;
+}
+endef

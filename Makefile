@@ -71,6 +71,14 @@ ifeq ($(has_vncserver),y)
 	LIBS	+= -lvncserver
 endif
 
+FLAGS_SDL=$(CFLAGS) -lSDL
+has_SDL := $(call try-cc,$(SOURCE_SDL),$(FLAGS_SDL))
+ifeq ($(has_SDL),y)
+	OBJS	+= ui/sdl.o
+	CFLAGS	+= -DCONFIG_HAS_SDL
+	LIBS	+= -lSDL
+endif
+
 DEPS	:= $(patsubst %.o,%.d,$(OBJS))
 
 # Exclude BIOS object files from header dependencies.
