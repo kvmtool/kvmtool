@@ -52,7 +52,7 @@ OBJS	+= util/rbtree-interval.o
 OBJS	+= util/strbuf.o
 OBJS	+= virtio/9p.o
 OBJS	+= hw/vesa.o
-
+OBJS	+= hw/i8042.o
 
 FLAGS_BFD=$(CFLAGS) -lbfd
 has_bfd := $(call try-cc,$(SOURCE_BFD),$(FLAGS_BFD))
@@ -67,7 +67,6 @@ has_vncserver := $(call try-cc,$(SOURCE_VNCSERVER),$(FLAGS_VNCSERVER))
 ifeq ($(has_vncserver),y)
 	OBJS	+= ui/vnc.o
 	CFLAGS	+= -DCONFIG_HAS_VNCSERVER
-	OBJS    += hw/i8042.o
 	LIBS	+= -lvncserver
 endif
 

@@ -1,21 +1,12 @@
 #ifndef KVM__PCKBD_H
 #define KVM__PCKBD_H
 
+#include <linux/types.h>
+
 struct kvm;
 
+void mouse_queue(u8 c);
+void kbd_queue(u8 c);
 void kbd__init(struct kvm *kvm);
-
-#ifdef CONFIG_HAS_VNCSERVER
-#include <rfb/keysym.h>
-#include <rfb/rfb.h>
-
-void kbd_handle_key(rfbBool, rfbKeySym, rfbClientPtr);
-void kbd_handle_ptr(int, int, int, rfbClientPtr);
-
-#else
-
-void kbd__init(struct kvm *kvm) { }
-
-#endif
 
 #endif
