@@ -3,6 +3,8 @@
 
 #include <linux/types.h>
 #include <stdbool.h>
+#include <linux/rbtree.h>
+#include <linux/list.h>
 
 #define QCOW_MAGIC		(('Q' << 24) | ('F' << 16) | ('I' << 8) | 0xfb)
 
@@ -17,6 +19,15 @@
 #define QCOW2_OFLAG_COMPRESSED	(1LL << 62)
 #define QCOW2_OFLAG_MASK	(QCOW2_OFLAG_COPIED|QCOW2_OFLAG_COMPRESSED)
 
+#define MAX_CACHE_NODES         32
+
+struct qcow_l2_cache {
+	u64                     offset;
+	struct rb_node          node;
+	struct list_head        list;
+	u64                     table[];
+};
+
 struct qcow_table {
 	u32			table_size;
 	u64			*l1_table;
@@ -26,6 +37,11 @@ struct qcow {
 	void			*header;
 	struct qcow_table	table;
 	int			fd;
+
+	/* Level2 caching data structures */
+	struct rb_root          root;
+	struct list_head        lru_list;
+	int                     nr_cached;
 };
 
 struct qcow_header {

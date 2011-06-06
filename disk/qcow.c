@@ -16,6 +16,149 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 
+static int insert(struct rb_root *root, struct qcow_l2_cache *new)
+{
+	struct rb_node **link = &(root->rb_node), *parent = NULL;
+	u64 offset = new->offset;
+
+	/* search the tree */
+	while (*link) {
+		struct qcow_l2_cache *t;
+
+		t = rb_entry(*link, struct qcow_l2_cache, node);
+		if (!t)
+			goto error;
+
+		parent = *link;
+
+		if (t->offset > offset)
+			link = &(*link)->rb_left;
+		else if (t->offset < offset)
+			link = &(*link)->rb_right;
+		else
+			goto out;
+	}
+
+	/* add new node */
+	rb_link_node(&new->node, parent, link);
+	rb_insert_color(&new->node, root);
+out:
+	return 0;
+error:
+	return -1;
+}
+
+static struct qcow_l2_cache *search(struct rb_root *root, u64 offset)
+{
+	struct rb_node *link = root->rb_node;
+
+	while (link) {
+		struct qcow_l2_cache *t;
+
+		t = rb_entry(link, struct qcow_l2_cache, node);
+		if (!t)
+			goto out;
+
+		if (t->offset > offset)
+			link = link->rb_left;
+		else if (t->offset < offset)
+			link = link->rb_right;
+		else
+			return t;
+	}
+out:
+	return NULL;
+}
+
+static void free_cache(struct qcow *q)
+{
+	struct list_head *pos, *n;
+	struct qcow_l2_cache *t;
+	struct rb_root *r = &q->root;
+
+	list_for_each_safe(pos, n, &q->lru_list) {
+		/* Remove cache table from the list and RB tree */
+		list_del(pos);
+		t = list_entry(pos, struct qcow_l2_cache, list);
+		rb_erase(&t->node, r);
+
+		/* Free the cached node */
+		free(t);
+	}
+}
+
+static int cache_table(struct qcow *q, struct qcow_l2_cache *c)
+{
+	struct rb_root *r = &q->root;
+	struct qcow_l2_cache *lru;
+
+	if (q->nr_cached == MAX_CACHE_NODES) {
+		/*
+		 * The node at the head of the list is least recently used
+		 * node. Remove it from the list and replaced with a new node.
+		 */
+		lru = list_first_entry(&q->lru_list, struct qcow_l2_cache, list);
+
+		/* Remove the node from the cache */
+		rb_erase(&lru->node, r);
+		list_del_init(&lru->list);
+		q->nr_cached--;
+
+		/* Free the LRUed node */
+		free(lru);
+	}
+
+	/* Add new node in RB Tree: Helps in searching faster */
+	if (insert(r, c) < 0)
+		goto error;
+
+	/* Add in LRU replacement list */
+	list_add_tail(&c->list, &q->lru_list);
+	q->nr_cached++;
+
+	return 0;
+error:
+	return -1;
+}
+
+static int search_table(struct qcow *q, u64 **table, u64 offset)
+{
+	struct qcow_l2_cache *c;
+
+	*table = NULL;
+
+	c = search(&q->root, offset);
+	if (!c)
+		return -1;
+
+	/* Update the LRU state, by moving the searched node to list tail */
+	list_move_tail(&c->list, &q->lru_list);
+
+	*table = c->table;
+	return 0;
+}
+
+/* Allocates a new node for caching L2 table */
+static struct qcow_l2_cache *new_cache_table(struct qcow *q, u64 offset)
+{
+	struct qcow_header *header = q->header;
+	struct qcow_l2_cache *c;
+	u64 l2t_sz;
+	u64 size;
+
+	l2t_sz = 1 << header->l2_bits;
+	size   = sizeof(*c) + l2t_sz * sizeof(u64);
+	c      = calloc(1, size);
+	if (!c)
+		goto out;
+
+	c->offset = offset;
+	RB_CLEAR_NODE(&c->node);
+	INIT_LIST_HEAD(&c->list);
+out:
+	return c;
+}
+
 static inline u64 get_l1_index(struct qcow *q, u64 offset)
 {
 	struct qcow_header *header = q->header;
@@ -37,6 +180,47 @@ static inline u64 get_cluster_offset(struct qcow *q, u64 offset)
 	return offset & ((1 << header->cluster_bits)-1);
 }
 
+static int qcow_read_l2_table(struct qcow *q, u64 **table, u64 offset)
+{
+	struct qcow_header *header = q->header;
+	struct qcow_l2_cache *c;
+	u64 size;
+	u64 i;
+	u64 *t;
+
+	c      = NULL;
+	*table = NULL;
+	size   = 1 << header->l2_bits;
+
+	/* search an entry for offset in cache */
+	if (search_table(q, table, offset) >= 0)
+		return 0;
+
+	/* allocate new node for caching l2 table */
+	c = new_cache_table(q, offset);
+	if (!c)
+		goto error;
+	t = c->table;
+
+	/* table not cached: read from the disk */
+	if (pread_in_full(q->fd, t, size * sizeof(u64), offset) < 0)
+		goto error;
+
+	/* cache the table */
+	if (cache_table(q, c) < 0)
+		goto error;
+
+	/* change cached table to CPU's byte-order */
+	for (i = 0; i < size; i++)
+		be64_to_cpus(&t[i]);
+
+	*table = t;
+	return 0;
+error:
+	free(c);
+	return -1;
+}
+
 static ssize_t qcow_read_cluster(struct qcow *q, u64 offset, void *dst, u32 dst_len)
 {
 	struct qcow_header *header = q->header;
@@ -51,7 +235,6 @@ static ssize_t qcow_read_cluster(struct qcow *q, u64 offset, void *dst, u32 dst_
 	u64 l1_idx;
 	u64 l2_idx;
 
-	l2_table = NULL;
 
 	cluster_size = 1 << header->cluster_bits;
 
@@ -72,18 +255,16 @@ static ssize_t qcow_read_cluster(struct qcow *q, u64 offset, void *dst, u32 dst_
 		goto zero_cluster;
 
 	l2_table_size = 1 << header->l2_bits;
-	l2_table = calloc(l2_table_size, sizeof(u64));
-	if (!l2_table)
-		goto out_error;
 
-	if (pread_in_full(q->fd, l2_table, l2_table_size * sizeof(u64), l2_table_offset) < 0)
+	/* read and cache level 2 table */
+	if (qcow_read_l2_table(q, &l2_table, l2_table_offset) < 0)
 		goto out_error;
 
 	l2_idx = get_l2_index(q, offset);
 	if (l2_idx >= l2_table_size)
 		goto out_error;
 
-	clust_start = be64_to_cpu(l2_table[l2_idx]) & ~header->oflag_mask;
+	clust_start = l2_table[l2_idx] & ~header->oflag_mask;
 	if (!clust_start)
 		goto zero_cluster;
 
@@ -91,7 +272,6 @@ static ssize_t qcow_read_cluster(struct qcow *q, u64 offset, void *dst, u32 dst_
 		goto out_error;
 
 out:
-	free(l2_table);
 	return length;
 
 zero_cluster:
@@ -189,6 +369,7 @@ static ssize_t qcow_write_cluster(struct qcow *q, u64 offset, void *buf, u32 src
 {
 	struct qcow_header *header = q->header;
 	struct qcow_table  *table  = &q->table;
+	struct qcow_l2_cache *c;
 	bool update_meta;
 	u64 clust_start;
 	u64 clust_off;
@@ -202,6 +383,7 @@ static ssize_t qcow_write_cluster(struct qcow *q, u64 offset, void *buf, u32 src
 	u64 len;
 	u64 t;
 
+	c               = NULL;
 	l2t_sz		= 1 << header->l2_bits;
 	clust_sz	= 1 << header->cluster_bits;
 
@@ -221,24 +403,26 @@ static ssize_t qcow_write_cluster(struct qcow *q, u64 offset, void *buf, u32 src
 	if (len > src_len)
 		len = src_len;
 
-	l2t = calloc(l2t_sz, sizeof(u64));
-	if (!l2t)
-		goto error;
-
 	l2t_off		= table->l1_table[l1t_idx] & ~header->oflag_mask;
 	if (l2t_off) {
-		if (pread_in_full(q->fd, l2t, l2t_sz * sizeof(u64), l2t_off) < 0)
-			goto free_l2;
+		/* read and cache l2 table */
+		if (qcow_read_l2_table(q, &l2t, l2t_off) < 0)
+			goto error;
 	} else {
+		c = new_cache_table(q, l2t_off);
+		if (!c)
+			goto error;
+		l2t = c->table;
+
 		/* Capture the state of the consistent QCOW image */
 		f_sz		= file_size(q->fd);
 		if (!f_sz)
-			goto free_l2;
+			goto free_cache;
 
 		/* Write the l2 table of 0's at the end of the file */
 		l2t_off		= qcow_write_l2_table(q, l2t);
 		if (!l2t_off)
-			goto free_l2;
+			goto free_cache;
 
 		/* Metadata update: update on disk level 1 table */
 		t		= cpu_to_be64(l2t_off);
@@ -246,9 +430,16 @@ static ssize_t qcow_write_cluster(struct qcow *q, u64 offset, void *buf, u32 src
 		if (qcow_pwrite_sync(q->fd, &t, sizeof(t), header->l1_table_offset + l1t_idx * sizeof(u64)) < 0) {
 			/* restore file to consistent state */
 			if (ftruncate(q->fd, f_sz) < 0)
-				goto free_l2;
+				goto free_cache;
 
-			goto free_l2;
+			goto free_cache;
+		}
+
+		if (cache_table(q, c) < 0) {
+			if (ftruncate(q->fd, f_sz) < 0)
+				goto free_cache;
+
+			goto free_cache;
 		}
 
 		/* Update the in-core entry */
@@ -258,16 +449,14 @@ static ssize_t qcow_write_cluster(struct qcow *q, u64 offset, void *buf, u32 src
 	/* Capture the state of the consistent QCOW image */
 	f_sz		= file_size(q->fd);
 	if (!f_sz)
-		goto free_l2;
+		goto error;
 
-	clust_start	= be64_to_cpu(l2t[l2t_idx]) & ~header->oflag_mask;
+	clust_start	= l2t[l2t_idx] & ~header->oflag_mask;
 	if (!clust_start) {
 		clust_start	= ALIGN(f_sz, clust_sz);
 		update_meta	= true;
 	} else
 		update_meta	= false;
-
-	free(l2t);
 
 	/* Write actual data */
 	if (pwrite_in_full(q->fd, buf, len, clust_start + clust_off) < 0)
@@ -282,11 +471,15 @@ static ssize_t qcow_write_cluster(struct qcow *q, u64 offset, void *buf, u32 src
 
 			goto error;
 		}
+
+		/* Update the cached level2 entry */
+		l2t[l2t_idx] = clust_start;
 	}
 
 	return len;
-free_l2:
-	free(l2t);
+
+free_cache:
+	free(c);
 error:
 	return -1;
 }
@@ -336,6 +529,7 @@ static int qcow_disk_close(struct disk_image *disk)
 
 	q = disk->priv;
 
+	free_cache(q);
 	free(q->table.l1_table);
 	free(q->header);
 	free(q);
@@ -428,6 +622,8 @@ static struct disk_image *qcow2_probe(int fd, bool readonly)
 		goto error;
 
 	q->fd = fd;
+	q->root = RB_ROOT;
+	INIT_LIST_HEAD(&q->lru_list);
 
 	h = q->header = qcow2_read_header(fd);
 	if (!h)
@@ -525,6 +721,8 @@ static struct disk_image *qcow1_probe(int fd, bool readonly)
 		goto error;
 
 	q->fd = fd;
+	q->root = RB_ROOT;
+	INIT_LIST_HEAD(&q->lru_list);
 
 	h = q->header = qcow1_read_header(fd);
 	if (!h)
