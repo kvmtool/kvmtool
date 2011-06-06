@@ -8,7 +8,11 @@
 #include <time.h>
 
 #define KVM_NR_CPUS		(255)
-#define KVM_32BIT_GAP_SIZE	(512 << 20)
+
+/*
+ * The hole includes VESA framebuffer and PCI memory.
+ */
+#define KVM_32BIT_GAP_SIZE	(768 << 20)
 #define KVM_32BIT_GAP_START	((1ULL << 32) - KVM_32BIT_GAP_SIZE)
 
 #define SIGKVMEXIT		(SIGRTMIN + 0)
@@ -20,6 +24,8 @@ struct kvm {
 	timer_t			timerid;	/* Posix timer for interrupts */
 
 	int			nrcpus;		/* Number of cpus to run */
+
+	u32			mem_slots;	/* for KVM_SET_USER_MEMORY_REGION */
 
 	u64			ram_size;
 	void			*ram_start;
@@ -49,6 +55,7 @@ void kvm__stop_timer(struct kvm *kvm);
 void kvm__irq_line(struct kvm *kvm, int irq, int level);
 bool kvm__emulate_io(struct kvm *kvm, u16 port, void *data, int direction, int size, u32 count);
 bool kvm__emulate_mmio(struct kvm *kvm, u64 phys_addr, u8 *data, u32 len, u8 is_write);
+void kvm__register_mem(struct kvm *kvm, u64 guest_phys, u64 size, void *userspace_addr);
 bool kvm__register_mmio(struct kvm *kvm, u64 phys_addr, u64 phys_addr_len, void (*kvm_mmio_callback_fn)(u64 addr, u8 *data, u32 len, u8 is_write));
 bool kvm__deregister_mmio(struct kvm *kvm, u64 phys_addr);
 void kvm__pause(void);

@@ -8,6 +8,7 @@
 #include "kvm/irq.h"
 #include "kvm/kvm.h"
 #include "kvm/pci.h"
+#include <sys/mman.h>
 
 #include <sys/types.h>
 #include <sys/ioctl.h>
@@ -40,14 +41,6 @@ static struct pci_device_header vesa_pci_device = {
 	.bar[1]			= VESA_MEM_ADDR | PCI_BASE_ADDRESS_SPACE_MEMORY,
 };
 
-static void vesa_mmio_callback(u64 addr, u8 *data, u32 len, u8 is_write)
-{
-	if (!is_write)
-		return;
-
-	fb__write(addr, data, len);
-}
-
 static struct framebuffer vesafb;
 
 struct framebuffer *vesa__init(struct kvm *kvm)
@@ -65,11 +58,11 @@ struct framebuffer *vesa__init(struct kvm *kvm)
 	vesa_pci_device.bar[0]		= vesa_base_addr | PCI_BASE_ADDRESS_SPACE_IO;
 	pci__register(&vesa_pci_device, dev);
 
-	kvm__register_mmio(kvm, VESA_MEM_ADDR, VESA_MEM_SIZE, &vesa_mmio_callback);
-
-	mem = calloc(1, VESA_MEM_SIZE);
-	if (!mem)
+	mem = mmap(NULL, VESA_MEM_SIZE, PROT_RW, MAP_ANON_NORESERVE, -1, 0);
+	if (mem == MAP_FAILED)
 		return NULL;
+
+	kvm__register_mem(kvm, VESA_MEM_ADDR, VESA_MEM_SIZE, mem);
 
 	vesafb = (struct framebuffer) {
 		.width			= VESA_WIDTH,

@@ -162,13 +162,18 @@ static bool kvm__cpu_supports_vm(void)
 	return regs.ecx & (1 << feature);
 }
 
-static void kvm_register_mem_slot(struct kvm *kvm, u32 slot, u64 guest_phys, u64 size, void *userspace_addr)
+/*
+ * Note: KVM_SET_USER_MEMORY_REGION assumes that we don't pass overlapping
+ * memory regions to it. Therefore, be careful if you use this function for
+ * registering memory regions for emulating hardware.
+ */
+void kvm__register_mem(struct kvm *kvm, u64 guest_phys, u64 size, void *userspace_addr)
 {
 	struct kvm_userspace_memory_region mem;
 	int ret;
 
 	mem = (struct kvm_userspace_memory_region) {
-		.slot			= slot,
+		.slot			= kvm->mem_slots++,
 		.guest_phys_addr	= guest_phys,
 		.memory_size		= size,
 		.userspace_addr		= (unsigned long)userspace_addr,
@@ -200,7 +205,7 @@ void kvm__init_ram(struct kvm *kvm)
 		phys_size  = kvm->ram_size;
 		host_mem   = kvm->ram_start;
 
-		kvm_register_mem_slot(kvm, 0, phys_start, phys_size, host_mem);
+		kvm__register_mem(kvm, phys_start, phys_size, host_mem);
 	} else {
 		/* First RAM range from zero to the PCI gap: */
 
@@ -208,7 +213,7 @@ void kvm__init_ram(struct kvm *kvm)
 		phys_size  = KVM_32BIT_GAP_START;
 		host_mem   = kvm->ram_start;
 
-		kvm_register_mem_slot(kvm, 0, phys_start, phys_size, host_mem);
+		kvm__register_mem(kvm, phys_start, phys_size, host_mem);
 
 		/* Second RAM range from 4GB to the end of RAM: */
 
@@ -216,7 +221,7 @@ void kvm__init_ram(struct kvm *kvm)
 		phys_size  = kvm->ram_size - phys_size;
 		host_mem   = kvm->ram_start + phys_start;
 
-		kvm_register_mem_slot(kvm, 1, phys_start, phys_size, host_mem);
+		kvm__register_mem(kvm, phys_start, phys_size, host_mem);
 	}
 }
 
