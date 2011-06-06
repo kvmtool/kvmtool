@@ -643,6 +643,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	}
 
 	if (sdl) {
+		kbd__init(kvm);
 		if (fb)
 			sdl__init(fb);
 	}
