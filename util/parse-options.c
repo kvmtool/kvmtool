@@ -39,6 +39,84 @@ static int get_arg(struct parse_opt_ctx_t *p, const struct option *opt,
 	return 0;
 }
 
+#define numvalue(c)					\
+	((c) >= 'a' ? (c) - 'a' + 10 :			\
+	 (c) >= 'A' ? (c) - 'A' + 10 : (c) - '0')
+
+static u64 readhex(const char *str, bool *error)
+{
+	char *pos = strchr(str, 'x') + 1;
+	u64 res = 0;
+
+	while (*pos) {
+		unsigned int v = numvalue(*pos);
+		if (v > 16) {
+			*error = true;
+			return 0;
+		}
+
+		res = (res * 16) + v;
+		pos++;
+	}
+
+	*error = false;
+	return res;
+}
+
+static int readnum(const struct option *opt, int flags,
+		   const char *str, char **end)
+{
+	if (strchr(str, 'x')) {
+		bool error;
+		u64 value;
+
+		value = readhex(str, &error);
+		if (error)
+			goto enotnum;
+
+		switch (opt->type) {
+		case OPTION_INTEGER:
+			*(int *)opt->value = value;
+			break;
+		case OPTION_UINTEGER:
+			*(unsigned int *)opt->value = value;
+			break;
+		case OPTION_LONG:
+			*(long *)opt->value = value;
+			break;
+		case OPTION_U64:
+			*(u64 *)opt->value = value;
+			break;
+		default:
+			goto invcall;
+		}
+	} else {
+		switch (opt->type) {
+		case OPTION_INTEGER:
+			*(int *)opt->value = strtol(str, end, 10);
+			break;
+		case OPTION_UINTEGER:
+			*(unsigned int *)opt->value = strtol(str, end, 10);
+			break;
+		case OPTION_LONG:
+			*(long *)opt->value = strtol(str, end, 10);
+			break;
+		case OPTION_U64:
+			*(u64 *)opt->value = strtoull(str, end, 10);
+			break;
+		default:
+			goto invcall;
+		}
+	}
+
+	return 0;
+
+enotnum:
+	return opterror(opt, "expects a numerical value", flags);
+invcall:
+	return opterror(opt, "invalid numeric conversion", flags);
+}
+
 static int get_value(struct parse_opt_ctx_t *p,
 		const struct option *opt, int flags)
 {
@@ -131,11 +209,7 @@ static int get_value(struct parse_opt_ctx_t *p,
 		}
 		if (get_arg(p, opt, flags, &arg))
 			return -1;
-		*(int *)opt->value = strtol(arg, (char **)&s, 10);
-		if (*s)
-			return opterror(opt, "expects a numerical value",
-					flags);
-		return 0;
+		return readnum(opt, flags, arg, (char **)&s);
 
 	case OPTION_UINTEGER:
 		if (unset) {
@@ -148,11 +222,7 @@ static int get_value(struct parse_opt_ctx_t *p,
 		}
 		if (get_arg(p, opt, flags, &arg))
 			return -1;
-		*(unsigned int *)opt->value = strtol(arg, (char **)&s, 10);
-		if (*s)
-			return opterror(opt,
-					"expects a numerical value", flags);
-		return 0;
+		return readnum(opt, flags, arg, (char **)&s);
 
 	case OPTION_LONG:
 		if (unset) {
@@ -165,11 +235,7 @@ static int get_value(struct parse_opt_ctx_t *p,
 		}
 		if (get_arg(p, opt, flags, &arg))
 			return -1;
-		*(long *)opt->value = strtol(arg, (char **)&s, 10);
-		if (*s)
-			return opterror(opt,
-					"expects a numerical value", flags);
-		return 0;
+		return readnum(opt, flags, arg, (char **)&s);
 
 	case OPTION_U64:
 		if (unset) {
@@ -182,11 +248,7 @@ static int get_value(struct parse_opt_ctx_t *p,
 		}
 		if (get_arg(p, opt, flags, &arg))
 			return -1;
-		*(u64 *)opt->value = strtoull(arg, (char **)&s, 10);
-		if (*s)
-			return opterror(opt,
-					"expects a numerical value", flags);
-		return 0;
+		return readnum(opt, flags, arg, (char **)&s);
 
 	case OPTION_END:
 	case OPTION_ARGUMENT:
