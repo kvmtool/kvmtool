@@ -80,6 +80,7 @@ extern int  active_console;
 bool do_debug_print = false;
 
 static int nrcpus;
+static int vidmode = -1;
 
 static const char * const run_usage[] = {
 	"kvm run [<options>] [<kernel image>]",
@@ -138,6 +139,10 @@ static const struct option options[] = {
 			"Assign this address to the guest side NIC"),
 	OPT_STRING('\0', "tapscript", &script, "Script path",
 			 "Assign a script to process created tap device"),
+
+	OPT_GROUP("BIOS options:"),
+	OPT_INTEGER('\0', "vidmode", &vidmode,
+		    "Video mode"),
 
 	OPT_GROUP("Debug options:"),
 	OPT_BOOLEAN('\0', "debug", &do_debug_print,
@@ -434,7 +439,6 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	struct framebuffer *fb = NULL;
 	unsigned int nr_online_cpus;
 	int exit_code = 0;
-	u16 vidmode = 0;
 	int max_cpus;
 	char *hi;
 	int i;
@@ -539,14 +543,22 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	kvm->nrcpus = nrcpus;
 
+	/*
+	 * vidmode should be either specified
+	 * either set by default
+	 */
+	if (vnc || sdl) {
+		if (vidmode == -1)
+			vidmode = 0x312;
+	} else
+		vidmode = 0;
+
 	memset(real_cmdline, 0, sizeof(real_cmdline));
 	strcpy(real_cmdline, "notsc noapic noacpi pci=conf1");
 	if (vnc || sdl) {
 		strcat(real_cmdline, " video=vesafb console=tty0");
-		vidmode = 0x312;
-	} else {
+	} else
 		strcat(real_cmdline, " console=ttyS0 earlyprintk=serial");
-	}
 	strcat(real_cmdline, " ");
 	if (kernel_cmdline)
 		strlcat(real_cmdline, kernel_cmdline, sizeof(real_cmdline));
