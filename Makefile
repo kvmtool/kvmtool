@@ -82,7 +82,7 @@ DEPS	:= $(patsubst %.o,%.d,$(OBJS))
 
 # Exclude BIOS object files from header dependencies.
 OBJS	+= bios.o
-OBJS	+= bios/bios.o
+OBJS	+= bios/bios-rom.o
 
 LIBS	+= -lrt
 LIBS	+= -lpthread
@@ -165,20 +165,27 @@ BIOS_CFLAGS += -m32
 BIOS_CFLAGS += -march=i386
 BIOS_CFLAGS += -mregparm=3
 
-bios.o: bios/bios-rom.bin
-bios/bios.o: bios/bios.S bios/bios-rom.bin
-	$(E) "  CC      " $@
-	$(Q) $(CC) -c $(CFLAGS) bios/bios.S -o bios/bios.o
-	
-bios/bios-rom.bin: bios/bios-rom.S bios/e820.c
-	$(E) "  CC      " $@
+bios.o: bios/bios.bin bios/bios-rom.h
+
+bios/bios.bin.elf: bios/bios.S bios/e820.c bios/int10.c bios/rom.ld.S
+	$(E) "  CC       bios/e820.o"
 	$(Q) $(CC) -include code16gcc.h $(CFLAGS) $(BIOS_CFLAGS) -c -s bios/e820.c -o bios/e820.o
+	$(E) "  CC       bios/int10.o"
 	$(Q) $(CC) -include code16gcc.h $(CFLAGS) $(BIOS_CFLAGS) -c -s bios/int10.c -o bios/int10.o
-	$(Q) $(CC) $(CFLAGS) $(BIOS_CFLAGS) -c -s bios/bios-rom.S -o bios/bios-rom.o
+	$(E) "  CC       bios/bios.o"
+	$(Q) $(CC) $(CFLAGS) $(BIOS_CFLAGS) -c -s bios/bios.S -o bios/bios.o
 	$(E) "  LD      " $@
-	$(Q) ld -T bios/rom.ld.S -o bios/bios-rom.bin.elf bios/bios-rom.o bios/e820.o bios/int10.o
+	$(Q) ld -T bios/rom.ld.S -o bios/bios.bin.elf bios/bios.o bios/e820.o bios/int10.o
+
+bios/bios.bin: bios/bios.bin.elf
 	$(E) "  OBJCOPY " $@
-	$(Q) objcopy -O binary -j .text bios/bios-rom.bin.elf bios/bios-rom.bin
+	$(Q) objcopy -O binary -j .text bios/bios.bin.elf bios/bios.bin
+
+bios/bios-rom.o: bios/bios-rom.S bios/bios.bin bios/bios-rom.h
+	$(E) "  CC      " $@
+	$(Q) $(CC) -c $(CFLAGS) bios/bios-rom.S -o bios/bios-rom.o
+
+bios/bios-rom.h: bios/bios.bin.elf
 	$(E) "  NM      " $@
 	$(Q) cd bios && sh gen-offsets.sh > bios-rom.h && cd ..
 
