@@ -18,13 +18,7 @@ ENTRY(bios_intfake)
 ENTRY_END(bios_intfake)
 
 /*
- * int 10 - video - write character and advance cursor (tty write)
- *	ah = 0eh
- *	al = character
- *	bh = display page (alpha modes)
- *	bl = foreground color (graphics modes)
- *
- * We ignore bx settings
+ * int 10 - video - service
  */
 ENTRY(bios_int10)
 	pushw	%fs
@@ -55,12 +49,6 @@ ENTRY(bios_int10)
 	popw	%fs
 
 	IRET
-
-
-/*
- * private IRQ data
- */
-cursor:		.long 0
 ENTRY_END(bios_int10)
 
 #define EFLAGS_CF	(1 << 0)
