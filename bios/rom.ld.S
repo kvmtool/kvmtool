@@ -11,7 +11,7 @@ PHDRS {
 }
 
 SECTIONS {
-       . = 0;
-       .text : { *(.text) } :text = 0x9090
+	. = 0;
+	.text : { *(.text) } :text = 0x9090
 }
 
