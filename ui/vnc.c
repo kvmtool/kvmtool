@@ -172,11 +172,6 @@ static void kbd_handle_ptr(int buttonMask, int x, int y, rfbClientPtr cl)
 	rfbDefaultPtrAddEvent(buttonMask, x, y, cl);
 }
 
-static void vnc__write(struct framebuffer *fb, u64 addr, u8 *data, u32 len)
-{
-	memcpy(&fb->mem[addr - fb->mem_addr], data, len);
-}
-
 static void *vnc__thread(void *p)
 {
 	struct framebuffer *fb = p;
@@ -215,7 +210,6 @@ static int vnc__start(struct framebuffer *fb)
 
 static struct fb_target_operations vnc_ops = {
 	.start			= vnc__start,
-	.write			= vnc__write,
 };
 
 void vnc__init(struct framebuffer *fb)

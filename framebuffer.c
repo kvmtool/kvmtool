@@ -65,23 +65,3 @@ void fb__stop(void)
 		free(fb->mem);
 	}
 }
-
-static void write_to_targets(struct framebuffer *fb, u64 addr, u8 *data, u32 len)
-{
-	unsigned long i;
-
-	for (i = 0; i < fb->nr_targets; i++) {
-		struct fb_target_operations *ops = fb->targets[i];
-
-		ops->write(fb, addr, data, len);
-	}
-}
-
-void fb__write(u64 addr, u8 *data, u32 len)
-{
-	struct framebuffer *fb;
-
-	list_for_each_entry(fb, &framebuffers, node) {
-		write_to_targets(fb, addr, data, len);
-	}
-}

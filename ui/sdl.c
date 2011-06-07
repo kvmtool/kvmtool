@@ -9,11 +9,6 @@
 
 #define FRAME_RATE		25
 
-static void sdl__write(struct framebuffer *fb, u64 addr, u8 *data, u32 len)
-{
-	memcpy(&fb->mem[addr - fb->mem_addr], data, len);
-}
-
 static u8 keymap[255] = {
 	[10]		= 0x16,		/* 1 */
 	[11]		= 0x1e,		/* 2 */
@@ -143,7 +138,6 @@ static int sdl__start(struct framebuffer *fb)
 
 static struct fb_target_operations sdl_ops = {
 	.start			= sdl__start,
-	.write			= sdl__write,
 };
 
 void sdl__init(struct framebuffer *fb)
