@@ -10,10 +10,11 @@ export E Q
 include config/utilities.mak
 include config/feature-tests.mak
 
-PROGRAM	= kvm
-FIND = find
-CSCOPE = cscope
-TAGS = ctags
+FIND	:= find
+CSCOPE	:= cscope
+TAGS	:= ctags
+
+PROGRAM	:= kvm
 
 OBJS	+= cpuid.o
 OBJS	+= disk/core.o
@@ -54,7 +55,7 @@ OBJS	+= virtio/9p.o
 OBJS	+= hw/vesa.o
 OBJS	+= hw/i8042.o
 
-FLAGS_BFD=$(CFLAGS) -lbfd
+FLAGS_BFD := $(CFLAGS) -lbfd
 has_bfd := $(call try-cc,$(SOURCE_BFD),$(FLAGS_BFD))
 ifeq ($(has_bfd),y)
 	CFLAGS	+= -DCONFIG_HAS_BFD
@@ -62,7 +63,7 @@ ifeq ($(has_bfd),y)
 	LIBS	+= -lbfd
 endif
 
-FLAGS_VNCSERVER=$(CFLAGS) -lvncserver
+FLAGS_VNCSERVER := $(CFLAGS) -lvncserver
 has_vncserver := $(call try-cc,$(SOURCE_VNCSERVER),$(FLAGS_VNCSERVER))
 ifeq ($(has_vncserver),y)
 	OBJS	+= ui/vnc.o
@@ -70,7 +71,7 @@ ifeq ($(has_vncserver),y)
 	LIBS	+= -lvncserver
 endif
 
-FLAGS_SDL=$(CFLAGS) -lSDL
+FLAGS_SDL := $(CFLAGS) -lSDL
 has_SDL := $(call try-cc,$(SOURCE_SDL),$(FLAGS_SDL))
 ifeq ($(has_SDL),y)
 	OBJS	+= ui/sdl.o
