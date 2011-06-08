@@ -1,3 +1,7 @@
+#
+# Define WERROR=0 to disable -Werror.
+#
+
 ifeq ($(strip $(V)),)
 	E = @echo
 	Q = @
@@ -111,7 +115,10 @@ DEFINES	+= -D_GNU_SOURCE
 KVM_INCLUDE := include
 CFLAGS	+= $(CPPFLAGS) $(DEFINES) -I$(KVM_INCLUDE) -I../../include -I../../arch/$(ARCH)/include/ -Os -g
 
-WARNINGS += -Werror
+ifneq ($(WERROR),0)
+	WARNINGS += -Werror
+endif
+
 WARNINGS += -Wall
 WARNINGS += -Wcast-align
 WARNINGS += -Wformat=2
