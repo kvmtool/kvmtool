@@ -91,7 +91,7 @@ static void *sdl__thread(void *p)
 	if (!guest_screen)
 		die("Unable to create SDL RBG surface");
 
-	flags = SDL_HWSURFACE | SDL_ASYNCBLIT | SDL_HWACCEL;
+	flags = SDL_HWSURFACE | SDL_ASYNCBLIT | SDL_HWACCEL | SDL_DOUBLEBUF;
 
 	screen = SDL_SetVideoMode(fb->width, fb->height, fb->depth, flags);
 	if (!screen)
@@ -99,7 +99,7 @@ static void *sdl__thread(void *p)
 
 	for (;;) {
 		SDL_BlitSurface(guest_screen, NULL, screen, NULL);
-		SDL_UpdateRect(screen, 0, 0, 0, 0);
+		SDL_Flip(screen);
 
 		while (SDL_PollEvent(&ev)) {
 			switch (ev.type) {
