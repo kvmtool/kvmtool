@@ -68,4 +68,11 @@ static inline const char *skip_prefix(const char *str, const char *prefix)
 	return strncmp(str, prefix, len) ? NULL : str + len;
 }
 
+#define MSECS_TO_USECS(s) ((s) * 1000)
+
+/* Millisecond sleep */
+static inline void msleep(unsigned int msecs)
+{
+	usleep(MSECS_TO_USECS(msecs));
+}
 #endif /* KVM__UTIL_H */

@@ -76,6 +76,7 @@ static bool vnc;
 static bool sdl;
 extern bool ioport_debug;
 extern int  active_console;
+extern int  debug_iodelay;
 
 bool do_debug_print = false;
 
@@ -151,6 +152,8 @@ static const struct option options[] = {
 			"Enable single stepping"),
 	OPT_BOOLEAN('\0', "debug-ioport-debug", &ioport_debug,
 			"Enable ioport debugging"),
+	OPT_INTEGER('\0', "debug_iodelay", &debug_iodelay,
+			"Delay IO by millisecond"),
 	OPT_END()
 };
 

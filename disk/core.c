@@ -1,6 +1,8 @@
 #include "kvm/disk-image.h"
 #include "kvm/qcow.h"
 
+int debug_iodelay;
+
 struct disk_image *disk_image__new(int fd, u64 size, struct disk_image_operations *ops, int use_mmap)
 {
 	struct disk_image *disk;
@@ -132,6 +134,9 @@ ssize_t disk_image__read(struct disk_image *disk, u64 sector, const struct iovec
 	ssize_t total = 0;
 	ssize_t nr;
 
+	if (debug_iodelay)
+		msleep(debug_iodelay);
+
 	if (disk->ops->read_sector_iov) {
 		/*
 		 * Try mulitple buffer based operation first
@@ -169,6 +174,9 @@ ssize_t disk_image__write(struct disk_image *disk, u64 sector, const struct iove
 {
 	ssize_t total = 0;
 	ssize_t nr;
+
+	if (debug_iodelay)
+		msleep(debug_iodelay);
 
 	if (disk->ops->write_sector_iov) {
 		/*
