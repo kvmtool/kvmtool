@@ -28,6 +28,7 @@
 #include <fcntl.h>
 #include <time.h>
 #include <sys/eventfd.h>
+#include <asm/unistd.h>
 
 #define DEFINE_KVM_EXIT_REASON(reason) [reason] = #reason
 
@@ -529,8 +530,9 @@ void kvm__start_timer(struct kvm *kvm)
 
 	memset(&sev, 0, sizeof(struct sigevent));
 	sev.sigev_value.sival_int	= 0;
-	sev.sigev_notify		= SIGEV_SIGNAL;
+	sev.sigev_notify		= SIGEV_THREAD_ID;
 	sev.sigev_signo			= SIGALRM;
+	sev._sigev_un._tid		= syscall(__NR_gettid);
 
 	if (timer_create(CLOCK_REALTIME, &sev, &kvm->timerid) < 0)
 		die("timer_create()");
