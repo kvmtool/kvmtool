@@ -236,7 +236,7 @@ int kvm__max_cpus(struct kvm *kvm)
 	return ret;
 }
 
-struct kvm *kvm__init(const char *kvm_dev, unsigned long ram_size)
+struct kvm *kvm__init(const char *kvm_dev, u64 ram_size)
 {
 	struct kvm_pit_config pit_config = { .flags = 0, };
 	struct kvm *kvm;

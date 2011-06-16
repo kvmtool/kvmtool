@@ -324,8 +324,8 @@ static u64 host_ram_size(void)
 
 static u64 get_ram_size(int nr_cpus)
 {
-	long available;
-	long ram_size;
+	u64 available;
+	u64 ram_size;
 
 	ram_size	= 64 * (nr_cpus + 3);
 

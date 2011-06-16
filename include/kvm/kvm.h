@@ -43,7 +43,7 @@ struct kvm {
 	int                     nr_disks;
 };
 
-struct kvm *kvm__init(const char *kvm_dev, unsigned long ram_size);
+struct kvm *kvm__init(const char *kvm_dev, u64 ram_size);
 int kvm__max_cpus(struct kvm *kvm);
 void kvm__init_ram(struct kvm *kvm);
 void kvm__delete(struct kvm *kvm);
