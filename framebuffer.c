@@ -3,6 +3,7 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <stdlib.h>
+#include <sys/mman.h>
 
 static LIST_HEAD(framebuffers);
 
@@ -62,6 +63,6 @@ void fb__stop(void)
 	struct framebuffer *fb;
 
 	list_for_each_entry(fb, &framebuffers, node) {
-		free(fb->mem);
+		munmap(fb->mem, fb->mem_size);
 	}
 }

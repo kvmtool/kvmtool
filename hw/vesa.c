@@ -70,6 +70,7 @@ struct framebuffer *vesa__init(struct kvm *kvm)
 		.depth			= VESA_BPP,
 		.mem			= mem,
 		.mem_addr		= VESA_MEM_ADDR,
+		.mem_size		= VESA_MEM_SIZE,
 	};
 	return fb__register(&vesafb);
 }

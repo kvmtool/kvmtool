@@ -20,6 +20,7 @@ struct framebuffer {
 	u8				depth;
 	char				*mem;
 	u64				mem_addr;
+	u64				mem_size;
 
 	unsigned long			nr_targets;
 	struct fb_target_operations	*targets[FB_MAX_TARGETS];
