@@ -5,6 +5,7 @@
 #include "kvm/term.h"
 #include "kvm/kvm.h"
 #include "kvm/i8042.h"
+#include "kvm/kvm-cpu.h"
 
 #include <stdint.h>
 
@@ -30,6 +31,7 @@
 #define I8042_CMD_AUX_TEST	0xA9
 #define I8042_CMD_AUX_DISABLE	0xA7
 #define I8042_CMD_AUX_ENABLE	0xA8
+#define I8042_CMD_SYSTEM_RESET	0xFE
 
 #define RESPONSE_ACK		0xFA
 
@@ -138,7 +140,7 @@ void kbd_queue(u8 c)
 	kbd_update_irq();
 }
 
-static void kbd_write_command(u8 val)
+static void kbd_write_command(struct kvm *kvm, u8 val)
 {
 	switch (val) {
 	case I8042_CMD_CTL_RCTR:
@@ -158,6 +160,9 @@ static void kbd_write_command(u8 val)
 		break;
 	case I8042_CMD_AUX_ENABLE:
 		state.mode &= ~MODE_DISABLE_AUX;
+		break;
+	case I8042_CMD_SYSTEM_RESET:
+		kvm_cpu__reboot();
 		break;
 	default:
 		break;
@@ -314,7 +319,7 @@ static bool kbd_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data
 	switch (port) {
 	case I8042_COMMAND_REG: {
 		u8 value = ioport__read8(data);
-		kbd_write_command(value);
+		kbd_write_command(kvm, value);
 		break;
 	}
 	case I8042_DATA_REG: {

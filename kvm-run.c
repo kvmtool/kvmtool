@@ -570,7 +570,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 		vidmode = 0;
 
 	memset(real_cmdline, 0, sizeof(real_cmdline));
-	strcpy(real_cmdline, "notsc noapic noacpi pci=conf1");
+	strcpy(real_cmdline, "notsc noapic noacpi pci=conf1 reboot=k");
 	if (vnc || sdl) {
 		strcat(real_cmdline, " video=vesafb console=tty0");
 	} else
@@ -661,17 +661,17 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	kvm__init_ram(kvm);
 
+	kbd__init(kvm);
+
 	if (vnc || sdl)
 		fb = vesa__init(kvm);
 
 	if (vnc) {
-		kbd__init(kvm);
 		if (fb)
 			vnc__init(fb);
 	}
 
 	if (sdl) {
-		kbd__init(kvm);
 		if (fb)
 			sdl__init(fb);
 	}

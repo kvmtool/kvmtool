@@ -16,6 +16,7 @@
 
 #define PAGE_SIZE (sysconf(_SC_PAGE_SIZE))
 
+extern struct kvm_cpu *kvm_cpus[KVM_NR_CPUS];
 extern __thread struct kvm_cpu *current_kvm_cpu;
 
 static inline bool is_in_protected_mode(struct kvm_cpu *vcpu)
@@ -393,7 +394,7 @@ void kvm_cpu__run(struct kvm_cpu *vcpu)
 static void kvm_cpu_signal_handler(int signum)
 {
 	if (signum == SIGKVMEXIT) {
-		if (current_kvm_cpu->is_running) {
+		if (current_kvm_cpu && current_kvm_cpu->is_running) {
 			current_kvm_cpu->is_running = false;
 			pthread_kill(pthread_self(), SIGKVMEXIT);
 		}
@@ -416,6 +417,11 @@ static void kvm_cpu__handle_coalesced_mmio(struct kvm_cpu *cpu)
 			cpu->ring->first = (cpu->ring->first + 1) % KVM_COALESCED_MMIO_MAX;
 		}
 	}
+}
+
+void kvm_cpu__reboot(void)
+{
+	pthread_kill(kvm_cpus[0]->thread, SIGKVMEXIT);
 }
 
 int kvm_cpu__start(struct kvm_cpu *cpu)
