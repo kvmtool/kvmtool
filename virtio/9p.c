@@ -8,6 +8,7 @@
 #include "kvm/pci.h"
 #include "kvm/threadpool.h"
 #include "kvm/irq.h"
+#include "kvm/ioeventfd.h"
 
 #include <linux/virtio_ring.h>
 #include <linux/virtio_9p.h>
@@ -605,12 +606,20 @@ static void virtio_p9_do_io(struct kvm *kvm, void *param)
 	}
 }
 
+static void ioevent_callback(struct kvm *kvm, void *param)
+{
+	struct p9_dev_job *job = param;
+
+	thread_pool__do_job(job->job_id);
+}
+
 static bool virtio_p9_pci_io_out(struct ioport *ioport, struct kvm *kvm,
 				 u16 port, void *data, int size, u32 count)
 {
 	unsigned long offset;
 	bool ret = true;
 	struct p9_dev  *p9dev;
+	struct ioevent ioevent;
 
 	p9dev = ioport->priv;
 	offset = port - p9dev->base_addr;
@@ -637,6 +646,19 @@ static bool virtio_p9_pci_io_out(struct ioport *ioport, struct kvm *kvm,
 			.p9dev			= p9dev,
 		};
 		job->job_id = thread_pool__add_job(kvm, virtio_p9_do_io, job);
+
+		ioevent = (struct ioevent) {
+			.io_addr		= p9dev->base_addr + VIRTIO_PCI_QUEUE_NOTIFY,
+			.io_len			= sizeof(u16),
+			.fn			= ioevent_callback,
+			.datamatch		= p9dev->queue_selector,
+			.fn_ptr			= &p9dev->jobs[p9dev->queue_selector],
+			.fn_kvm			= kvm,
+			.fd			= eventfd(0, 0),
+		};
+
+		ioeventfd__add_event(&ioevent);
+
 		break;
 	}
 	case VIRTIO_PCI_QUEUE_SEL:
@@ -644,6 +666,7 @@ static bool virtio_p9_pci_io_out(struct ioport *ioport, struct kvm *kvm,
 		break;
 	case VIRTIO_PCI_QUEUE_NOTIFY: {
 		u16 queue_index;
+
 		queue_index		= ioport__read16(data);
 		thread_pool__do_job(p9dev->jobs[queue_index].job_id);
 		break;
