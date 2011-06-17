@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/uio.h>
+#include <signal.h>
 
 #include "kvm/read-write.h"
 #include "kvm/term.h"
@@ -102,6 +103,13 @@ static void term_cleanup(void)
 	tcsetattr(STDIN_FILENO, TCSANOW, &orig_term);
 }
 
+static void term_sig_cleanup(int sig)
+{
+	term_cleanup();
+	signal(sig, SIG_DFL);
+	raise(sig);
+}
+
 void term_init(void)
 {
 	struct termios term;
@@ -113,5 +121,6 @@ void term_init(void)
 	term.c_lflag &= ~(ICANON | ECHO | ISIG);
 	tcsetattr(STDIN_FILENO, TCSANOW, &term);
 
+	signal(SIGTERM, term_sig_cleanup);
 	atexit(term_cleanup);
 }
