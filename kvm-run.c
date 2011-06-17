@@ -69,7 +69,6 @@ static const char *network;
 static const char *host_ip_addr;
 static const char *guest_mac;
 static const char *script;
-static const char *virtio_9p_dir;
 static bool single_step;
 static bool readonly_image[MAX_DISK_IMAGES];
 static bool vnc;
@@ -108,6 +107,29 @@ static int img_name_parser(const struct option *opt, const char *arg, int unset)
 	return 0;
 }
 
+static int virtio_9p_rootdir_parser(const struct option *opt, const char *arg, int unset)
+{
+	char *tag_name;
+	char tmp[PATH_MAX];
+
+	/*
+	 * 9p dir can be of the form dirname,tag_name or
+	 * just dirname. In the later case we use the
+	 * default tag name
+	 */
+	tag_name = strstr(arg, ",");
+	if (tag_name) {
+		*tag_name = '\0';
+		tag_name++;
+	}
+	if (realpath(arg, tmp))
+		virtio_9p__init(kvm, tmp, tag_name);
+	else
+		die("Failed resolving 9p path");
+	return 0;
+}
+
+
 static const struct option options[] = {
 	OPT_GROUP("Basic options:"),
 	OPT_INTEGER('c', "cpus", &nrcpus, "Number of CPUs"),
@@ -118,8 +140,8 @@ static const struct option options[] = {
 	OPT_INCR('\0', "rng", &virtio_rng,
 			"Enable virtio Random Number Generator"),
 	OPT_STRING('\0', "kvm-dev", &kvm_dev, "kvm-dev", "KVM device file"),
-	OPT_STRING('\0', "virtio-9p", &virtio_9p_dir, "root dir",
-			"Enable 9p over virtio"),
+	OPT_CALLBACK('\0', "virtio-9p", NULL, "dirname,tag_name",
+		     "Enable 9p over virtio", virtio_9p_rootdir_parser),
 	OPT_BOOLEAN('\0', "vnc", &vnc, "Enable VNC framebuffer"),
 	OPT_BOOLEAN('\0', "sdl", &sdl, "Enable SDL framebuffer"),
 
@@ -519,15 +541,6 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	if (!script)
 		script = DEFAULT_SCRIPT;
-
-	if (virtio_9p_dir) {
-		char tmp[PATH_MAX];
-
-		if (realpath(virtio_9p_dir, tmp))
-			virtio_9p__init(kvm, tmp);
-		else
-			die("Failed resolving 9p path");
-	}
 
 	symbol__init(vmlinux_filename);
 

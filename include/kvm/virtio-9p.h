@@ -3,6 +3,6 @@
 
 struct kvm;
 
-void virtio_9p__init(struct kvm *kvm, const char *root);
+void virtio_9p__init(struct kvm *kvm, const char *root, const char *tag_name);
 
 #endif
