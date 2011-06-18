@@ -68,6 +68,15 @@ struct p9_dev {
 	struct pci_device_header pci_hdr;
 };
 
+struct p9_pdu {
+	u32 queue_head;
+	int offset;
+	u16 out_iov_cnt;
+	u16 in_iov_cnt;
+	struct iovec in_iov[VIRTQUEUE_NUM];
+	struct iovec out_iov[VIRTQUEUE_NUM];
+};
+
 /* Warning: Immediately use value returned from this function */
 static const char *rel_to_abs(struct p9_dev *p9dev,
 			      const char *path, char *abs_path)
@@ -185,12 +194,12 @@ static void set_p9msg_hdr(struct p9_msg *msg, u32 size, u8 cmd, u16 tag)
 	};
 }
 
-static bool virtio_p9_version(struct p9_dev *p9dev, struct p9_msg *msg,
-			      u32 len, struct iovec *iov,
-			      int outiovcnt, int iniovcnt, u32 *outlen)
+static bool virtio_p9_version(struct p9_dev *p9dev,
+			      struct p9_pdu *pdu, u32 *outlen)
 {
-	struct p9_msg *outmsg = iov[0].iov_base;
-	struct p9_rversion *rversion = (struct p9_rversion *)outmsg->msg;
+	struct p9_msg *inmsg  = pdu->in_iov[0].iov_base;
+	struct p9_msg *outmsg = pdu->out_iov[0].iov_base;
+	struct p9_rversion *rversion = (struct p9_rversion *)inmsg->msg;
 
 	rversion->msize		= 4096;
 	rversion->version.len	= strlen(VIRTIO_P9_VERSION);
@@ -198,35 +207,35 @@ static bool virtio_p9_version(struct p9_dev *p9dev, struct p9_msg *msg,
 
 	*outlen = VIRTIO_P9_HDR_LEN +
 		rversion->version.len + sizeof(u16) + sizeof(u32);
-	set_p9msg_hdr(outmsg, *outlen, P9_RVERSION, msg->tag);
+	set_p9msg_hdr(inmsg, *outlen, P9_RVERSION, outmsg->tag);
 
 	return true;
 }
 
-static bool virtio_p9_clunk(struct p9_dev *p9dev, struct p9_msg *msg,
-			    u32 len, struct iovec *iov,
-			    int outiovcnt, int iniovcnt, u32 *outlen)
+static bool virtio_p9_clunk(struct p9_dev *p9dev,
+			    struct p9_pdu *pdu, u32 *outlen)
 {
-	struct p9_msg *outmsg = iov[0].iov_base;
-	struct p9_tclunk *tclunk = (struct p9_tclunk *)msg->msg;
+	struct p9_msg *inmsg  = pdu->in_iov[0].iov_base;
+	struct p9_msg *outmsg = pdu->out_iov[0].iov_base;
+	struct p9_tclunk *tclunk = (struct p9_tclunk *)outmsg->msg;
 
 	close_fid(p9dev, tclunk->fid);
 
 	*outlen = VIRTIO_P9_HDR_LEN;
-	set_p9msg_hdr(outmsg, *outlen, P9_RCLUNK, msg->tag);
+	set_p9msg_hdr(inmsg, *outlen, P9_RCLUNK, outmsg->tag);
 
 	return true;
 }
 
-static bool virtio_p9_open(struct p9_dev *p9dev, struct p9_msg *msg,
-			   u32 len, struct iovec *iov,
-			   int outiovcnt, int iniovcnt, u32 *outlen)
+static bool virtio_p9_open(struct p9_dev *p9dev,
+			   struct p9_pdu *pdu, u32 *outlen)
 {
-	struct p9_msg *outmsg	= iov[0].iov_base;
-	struct p9_topen *topen	= (struct p9_topen *)msg->msg;
-	struct p9_ropen *ropen	= (struct p9_ropen *)outmsg->msg;
-	struct p9_fid *new_fid	= &p9dev->fids[topen->fid];
 	struct stat st;
+	struct p9_msg *inmsg  = pdu->in_iov[0].iov_base;
+	struct p9_msg *outmsg = pdu->out_iov[0].iov_base;
+	struct p9_topen *topen	= (struct p9_topen *)outmsg->msg;
+	struct p9_ropen *ropen	= (struct p9_ropen *)inmsg->msg;
+	struct p9_fid *new_fid	= &p9dev->fids[topen->fid];
 
 	if (lstat(new_fid->abs_path, &st) < 0)
 		return false;
@@ -240,28 +249,29 @@ static bool virtio_p9_open(struct p9_dev *p9dev, struct p9_msg *msg,
 		new_fid->fd	= open(new_fid->abs_path, omode2uflags(topen->mode));
 
 	*outlen = VIRTIO_P9_HDR_LEN + sizeof(*ropen);
-	set_p9msg_hdr(outmsg, *outlen, P9_ROPEN, msg->tag);
+	set_p9msg_hdr(inmsg, *outlen, P9_ROPEN, outmsg->tag);
 
 	return true;
 }
 
-static bool virtio_p9_create(struct p9_dev *p9dev, struct p9_msg *msg,
-			     u32 len, struct iovec *iov,
-			     int outiovcnt, int iniovcnt, u32 *outlen)
+static bool virtio_p9_create(struct p9_dev *p9dev,
+			     struct p9_pdu *pdu, u32 *outlen)
 {
-	struct p9_msg *outmsg		= iov[0].iov_base;
-	struct p9_tcreate *tcreate	= (struct p9_tcreate *)msg->msg;
-	struct p9_rcreate *rcreate	= (struct p9_rcreate *)outmsg->msg;
-	struct p9_fid *fid		= &p9dev->fids[tcreate->fid];
-	struct stat st;
 	u8 mode;
 	u32 perm;
+	struct stat st;
+	struct p9_msg *inmsg  = pdu->in_iov[0].iov_base;
+	struct p9_msg *outmsg = pdu->out_iov[0].iov_base;
+	struct p9_tcreate *tcreate	= (struct p9_tcreate *)outmsg->msg;
+	struct p9_rcreate *rcreate	= (struct p9_rcreate *)inmsg->msg;
+	struct p9_fid *fid		= &p9dev->fids[tcreate->fid];
+
 
 	rcreate->iounit = 0;
 
 	/* Get last byte of the variable length struct */
-	mode = *((u8 *)msg + msg->size - 1);
-	perm = *(u32 *)((u8 *)msg + msg->size - 5);
+	mode = *((u8 *)outmsg + outmsg->size - 1);
+	perm = *(u32 *)((u8 *)outmsg + outmsg->size - 5);
 
 	sprintf(fid->path, "%s/%.*s", fid->path, tcreate->name.len, (char *)&tcreate->name.str);
 
@@ -281,21 +291,22 @@ static bool virtio_p9_create(struct p9_dev *p9dev, struct p9_msg *msg,
 	st2qid(&st, &rcreate->qid);
 
 	*outlen = VIRTIO_P9_HDR_LEN + sizeof(*rcreate);
-	set_p9msg_hdr(outmsg, *outlen, P9_RCREATE, msg->tag);
+	set_p9msg_hdr(inmsg, *outlen, P9_RCREATE, outmsg->tag);
 
 	return true;
 }
 
-static bool virtio_p9_walk(struct p9_dev *p9dev, struct p9_msg *msg,
-			   u32 len, struct iovec *iov,
-			   int outiovcnt, int iniovcnt, u32 *outlen)
+static bool virtio_p9_walk(struct p9_dev *p9dev,
+			   struct p9_pdu *pdu, u32 *outlen)
 {
-	struct p9_msg *outmsg	= iov[0].iov_base;
-	struct p9_twalk *twalk	= (struct p9_twalk *)msg->msg;
-	struct p9_rwalk *rwalk	= (struct p9_rwalk *)outmsg->msg;
+	u8 i;
+	struct p9_msg *inmsg  = pdu->in_iov[0].iov_base;
+	struct p9_msg *outmsg = pdu->out_iov[0].iov_base;
+	struct p9_twalk *twalk	= (struct p9_twalk *)outmsg->msg;
+	struct p9_rwalk *rwalk	= (struct p9_rwalk *)inmsg->msg;
 	struct p9_str *str	= twalk->wnames;
 	struct p9_fid *new_fid	= &p9dev->fids[twalk->newfid];
-	u8 i;
+
 
 	rwalk->nwqid = 0;
 	if (twalk->nwname) {
@@ -307,7 +318,8 @@ static bool virtio_p9_walk(struct p9_dev *p9dev, struct p9_msg *msg,
 			struct stat st;
 
 			/* Format the new path we're 'walk'ing into */
-			sprintf(tmp, "%s/%.*s", fid->path, str->len, (char *)&str->str);
+			sprintf(tmp, "%s/%.*s", fid->path,
+				str->len, (char *)&str->str);
 
 			if (lstat(rel_to_abs(p9dev, tmp, full_path), &st) < 0)
 				break;
@@ -324,22 +336,23 @@ static bool virtio_p9_walk(struct p9_dev *p9dev, struct p9_msg *msg,
 		new_fid->fid	= twalk->newfid;
 	}
 
-	*outlen = VIRTIO_P9_HDR_LEN + sizeof(u16) + sizeof(struct p9_qid) * rwalk->nwqid;
-	set_p9msg_hdr(outmsg, *outlen, P9_RWALK, msg->tag);
+	*outlen = VIRTIO_P9_HDR_LEN + sizeof(u16) +
+		sizeof(struct p9_qid)*rwalk->nwqid;
+	set_p9msg_hdr(inmsg, *outlen, P9_RWALK, outmsg->tag);
 
 	return true;
 }
 
-static bool virtio_p9_attach(struct p9_dev *p9dev, struct p9_msg *msg,
-			     u32 len, struct iovec *iov,
-			     int outiovcnt, int iniovcnt, u32 *outlen)
+static bool virtio_p9_attach(struct p9_dev *p9dev,
+			     struct p9_pdu *pdu, u32 *outlen)
 {
-	struct p9_msg *outmsg = iov[0].iov_base;
-	struct p9_rattach *rattach = (struct p9_rattach *)outmsg->msg;
-	struct p9_tattach *tattach = (struct p9_tattach *)msg->msg;
+	u32 i;
 	struct stat st;
 	struct p9_fid *fid;
-	u32 i;
+	struct p9_msg *inmsg  = pdu->in_iov[0].iov_base;
+	struct p9_msg *outmsg = pdu->out_iov[0].iov_base;
+	struct p9_rattach *rattach = (struct p9_rattach *)inmsg->msg;
+	struct p9_tattach *tattach = (struct p9_tattach *)outmsg->msg;
 
 	/* Reset everything */
 	for (i = 0; i < VIRTIO_P9_MAX_FID; i++)
@@ -356,7 +369,7 @@ static bool virtio_p9_attach(struct p9_dev *p9dev, struct p9_msg *msg,
 	strcpy(fid->path, "/");
 
 	*outlen = VIRTIO_P9_HDR_LEN + sizeof(*rattach);
-	set_p9msg_hdr(outmsg, *outlen, P9_RATTACH, msg->tag);
+	set_p9msg_hdr(inmsg, *outlen, P9_RATTACH, outmsg->tag);
 
 	return true;
 }
@@ -401,14 +414,14 @@ static u32 virtio_p9_fill_stat(struct p9_dev *p9dev, const char *name,
 	return rstat->stat.size + sizeof(u16);
 }
 
-static bool virtio_p9_read(struct p9_dev *p9dev, struct p9_msg *msg,
-			   u32 len, struct iovec *iov,
-			   int outiovcnt, int iniovcnt, u32 *outlen)
+static bool virtio_p9_read(struct p9_dev *p9dev,
+			   struct p9_pdu *pdu, u32 *outlen)
 {
-	struct p9_msg *outmsg	= iov[0].iov_base;
-	struct p9_tread *tread	= (struct p9_tread *)msg->msg;
-	struct p9_rread *rread	= (struct p9_rread *)outmsg->msg;
-	struct p9_rstat *rstat	= (struct p9_rstat *)iov[1].iov_base;
+	struct p9_msg *inmsg  = pdu->in_iov[0].iov_base;
+	struct p9_msg *outmsg = pdu->out_iov[0].iov_base;
+	struct p9_tread *tread	= (struct p9_tread *)outmsg->msg;
+	struct p9_rread *rread	= (struct p9_rread *)inmsg->msg;
+	struct p9_rstat *rstat	= (struct p9_rstat *)pdu->in_iov[1].iov_base;
 	struct p9_fid *fid	= &p9dev->fids[tread->fid];
 	struct stat st;
 
@@ -430,29 +443,30 @@ static bool virtio_p9_read(struct p9_dev *p9dev, struct p9_msg *msg,
 			cur = readdir(fid->dir);
 		}
 	} else {
-		iov[0].iov_base += VIRTIO_P9_HDR_LEN + sizeof(u32);
-		iov[0].iov_len -= VIRTIO_P9_HDR_LEN + sizeof(u32);
-		rread->count = preadv(fid->fd, iov, iniovcnt, tread->offset);
+		pdu->in_iov[0].iov_base += VIRTIO_P9_HDR_LEN + sizeof(u32);
+		pdu->in_iov[0].iov_len -= VIRTIO_P9_HDR_LEN + sizeof(u32);
+		rread->count = preadv(fid->fd, pdu->in_iov,
+				      pdu->in_iov_cnt, tread->offset);
 		if (rread->count > tread->count)
 			rread->count = tread->count;
 	}
 
 	*outlen = VIRTIO_P9_HDR_LEN + sizeof(u32) + rread->count;
-	set_p9msg_hdr(outmsg, *outlen, P9_RREAD, msg->tag);
+	set_p9msg_hdr(inmsg, *outlen, P9_RREAD, outmsg->tag);
 
 	return true;
 }
 
-static bool virtio_p9_stat(struct p9_dev *p9dev, struct p9_msg *msg,
-			   u32 len, struct iovec *iov,
-			   int outiovcnt, int iniovcnt, u32 *outlen)
+static bool virtio_p9_stat(struct p9_dev *p9dev,
+			   struct p9_pdu *pdu, u32 *outlen)
 {
-	struct p9_msg *outmsg = iov[0].iov_base;
-	struct p9_tstat *tstat = (struct p9_tstat *)msg->msg;
-	struct p9_rstat *rstat = (struct p9_rstat *)(outmsg->msg + sizeof(u16));
-	struct stat st;
-	struct p9_fid *fid = &p9dev->fids[tstat->fid];
 	u32 ret;
+	struct stat st;
+	struct p9_msg *inmsg  = pdu->in_iov[0].iov_base;
+	struct p9_msg *outmsg = pdu->out_iov[0].iov_base;
+	struct p9_tstat *tstat = (struct p9_tstat *)outmsg->msg;
+	struct p9_rstat *rstat = (struct p9_rstat *)(inmsg->msg + sizeof(u16));
+	struct p9_fid *fid = &p9dev->fids[tstat->fid];
 
 	if (lstat(fid->abs_path, &st) < 0)
 		return false;
@@ -460,19 +474,20 @@ static bool virtio_p9_stat(struct p9_dev *p9dev, struct p9_msg *msg,
 	ret = virtio_p9_fill_stat(p9dev, fid->path, &st, rstat);
 
 	*outlen = VIRTIO_P9_HDR_LEN + ret + sizeof(u16);
-	set_p9msg_hdr(outmsg, *outlen, P9_RSTAT, msg->tag);
+	set_p9msg_hdr(inmsg, *outlen, P9_RSTAT, outmsg->tag);
 	return true;
 }
 
-static bool virtio_p9_wstat(struct p9_dev *p9dev, struct p9_msg *msg,
-			    u32 len, struct iovec *iov,
-			    int outiovcnt, int iniovcnt, u32 *outlen)
+static bool virtio_p9_wstat(struct p9_dev *p9dev,
+			    struct p9_pdu *pdu, u32 *outlen)
 {
-	struct p9_msg *outmsg = iov[0].iov_base;
-	struct p9_twstat *twstat = (struct p9_twstat *)msg->msg;
-	struct p9_str *str;
-	struct p9_fid *fid = &p9dev->fids[twstat->fid];
 	int res = 0;
+	struct p9_str *str;
+	struct p9_msg *inmsg  = pdu->in_iov[0].iov_base;
+	struct p9_msg *outmsg = pdu->out_iov[0].iov_base;
+	struct p9_twstat *twstat = (struct p9_twstat *)outmsg->msg;
+	struct p9_fid *fid = &p9dev->fids[twstat->fid];
+
 
 	if (twstat->stat.length != -1UL)
 		res = ftruncate(fid->fd, twstat->stat.length);
@@ -498,17 +513,17 @@ static bool virtio_p9_wstat(struct p9_dev *p9dev, struct p9_msg *msg,
 	}
 
 	*outlen = VIRTIO_P9_HDR_LEN;
-	set_p9msg_hdr(outmsg, *outlen, P9_RWSTAT, msg->tag);
+	set_p9msg_hdr(inmsg, *outlen, P9_RWSTAT, outmsg->tag);
 
 	return res == 0;
 }
 
-static bool virtio_p9_remove(struct p9_dev *p9dev, struct p9_msg *msg,
-			     u32 len, struct iovec *iov,
-			     int outiovcnt, int iniovcnt, u32 *outlen)
+static bool virtio_p9_remove(struct p9_dev *p9dev,
+			     struct p9_pdu *pdu, u32 *outlen)
 {
-	struct p9_msg *outmsg = iov[0].iov_base;
-	struct p9_tremove *tremove = (struct p9_tremove *)msg->msg;
+	struct p9_msg *inmsg  = pdu->in_iov[0].iov_base;
+	struct p9_msg *outmsg = pdu->out_iov[0].iov_base;
+	struct p9_tremove *tremove = (struct p9_tremove *)outmsg->msg;
 	struct p9_fid *fid = &p9dev->fids[tremove->fid];
 
 	close_fid(p9dev, tremove->fid);
@@ -518,39 +533,32 @@ static bool virtio_p9_remove(struct p9_dev *p9dev, struct p9_msg *msg,
 		unlink(fid->abs_path);
 
 	*outlen = VIRTIO_P9_HDR_LEN;
-	set_p9msg_hdr(outmsg, *outlen, P9_RREMOVE, msg->tag);
+	set_p9msg_hdr(inmsg, *outlen, P9_RREMOVE, outmsg->tag);
 	return true;
 }
 
-static bool virtio_p9_write(struct p9_dev *p9dev, struct p9_msg *msg,
-			    u32 len, struct iovec *iov,
-			    int outiovcnt, int iniovcnt, u32 *outlen)
+static bool virtio_p9_write(struct p9_dev *p9dev,
+			    struct p9_pdu *pdu, u32 *outlen)
 {
-	struct p9_msg *outmsg;
-	struct p9_rwrite *rwrite;
-	struct p9_twrite *twrite = (struct p9_twrite *)msg->msg;
+	struct p9_msg *inmsg  = pdu->in_iov[0].iov_base;
+	struct p9_msg *outmsg = pdu->out_iov[0].iov_base;
+	struct p9_twrite *twrite = (struct p9_twrite *)outmsg->msg;
+	struct p9_rwrite *rwrite = (struct p9_rwrite *)inmsg->msg;
 	struct p9_fid *fid = &p9dev->fids[twrite->fid];
 
-	if (outiovcnt == 1) {
-		outmsg = iov[0].iov_base;
-		rwrite = (struct p9_rwrite *)outmsg->msg;
-		rwrite->count = pwrite(fid->fd, &twrite->data,
-				       twrite->count, twrite->offset);
-	} else {
-		outmsg = iov[2].iov_base;
-		rwrite = (struct p9_rwrite *)outmsg->msg;
-		rwrite->count = pwrite(fid->fd, iov[1].iov_base,
-				       twrite->count, twrite->offset);
-	}
+
+	pdu->out_iov[0].iov_base += (sizeof(*outmsg) + sizeof(*twrite));
+	pdu->out_iov[0].iov_len -= (sizeof(*outmsg) + sizeof(*twrite));
+	rwrite->count = pwritev(fid->fd, pdu->out_iov,
+				pdu->out_iov_cnt, twrite->offset);
 	*outlen = VIRTIO_P9_HDR_LEN + sizeof(u32);
-	set_p9msg_hdr(outmsg, *outlen, P9_RWRITE, msg->tag);
+	set_p9msg_hdr(inmsg, *outlen, P9_RWRITE, outmsg->tag);
 
 	return true;
 }
 
-typedef bool p9_handler(struct p9_dev *p9dev, struct p9_msg *msg,
-			u32 len, struct iovec *iov,
-			int outiovcnt, int iniovcnt, u32 *outlen);
+typedef bool p9_handler(struct p9_dev *p9dev,
+			struct p9_pdu *pdu, u32 *outlen);
 
 static p9_handler *virtio_9p_handler [] = {
 	[P9_TVERSION] = virtio_p9_version,
@@ -566,30 +574,55 @@ static p9_handler *virtio_9p_handler [] = {
 	[P9_TWRITE]   =	virtio_p9_write,
 };
 
+static struct p9_pdu *virtio_p9_pdu_init(struct kvm *kvm, struct virt_queue *vq)
+{
+	struct p9_pdu *pdu = calloc(1, sizeof(*pdu));
+	if (!pdu)
+		return NULL;
+
+	pdu->queue_head  = virt_queue__get_inout_iov(kvm, vq, pdu->in_iov,
+						     pdu->out_iov,
+						     &pdu->in_iov_cnt,
+						     &pdu->out_iov_cnt);
+	return pdu;
+}
+
+static u8 virtio_p9_get_cmd(struct p9_pdu *pdu)
+{
+	struct p9_msg *msg;
+	/*
+	 * we can peek directly into pdu for a u8
+	 * value. The host endianess won't be an issue
+	 */
+	msg = pdu->out_iov[0].iov_base;
+	return msg->cmd;
+}
+
 static bool virtio_p9_do_io_request(struct kvm *kvm, struct p9_dev_job *job)
 {
+	u8 cmd;
 	u32 len = 0;
-	u16 out, in, head;
-	struct p9_msg *msg;
 	p9_handler *handler;
-	struct virt_queue *vq;
 	struct p9_dev *p9dev;
-	struct iovec iov[VIRTQUEUE_NUM];
+	struct virt_queue *vq;
+	struct p9_pdu *p9pdu;
 
 	vq = job->vq;
 	p9dev = job->p9dev;
-	head  = virt_queue__get_iov(vq, iov, &out, &in, kvm);
-	msg   = iov[0].iov_base;
 
-	if (msg->cmd >= ARRAY_SIZE(virtio_9p_handler) ||
-	    !virtio_9p_handler[msg->cmd]) {
-		printf("Unsupported P9 message type: %u\n", msg->cmd);
+	p9pdu = virtio_p9_pdu_init(kvm, vq);
+	cmd = virtio_p9_get_cmd(p9pdu);
+
+	if (cmd >= ARRAY_SIZE(virtio_9p_handler) ||
+	    !virtio_9p_handler[cmd]) {
+		printf("Unsupported P9 message type: %u\n", cmd);
 
 	} else {
-		handler = virtio_9p_handler[msg->cmd];
-		handler(p9dev, msg, iov[0].iov_len, iov+1, out, in, &len);
+		handler = virtio_9p_handler[cmd];
+		handler(p9dev, p9pdu, &len);
 	}
-	virt_queue__set_used_elem(vq, head, len);
+	virt_queue__set_used_elem(vq, p9pdu->queue_head, len);
+	free(p9pdu);
 	return true;
 }
 

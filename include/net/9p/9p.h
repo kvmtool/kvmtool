@@ -635,7 +635,6 @@ struct p9_twrite {
 	u32 fid;
 	u64 offset;
 	u32 count;
-	u8 *data;
 };
 
 struct p9_rwrite {
