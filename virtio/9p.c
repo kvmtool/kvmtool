@@ -459,7 +459,7 @@ static bool virtio_p9_stat(struct p9_dev *p9dev, struct p9_msg *msg,
 
 	ret = virtio_p9_fill_stat(p9dev, fid->path, &st, rstat);
 
-	*outlen = VIRTIO_P9_HDR_LEN + ret + sizeof(u16) * 2;
+	*outlen = VIRTIO_P9_HDR_LEN + ret + sizeof(u16);
 	set_p9msg_hdr(outmsg, *outlen, P9_RSTAT, msg->tag);
 	return true;
 }
