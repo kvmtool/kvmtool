@@ -10,15 +10,15 @@
 #include "kvm/irq.h"
 #include "kvm/ioeventfd.h"
 
-#include <linux/virtio_ring.h>
-#include <linux/virtio_9p.h>
-#include <net/9p/9p.h>
-
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <pthread.h>
 #include <dirent.h>
+
+#include <linux/virtio_ring.h>
+#include <linux/virtio_9p.h>
+#include <net/9p/9p.h>
 
 #define NUM_VIRT_QUEUES		1
 #define VIRTIO_P9_QUEUE_SIZE	128
