@@ -228,7 +228,7 @@ static bool virtio_p9_open(struct p9_dev *p9dev, struct p9_msg *msg,
 	struct p9_fid *new_fid	= &p9dev->fids[topen->fid];
 	struct stat st;
 
-	if (stat(new_fid->abs_path, &st) < 0)
+	if (lstat(new_fid->abs_path, &st) < 0)
 		return false;
 
 	st2qid(&st, &ropen->qid);
@@ -275,7 +275,7 @@ static bool virtio_p9_create(struct p9_dev *p9dev, struct p9_msg *msg,
 		fid->fd = open(fid->abs_path, omode2uflags(mode) | O_CREAT, 0777);
 	}
 
-	if (stat(fid->abs_path, &st) < 0)
+	if (lstat(fid->abs_path, &st) < 0)
 		return false;
 
 	st2qid(&st, &rcreate->qid);
@@ -309,7 +309,7 @@ static bool virtio_p9_walk(struct p9_dev *p9dev, struct p9_msg *msg,
 			/* Format the new path we're 'walk'ing into */
 			sprintf(tmp, "%s/%.*s", fid->path, str->len, (char *)&str->str);
 
-			if (stat(rel_to_abs(p9dev, tmp, full_path), &st) < 0)
+			if (lstat(rel_to_abs(p9dev, tmp, full_path), &st) < 0)
 				break;
 
 			st2qid(&st, &rwalk->wqids[i]);
@@ -345,7 +345,7 @@ static bool virtio_p9_attach(struct p9_dev *p9dev, struct p9_msg *msg,
 	for (i = 0; i < VIRTIO_P9_MAX_FID; i++)
 		p9dev->fids[i].fid = P9_NOFID;
 
-	if (stat(p9dev->root_dir, &st) < 0)
+	if (lstat(p9dev->root_dir, &st) < 0)
 		return false;
 
 	st2qid(&st, &rattach->qid);
@@ -422,7 +422,7 @@ static bool virtio_p9_read(struct p9_dev *p9dev, struct p9_msg *msg,
 		while (cur) {
 			u32 read;
 
-			stat(rel_to_abs(p9dev, cur->d_name, full_path), &st);
+			lstat(rel_to_abs(p9dev, cur->d_name, full_path), &st);
 			read = virtio_p9_fill_stat(p9dev, cur->d_name,
 						   &st, rstat);
 			rread->count += read;
@@ -454,7 +454,7 @@ static bool virtio_p9_stat(struct p9_dev *p9dev, struct p9_msg *msg,
 	struct p9_fid *fid = &p9dev->fids[tstat->fid];
 	u32 ret;
 
-	if (stat(fid->abs_path, &st) < 0)
+	if (lstat(fid->abs_path, &st) < 0)
 		return false;
 
 	ret = virtio_p9_fill_stat(p9dev, fid->path, &st, rstat);
