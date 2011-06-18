@@ -58,6 +58,38 @@ u16 virt_queue__get_iov(struct virt_queue *queue, struct iovec iov[], u16 *out, 
 	return head;
 }
 
+/* in and out are relative to guest */
+u16 virt_queue__get_inout_iov(struct kvm *kvm, struct virt_queue *queue,
+			      struct iovec in_iov[], struct iovec out_iov[],
+			      u16 *in, u16 *out)
+{
+	u16 head, idx;
+	struct vring_desc *desc;
+
+	idx = head = virt_queue__pop(queue);
+	*out = *in = 0;
+	do {
+		desc = virt_queue__get_desc(queue, idx);
+		if (desc->flags & VRING_DESC_F_WRITE) {
+			in_iov[*in].iov_base = guest_flat_to_host(kvm,
+								  desc->addr);
+			in_iov[*in].iov_len = desc->len;
+			(*in)++;
+		} else {
+			out_iov[*out].iov_base = guest_flat_to_host(kvm,
+								    desc->addr);
+			out_iov[*out].iov_len = desc->len;
+			(*out)++;
+		}
+		if (desc->flags & VRING_DESC_F_NEXT)
+			idx = desc->next;
+		else
+			break;
+	} while (1);
+	return head;
+}
+
+
 void virt_queue__trigger_irq(struct virt_queue *vq, int irq, u8 *isr, struct kvm *kvm)
 {
 	if (vq->vring.avail->flags & VRING_AVAIL_F_NO_INTERRUPT)

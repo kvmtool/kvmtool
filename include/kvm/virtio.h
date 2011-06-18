@@ -50,6 +50,9 @@ static inline void *guest_pfn_to_host(struct kvm *kvm, u32 pfn)
 struct vring_used_elem *virt_queue__set_used_elem(struct virt_queue *queue, u32 head, u32 len);
 
 u16 virt_queue__get_iov(struct virt_queue *queue, struct iovec iov[], u16 *out, u16 *in, struct kvm *kvm);
+u16 virt_queue__get_inout_iov(struct kvm *kvm, struct virt_queue *queue,
+			      struct iovec in_iov[], struct iovec out_iov[],
+			      u16 *in, u16 *out);
 
 void virt_queue__trigger_irq(struct virt_queue *vq, int irq, u8 *isr, struct kvm *kvm);
 
