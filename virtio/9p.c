@@ -21,7 +21,7 @@
 #include <net/9p/9p.h>
 
 #define NUM_VIRT_QUEUES		1
-#define VIRTIO_P9_QUEUE_SIZE	128
+#define VIRTQUEUE_NUM		128
 #define	VIRTIO_P9_DEFAULT_TAG	"kvm_9p"
 #define VIRTIO_P9_HDR_LEN	(sizeof(u32)+sizeof(u8)+sizeof(u16))
 #define VIRTIO_P9_MAX_FID	128
@@ -115,7 +115,7 @@ static bool virtio_p9_pci_io_in(struct ioport *ioport, struct kvm *kvm,
 		ioport__write32(data, p9dev->vqs[p9dev->queue_selector].pfn);
 		break;
 	case VIRTIO_PCI_QUEUE_NUM:
-		ioport__write16(data, VIRTIO_P9_QUEUE_SIZE);
+		ioport__write16(data, VIRTQUEUE_NUM);
 		break;
 	case VIRTIO_PCI_STATUS:
 		ioport__write8(data, p9dev->status);
@@ -574,7 +574,7 @@ static bool virtio_p9_do_io_request(struct kvm *kvm, struct p9_dev_job *job)
 	p9_handler *handler;
 	struct virt_queue *vq;
 	struct p9_dev *p9dev;
-	struct iovec iov[VIRTIO_P9_QUEUE_SIZE];
+	struct iovec iov[VIRTQUEUE_NUM];
 
 	vq = job->vq;
 	p9dev = job->p9dev;
@@ -638,7 +638,7 @@ static bool virtio_p9_pci_io_out(struct ioport *ioport, struct kvm *kvm,
 		queue->pfn		= ioport__read32(data);
 		p			= guest_pfn_to_host(kvm, queue->pfn);
 
-		vring_init(&queue->vring, VIRTIO_P9_QUEUE_SIZE, p,
+		vring_init(&queue->vring, VIRTQUEUE_NUM, p,
 			   VIRTIO_PCI_VRING_ALIGN);
 
 		*job			= (struct p9_dev_job) {
