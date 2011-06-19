@@ -325,13 +325,15 @@ static void virtio_p9_create(struct p9_dev *p9dev,
 	}
 
 	if (lstat(fid->abs_path, &st) < 0)
-		return;
+		goto err_out;
 
 	st2qid(&st, &rcreate->qid);
 
 	*outlen = VIRTIO_P9_HDR_LEN + sizeof(*rcreate);
 	set_p9msg_hdr(inmsg, *outlen, P9_RCREATE, outmsg->tag);
-
+	return;
+err_out:
+	virtio_p9_error_reply(p9dev, pdu, errno, outlen);
 	return;
 }
 
@@ -361,7 +363,7 @@ static void virtio_p9_walk(struct p9_dev *p9dev,
 				str->len, (char *)&str->str);
 
 			if (lstat(rel_to_abs(p9dev, tmp, full_path), &st) < 0)
-				break;
+				goto err_out;
 
 			st2qid(&st, &rwalk->wqids[i]);
 			new_fid->is_dir = S_ISDIR(st.st_mode);
@@ -378,7 +380,9 @@ static void virtio_p9_walk(struct p9_dev *p9dev,
 	*outlen = VIRTIO_P9_HDR_LEN + sizeof(u16) +
 		sizeof(struct p9_qid)*rwalk->nwqid;
 	set_p9msg_hdr(inmsg, *outlen, P9_RWALK, outmsg->tag);
-
+	return;
+err_out:
+	virtio_p9_error_reply(p9dev, pdu, errno, outlen);
 	return;
 }
 
@@ -398,7 +402,7 @@ static void virtio_p9_attach(struct p9_dev *p9dev,
 		p9dev->fids[i].fid = P9_NOFID;
 
 	if (lstat(p9dev->root_dir, &st) < 0)
-		return;
+		goto err_out;
 
 	st2qid(&st, &rattach->qid);
 
@@ -409,7 +413,9 @@ static void virtio_p9_attach(struct p9_dev *p9dev,
 
 	*outlen = VIRTIO_P9_HDR_LEN + sizeof(*rattach);
 	set_p9msg_hdr(inmsg, *outlen, P9_RATTACH, outmsg->tag);
-
+	return;
+err_out:
+	virtio_p9_error_reply(p9dev, pdu, errno, outlen);
 	return;
 }
 
@@ -511,12 +517,15 @@ static void virtio_p9_stat(struct p9_dev *p9dev,
 	struct p9_fid *fid = &p9dev->fids[tstat->fid];
 
 	if (lstat(fid->abs_path, &st) < 0)
-		return;
+		goto err_out;
 
 	ret = virtio_p9_fill_stat(p9dev, fid->path, &st, rstat);
 
 	*outlen = VIRTIO_P9_HDR_LEN + ret + sizeof(u16);
 	set_p9msg_hdr(inmsg, *outlen, P9_RSTAT, outmsg->tag);
+	return;
+err_out:
+	virtio_p9_error_reply(p9dev, pdu, errno, outlen);
 	return;
 }
 
