@@ -210,6 +210,22 @@ static u16 virtio_p9_update_iov_cnt(struct iovec iov[], u32 count, int iov_cnt)
 	return i;
 }
 
+static void virtio_p9_error_reply(struct p9_dev *p9dev,
+				  struct p9_pdu *pdu, int err, u32 *outlen)
+{
+	char *err_str;
+	struct p9_msg *inmsg  = pdu->in_iov[0].iov_base;
+	struct p9_msg *outmsg = pdu->out_iov[0].iov_base;
+	struct p9_rerror *rerror  = (struct p9_rerror *)inmsg->msg;
+
+	err_str = strerror(err);
+	rerror->error.len = strlen(err_str);
+	memcpy(&rerror->error.str, err_str, rerror->error.len);
+
+	*outlen = VIRTIO_P9_HDR_LEN + rerror->error.len + sizeof(u16);
+	set_p9msg_hdr(inmsg, *outlen, P9_RERROR, outmsg->tag);
+}
+
 static bool virtio_p9_version(struct p9_dev *p9dev,
 			      struct p9_pdu *pdu, u32 *outlen)
 {
@@ -254,19 +270,26 @@ static bool virtio_p9_open(struct p9_dev *p9dev,
 	struct p9_fid *new_fid	= &p9dev->fids[topen->fid];
 
 	if (lstat(new_fid->abs_path, &st) < 0)
-		return false;
+		goto err_out;
 
 	st2qid(&st, &ropen->qid);
 	ropen->iounit = 0;
 
-	if (new_fid->is_dir)
-		new_fid->dir	= opendir(new_fid->abs_path);
-	else
-		new_fid->fd	= open(new_fid->abs_path, omode2uflags(topen->mode));
-
+	if (new_fid->is_dir) {
+		new_fid->dir = opendir(new_fid->abs_path);
+		if (!new_fid->dir)
+			goto err_out;
+	} else {
+		new_fid->fd  = open(new_fid->abs_path,
+				   omode2uflags(topen->mode) | O_NOFOLLOW);
+		if (new_fid->fd < 0)
+			goto err_out;
+	}
 	*outlen = VIRTIO_P9_HDR_LEN + sizeof(*ropen);
 	set_p9msg_hdr(inmsg, *outlen, P9_ROPEN, outmsg->tag);
-
+	return true;
+err_out:
+	virtio_p9_error_reply(p9dev, pdu, errno, outlen);
 	return true;
 }
 
