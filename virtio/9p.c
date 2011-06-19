@@ -194,6 +194,22 @@ static void set_p9msg_hdr(struct p9_msg *msg, u32 size, u8 cmd, u16 tag)
 	};
 }
 
+static u16 virtio_p9_update_iov_cnt(struct iovec iov[], u32 count, int iov_cnt)
+{
+	int i;
+	u32 total = 0;
+	for (i = 0; (i < iov_cnt) && (total < count); i++) {
+		if (total + iov[i].iov_len > count) {
+			/* we don't need this iov fully */
+			iov[i].iov_len -= ((total + iov[i].iov_len) - count);
+			i++;
+			break;
+		}
+		total += iov[i].iov_len;
+	}
+	return i;
+}
+
 static bool virtio_p9_version(struct p9_dev *p9dev,
 			      struct p9_pdu *pdu, u32 *outlen)
 {
@@ -445,6 +461,9 @@ static bool virtio_p9_read(struct p9_dev *p9dev,
 	} else {
 		pdu->in_iov[0].iov_base += VIRTIO_P9_HDR_LEN + sizeof(u32);
 		pdu->in_iov[0].iov_len -= VIRTIO_P9_HDR_LEN + sizeof(u32);
+		pdu->in_iov_cnt = virtio_p9_update_iov_cnt(pdu->in_iov,
+							    tread->count,
+							    pdu->in_iov_cnt);
 		rread->count = preadv(fid->fd, pdu->in_iov,
 				      pdu->in_iov_cnt, tread->offset);
 		if (rread->count > tread->count)
@@ -549,6 +568,8 @@ static bool virtio_p9_write(struct p9_dev *p9dev,
 
 	pdu->out_iov[0].iov_base += (sizeof(*outmsg) + sizeof(*twrite));
 	pdu->out_iov[0].iov_len -= (sizeof(*outmsg) + sizeof(*twrite));
+	pdu->out_iov_cnt = virtio_p9_update_iov_cnt(pdu->out_iov, twrite->count,
+						    pdu->out_iov_cnt);
 	rwrite->count = pwritev(fid->fd, pdu->out_iov,
 				pdu->out_iov_cnt, twrite->offset);
 	*outlen = VIRTIO_P9_HDR_LEN + sizeof(u32);
