@@ -609,6 +609,12 @@ static u8 virtio_p9_get_cmd(struct p9_pdu *pdu)
 	return msg->cmd;
 }
 
+static void virtio_p9_eopnotsupp(struct p9_dev *p9dev,
+				 struct p9_pdu *pdu, u32 *outlen)
+{
+	return virtio_p9_error_reply(p9dev, pdu, EOPNOTSUPP, outlen);
+}
+
 static bool virtio_p9_do_io_request(struct kvm *kvm, struct p9_dev_job *job)
 {
 	u8 cmd;
@@ -626,8 +632,7 @@ static bool virtio_p9_do_io_request(struct kvm *kvm, struct p9_dev_job *job)
 
 	if (cmd >= ARRAY_SIZE(virtio_9p_handler) ||
 	    !virtio_9p_handler[cmd]) {
-		printf("Unsupported P9 message type: %u\n", cmd);
-
+		handler = virtio_p9_eopnotsupp;
 	} else {
 		handler = virtio_9p_handler[cmd];
 		handler(p9dev, p9pdu, &len);
