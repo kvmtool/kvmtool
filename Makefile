@@ -65,6 +65,7 @@ OBJS	+= util/parse-options.o
 OBJS	+= util/rbtree-interval.o
 OBJS	+= util/strbuf.o
 OBJS	+= virtio/9p.o
+OBJS	+= virtio/9p-pdu.o
 OBJS	+= hw/vesa.o
 OBJS	+= hw/i8042.o
 
