@@ -18,6 +18,13 @@
 #define UIP_IP_TTL		0X40
 #define UIP_IP_P_UDP		0X11
 
+#define UIP_TCP_FLAG_FIN	1
+#define UIP_TCP_FLAG_SYN	2
+#define UIP_TCP_FLAG_RST	4
+#define UIP_TCP_FLAG_PSH	8
+#define UIP_TCP_FLAG_ACK	16
+#define UIP_TCP_FLAG_URG	32
+
 /*
  * IP package maxium len == 64 KBytes
  * IP header == 20 Bytes
@@ -225,6 +232,16 @@ static inline u16 uip_tcp_payloadlen(struct uip_tcp *tcp)
 static inline u8 *uip_tcp_payload(struct uip_tcp *tcp)
 {
 	return (u8 *)&tcp->sport + uip_tcp_hdrlen(tcp);
+}
+
+static inline bool uip_tcp_is_syn(struct uip_tcp *tcp)
+{
+	return (tcp->flg & UIP_TCP_FLAG_SYN) != 0;
+}
+
+static inline bool uip_tcp_is_fin(struct uip_tcp *tcp)
+{
+	return (tcp->flg & UIP_TCP_FLAG_FIN) != 0;
 }
 
 static inline u16 uip_eth_hdrlen(struct uip_eth *eth)
