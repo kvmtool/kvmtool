@@ -40,7 +40,7 @@ static struct pci_device_header pci_header = {
 	.subsys_id			= VIRTIO_ID_NET,
 };
 
-struct net_device {
+struct net_dev {
 	pthread_mutex_t			mutex;
 
 	struct virt_queue		vqs[VIRTIO_NET_NUM_QUEUES];
@@ -68,8 +68,9 @@ struct net_device {
 
 };
 
-static struct net_device ndev = {
-	.mutex				= PTHREAD_MUTEX_INITIALIZER,
+
+static struct net_dev ndev = {
+	.mutex	= PTHREAD_MUTEX_INITIALIZER,
 
 	.config = {
 		.mac			= { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55 },
