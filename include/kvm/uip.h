@@ -89,6 +89,22 @@ struct uip_udp {
 	u8 payload[0];
 } __attribute__((packed));
 
+struct uip_tcp {
+	/*
+	 * FIXME: IP Options (IP hdr len > 20 bytes) are not supported
+	 */
+	struct uip_ip ip;
+	u16 sport;
+	u16 dport;
+	u32 seq;
+	u32 ack;
+	u8  off;
+	u8  flg;
+	u16 win;
+	u16 csum;
+	u16 urgent;
+} __attribute__((packed));
+
 struct uip_pseudo_hdr {
 	u32 sip;
 	u32 dip;
