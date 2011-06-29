@@ -11,6 +11,20 @@
 #define UIP_BUF_STATUS_INUSE	1
 #define UIP_BUF_STATUS_USED	2
 
+#define UIP_ETH_P_IP		0X0800
+
+#define UIP_IP_VER_4		0X40
+#define UIP_IP_HDR_LEN		0X05
+#define UIP_IP_TTL		0X40
+#define UIP_IP_P_UDP		0X11
+
+/*
+ * IP package maxium len == 64 KBytes
+ * IP header == 20 Bytes
+ * UDP header == 8 Bytes
+ */
+#define UIP_MAX_UDP_PAYLOAD	(64*1024 - 20 -  8 - 1)
+
 struct uip_eth_addr {
 	u8 addr[6];
 };
@@ -157,6 +171,7 @@ static inline u16 uip_eth_hdrlen(struct uip_eth *eth)
 }
 
 int uip_tx_do_ipv4_icmp(struct uip_tx_arg *arg);
+int uip_tx_do_ipv4_udp(struct uip_tx_arg *arg);
 int uip_tx_do_ipv4(struct uip_tx_arg *arg);
 int uip_tx_do_arp(struct uip_tx_arg *arg);
 

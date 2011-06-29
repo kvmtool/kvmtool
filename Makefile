@@ -48,6 +48,7 @@ OBJS	+= irq.o
 OBJS	+= uip/arp.o
 OBJS	+= uip/icmp.o
 OBJS	+= uip/ipv4.o
+OBJS	+= uip/udp.o
 OBJS	+= uip/buf.o
 OBJS	+= uip/csum.o
 OBJS	+= kvm-cmd.o
