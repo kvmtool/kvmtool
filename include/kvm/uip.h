@@ -222,6 +222,11 @@ static inline u16 uip_tcp_payloadlen(struct uip_tcp *tcp)
 	return uip_tcp_len(tcp) - uip_tcp_hdrlen(tcp);
 }
 
+static inline u8 *uip_tcp_payload(struct uip_tcp *tcp)
+{
+	return (u8 *)&tcp->sport + uip_tcp_hdrlen(tcp);
+}
+
 static inline u16 uip_eth_hdrlen(struct uip_eth *eth)
 {
 	return sizeof(*eth);
