@@ -41,6 +41,13 @@ static struct pci_device_header pci_header = {
 	.subsys_id			= VIRTIO_ID_NET,
 };
 
+struct net_dev;
+
+struct net_dev_operations {
+	int (*rx)(struct iovec *iov, u16 in, struct net_dev *ndev);
+	int (*tx)(struct iovec *iov, u16 in, struct net_dev *ndev);
+};
+
 struct net_dev {
 	pthread_mutex_t			mutex;
 
@@ -68,8 +75,8 @@ struct net_dev {
 	int				mode;
 
 	struct uip_info			info;
+	struct net_dev_operations	*ops;
 };
-
 
 static struct net_dev ndev = {
 	.mutex	= PTHREAD_MUTEX_INITIALIZER,
@@ -117,10 +124,7 @@ static void *virtio_net_rx_thread(void *p)
 
 			head = virt_queue__get_iov(vq, iov, &out, &in, kvm);
 
-			if (ndev.mode == NET_MODE_TAP)
-				len = readv(ndev.tap_fd, iov, in);
-			else
-				len = uip_rx(iov, in, &ndev.info);
+			len = ndev.ops->rx(iov, in, &ndev);
 
 			virt_queue__set_used_elem(vq, head, len);
 
@@ -157,10 +161,7 @@ static void *virtio_net_tx_thread(void *p)
 
 			head = virt_queue__get_iov(vq, iov, &out, &in, kvm);
 
-			if (ndev.mode == NET_MODE_TAP)
-				len = writev(ndev.tap_fd, iov, out);
-			else
-				len = uip_tx(iov, out, &ndev.info);
+			len = ndev.ops->tx(iov, out, &ndev);
 
 			virt_queue__set_used_elem(vq, head, len);
 		}
@@ -412,6 +413,36 @@ static void virtio_net__io_thread_init(struct kvm *kvm)
 	pthread_create(&ndev.io_tx_thread, NULL, virtio_net_tx_thread, (void *)kvm);
 }
 
+static inline int tap_ops_tx(struct iovec *iov, u16 out, struct net_dev *ndev)
+{
+	return writev(ndev->tap_fd, iov, out);
+}
+
+static inline int tap_ops_rx(struct iovec *iov, u16 in, struct net_dev *ndev)
+{
+	return readv(ndev->tap_fd, iov, in);
+}
+
+static inline int uip_ops_tx(struct iovec *iov, u16 out, struct net_dev *ndev)
+{
+	return uip_tx(iov, out, &ndev->info);
+}
+
+static inline int uip_ops_rx(struct iovec *iov, u16 in, struct net_dev *ndev)
+{
+	return uip_rx(iov, in, &ndev->info);
+}
+
+static struct net_dev_operations tap_ops = {
+	.rx	= tap_ops_rx,
+	.tx	= tap_ops_tx,
+};
+
+static struct net_dev_operations uip_ops = {
+	.rx	= uip_ops_rx,
+	.tx	= uip_ops_tx,
+};
+
 void virtio_net__init(const struct virtio_net_parameters *params)
 {
 	struct ioevent ioevent;
@@ -430,10 +461,13 @@ void virtio_net__init(const struct virtio_net_parameters *params)
 	pci__register(&pci_header, dev);
 
 	ndev.mode = params->mode;
-	if (ndev.mode == NET_MODE_TAP)
+	if (ndev.mode == NET_MODE_TAP) {
 		virtio_net__tap_init(params);
-	else
+		ndev.ops = &tap_ops;
+	} else {
 		uip_init(&ndev.info);
+		ndev.ops = &uip_ops;
+	}
 
 	virtio_net__io_thread_init(params->kvm);
 
