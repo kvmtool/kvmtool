@@ -154,7 +154,7 @@ static const struct option options[] = {
 			"Kernel command line arguments"),
 
 	OPT_GROUP("Networking options:"),
-	OPT_STRING('n', "network", &network, "virtio",
+	OPT_STRING('n', "network", &network, "user, tap, none",
 			"Network to use"),
 	OPT_STRING('\0', "host-ip-addr", &host_ip_addr, "a.b.c.d",
 			"Assign this address to the host side networking"),
@@ -629,20 +629,24 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	if (!network)
 		network = DEFAULT_NETWORK;
 
-	if (!strncmp(network, "virtio", 6)) {
-		net_params = (struct virtio_net_parameters) {
-			.host_ip = host_ip_addr,
-			.kvm = kvm,
-			.script = script
-		};
-		sscanf(guest_mac,	"%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
-							net_params.guest_mac,
-							net_params.guest_mac+1,
-							net_params.guest_mac+2,
-							net_params.guest_mac+3,
-							net_params.guest_mac+4,
-							net_params.guest_mac+5);
+	if (strncmp(network, "none", 4)) {
+		net_params.host_ip = host_ip_addr;
+		net_params.kvm = kvm;
+		net_params.script = script;
+		sscanf(guest_mac, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
+			net_params.guest_mac,
+			net_params.guest_mac+1,
+			net_params.guest_mac+2,
+			net_params.guest_mac+3,
+			net_params.guest_mac+4,
+			net_params.guest_mac+5);
 
+		if (!strncmp(network, "user", 4))
+			net_params.mode = NET_MODE_USER;
+		else if (!strncmp(network, "tap", 3))
+			net_params.mode = NET_MODE_TAP;
+		else
+			die("Unkown network mode %s, please use -network user, tap, none", network);
 		virtio_net__init(&net_params);
 	}
 
