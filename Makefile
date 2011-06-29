@@ -46,6 +46,7 @@ OBJS	+= disk/raw.o
 OBJS	+= ioeventfd.o
 OBJS	+= irq.o
 OBJS	+= uip/arp.o
+OBJS	+= uip/icmp.o
 OBJS	+= uip/ipv4.o
 OBJS	+= uip/buf.o
 OBJS	+= uip/csum.o

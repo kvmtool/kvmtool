@@ -51,6 +51,15 @@ struct uip_ip {
 	u32 dip;
 } __attribute__((packed));
 
+struct uip_icmp {
+	struct uip_ip ip;
+	u8 type;
+	u8 code;
+	u16 csum;
+	u16 id;
+	u16 seq;
+} __attribute__((packed));
+
 struct uip_info {
 	struct list_head udp_socket_head;
 	struct list_head tcp_socket_head;
@@ -100,9 +109,11 @@ static inline u16 uip_ip_len(struct uip_ip *ip)
 	return htons(ip->len);
 }
 
+int uip_tx_do_ipv4_icmp(struct uip_tx_arg *arg);
 int uip_tx_do_ipv4(struct uip_tx_arg *arg);
 int uip_tx_do_arp(struct uip_tx_arg *arg);
 
+u16 uip_csum_icmp(struct uip_icmp *icmp);
 u16 uip_csum_ip(struct uip_ip *ip);
 
 struct uip_buf *uip_buf_set_used(struct uip_info *info, struct uip_buf *buf);

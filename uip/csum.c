@@ -23,3 +23,11 @@ u16 uip_csum_ip(struct uip_ip *ip)
 {
 	return uip_csum(0, &ip->vhl, uip_ip_hdrlen(ip));
 }
+
+u16 uip_csum_icmp(struct uip_icmp *icmp)
+{
+	struct uip_ip *ip;
+
+	ip = &icmp->ip;
+	return icmp->csum = uip_csum(0, &icmp->type, htons(ip->len) - uip_ip_hdrlen(ip) - 8); /* icmp header len = 8 */
+}

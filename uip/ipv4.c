@@ -11,5 +11,13 @@ int uip_tx_do_ipv4(struct uip_tx_arg *arg)
 		return -1;
 	}
 
+	switch (ip->proto) {
+	case 0x01: /* ICMP */
+		uip_tx_do_ipv4_icmp(arg);
+		break;
+	default:
+		break;
+	}
+
 	return 0;
 }
