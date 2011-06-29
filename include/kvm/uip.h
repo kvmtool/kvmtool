@@ -60,6 +60,21 @@ struct uip_icmp {
 	u16 seq;
 } __attribute__((packed));
 
+struct uip_udp {
+	/*
+	 * FIXME: IP Options (IP hdr len > 20 bytes) are not supported
+	 */
+	struct uip_ip ip;
+	u16 sport;
+	u16 dport;
+	/*
+	 * len = UDP hdr +  UDP payload
+	 */
+	u16 len;
+	u16 csum;
+	u8 payload[0];
+} __attribute__((packed));
+
 struct uip_info {
 	struct list_head udp_socket_head;
 	struct list_head tcp_socket_head;
