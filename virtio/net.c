@@ -1,5 +1,5 @@
-#include "kvm/virtio-net.h"
 #include "kvm/virtio-pci-dev.h"
+#include "kvm/virtio-net.h"
 #include "kvm/virtio.h"
 #include "kvm/ioport.h"
 #include "kvm/types.h"
@@ -8,6 +8,7 @@
 #include "kvm/kvm.h"
 #include "kvm/pci.h"
 #include "kvm/irq.h"
+#include "kvm/uip.h"
 #include "kvm/ioeventfd.h"
 
 #include <linux/virtio_net.h>
@@ -66,6 +67,7 @@ struct net_dev {
 
 	int				mode;
 
+	struct uip_info			info;
 };
 
 
@@ -84,6 +86,12 @@ static struct net_dev ndev = {
 					| 1UL << VIRTIO_NET_F_GUEST_UFO
 					| 1UL << VIRTIO_NET_F_GUEST_TSO4
 					| 1UL << VIRTIO_NET_F_GUEST_TSO6,
+	.info = {
+		.host_mac.addr		= {0x00, 0x01, 0x01, 0x01, 0x01, 0x01},
+		.guest_mac.addr		= {0x00, 0x15, 0x15, 0x15, 0x15, 0x15},
+		.host_ip		= 0xc0a82101,
+		.buf_nr			= 20,
+	}
 };
 
 static void *virtio_net_rx_thread(void *p)
@@ -99,14 +107,21 @@ static void *virtio_net_rx_thread(void *p)
 	vq	= &ndev.vqs[VIRTIO_NET_RX_QUEUE];
 
 	while (1) {
+
 		mutex_lock(&ndev.io_rx_lock);
 		if (!virt_queue__available(vq))
 			pthread_cond_wait(&ndev.io_rx_cond, &ndev.io_rx_lock);
 		mutex_unlock(&ndev.io_rx_lock);
 
 		while (virt_queue__available(vq)) {
+
 			head = virt_queue__get_iov(vq, iov, &out, &in, kvm);
-			len  = readv(ndev.tap_fd, iov, in);
+
+			if (ndev.mode == NET_MODE_TAP)
+				len = readv(ndev.tap_fd, iov, in);
+			else
+				len = uip_rx(iov, in, &ndev.info);
+
 			virt_queue__set_used_elem(vq, head, len);
 
 			/* We should interrupt guest right now, otherwise latency is huge. */
@@ -139,8 +154,14 @@ static void *virtio_net_tx_thread(void *p)
 		mutex_unlock(&ndev.io_tx_lock);
 
 		while (virt_queue__available(vq)) {
+
 			head = virt_queue__get_iov(vq, iov, &out, &in, kvm);
-			len  = writev(ndev.tap_fd, iov, out);
+
+			if (ndev.mode == NET_MODE_TAP)
+				len = writev(ndev.tap_fd, iov, out);
+			else
+				len = uip_tx(iov, out, &ndev.info);
+
 			virt_queue__set_used_elem(vq, head, len);
 		}
 
@@ -216,18 +237,16 @@ static bool virtio_net_pci_io_in(struct ioport *ioport, struct kvm *kvm, u16 por
 static void virtio_net_handle_callback(struct kvm *kvm, u16 queue_index)
 {
 	switch (queue_index) {
-	case VIRTIO_NET_TX_QUEUE: {
+	case VIRTIO_NET_TX_QUEUE:
 		mutex_lock(&ndev.io_tx_lock);
 		pthread_cond_signal(&ndev.io_tx_cond);
 		mutex_unlock(&ndev.io_tx_lock);
 		break;
-	}
-	case VIRTIO_NET_RX_QUEUE: {
+	case VIRTIO_NET_RX_QUEUE:
 		mutex_lock(&ndev.io_rx_lock);
 		pthread_cond_signal(&ndev.io_rx_cond);
 		mutex_unlock(&ndev.io_rx_lock);
 		break;
-	}
 	default:
 		pr_warning("Unknown queue index %u", queue_index);
 	}
@@ -395,37 +414,40 @@ static void virtio_net__io_thread_init(struct kvm *kvm)
 
 void virtio_net__init(const struct virtio_net_parameters *params)
 {
-	if (virtio_net__tap_init(params)) {
-		u8 dev, line, pin;
-		u16 net_base_addr;
-		u64 i;
-		struct ioevent ioevent;
+	struct ioevent ioevent;
+	u8 dev, line, pin;
+	u16 net_base_addr;
+	int i;
 
-		if (irq__register_device(VIRTIO_ID_NET, &dev, &pin, &line) < 0)
-			return;
+	if (irq__register_device(VIRTIO_ID_NET, &dev, &pin, &line) < 0)
+		return;
 
-		pci_header.irq_pin	= pin;
-		pci_header.irq_line	= line;
-		net_base_addr		= ioport__register(IOPORT_EMPTY, &virtio_net_io_ops, IOPORT_SIZE, NULL);
-		pci_header.bar[0]	= net_base_addr | PCI_BASE_ADDRESS_SPACE_IO;
-		ndev.base_addr		= net_base_addr;
+	pci_header.irq_pin  = pin;
+	pci_header.irq_line = line;
+	net_base_addr	    = ioport__register(IOPORT_EMPTY, &virtio_net_io_ops, IOPORT_SIZE, NULL);
+	pci_header.bar[0]   = net_base_addr | PCI_BASE_ADDRESS_SPACE_IO;
+	ndev.base_addr	    = net_base_addr;
+	pci__register(&pci_header, dev);
 
-		pci__register(&pci_header, dev);
+	ndev.mode = params->mode;
+	if (ndev.mode == NET_MODE_TAP)
+		virtio_net__tap_init(params);
+	else
+		uip_init(&ndev.info);
 
-		virtio_net__io_thread_init(params->kvm);
+	virtio_net__io_thread_init(params->kvm);
 
-		for (i = 0; i < VIRTIO_NET_NUM_QUEUES; i++) {
-			ioevent = (struct ioevent) {
-				.io_addr		= net_base_addr + VIRTIO_PCI_QUEUE_NOTIFY,
-				.io_len			= sizeof(u16),
-				.fn			= ioevent_callback,
-				.datamatch		= i,
-				.fn_ptr			= (void *)(long)i,
-				.fn_kvm			= params->kvm,
-				.fd			= eventfd(0, 0),
-			};
+	for (i = 0; i < VIRTIO_NET_NUM_QUEUES; i++) {
+		ioevent = (struct ioevent) {
+			.io_addr	= net_base_addr + VIRTIO_PCI_QUEUE_NOTIFY,
+			.io_len		= sizeof(u16),
+			.fn		= ioevent_callback,
+			.datamatch	= i,
+			.fn_ptr		= (void *)(long)i,
+			.fn_kvm		= params->kvm,
+			.fd		= eventfd(0, 0),
+		};
 
-			ioeventfd__add_event(&ioevent);
-		}
+		ioeventfd__add_event(&ioevent);
 	}
 }
