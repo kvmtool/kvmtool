@@ -63,6 +63,9 @@ struct net_device {
 
 	int				tap_fd;
 	char				tap_name[IFNAMSIZ];
+
+	int				mode;
+
 };
 
 static struct net_device ndev = {
