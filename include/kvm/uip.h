@@ -28,8 +28,10 @@
 /*
  * IP package maxium len == 64 KBytes
  * IP header == 20 Bytes
+ * TCP header == 20 Bytes
  * UDP header == 8 Bytes
  */
+#define UIP_MAX_TCP_PAYLOAD	(64*1024 - 20 - 20 - 1)
 #define UIP_MAX_UDP_PAYLOAD	(64*1024 - 20 -  8 - 1)
 
 struct uip_eth_addr {
@@ -269,6 +271,7 @@ int uip_tx_do_arp(struct uip_tx_arg *arg);
 
 u16 uip_csum_icmp(struct uip_icmp *icmp);
 u16 uip_csum_udp(struct uip_udp *udp);
+u16 uip_csum_tcp(struct uip_tcp *tcp);
 u16 uip_csum_ip(struct uip_ip *ip);
 
 struct uip_buf *uip_buf_set_used(struct uip_info *info, struct uip_buf *buf);

@@ -60,3 +60,33 @@ u16 uip_csum_udp(struct uip_udp *udp)
 	}
 
 }
+
+u16 uip_csum_tcp(struct uip_tcp *tcp)
+{
+	struct uip_pseudo_hdr hdr;
+	struct uip_ip *ip;
+	u16 tcp_len;
+	u8 *pad;
+
+	ip	  = &tcp->ip;
+	tcp_len   = ntohs(ip->len) - uip_ip_hdrlen(ip);
+
+	hdr.sip   = ip->sip;
+	hdr.dip	  = ip->dip;
+	hdr.zero  = 0;
+	hdr.proto = ip->proto;
+	hdr.len   = htons(tcp_len);
+
+	if (tcp_len > UIP_MAX_TCP_PAYLOAD + 20)
+		pr_warning("tcp_len(%d) is too large", tcp_len);
+
+	if (tcp_len % 2) {
+		pad = (u8 *)&tcp->sport + tcp_len;
+		*pad = 0;
+		memcpy((u8 *)&tcp->sport + tcp_len + 1, &hdr, sizeof(hdr));
+		return uip_csum(0, (u8 *)&tcp->sport, tcp_len + 1 + sizeof(hdr));
+	} else {
+		memcpy((u8 *)&tcp->sport + tcp_len, &hdr, sizeof(hdr));
+		return uip_csum(0, (u8 *)&tcp->sport, tcp_len + sizeof(hdr));
+	}
+}
