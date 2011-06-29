@@ -244,6 +244,19 @@ static inline bool uip_tcp_is_fin(struct uip_tcp *tcp)
 	return (tcp->flg & UIP_TCP_FLAG_FIN) != 0;
 }
 
+static inline u32 uip_tcp_isn(struct uip_tcp *tcp)
+{
+	return ntohl(tcp->seq);
+}
+
+static inline u32 uip_tcp_isn_alloc(void)
+{
+	/*
+	 * FIXME: should increase every 4ms
+	 */
+	return 10000000;
+}
+
 static inline u16 uip_eth_hdrlen(struct uip_eth *eth)
 {
 	return sizeof(*eth);
