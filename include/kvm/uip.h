@@ -21,6 +21,19 @@ struct uip_eth {
 	u16 type;
 } __attribute__((packed));
 
+struct uip_arp {
+	struct uip_eth eth;
+	u16 hwtype;
+	u16 proto;
+	u8 hwlen;
+	u8 protolen;
+	u16 op;
+	struct uip_eth_addr smac;
+	u32 sip;
+	struct uip_eth_addr dmac;
+	u32 dip;
+} __attribute__((packed));
+
 struct uip_info {
 	struct list_head udp_socket_head;
 	struct list_head tcp_socket_head;
@@ -59,6 +72,8 @@ struct uip_tx_arg {
 	int vnet_len;
 	int eth_len;
 };
+
+int uip_tx_do_arp(struct uip_tx_arg *arg);
 
 struct uip_buf *uip_buf_set_used(struct uip_info *info, struct uip_buf *buf);
 struct uip_buf *uip_buf_set_free(struct uip_info *info, struct uip_buf *buf);

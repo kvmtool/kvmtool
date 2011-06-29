@@ -45,6 +45,7 @@ OBJS	+= disk/qcow.o
 OBJS	+= disk/raw.o
 OBJS	+= ioeventfd.o
 OBJS	+= irq.o
+OBJS	+= uip/arp.o
 OBJS	+= uip/buf.o
 OBJS	+= kvm-cmd.o
 OBJS	+= kvm-debug.o
