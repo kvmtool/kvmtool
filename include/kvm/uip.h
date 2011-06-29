@@ -151,6 +151,11 @@ static inline u16 uip_udp_len(struct uip_udp *udp)
 	return ntohs(udp->len);
 }
 
+static inline u16 uip_eth_hdrlen(struct uip_eth *eth)
+{
+	return sizeof(*eth);
+}
+
 int uip_tx_do_ipv4_icmp(struct uip_tx_arg *arg);
 int uip_tx_do_ipv4(struct uip_tx_arg *arg);
 int uip_tx_do_arp(struct uip_tx_arg *arg);
