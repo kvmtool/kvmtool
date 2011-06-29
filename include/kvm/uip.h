@@ -34,6 +34,23 @@ struct uip_arp {
 	u32 dip;
 } __attribute__((packed));
 
+struct uip_ip {
+	struct uip_eth eth;
+	u8 vhl;
+	u8 tos;
+	/*
+	 * len = IP hdr +  IP payload
+	 */
+	u16 len;
+	u16 id;
+	u16 flgfrag;
+	u8 ttl;
+	u8 proto;
+	u16 csum;
+	u32 sip;
+	u32 dip;
+} __attribute__((packed));
+
 struct uip_info {
 	struct list_head udp_socket_head;
 	struct list_head tcp_socket_head;
@@ -73,6 +90,17 @@ struct uip_tx_arg {
 	int eth_len;
 };
 
+static inline u16 uip_ip_hdrlen(struct uip_ip *ip)
+{
+	return (ip->vhl & 0x0f) * 4;
+}
+
+static inline u16 uip_ip_len(struct uip_ip *ip)
+{
+	return htons(ip->len);
+}
+
+int uip_tx_do_ipv4(struct uip_tx_arg *arg);
 int uip_tx_do_arp(struct uip_tx_arg *arg);
 
 struct uip_buf *uip_buf_set_used(struct uip_info *info, struct uip_buf *buf);
