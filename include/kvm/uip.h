@@ -141,6 +141,16 @@ static inline u16 uip_ip_len(struct uip_ip *ip)
 	return htons(ip->len);
 }
 
+static inline u16 uip_udp_hdrlen(struct uip_udp *udp)
+{
+	return 8;
+}
+
+static inline u16 uip_udp_len(struct uip_udp *udp)
+{
+	return ntohs(udp->len);
+}
+
 int uip_tx_do_ipv4_icmp(struct uip_tx_arg *arg);
 int uip_tx_do_ipv4(struct uip_tx_arg *arg);
 int uip_tx_do_arp(struct uip_tx_arg *arg);
