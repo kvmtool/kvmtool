@@ -114,6 +114,15 @@ struct uip_buf {
 	int id;
 };
 
+struct uip_udp_socket {
+	struct sockaddr_in addr;
+	struct list_head list;
+	pthread_mutex_t *lock;
+	u32 dport, sport;
+	u32 dip, sip;
+	int fd;
+};
+
 struct uip_tx_arg {
 	struct virtio_net_hdr *vnet;
 	struct uip_info *info;
