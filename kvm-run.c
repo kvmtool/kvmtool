@@ -43,7 +43,7 @@
 #define DEFAULT_KVM_DEV		"/dev/kvm"
 #define DEFAULT_CONSOLE		"serial"
 #define DEFAULT_NETWORK		"user"
-#define DEFAULT_HOST_ADDR	"192.168.33.2"
+#define DEFAULT_HOST_ADDR	"192.168.33.1"
 #define DEFAULT_GUEST_MAC	"00:15:15:15:15:15"
 #define DEFAULT_SCRIPT		"none"
 
