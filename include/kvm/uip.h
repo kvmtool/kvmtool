@@ -75,6 +75,14 @@ struct uip_udp {
 	u8 payload[0];
 } __attribute__((packed));
 
+struct uip_pseudo_hdr {
+	u32 sip;
+	u32 dip;
+	u8 zero;
+	u8 proto;
+	u16 len;
+} __attribute__((packed));
+
 struct uip_info {
 	struct list_head udp_socket_head;
 	struct list_head tcp_socket_head;
