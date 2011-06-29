@@ -12,6 +12,7 @@
 #define UIP_BUF_STATUS_USED	2
 
 #define UIP_ETH_P_IP		0X0800
+#define UIP_ETH_P_ARP		0X0806
 
 #define UIP_IP_VER_4		0X40
 #define UIP_IP_HDR_LEN		0X05
@@ -267,6 +268,7 @@ static inline u16 uip_eth_hdrlen(struct uip_eth *eth)
 	return sizeof(*eth);
 }
 
+int uip_tx(struct iovec *iov, u16 out, struct uip_info *info);
 int uip_init(struct uip_info *info);
 
 int uip_tx_do_ipv4_icmp(struct uip_tx_arg *arg);

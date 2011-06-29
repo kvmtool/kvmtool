@@ -5,6 +5,75 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 
+int uip_tx(struct iovec *iov, u16 out, struct uip_info *info)
+{
+	struct virtio_net_hdr *vnet;
+	struct uip_tx_arg arg;
+	int eth_len, vnet_len;
+	struct uip_eth *eth;
+	u8 *buf = NULL;
+	u16 proto;
+	int i;
+
+	/*
+	 * Buffer from guest to device
+	 */
+	vnet_len = iov[0].iov_len;
+	vnet	 = iov[0].iov_base;
+
+	eth_len	 = iov[1].iov_len;
+	eth	 = iov[1].iov_base;
+
+	/*
+	 * In case, ethernet frame is in more than one iov entry.
+	 * Copy iov buffer into one linear buffer.
+	 */
+	if (out > 2) {
+		eth_len = 0;
+		for (i = 1; i < out; i++)
+			eth_len += iov[i].iov_len;
+
+		buf = malloc(eth_len);
+		if (!buf)
+			return -1;
+
+		eth = (struct uip_eth *)buf;
+		for (i = 1; i < out; i++) {
+			memcpy(buf, iov[i].iov_base, iov[i].iov_len);
+			buf += iov[i].iov_len;
+		}
+	}
+
+	memset(&arg, 0, sizeof(arg));
+
+	arg.vnet_len = vnet_len;
+	arg.eth_len = eth_len;
+	arg.info = info;
+	arg.vnet = vnet;
+	arg.eth = eth;
+
+	/*
+	 * Check package type
+	 */
+	proto = ntohs(eth->type);
+
+	switch (proto) {
+	case UIP_ETH_P_ARP:
+		uip_tx_do_arp(&arg);
+		break;
+	case UIP_ETH_P_IP:
+		uip_tx_do_ipv4(&arg);
+		break;
+	default:
+		break;
+	}
+
+	if (out > 2 && buf)
+		free(eth);
+
+	return vnet_len + eth_len;
+}
+
 int uip_init(struct uip_info *info)
 {
 	struct list_head *udp_socket_head;
