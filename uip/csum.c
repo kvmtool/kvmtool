@@ -31,3 +31,32 @@ u16 uip_csum_icmp(struct uip_icmp *icmp)
 	ip = &icmp->ip;
 	return icmp->csum = uip_csum(0, &icmp->type, htons(ip->len) - uip_ip_hdrlen(ip) - 8); /* icmp header len = 8 */
 }
+
+u16 uip_csum_udp(struct uip_udp *udp)
+{
+	struct uip_pseudo_hdr hdr;
+	struct uip_ip *ip;
+	int udp_len;
+	u8 *pad;
+
+	ip	  = &udp->ip;
+
+	hdr.sip   = ip->sip;
+	hdr.dip	  = ip->dip;
+	hdr.zero  = 0;
+	hdr.proto = ip->proto;
+	hdr.len   = udp->len;
+
+	udp_len	  = uip_udp_len(udp);
+
+	if (udp_len % 2) {
+		pad = (u8 *)&udp->sport + udp_len;
+		*pad = 0;
+		memcpy((u8 *)&udp->sport + udp_len + 1, &hdr, sizeof(hdr));
+		return uip_csum(0, (u8 *)&udp->sport, udp_len + 1 + sizeof(hdr));
+	} else {
+		memcpy((u8 *)&udp->sport + udp_len, &hdr, sizeof(hdr));
+		return uip_csum(0, (u8 *)&udp->sport, udp_len + sizeof(hdr));
+	}
+
+}

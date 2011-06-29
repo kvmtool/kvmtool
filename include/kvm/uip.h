@@ -161,6 +161,7 @@ int uip_tx_do_ipv4(struct uip_tx_arg *arg);
 int uip_tx_do_arp(struct uip_tx_arg *arg);
 
 u16 uip_csum_icmp(struct uip_icmp *icmp);
+u16 uip_csum_udp(struct uip_udp *udp);
 u16 uip_csum_ip(struct uip_ip *ip);
 
 struct uip_buf *uip_buf_set_used(struct uip_info *info, struct uip_buf *buf);
