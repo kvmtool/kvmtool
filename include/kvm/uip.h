@@ -203,6 +203,25 @@ static inline u16 uip_udp_len(struct uip_udp *udp)
 	return ntohs(udp->len);
 }
 
+static inline u16 uip_tcp_hdrlen(struct uip_tcp *tcp)
+{
+	return (tcp->off >> 4) * 4;
+}
+
+static inline u16 uip_tcp_len(struct uip_tcp *tcp)
+{
+	struct uip_ip *ip;
+
+	ip = &tcp->ip;
+
+	return uip_ip_len(ip) - uip_ip_hdrlen(ip);
+}
+
+static inline u16 uip_tcp_payloadlen(struct uip_tcp *tcp)
+{
+	return uip_tcp_len(tcp) - uip_tcp_hdrlen(tcp);
+}
+
 static inline u16 uip_eth_hdrlen(struct uip_eth *eth)
 {
 	return sizeof(*eth);
