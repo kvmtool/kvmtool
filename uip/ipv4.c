@@ -15,6 +15,9 @@ int uip_tx_do_ipv4(struct uip_tx_arg *arg)
 	case 0x01: /* ICMP */
 		uip_tx_do_ipv4_icmp(arg);
 		break;
+	case 0x06: /* TCP */
+		uip_tx_do_ipv4_tcp(arg);
+		break;
 	case 0x11: /* UDP */
 		uip_tx_do_ipv4_udp(arg);
 		break;

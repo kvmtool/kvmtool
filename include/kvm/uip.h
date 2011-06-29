@@ -17,7 +17,10 @@
 #define UIP_IP_HDR_LEN		0X05
 #define UIP_IP_TTL		0X40
 #define UIP_IP_P_UDP		0X11
+#define UIP_IP_P_TCP		0X06
 
+#define UIP_TCP_HDR_LEN		0x50
+#define UIP_TCP_WIN_SIZE	14600
 #define UIP_TCP_FLAG_FIN	1
 #define UIP_TCP_FLAG_SYN	2
 #define UIP_TCP_FLAG_RST	4
@@ -265,6 +268,7 @@ static inline u16 uip_eth_hdrlen(struct uip_eth *eth)
 }
 
 int uip_tx_do_ipv4_icmp(struct uip_tx_arg *arg);
+int uip_tx_do_ipv4_tcp(struct uip_tx_arg *arg);
 int uip_tx_do_ipv4_udp(struct uip_tx_arg *arg);
 int uip_tx_do_ipv4(struct uip_tx_arg *arg);
 int uip_tx_do_arp(struct uip_tx_arg *arg);
