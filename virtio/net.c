@@ -73,7 +73,7 @@ static struct net_dev ndev = {
 	.mutex	= PTHREAD_MUTEX_INITIALIZER,
 
 	.config = {
-		.mac			= { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55 },
+		.mac			= {0x00, 0x15, 0x15, 0x15, 0x15, 0x15},
 		.status			= VIRTIO_NET_S_LINK_UP,
 	},
 	.host_features			= 1UL << VIRTIO_NET_F_MAC

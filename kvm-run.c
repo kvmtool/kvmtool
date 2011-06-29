@@ -44,7 +44,7 @@
 #define DEFAULT_CONSOLE		"serial"
 #define DEFAULT_NETWORK		"virtio"
 #define DEFAULT_HOST_ADDR	"192.168.33.2"
-#define DEFAULT_GUEST_MAC	"00:11:22:33:44:55"
+#define DEFAULT_GUEST_MAC	"00:15:15:15:15:15"
 #define DEFAULT_SCRIPT		"none"
 
 #define MB_SHIFT		(20)
