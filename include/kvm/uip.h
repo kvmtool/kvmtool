@@ -103,6 +103,8 @@ static inline u16 uip_ip_len(struct uip_ip *ip)
 int uip_tx_do_ipv4(struct uip_tx_arg *arg);
 int uip_tx_do_arp(struct uip_tx_arg *arg);
 
+u16 uip_csum_ip(struct uip_ip *ip);
+
 struct uip_buf *uip_buf_set_used(struct uip_info *info, struct uip_buf *buf);
 struct uip_buf *uip_buf_set_free(struct uip_info *info, struct uip_buf *buf);
 struct uip_buf *uip_buf_get_used(struct uip_info *info);
