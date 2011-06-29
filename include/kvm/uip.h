@@ -267,6 +267,8 @@ static inline u16 uip_eth_hdrlen(struct uip_eth *eth)
 	return sizeof(*eth);
 }
 
+int uip_init(struct uip_info *info);
+
 int uip_tx_do_ipv4_icmp(struct uip_tx_arg *arg);
 int uip_tx_do_ipv4_tcp(struct uip_tx_arg *arg);
 int uip_tx_do_ipv4_udp(struct uip_tx_arg *arg);
