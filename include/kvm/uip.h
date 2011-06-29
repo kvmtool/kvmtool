@@ -153,6 +153,28 @@ struct uip_udp_socket {
 	int fd;
 };
 
+struct uip_tcp_socket {
+	struct sockaddr_in addr;
+	struct list_head list;
+	struct uip_info *info;
+	pthread_mutex_t *lock;
+	pthread_t thread;
+	u32 dport, sport;
+	u32 guest_acked;
+	/*
+	 * Initial Sequence Number
+	 */
+	u32 isn_server;
+	u32 isn_guest;
+	u32 ack_server;
+	u32 seq_server;
+	int write_done;
+	int read_done;
+	u32 dip, sip;
+	u8 *payload;
+	int fd;
+};
+
 struct uip_tx_arg {
 	struct virtio_net_hdr *vnet;
 	struct uip_info *info;
