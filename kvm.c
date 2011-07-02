@@ -346,6 +346,8 @@ struct kvm *kvm__init(const char *kvm_dev, u64 ram_size, const char *name)
 	if (kvm->ram_start == MAP_FAILED)
 		die("out of memory");
 
+	madvise(kvm->ram_start, kvm->ram_size, MADV_MERGEABLE);
+
 	ret = ioctl(kvm->vm_fd, KVM_CREATE_IRQCHIP);
 	if (ret < 0)
 		die_perror("KVM_CREATE_IRQCHIP ioctl");
