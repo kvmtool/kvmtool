@@ -31,6 +31,8 @@
 struct blk_dev_job {
 	struct virt_queue		*vq;
 	struct blk_dev			*bdev;
+	struct iovec			iov[VIRTIO_BLK_QUEUE_SIZE];
+	u16				out, in, head;
 	struct thread_pool__job		job_id;
 };
 
@@ -51,7 +53,8 @@ struct blk_dev {
 	u16				queue_selector;
 
 	struct virt_queue		vqs[NUM_VIRT_QUEUES];
-	struct blk_dev_job		jobs[NUM_VIRT_QUEUES];
+	struct blk_dev_job		jobs[VIRTIO_BLK_QUEUE_SIZE];
+	u16				job_idx;
 	struct pci_device_header	pci_hdr;
 };
 
@@ -118,20 +121,26 @@ static bool virtio_blk_pci_io_in(struct ioport *ioport, struct kvm *kvm, u16 por
 	return ret;
 }
 
-static bool virtio_blk_do_io_request(struct kvm *kvm,
-					struct blk_dev *bdev,
-					struct virt_queue *queue)
+static void virtio_blk_do_io_request(struct kvm *kvm, void *param)
 {
-	struct iovec iov[VIRTIO_BLK_QUEUE_SIZE];
 	struct virtio_blk_outhdr *req;
-	ssize_t block_cnt = -1;
-	u16 out, in, head;
 	u8 *status;
+	ssize_t block_cnt;
+	struct blk_dev_job *job;
+	struct blk_dev *bdev;
+	struct virt_queue *queue;
+	struct iovec *iov;
+	u16 out, in, head;
 
-	head			= virt_queue__get_iov(queue, iov, &out, &in, kvm);
-
-	/* head */
-	req			= iov[0].iov_base;
+	block_cnt	= -1;
+	job		= param;
+	bdev		= job->bdev;
+	queue		= job->vq;
+	iov		= job->iov;
+	out		= job->out;
+	in		= job->in;
+	head		= job->head;
+	req		= iov[0].iov_base;
 
 	switch (req->type) {
 	case VIRTIO_BLK_T_IN:
@@ -153,24 +162,27 @@ static bool virtio_blk_do_io_request(struct kvm *kvm,
 	status			= iov[out + in - 1].iov_base;
 	*status			= (block_cnt < 0) ? VIRTIO_BLK_S_IOERR : VIRTIO_BLK_S_OK;
 
+	mutex_lock(&bdev->mutex);
 	virt_queue__set_used_elem(queue, head, block_cnt);
+	mutex_unlock(&bdev->mutex);
 
-	return true;
+	virt_queue__trigger_irq(queue, bdev->pci_hdr.irq_line, &bdev->isr, kvm);
 }
 
-static void virtio_blk_do_io(struct kvm *kvm, void *param)
+static void virtio_blk_do_io(struct kvm *kvm, struct virt_queue *vq, struct blk_dev *bdev)
 {
-	struct blk_dev_job *job	= param;
-	struct virt_queue *vq;
-	struct blk_dev *bdev;
+	while (virt_queue__available(vq)) {
+		struct blk_dev_job *job = &bdev->jobs[bdev->job_idx++ % VIRTIO_BLK_QUEUE_SIZE];
 
-	vq			= job->vq;
-	bdev			= job->bdev;
+		*job			= (struct blk_dev_job) {
+			.vq			= vq,
+			.bdev			= bdev,
+		};
+		job->head = virt_queue__get_iov(vq, job->iov, &job->out, &job->in, kvm);
 
-	while (virt_queue__available(vq))
-		virtio_blk_do_io_request(kvm, bdev, vq);
-
-	virt_queue__trigger_irq(vq, bdev->pci_hdr.irq_line, &bdev->isr, kvm);
+		thread_pool__init_job(&job->job_id, kvm, virtio_blk_do_io_request, job);
+		thread_pool__do_job(&job->job_id);
+	}
 }
 
 static bool virtio_blk_pci_io_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
@@ -190,23 +202,13 @@ static bool virtio_blk_pci_io_out(struct ioport *ioport, struct kvm *kvm, u16 po
 		break;
 	case VIRTIO_PCI_QUEUE_PFN: {
 		struct virt_queue *queue;
-		struct blk_dev_job *job;
 		void *p;
-
-		job = &bdev->jobs[bdev->queue_selector];
 
 		queue			= &bdev->vqs[bdev->queue_selector];
 		queue->pfn		= ioport__read32(data);
 		p			= guest_pfn_to_host(kvm, queue->pfn);
 
 		vring_init(&queue->vring, VIRTIO_BLK_QUEUE_SIZE, p, VIRTIO_PCI_VRING_ALIGN);
-
-		*job			= (struct blk_dev_job) {
-			.vq			= queue,
-			.bdev			= bdev,
-		};
-
-		thread_pool__init_job(&job->job_id, kvm, virtio_blk_do_io, job);
 
 		break;
 	}
@@ -217,7 +219,7 @@ static bool virtio_blk_pci_io_out(struct ioport *ioport, struct kvm *kvm, u16 po
 		u16 queue_index;
 
 		queue_index		= ioport__read16(data);
-		thread_pool__do_job(&bdev->jobs[queue_index].job_id);
+		virtio_blk_do_io(kvm, &bdev->vqs[queue_index], bdev);
 
 		break;
 	}
@@ -246,9 +248,9 @@ static struct ioport_operations virtio_blk_io_ops = {
 
 static void ioevent_callback(struct kvm *kvm, void *param)
 {
-	struct blk_dev_job *job = param;
+	struct blk_dev *bdev = param;
 
-	thread_pool__do_job(&job->job_id);
+	virtio_blk_do_io(kvm, &bdev->vqs[0], bdev);
 }
 
 void virtio_blk__init(struct kvm *kvm, struct disk_image *disk)
@@ -309,7 +311,7 @@ void virtio_blk__init(struct kvm *kvm, struct disk_image *disk)
 			.io_len			= sizeof(u16),
 			.fn			= ioevent_callback,
 			.datamatch		= i,
-			.fn_ptr			= &bdev->jobs[i],
+			.fn_ptr			= bdev,
 			.fn_kvm			= kvm,
 			.fd			= eventfd(0, 0),
 		};
