@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <linux/types.h>
 #include <time.h>
+#include <signal.h>
 
 #define KVM_NR_CPUS		(255)
 
@@ -17,6 +18,8 @@
 
 #define SIGKVMEXIT		(SIGRTMIN + 0)
 #define SIGKVMPAUSE		(SIGRTMIN + 1)
+#define SIGKVMADDMEM		(SIGRTMIN + 2)
+#define SIGKVMDELMEM		(SIGRTMIN + 3)
 
 struct kvm {
 	int			sys_fd;		/* For system ioctls(), i.e. /dev/kvm */

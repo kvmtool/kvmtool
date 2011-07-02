@@ -18,6 +18,7 @@
 #include <kvm/virtio-net.h>
 #include <kvm/virtio-console.h>
 #include <kvm/virtio-rng.h>
+#include <kvm/virtio-balloon.h>
 #include <kvm/disk-image.h>
 #include <kvm/util.h>
 #include <kvm/pci.h>
@@ -74,6 +75,7 @@ static bool single_step;
 static bool readonly_image[MAX_DISK_IMAGES];
 static bool vnc;
 static bool sdl;
+static bool balloon;
 extern bool ioport_debug;
 extern int  active_console;
 extern int  debug_iodelay;
@@ -145,6 +147,7 @@ static const struct option options[] = {
 	OPT_STRING('\0', "kvm-dev", &kvm_dev, "kvm-dev", "KVM device file"),
 	OPT_CALLBACK('\0', "virtio-9p", NULL, "dirname,tag_name",
 		     "Enable 9p over virtio", virtio_9p_rootdir_parser),
+	OPT_BOOLEAN('\0', "balloon", &balloon, "Enable virtio balloon"),
 	OPT_BOOLEAN('\0', "vnc", &vnc, "Enable VNC framebuffer"),
 	OPT_BOOLEAN('\0', "sdl", &sdl, "Enable SDL framebuffer"),
 
@@ -628,6 +631,9 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	if (virtio_rng)
 		while (virtio_rng--)
 			virtio_rng__init(kvm);
+
+	if (balloon)
+		virtio_bln__init(kvm);
 
 	if (!network)
 		network = DEFAULT_NETWORK;
