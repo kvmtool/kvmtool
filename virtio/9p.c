@@ -18,7 +18,6 @@
 #include <linux/virtio_9p.h>
 #include <net/9p/9p.h>
 
-
 /* Warning: Immediately use value returned from this function */
 static const char *rel_to_abs(struct p9_dev *p9dev,
 			      const char *path, char *abs_path)
@@ -659,7 +658,7 @@ static void ioevent_callback(struct kvm *kvm, void *param)
 {
 	struct p9_dev_job *job = param;
 
-	thread_pool__do_job(job->job_id);
+	thread_pool__do_job(&job->job_id);
 }
 
 static bool virtio_p9_pci_io_out(struct ioport *ioport, struct kvm *kvm,
@@ -694,7 +693,7 @@ static bool virtio_p9_pci_io_out(struct ioport *ioport, struct kvm *kvm,
 			.vq			= queue,
 			.p9dev			= p9dev,
 		};
-		job->job_id = thread_pool__add_job(kvm, virtio_p9_do_io, job);
+		thread_pool__init_job(&job->job_id, kvm, virtio_p9_do_io, job);
 
 		ioevent = (struct ioevent) {
 			.io_addr		= p9dev->base_addr + VIRTIO_PCI_QUEUE_NOTIFY,
@@ -717,7 +716,7 @@ static bool virtio_p9_pci_io_out(struct ioport *ioport, struct kvm *kvm,
 		u16 queue_index;
 
 		queue_index		= ioport__read16(data);
-		thread_pool__do_job(p9dev->jobs[queue_index].job_id);
+		thread_pool__do_job(&p9dev->jobs[queue_index].job_id);
 		break;
 	}
 	case VIRTIO_PCI_STATUS:

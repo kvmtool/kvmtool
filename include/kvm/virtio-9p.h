@@ -2,6 +2,7 @@
 #define KVM__VIRTIO_9P_H
 #include "kvm/virtio.h"
 #include "kvm/pci.h"
+#include "kvm/threadpool.h"
 
 #include <sys/types.h>
 #include <dirent.h>
@@ -34,7 +35,7 @@ struct p9_fid {
 struct p9_dev_job {
 	struct virt_queue	*vq;
 	struct p9_dev		*p9dev;
-	void			*job_id;
+	struct thread_pool__job job_id;
 };
 
 struct p9_dev {

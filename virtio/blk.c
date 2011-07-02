@@ -31,7 +31,7 @@
 struct blk_dev_job {
 	struct virt_queue		*vq;
 	struct blk_dev			*bdev;
-	void				*job_id;
+	struct thread_pool__job		job_id;
 };
 
 struct blk_dev {
@@ -206,7 +206,7 @@ static bool virtio_blk_pci_io_out(struct ioport *ioport, struct kvm *kvm, u16 po
 			.bdev			= bdev,
 		};
 
-		job->job_id = thread_pool__add_job(kvm, virtio_blk_do_io, job);
+		thread_pool__init_job(&job->job_id, kvm, virtio_blk_do_io, job);
 
 		break;
 	}
@@ -217,7 +217,7 @@ static bool virtio_blk_pci_io_out(struct ioport *ioport, struct kvm *kvm, u16 po
 		u16 queue_index;
 
 		queue_index		= ioport__read16(data);
-		thread_pool__do_job(bdev->jobs[queue_index].job_id);
+		thread_pool__do_job(&bdev->jobs[queue_index].job_id);
 
 		break;
 	}
@@ -248,7 +248,7 @@ static void ioevent_callback(struct kvm *kvm, void *param)
 {
 	struct blk_dev_job *job = param;
 
-	thread_pool__do_job(job->job_id);
+	thread_pool__do_job(&job->job_id);
 }
 
 void virtio_blk__init(struct kvm *kvm, struct disk_image *disk)

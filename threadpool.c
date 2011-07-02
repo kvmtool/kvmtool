@@ -6,17 +6,6 @@
 #include <pthread.h>
 #include <stdbool.h>
 
-struct thread_pool__job {
-	kvm_thread_callback_fn_t	callback;
-	struct kvm			*kvm;
-	void				*data;
-
-	int				signalcount;
-	pthread_mutex_t			mutex;
-
-	struct list_head		queue;
-};
-
 static pthread_mutex_t	job_mutex	= PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t	thread_mutex	= PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t	job_cond	= PTHREAD_COND_INITIALIZER;
@@ -139,26 +128,11 @@ int thread_pool__init(unsigned long thread_count)
 	return i;
 }
 
-void *thread_pool__add_job(struct kvm *kvm,
-			       kvm_thread_callback_fn_t callback, void *data)
-{
-	struct thread_pool__job *job = calloc(1, sizeof(*job));
-
-	*job = (struct thread_pool__job) {
-		.kvm		= kvm,
-		.data		= data,
-		.callback	= callback,
-		.mutex		= PTHREAD_MUTEX_INITIALIZER
-	};
-
-	return job;
-}
-
-void thread_pool__do_job(void *job)
+void thread_pool__do_job(struct thread_pool__job *job)
 {
 	struct thread_pool__job *jobinfo = job;
 
-	if (jobinfo == NULL)
+	if (jobinfo == NULL || jobinfo->callback == NULL)
 		return;
 
 	mutex_lock(&jobinfo->mutex);

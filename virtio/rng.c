@@ -21,13 +21,13 @@
 #include <sys/stat.h>
 #include <pthread.h>
 
-#define NUM_VIRT_QUEUES				1
-#define VIRTIO_RNG_QUEUE_SIZE			128
+#define NUM_VIRT_QUEUES		1
+#define VIRTIO_RNG_QUEUE_SIZE	128
 
 struct rng_dev_job {
-	struct virt_queue		*vq;
-	struct rng_dev			*rdev;
-	void				*job_id;
+	struct virt_queue	*vq;
+	struct rng_dev		*rdev;
+	struct thread_pool__job	job_id;
 };
 
 struct rng_dev {
@@ -146,7 +146,7 @@ static bool virtio_rng_pci_io_out(struct ioport *ioport, struct kvm *kvm, u16 po
 			.rdev			= rdev,
 		};
 
-		job->job_id = thread_pool__add_job(kvm, virtio_rng_do_io, job);
+		thread_pool__init_job(&job->job_id, kvm, virtio_rng_do_io, job);
 
 		break;
 	}
@@ -156,7 +156,7 @@ static bool virtio_rng_pci_io_out(struct ioport *ioport, struct kvm *kvm, u16 po
 	case VIRTIO_PCI_QUEUE_NOTIFY: {
 		u16 queue_index;
 		queue_index		= ioport__read16(data);
-		thread_pool__do_job(rdev->jobs[queue_index].job_id);
+		thread_pool__do_job(&rdev->jobs[queue_index].job_id);
 		break;
 	}
 	case VIRTIO_PCI_STATUS:
@@ -182,7 +182,7 @@ static void ioevent_callback(struct kvm *kvm, void *param)
 {
 	struct rng_dev_job *job = param;
 
-	thread_pool__do_job(job->job_id);
+	thread_pool__do_job(&job->job_id);
 }
 
 void virtio_rng__init(struct kvm *kvm)

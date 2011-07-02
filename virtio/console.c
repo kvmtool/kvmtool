@@ -51,7 +51,7 @@ struct con_dev {
 	u16				queue_selector;
 	u16				base_addr;
 
-	void				*jobs[VIRTIO_CONSOLE_NUM_QUEUES];
+	struct thread_pool__job		jobs[VIRTIO_CONSOLE_NUM_QUEUES];
 };
 
 static struct con_dev cdev = {
@@ -93,7 +93,7 @@ static void virtio_console__inject_interrupt_callback(struct kvm *kvm, void *par
 
 void virtio_console__inject_interrupt(struct kvm *kvm)
 {
-	thread_pool__do_job(cdev.jobs[VIRTIO_CONSOLE_RX_QUEUE]);
+	thread_pool__do_job(&cdev.jobs[VIRTIO_CONSOLE_RX_QUEUE]);
 }
 
 static bool virtio_console_pci_io_device_specific_in(void *data, unsigned long offset, int size, u32 count)
@@ -203,9 +203,9 @@ static bool virtio_console_pci_io_out(struct ioport *ioport, struct kvm *kvm, u1
 		vring_init(&queue->vring, VIRTIO_CONSOLE_QUEUE_SIZE, p, VIRTIO_PCI_VRING_ALIGN);
 
 		if (cdev.queue_selector == VIRTIO_CONSOLE_TX_QUEUE)
-			cdev.jobs[cdev.queue_selector] = thread_pool__add_job(kvm, virtio_console_handle_callback, queue);
+			thread_pool__init_job(&cdev.jobs[cdev.queue_selector], kvm, virtio_console_handle_callback, queue);
 		else if (cdev.queue_selector == VIRTIO_CONSOLE_RX_QUEUE)
-			cdev.jobs[cdev.queue_selector] = thread_pool__add_job(kvm, virtio_console__inject_interrupt_callback, queue);
+			thread_pool__init_job(&cdev.jobs[cdev.queue_selector], kvm, virtio_console__inject_interrupt_callback, queue);
 
 		break;
 	}
@@ -214,7 +214,7 @@ static bool virtio_console_pci_io_out(struct ioport *ioport, struct kvm *kvm, u1
 		break;
 	case VIRTIO_PCI_QUEUE_NOTIFY: {
 		u16 queue_index		= ioport__read16(data);
-		thread_pool__do_job(cdev.jobs[queue_index]);
+		thread_pool__do_job(&cdev.jobs[queue_index]);
 		break;
 	}
 	case VIRTIO_PCI_STATUS:
