@@ -5,9 +5,18 @@
 #include <kvm/util.h>
 #include <kvm/kvm-cmd.h>
 #include <kvm/kvm-pause.h>
+#include <kvm/kvm.h>
 
 int kvm_cmd_pause(int argc, const char **argv, const char *prefix)
 {
-	signal(SIGUSR2, SIG_IGN);
-	return system("kill -USR2 $(pidof kvm)");
+	int pid;
+
+	if (argc != 1)
+		die("Usage: kvm debug [instance name]\n");
+
+	pid = kvm__get_pid_by_instance(argv[0]);
+	if (pid < 0)
+		die("Failed locating instance name");
+
+	return kill(pid, SIGUSR2);
 }
