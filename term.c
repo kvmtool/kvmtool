@@ -10,6 +10,7 @@
 #include "kvm/term.h"
 #include "kvm/util.h"
 #include "kvm/kvm.h"
+#include "kvm/kvm-cpu.h"
 
 extern struct kvm *kvm;
 static struct termios	orig_term;
@@ -34,6 +35,7 @@ int term_getc(int who)
 	if (term_got_escape) {
 		term_got_escape = false;
 		if (c == 'x') {
+			kvm_cpu__reboot();
 			kvm__delete(kvm);
 			printf("\n  # KVM session terminated.\n");
 			exit(1);
