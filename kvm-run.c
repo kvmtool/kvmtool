@@ -69,6 +69,7 @@ static const char *network;
 static const char *host_ip_addr;
 static const char *guest_mac;
 static const char *script;
+static const char *guest_name;
 static bool single_step;
 static bool readonly_image[MAX_DISK_IMAGES];
 static bool vnc;
@@ -132,6 +133,8 @@ static int virtio_9p_rootdir_parser(const struct option *opt, const char *arg, i
 
 static const struct option options[] = {
 	OPT_GROUP("Basic options:"),
+	OPT_STRING('\0', "name", &guest_name, "guest name",
+			"A name for the guest"),
 	OPT_INTEGER('c', "cpus", &nrcpus, "Number of CPUs"),
 	OPT_U64('m', "mem", &ram_size, "Virtual machine memory size in MiB."),
 	OPT_CALLBACK('d', "disk", NULL, "image", "Disk image", img_name_parser),
@@ -546,7 +549,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	term_init();
 
-	kvm = kvm__init(kvm_dev, ram_size);
+	kvm = kvm__init(kvm_dev, ram_size, guest_name);
 
 	ioeventfd__init();
 

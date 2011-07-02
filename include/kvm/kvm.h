@@ -41,9 +41,11 @@ struct kvm {
 	const char		*vmlinux;
 	struct disk_image       **disks;
 	int                     nr_disks;
+
+	const char		*name;
 };
 
-struct kvm *kvm__init(const char *kvm_dev, u64 ram_size);
+struct kvm *kvm__init(const char *kvm_dev, u64 ram_size, const char *name);
 int kvm__max_cpus(struct kvm *kvm);
 void kvm__init_ram(struct kvm *kvm);
 void kvm__delete(struct kvm *kvm);
@@ -61,6 +63,7 @@ bool kvm__deregister_mmio(struct kvm *kvm, u64 phys_addr);
 void kvm__pause(void);
 void kvm__continue(void);
 void kvm__notify_paused(void);
+int kvm__get_pid_by_instance(const char *name);
 
 /*
  * Debugging

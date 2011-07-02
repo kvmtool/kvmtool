@@ -9,7 +9,9 @@
 #include "kvm/read-write.h"
 #include "kvm/term.h"
 #include "kvm/util.h"
+#include "kvm/kvm.h"
 
+extern struct kvm *kvm;
 static struct termios	orig_term;
 
 int term_escape_char	= 0x01; /* ctrl-a is used for escape */
@@ -32,6 +34,7 @@ int term_getc(int who)
 	if (term_got_escape) {
 		term_got_escape = false;
 		if (c == 'x') {
+			kvm__delete(kvm);
 			printf("\n  # KVM session terminated.\n");
 			exit(1);
 		}
