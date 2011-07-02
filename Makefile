@@ -58,6 +58,7 @@ OBJS	+= kvm-cmd.o
 OBJS	+= kvm-debug.o
 OBJS	+= kvm-help.o
 OBJS    += kvm-pause.o
+OBJS    += kvm-balloon.o
 OBJS	+= kvm-run.o
 OBJS	+= mptable.o
 OBJS	+= rbtree.o

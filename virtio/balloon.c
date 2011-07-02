@@ -39,7 +39,7 @@ struct bln_dev {
 	/* virtio queue */
 	u16			queue_selector;
 	struct virt_queue	vqs[NUM_VIRT_QUEUES];
-	void			*jobs[NUM_VIRT_QUEUES];
+	struct thread_pool__job	jobs[NUM_VIRT_QUEUES];
 
 	struct virtio_balloon_config config;
 };
@@ -174,13 +174,13 @@ static bool virtio_bln_pci_io_out(struct ioport *ioport, struct kvm *kvm, u16 po
 
 		vring_init(&queue->vring, VIRTIO_BLN_QUEUE_SIZE, p, VIRTIO_PCI_VRING_ALIGN);
 
-		bdev.jobs[bdev.queue_selector] = thread_pool__add_job(kvm, virtio_bln_do_io, queue);
+		thread_pool__init_job(&bdev.jobs[bdev.queue_selector], kvm, virtio_bln_do_io, queue);
 
 		ioevent = (struct ioevent) {
 			.io_addr		= bdev.base_addr + VIRTIO_PCI_QUEUE_NOTIFY,
 			.io_len			= sizeof(u16),
 			.fn			= ioevent_callback,
-			.fn_ptr			= bdev.jobs[bdev.queue_selector],
+			.fn_ptr			= &bdev.jobs[bdev.queue_selector],
 			.datamatch		= bdev.queue_selector,
 			.fn_kvm			= kvm,
 			.fd			= eventfd(0, 0),
@@ -196,7 +196,7 @@ static bool virtio_bln_pci_io_out(struct ioport *ioport, struct kvm *kvm, u16 po
 	case VIRTIO_PCI_QUEUE_NOTIFY: {
 		u16 queue_index;
 		queue_index		= ioport__read16(data);
-		thread_pool__do_job(bdev.jobs[queue_index]);
+		thread_pool__do_job(&bdev.jobs[queue_index]);
 		break;
 	}
 	case VIRTIO_PCI_STATUS:
