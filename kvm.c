@@ -31,7 +31,8 @@
 #include <asm/unistd.h>
 
 #define DEFINE_KVM_EXIT_REASON(reason) [reason] = #reason
-#define KVM_PID_FILE_PATH "~/.kvm-tools/"
+#define KVM_PID_FILE_PATH	"/.kvm-tools/"
+#define HOME_DIR		getenv("HOME")
 
 const char *kvm_exit_reasons[] = {
 	DEFINE_KVM_EXIT_REASON(KVM_EXIT_UNKNOWN),
@@ -122,8 +123,9 @@ static void kvm__create_pidfile(struct kvm *kvm)
 	if (!kvm->name)
 		return;
 
-	mkdir(KVM_PID_FILE_PATH, 0777);
-	sprintf(full_name, "%s/%s.pid", KVM_PID_FILE_PATH, kvm->name);
+	sprintf(full_name, "%s/%s", HOME_DIR, KVM_PID_FILE_PATH);
+	mkdir(full_name, 0777);
+	sprintf(full_name, "%s/%s/%s.pid", HOME_DIR, KVM_PID_FILE_PATH, kvm->name);
 	fd = open(full_name, O_CREAT | O_WRONLY, 0666);
 	sprintf(pid, "%u\n", getpid());
 	if (write(fd, pid, strlen(pid)) <= 0)
@@ -138,7 +140,7 @@ static void kvm__remove_pidfile(struct kvm *kvm)
 	if (!kvm->name)
 		return;
 
-	sprintf(full_name, "%s/%s.pid", KVM_PID_FILE_PATH, kvm->name);
+	sprintf(full_name, "%s/%s/%s.pid", HOME_DIR, KVM_PID_FILE_PATH, kvm->name);
 	unlink(full_name);
 }
 
@@ -147,7 +149,7 @@ int kvm__get_pid_by_instance(const char *name)
 	int fd, pid;
 	char pid_str[10], pid_file[PATH_MAX];
 
-	sprintf(pid_file, "%s/%s.pid", KVM_PID_FILE_PATH, name);
+	sprintf(pid_file, "%s/%s/%s.pid", HOME_DIR, KVM_PID_FILE_PATH, name);
 	fd = open(pid_file, O_RDONLY);
 	if (fd < 0)
 		return -1;
