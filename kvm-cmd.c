@@ -8,6 +8,7 @@
 #include "kvm/kvm-debug.h"
 #include "kvm/kvm-pause.h"
 #include "kvm/kvm-balloon.h"
+#include "kvm/kvm-list.h"
 #include "kvm/kvm-help.h"
 #include "kvm/kvm-cmd.h"
 #include "kvm/kvm-run.h"
@@ -16,6 +17,7 @@ struct cmd_struct kvm_commands[] = {
 	{ "pause",	kvm_cmd_pause,		NULL,         0 },
 	{ "debug",	kvm_cmd_debug,		NULL,         0 },
 	{ "balloon",	kvm_cmd_balloon,	NULL,         0 },
+	{ "list",	kvm_cmd_list,		NULL,         0 },
 	{ "help",	kvm_cmd_help,		NULL,         0 },
 	{ "run",	kvm_cmd_run,		kvm_run_help, 0 },
 	{ NULL,		NULL,			NULL,         0 },

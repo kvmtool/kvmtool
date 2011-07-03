@@ -67,6 +67,7 @@ void kvm__pause(void);
 void kvm__continue(void);
 void kvm__notify_paused(void);
 int kvm__get_pid_by_instance(const char *name);
+int kvm__enumerate_instances(void (*callback)(const char *name, int pid));
 
 /*
  * Debugging
