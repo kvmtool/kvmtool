@@ -29,6 +29,7 @@
 #include <time.h>
 #include <sys/eventfd.h>
 #include <asm/unistd.h>
+#include <dirent.h>
 
 #define DEFINE_KVM_EXIT_REASON(reason) [reason] = #reason
 #define KVM_PID_FILE_PATH	"/.kvm-tools/"
@@ -162,6 +163,30 @@ int kvm__get_pid_by_instance(const char *name)
 		return -1;
 
 	return pid;
+}
+
+int kvm__enumerate_instances(void (*callback)(const char *name, int pid))
+{
+	char full_name[PATH_MAX];
+	int pid;
+	DIR *dir;
+	struct dirent entry, *result;
+
+	sprintf(full_name, "%s/%s", HOME_DIR, KVM_PID_FILE_PATH);
+	dir = opendir(full_name);
+
+	for (;;) {
+		readdir_r(dir, &entry, &result);
+		if (result == NULL)
+			break;
+		if (entry.d_type == DT_REG) {
+			entry.d_name[strlen(entry.d_name)-4] = 0;
+			pid = kvm__get_pid_by_instance(entry.d_name);
+			callback(entry.d_name, pid);
+		}
+	}
+
+	return 0;
 }
 
 void kvm__delete(struct kvm *kvm)
