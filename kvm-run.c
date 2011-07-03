@@ -466,7 +466,7 @@ void kvm_run_help(void)
 int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 {
 	struct virtio_net_parameters net_params;
-	static char real_cmdline[2048];
+	static char real_cmdline[2048], default_name[20];
 	struct framebuffer *fb = NULL;
 	unsigned int nr_online_cpus;
 	int exit_code = 0;
@@ -552,6 +552,11 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	term_init();
 
+	if (!guest_name) {
+		sprintf(default_name, "guest-%u", getpid());
+		guest_name = default_name;
+	}
+
 	kvm = kvm__init(kvm_dev, ram_size, guest_name);
 
 	ioeventfd__init();
@@ -609,7 +614,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	free(hi);
 
-	printf("  # kvm run -k %s -m %Lu -c %d\n", kernel_filename, ram_size / 1024 / 1024, nrcpus);
+	printf("  # kvm run -k %s -m %Lu -c %d --name %s\n", kernel_filename, ram_size / 1024 / 1024, nrcpus, guest_name);
 
 	if (!kvm__load_kernel(kvm, kernel_filename, initrd_filename,
 				real_cmdline, vidmode))
