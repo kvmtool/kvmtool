@@ -134,14 +134,11 @@ static void kvm__create_pidfile(struct kvm *kvm)
 	close(fd);
 }
 
-static void kvm__remove_pidfile(struct kvm *kvm)
+void kvm__remove_pidfile(const char *name)
 {
 	char full_name[PATH_MAX];
 
-	if (!kvm->name)
-		return;
-
-	sprintf(full_name, "%s/%s/%s.pid", HOME_DIR, KVM_PID_FILE_PATH, kvm->name);
+	sprintf(full_name, "%s/%s/%s.pid", HOME_DIR, KVM_PID_FILE_PATH, name);
 	unlink(full_name);
 }
 
@@ -194,7 +191,7 @@ void kvm__delete(struct kvm *kvm)
 	kvm__stop_timer(kvm);
 
 	munmap(kvm->ram_start, kvm->ram_size);
-	kvm__remove_pidfile(kvm);
+	kvm__remove_pidfile(kvm->name);
 	free(kvm);
 }
 
