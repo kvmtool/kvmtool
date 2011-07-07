@@ -576,15 +576,15 @@ static void virtio_p9_write(struct p9_dev *p9dev,
 	u32 count;
 	ssize_t res;
 	struct p9_fid *fid;
+	/* u32 fid + u64 offset + u32 count */
+	int twrite_size = sizeof(u32) + sizeof(u64) + sizeof(u32);
 
 	virtio_p9_pdu_readf(pdu, "dqd", &fid_val, &offset, &count);
 	fid = &p9dev->fids[fid_val];
 
 	/* Adjust the iovec to skip the header and meta data */
-	pdu->out_iov[0].iov_base += (sizeof(struct p9_msg) +
-				     sizeof(struct p9_twrite));
-	pdu->out_iov[0].iov_len -=  (sizeof(struct p9_msg) +
-				     sizeof(struct p9_twrite));
+	pdu->out_iov[0].iov_base += (sizeof(struct p9_msg) + twrite_size);
+	pdu->out_iov[0].iov_len -=  (sizeof(struct p9_msg) + twrite_size);
 	pdu->out_iov_cnt = virtio_p9_update_iov_cnt(pdu->out_iov, count,
 						    pdu->out_iov_cnt);
 	res = pwritev(fid->fd, pdu->out_iov, pdu->out_iov_cnt, offset);
