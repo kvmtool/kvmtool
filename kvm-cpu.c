@@ -439,6 +439,9 @@ int kvm_cpu__start(struct kvm_cpu *cpu)
 	kvm_cpu__setup_cpuid(cpu);
 	kvm_cpu__reset_vcpu(cpu);
 
+	if (cpu->kvm->single_step)
+		kvm_cpu__enable_singlestep(cpu);
+
 	for (;;) {
 		if (cpu->paused) {
 			kvm__notify_paused();

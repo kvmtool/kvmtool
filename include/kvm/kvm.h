@@ -35,6 +35,8 @@ struct kvm {
 
 	bool			nmi_disabled;
 
+	bool			single_step;
+
 	u16			boot_selector;
 	u16			boot_ip;
 	u16			boot_sp;

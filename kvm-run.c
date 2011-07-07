@@ -559,6 +559,8 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	kvm = kvm__init(kvm_dev, ram_size, guest_name);
 
+	kvm->single_step = single_step;
+
 	ioeventfd__init();
 
 	max_cpus = kvm__max_cpus(kvm);
@@ -672,9 +674,6 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 		kvm_cpus[i] = kvm_cpu__init(kvm, i);
 		if (!kvm_cpus[i])
 			die("unable to initialize KVM VCPU");
-
-		if (single_step)
-			kvm_cpu__enable_singlestep(kvm_cpus[i]);
 	}
 
 	kvm__init_ram(kvm);
