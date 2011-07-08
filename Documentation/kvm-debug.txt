@@ -1,0 +1,16 @@
+kvm-debug(1)
+================
+
+NAME
+----
+kvm-debug - Print debug information from a running instance
+
+SYNOPSIS
+--------
+[verse]
+'kvm debug [instance]'
+
+DESCRIPTION
+-----------
+The command prints debug information from a running instance.
+For a list of running instances see 'kvm list'.
