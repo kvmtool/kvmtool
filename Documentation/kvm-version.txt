@@ -1,0 +1,21 @@
+kvm-version(1)
+================
+
+NAME
+----
+kvm-version - Print the version of the kernel tree kvm tools
+was built on.
+
+SYNOPSIS
+--------
+[verse]
+'kvm version'
+
+DESCRIPTION
+-----------
+The command prints the version of the kernel that was used to build
+kvm tools.
+
+Note that the version is not the version of the kernel which is currently
+running on the host, but is the version of the kernel tree from which kvm
+tools was built.

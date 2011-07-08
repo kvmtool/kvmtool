@@ -61,6 +61,7 @@ OBJS	+= kvm-pause.o
 OBJS	+= kvm-balloon.o
 OBJS	+= kvm-list.o
 OBJS	+= kvm-run.o
+OBJS	+= kvm-version.o
 OBJS	+= mptable.o
 OBJS	+= rbtree.o
 OBJS	+= threadpool.o
@@ -124,6 +125,7 @@ endif
 
 DEFINES	+= -D_FILE_OFFSET_BITS=64
 DEFINES	+= -D_GNU_SOURCE
+DEFINES	+= -DKVMTOOLS_VERSION='"$(KVMTOOLS_VERSION)"'
 
 KVM_INCLUDE := include
 CFLAGS	+= $(CPPFLAGS) $(DEFINES) -I$(KVM_INCLUDE) -I../../include -I../../arch/$(ARCH)/include/ -Os -g
@@ -152,6 +154,10 @@ CFLAGS	+= $(WARNINGS)
 
 all: $(PROGRAM)
 
+KVMTOOLS-VERSION-FILE:
+	@$(SHELL_PATH) util/KVMTOOLS-VERSION-GEN $(OUTPUT)
+-include $(OUTPUT)KVMTOOLS-VERSION-FILE
+
 $(PROGRAM): $(DEPS) $(OBJS)
 	$(E) "  LINK    " $@
 	$(Q) $(CC) $(OBJS) $(LIBS) -o $@
@@ -168,6 +174,7 @@ $(OBJS):
 
 rbtree.o: ../../lib/rbtree.c
 	$(Q) $(CC) -c $(CFLAGS) $< -o $@
+
 %.o: %.c
 	$(E) "  CC      " $@
 	$(Q) $(CC) -c $(CFLAGS) $< -o $@

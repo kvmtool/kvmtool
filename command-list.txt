@@ -4,3 +4,4 @@
 #
 kvm-run				mainporcelain common
 kvm-pause			common
+kvm-version			common
