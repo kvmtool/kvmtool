@@ -1,0 +1,24 @@
+kvm-balloon(1)
+================
+
+NAME
+----
+kvm-balloon - Inflate or deflate the virtio balloon
+
+SYNOPSIS
+--------
+[verse]
+'kvm balloon [instance] [command] [size]'
+
+DESCRIPTION
+-----------
+The command inflates or deflates the virtio balloon located in the
+specified instance.
+For a list of running instances see 'kvm list'.
+
+Command can be either 'inflate' or 'deflate'. Inflate increases the
+size of the balloon, thus decreasing the amount of virtual RAM available
+for the guest. Deflation returns previously inflated memory back to the
+guest.
+
+size is specified in Mb.
