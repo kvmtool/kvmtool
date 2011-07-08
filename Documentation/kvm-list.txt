@@ -1,0 +1,16 @@
+kvm-list(1)
+================
+
+NAME
+----
+kvm-list - Print a list of running instances on the host.
+
+SYNOPSIS
+--------
+[verse]
+'kvm list'
+
+DESCRIPTION
+-----------
+This command prints a list of running instances on the host which
+belong to the user who currently ran 'kvm list'.
