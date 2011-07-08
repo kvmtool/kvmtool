@@ -10,7 +10,6 @@ struct cmdname_help
 static struct cmdname_help common_cmds[] = {"
 
 sed -n 's/^kvm-\([^ \t]*\).*common/\1/p' command-list.txt |
-sort |
 while read cmd
 do
 	 # TODO following sed command should be fixed
