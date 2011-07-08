@@ -8,8 +8,9 @@ kvm-pause - Pause/resume the virtual machine
 SYNOPSIS
 --------
 [verse]
-'kvm pause'
+'kvm pause [instance]'
 
 DESCRIPTION
 -----------
 The command pauses and resumes a virtual machine.
+For a list of running instances see 'kvm list'.
