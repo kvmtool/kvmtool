@@ -2,6 +2,7 @@
 
 #include "kvm/disk-image.h"
 #include "kvm/read-write.h"
+#include "kvm/mutex.h"
 #include "kvm/util.h"
 
 #include <sys/types.h>
@@ -232,16 +233,17 @@ static ssize_t qcow_read_cluster(struct qcow *q, u64 offset, void *dst, u32 dst_
 
 	l1_idx = get_l1_index(q, offset);
 	if (l1_idx >= table->table_size)
-		goto out_error;
+		return -1;
 
 	clust_offset = get_cluster_offset(q, offset);
 	if (clust_offset >= cluster_size)
-		goto out_error;
+		return -1;
 
 	length = cluster_size - clust_offset;
 	if (length > dst_len)
 		length = dst_len;
 
+	mutex_lock(&q->mutex);
 	l2_table_offset = table->l1_table[l1_idx] & ~header->oflag_mask;
 	if (!l2_table_offset)
 		goto zero_cluster;
@@ -261,19 +263,22 @@ static ssize_t qcow_read_cluster(struct qcow *q, u64 offset, void *dst, u32 dst_
 	if (!clust_start)
 		goto zero_cluster;
 
-	if (pread_in_full(q->fd, dst, length, clust_start + clust_offset) < 0)
-		goto out_error;
+	mutex_unlock(&q->mutex);
 
-out:
+	if (pread_in_full(q->fd, dst, length, clust_start + clust_offset) < 0)
+		return -1;
+
 	return length;
 
 zero_cluster:
+	mutex_unlock(&q->mutex);
 	memset(dst, 0, length);
-	goto out;
+	return length;
 
 out_error:
+	mutex_unlock(&q->mutex);
 	length = -1;
-	goto out;
+	return -1;
 }
 
 static ssize_t qcow_read_sector(struct disk_image *disk, u64 sector, void *dst, u32 dst_len)
@@ -379,19 +384,21 @@ static ssize_t qcow_write_cluster(struct qcow *q, u64 offset, void *buf, u32 src
 
 	l1t_idx		= get_l1_index(q, offset);
 	if (l1t_idx >= table->table_size)
-		goto error;
+		return -1;
 
 	l2t_idx		= get_l2_index(q, offset);
 	if (l2t_idx >= l2t_sz)
-		goto error;
+		return -1;
 
 	clust_off	= get_cluster_offset(q, offset);
 	if (clust_off >= clust_sz)
-		goto error;
+		return -1;
 
 	len		= clust_sz - clust_off;
 	if (len > src_len)
 		len = src_len;
+
+	mutex_lock(&q->mutex);
 
 	l2t_off		= table->l1_table[l1t_idx] & ~header->oflag_mask;
 	if (l2t_off) {
@@ -466,11 +473,14 @@ static ssize_t qcow_write_cluster(struct qcow *q, u64 offset, void *buf, u32 src
 		l2t->table[l2t_idx] = clust_start;
 	}
 
+	mutex_unlock(&q->mutex);
+
 	return len;
 
 free_cache:
 	free(l2t);
 error:
+	mutex_unlock(&q->mutex);
 	return -1;
 }
 
@@ -611,6 +621,7 @@ static struct disk_image *qcow2_probe(int fd, bool readonly)
 	if (!q)
 		goto error;
 
+	mutex_init(&q->mutex);
 	q->fd = fd;
 	q->root = RB_ROOT;
 	INIT_LIST_HEAD(&q->lru_list);
@@ -710,6 +721,7 @@ static struct disk_image *qcow1_probe(int fd, bool readonly)
 	if (!q)
 		goto error;
 
+	mutex_init(&q->mutex);
 	q->fd = fd;
 	q->root = RB_ROOT;
 	INIT_LIST_HEAD(&q->lru_list);

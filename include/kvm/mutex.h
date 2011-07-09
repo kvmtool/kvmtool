@@ -12,6 +12,12 @@
 
 #define DEFINE_MUTEX(mutex) pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER
 
+static inline void mutex_init(pthread_mutex_t *mutex)
+{
+	if (pthread_mutex_init(mutex, NULL) != 0)
+		die("unexpected pthread_mutex_init() failure!");
+}
+
 static inline void mutex_lock(pthread_mutex_t *mutex)
 {
 	if (pthread_mutex_lock(mutex) != 0)

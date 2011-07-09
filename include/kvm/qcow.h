@@ -1,6 +1,8 @@
 #ifndef KVM__QCOW_H
 #define KVM__QCOW_H
 
+#include "kvm/mutex.h"
+
 #include <linux/types.h>
 #include <stdbool.h>
 #include <linux/rbtree.h>
@@ -34,6 +36,7 @@ struct qcow_table {
 };
 
 struct qcow {
+	pthread_mutex_t		mutex;
 	void			*header;
 	struct qcow_table	table;
 	int			fd;
