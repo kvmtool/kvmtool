@@ -16,16 +16,16 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 
-static int insert(struct rb_root *root, struct qcow_l2_cache *new)
+static int insert(struct rb_root *root, struct qcow_l2_table *new)
 {
 	struct rb_node **link = &(root->rb_node), *parent = NULL;
 	u64 offset = new->offset;
 
 	/* search the tree */
 	while (*link) {
-		struct qcow_l2_cache *t;
+		struct qcow_l2_table *t;
 
-		t = rb_entry(*link, struct qcow_l2_cache, node);
+		t = rb_entry(*link, struct qcow_l2_table, node);
 		if (!t)
 			goto error;
 
@@ -48,14 +48,14 @@ error:
 	return -1;
 }
 
-static struct qcow_l2_cache *search(struct rb_root *root, u64 offset)
+static struct qcow_l2_table *search(struct rb_root *root, u64 offset)
 {
 	struct rb_node *link = root->rb_node;
 
 	while (link) {
-		struct qcow_l2_cache *t;
+		struct qcow_l2_table *t;
 
-		t = rb_entry(link, struct qcow_l2_cache, node);
+		t = rb_entry(link, struct qcow_l2_table, node);
 		if (!t)
 			goto out;
 
@@ -73,13 +73,13 @@ out:
 static void free_cache(struct qcow *q)
 {
 	struct list_head *pos, *n;
-	struct qcow_l2_cache *t;
+	struct qcow_l2_table *t;
 	struct rb_root *r = &q->root;
 
 	list_for_each_safe(pos, n, &q->lru_list) {
 		/* Remove cache table from the list and RB tree */
 		list_del(pos);
-		t = list_entry(pos, struct qcow_l2_cache, list);
+		t = list_entry(pos, struct qcow_l2_table, list);
 		rb_erase(&t->node, r);
 
 		/* Free the cached node */
@@ -87,17 +87,17 @@ static void free_cache(struct qcow *q)
 	}
 }
 
-static int cache_table(struct qcow *q, struct qcow_l2_cache *c)
+static int cache_table(struct qcow *q, struct qcow_l2_table *c)
 {
 	struct rb_root *r = &q->root;
-	struct qcow_l2_cache *lru;
+	struct qcow_l2_table *lru;
 
 	if (q->nr_cached == MAX_CACHE_NODES) {
 		/*
 		 * The node at the head of the list is least recently used
 		 * node. Remove it from the list and replaced with a new node.
 		 */
-		lru = list_first_entry(&q->lru_list, struct qcow_l2_cache, list);
+		lru = list_first_entry(&q->lru_list, struct qcow_l2_table, list);
 
 		/* Remove the node from the cache */
 		rb_erase(&lru->node, r);
@@ -123,7 +123,7 @@ error:
 
 static int search_table(struct qcow *q, u64 **table, u64 offset)
 {
-	struct qcow_l2_cache *c;
+	struct qcow_l2_table *c;
 
 	*table = NULL;
 
@@ -139,10 +139,10 @@ static int search_table(struct qcow *q, u64 **table, u64 offset)
 }
 
 /* Allocates a new node for caching L2 table */
-static struct qcow_l2_cache *new_cache_table(struct qcow *q, u64 offset)
+static struct qcow_l2_table *new_cache_table(struct qcow *q, u64 offset)
 {
 	struct qcow_header *header = q->header;
-	struct qcow_l2_cache *c;
+	struct qcow_l2_table *c;
 	u64 l2t_sz;
 	u64 size;
 
@@ -183,7 +183,7 @@ static inline u64 get_cluster_offset(struct qcow *q, u64 offset)
 static int qcow_read_l2_table(struct qcow *q, u64 **table, u64 offset)
 {
 	struct qcow_header *header = q->header;
-	struct qcow_l2_cache *c;
+	struct qcow_l2_table *c;
 	u64 size;
 	u64 i;
 	u64 *t;
@@ -367,7 +367,7 @@ static ssize_t qcow_write_cluster(struct qcow *q, u64 offset, void *buf, u32 src
 {
 	struct qcow_header *header = q->header;
 	struct qcow_table  *table  = &q->table;
-	struct qcow_l2_cache *c;
+	struct qcow_l2_table *c;
 	bool update_meta;
 	u64 clust_start;
 	u64 clust_off;

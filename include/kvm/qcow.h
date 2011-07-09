@@ -21,7 +21,7 @@
 
 #define MAX_CACHE_NODES         32
 
-struct qcow_l2_cache {
+struct qcow_l2_table {
 	u64                     offset;
 	struct rb_node          node;
 	struct list_head        list;
