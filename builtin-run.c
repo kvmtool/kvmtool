@@ -178,9 +178,9 @@ static const struct option options[] = {
 			"Enable debug messages"),
 	OPT_BOOLEAN('\0', "debug-single-step", &single_step,
 			"Enable single stepping"),
-	OPT_BOOLEAN('\0', "debug-ioport-debug", &ioport_debug,
+	OPT_BOOLEAN('\0', "debug-ioport", &ioport_debug,
 			"Enable ioport debugging"),
-	OPT_INTEGER('\0', "debug_iodelay", &debug_iodelay,
+	OPT_INTEGER('\0', "debug-iodelay", &debug_iodelay,
 			"Delay IO by millisecond"),
 	OPT_END()
 };
