@@ -421,17 +421,6 @@ static ssize_t qcow_write_cluster(struct qcow *q, u64 offset, void *buf, u32 src
 		if (!l2t_off)
 			goto free_cache;
 
-		/* Metadata update: update on disk level 1 table */
-		t		= cpu_to_be64(l2t_off);
-
-		if (qcow_pwrite_sync(q->fd, &t, sizeof(t), header->l1_table_offset + l1t_idx * sizeof(u64)) < 0) {
-			/* restore file to consistent state */
-			if (ftruncate(q->fd, f_sz) < 0)
-				goto free_cache;
-
-			goto free_cache;
-		}
-
 		if (cache_table(q, l2t) < 0) {
 			if (ftruncate(q->fd, f_sz) < 0)
 				goto free_cache;
@@ -522,6 +511,19 @@ static ssize_t qcow_nowrite_sector(struct disk_image *disk, u64 sector, void *sr
 
 static int qcow_disk_flush(struct disk_image *disk)
 {
+	struct qcow *q = disk->priv;
+	struct qcow_header *header;
+	struct qcow_table *table;
+
+	if (fdatasync(disk->fd) < 0)
+		return -1;
+
+	header	= q->header;
+	table	= &q->table;
+
+	if (pwrite_in_full(disk->fd, table->l1_table, table->table_size * sizeof(u64), header->l1_table_offset) < 0)
+		return -1;
+
 	return fsync(disk->fd);
 }
 
