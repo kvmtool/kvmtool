@@ -88,6 +88,16 @@ static void free_cache(struct qcow *q)
 	}
 }
 
+static int qcow_l2_cache_write(struct qcow *q, struct qcow_l2_table *c)
+{
+	struct qcow_header *header = q->header;
+	u64 size;
+
+	size = 1 << header->l2_bits;
+
+	return pwrite_in_full(q->fd, c->table, size * sizeof(u64), c->offset);
+}
+
 static int cache_table(struct qcow *q, struct qcow_l2_table *c)
 {
 	struct rb_root *r = &q->root;
@@ -99,6 +109,9 @@ static int cache_table(struct qcow *q, struct qcow_l2_table *c)
 		 * node. Remove it from the list and replaced with a new node.
 		 */
 		lru = list_first_entry(&q->lru_list, struct qcow_l2_table, list);
+
+		if (qcow_l2_cache_write(q, lru) < 0)
+			goto error;
 
 		/* Remove the node from the cache */
 		rb_erase(&lru->node, r);
@@ -361,7 +374,6 @@ static ssize_t qcow_write_cluster(struct qcow *q, u64 offset, void *buf, u32 src
 	struct qcow_header *header = q->header;
 	struct qcow_table  *table  = &q->table;
 	struct qcow_l2_table *l2t;
-	bool update_meta;
 	u64 clust_start;
 	u64 clust_off;
 	u64 clust_sz;
@@ -371,7 +383,6 @@ static ssize_t qcow_write_cluster(struct qcow *q, u64 offset, void *buf, u32 src
 	u64 l2t_sz;
 	u64 f_sz;
 	u64 len;
-	u64 t;
 
 	l2t		= NULL;
 	l2t_sz		= 1 << header->l2_bits;
@@ -434,30 +445,15 @@ static ssize_t qcow_write_cluster(struct qcow *q, u64 offset, void *buf, u32 src
 
 	clust_start	= be64_to_cpu(l2t->table[l2t_idx]) & ~header->oflag_mask;
 	if (!clust_start) {
-		clust_start	= ALIGN(f_sz, clust_sz);
-		update_meta	= true;
-	} else
-		update_meta	= false;
-
-	/* Write actual data */
-	if (pwrite_in_full(q->fd, buf, len, clust_start + clust_off) < 0)
-		goto error;
-
-	if (update_meta) {
-		t = cpu_to_be64(clust_start);
-		if (qcow_pwrite_sync(q->fd, &t, sizeof(t), l2t_off + l2t_idx * sizeof(u64)) < 0) {
-			/* Restore the file to consistent state */
-			if (ftruncate(q->fd, f_sz) < 0)
-				goto error;
-
-			goto error;
-		}
-
-		/* Update the cached level2 entry */
-		l2t->table[l2t_idx] = cpu_to_be64(clust_start);
+		clust_start		= ALIGN(f_sz, clust_sz);
+		l2t->table[l2t_idx]	= cpu_to_be64(clust_start);
 	}
 
 	mutex_unlock(&q->mutex);
+
+	/* Write actual data */
+	if (pwrite_in_full(q->fd, buf, len, clust_start + clust_off) < 0)
+		return -1;
 
 	return len;
 
@@ -508,18 +504,34 @@ static int qcow_disk_flush(struct disk_image *disk)
 {
 	struct qcow *q = disk->priv;
 	struct qcow_header *header;
+	struct list_head *pos, *n;
 	struct qcow_table *table;
-
-	if (fdatasync(disk->fd) < 0)
-		return -1;
 
 	header	= q->header;
 	table	= &q->table;
 
+	mutex_lock(&q->mutex);
+
+	list_for_each_safe(pos, n, &q->lru_list) {
+		struct qcow_l2_table *c = list_entry(pos, struct qcow_l2_table, list);
+
+		if (qcow_l2_cache_write(q, c) < 0)
+			goto error_unlock;
+	}
+
+	if (fdatasync(disk->fd) < 0)
+		goto error_unlock;
+
 	if (pwrite_in_full(disk->fd, table->l1_table, table->table_size * sizeof(u64), header->l1_table_offset) < 0)
-		return -1;
+		goto error_unlock;
+
+	mutex_unlock(&q->mutex);
 
 	return fsync(disk->fd);
+
+error_unlock:
+	mutex_unlock(&q->mutex);
+	return -1;
 }
 
 static int qcow_disk_close(struct disk_image *disk)
