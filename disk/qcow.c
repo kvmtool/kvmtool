@@ -244,7 +244,7 @@ static ssize_t qcow_read_cluster(struct qcow *q, u64 offset, void *dst, u32 dst_
 		length = dst_len;
 
 	mutex_lock(&q->mutex);
-	l2_table_offset = table->l1_table[l1_idx] & ~header->oflag_mask;
+	l2_table_offset = be64_to_cpu(table->l1_table[l1_idx]) & ~header->oflag_mask;
 	if (!l2_table_offset)
 		goto zero_cluster;
 
@@ -400,7 +400,7 @@ static ssize_t qcow_write_cluster(struct qcow *q, u64 offset, void *buf, u32 src
 
 	mutex_lock(&q->mutex);
 
-	l2t_off		= table->l1_table[l1t_idx] & ~header->oflag_mask;
+	l2t_off		= be64_to_cpu(table->l1_table[l1t_idx]) & ~header->oflag_mask;
 	if (l2t_off) {
 		/* read and cache l2 table */
 		l2t = qcow_read_l2_table(q, l2t_off);
@@ -440,7 +440,7 @@ static ssize_t qcow_write_cluster(struct qcow *q, u64 offset, void *buf, u32 src
 		}
 
 		/* Update the in-core entry */
-		table->l1_table[l1t_idx] = l2t_off;
+		table->l1_table[l1t_idx] = cpu_to_be64(l2t_off);
 	}
 
 	/* Capture the state of the consistent QCOW image */
@@ -520,6 +520,11 @@ static ssize_t qcow_nowrite_sector(struct disk_image *disk, u64 sector, void *sr
 	return -1;
 }
 
+static int qcow_disk_flush(struct disk_image *disk)
+{
+	return fsync(disk->fd);
+}
+
 static int qcow_disk_close(struct disk_image *disk)
 {
 	struct qcow *q;
@@ -546,6 +551,7 @@ static struct disk_image_operations qcow_disk_readonly_ops = {
 static struct disk_image_operations qcow_disk_ops = {
 	.read_sector		= qcow_read_sector,
 	.write_sector		= qcow_write_sector,
+	.flush			= qcow_disk_flush,
 	.close			= qcow_disk_close,
 };
 
@@ -553,7 +559,6 @@ static int qcow_read_l1_table(struct qcow *q)
 {
 	struct qcow_header *header = q->header;
 	struct qcow_table *table = &q->table;
-	u64 i;
 
 	table->table_size	= header->l1_size;
 
@@ -561,14 +566,7 @@ static int qcow_read_l1_table(struct qcow *q)
 	if (!table->l1_table)
 		return -1;
 
-	if (pread_in_full(q->fd, table->l1_table, sizeof(u64) *
-				table->table_size, header->l1_table_offset) < 0)
-		return -1;
-
-	for (i = 0; i < table->table_size; i++)
-		be64_to_cpus(&table->l1_table[i]);
-
-	return 0;
+	return pread_in_full(q->fd, table->l1_table, sizeof(u64) * table->table_size, header->l1_table_offset);
 }
 
 static void *qcow2_read_header(int fd)
