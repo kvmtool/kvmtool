@@ -345,7 +345,7 @@ static u64 qcow_write_l2_table(struct qcow *q, u64 *table)
 	clust_sz	= 1 << header->cluster_bits;
 	off		= ALIGN(f_sz, clust_sz);
 
-	if (qcow_pwrite_sync(q->fd, table, sz * sizeof(u64), off) < 0)
+	if (pwrite_in_full(q->fd, table, sz * sizeof(u64), off) < 0)
 		return 0;
 
 	return off;
