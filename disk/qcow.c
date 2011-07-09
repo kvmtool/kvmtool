@@ -121,21 +121,18 @@ error:
 	return -1;
 }
 
-static int search_table(struct qcow *q, u64 **table, u64 offset)
+static struct qcow_l2_table *search_table(struct qcow *q, u64 offset)
 {
-	struct qcow_l2_table *c;
+	struct qcow_l2_table *l2t;
 
-	*table = NULL;
-
-	c = search(&q->root, offset);
-	if (!c)
-		return -1;
+	l2t = search(&q->root, offset);
+	if (!l2t)
+		return NULL;
 
 	/* Update the LRU state, by moving the searched node to list tail */
-	list_move_tail(&c->list, &q->lru_list);
+	list_move_tail(&l2t->list, &q->lru_list);
 
-	*table = c->table;
-	return 0;
+	return l2t;
 }
 
 /* Allocates a new node for caching L2 table */
@@ -180,61 +177,56 @@ static inline u64 get_cluster_offset(struct qcow *q, u64 offset)
 	return offset & ((1 << header->cluster_bits)-1);
 }
 
-static int qcow_read_l2_table(struct qcow *q, u64 **table, u64 offset)
+static struct qcow_l2_table *qcow_read_l2_table(struct qcow *q, u64 offset)
 {
 	struct qcow_header *header = q->header;
-	struct qcow_l2_table *c;
+	struct qcow_l2_table *l2t;
 	u64 size;
 	u64 i;
-	u64 *t;
 
-	c      = NULL;
-	*table = NULL;
-	size   = 1 << header->l2_bits;
+	size = 1 << header->l2_bits;
 
 	/* search an entry for offset in cache */
-	if (search_table(q, table, offset) >= 0)
-		return 0;
+	l2t = search_table(q, offset);
+	if (l2t)
+		return l2t;
 
 	/* allocate new node for caching l2 table */
-	c = new_cache_table(q, offset);
-	if (!c)
+	l2t = new_cache_table(q, offset);
+	if (!l2t)
 		goto error;
-	t = c->table;
 
 	/* table not cached: read from the disk */
-	if (pread_in_full(q->fd, t, size * sizeof(u64), offset) < 0)
+	if (pread_in_full(q->fd, l2t->table, size * sizeof(u64), offset) < 0)
 		goto error;
 
 	/* cache the table */
-	if (cache_table(q, c) < 0)
+	if (cache_table(q, l2t) < 0)
 		goto error;
 
 	/* change cached table to CPU's byte-order */
 	for (i = 0; i < size; i++)
-		be64_to_cpus(&t[i]);
+		be64_to_cpus(&l2t->table[i]);
 
-	*table = t;
-	return 0;
+	return l2t;
 error:
-	free(c);
-	return -1;
+	free(l2t);
+	return NULL;
 }
 
 static ssize_t qcow_read_cluster(struct qcow *q, u64 offset, void *dst, u32 dst_len)
 {
 	struct qcow_header *header = q->header;
 	struct qcow_table *table  = &q->table;
+	struct qcow_l2_table *l2_table;
 	u64 l2_table_offset;
 	u64 l2_table_size;
 	u64 cluster_size;
 	u64 clust_offset;
 	u64 clust_start;
 	size_t length;
-	u64 *l2_table;
 	u64 l1_idx;
 	u64 l2_idx;
-
 
 	cluster_size = 1 << header->cluster_bits;
 
@@ -257,14 +249,15 @@ static ssize_t qcow_read_cluster(struct qcow *q, u64 offset, void *dst, u32 dst_
 	l2_table_size = 1 << header->l2_bits;
 
 	/* read and cache level 2 table */
-	if (qcow_read_l2_table(q, &l2_table, l2_table_offset) < 0)
+	l2_table = qcow_read_l2_table(q, l2_table_offset);
+	if (!l2_table)
 		goto out_error;
 
 	l2_idx = get_l2_index(q, offset);
 	if (l2_idx >= l2_table_size)
 		goto out_error;
 
-	clust_start = l2_table[l2_idx] & ~header->oflag_mask;
+	clust_start = l2_table->table[l2_idx] & ~header->oflag_mask;
 	if (!clust_start)
 		goto zero_cluster;
 
@@ -367,7 +360,7 @@ static ssize_t qcow_write_cluster(struct qcow *q, u64 offset, void *buf, u32 src
 {
 	struct qcow_header *header = q->header;
 	struct qcow_table  *table  = &q->table;
-	struct qcow_l2_table *c;
+	struct qcow_l2_table *l2t;
 	bool update_meta;
 	u64 clust_start;
 	u64 clust_off;
@@ -376,12 +369,11 @@ static ssize_t qcow_write_cluster(struct qcow *q, u64 offset, void *buf, u32 src
 	u64 l2t_idx;
 	u64 l2t_off;
 	u64 l2t_sz;
-	u64 *l2t;
 	u64 f_sz;
 	u64 len;
 	u64 t;
 
-	c               = NULL;
+	l2t		= NULL;
 	l2t_sz		= 1 << header->l2_bits;
 	clust_sz	= 1 << header->cluster_bits;
 
@@ -404,13 +396,13 @@ static ssize_t qcow_write_cluster(struct qcow *q, u64 offset, void *buf, u32 src
 	l2t_off		= table->l1_table[l1t_idx] & ~header->oflag_mask;
 	if (l2t_off) {
 		/* read and cache l2 table */
-		if (qcow_read_l2_table(q, &l2t, l2t_off) < 0)
+		l2t = qcow_read_l2_table(q, l2t_off);
+		if (!l2t)
 			goto error;
 	} else {
-		c = new_cache_table(q, l2t_off);
-		if (!c)
+		l2t = new_cache_table(q, l2t_off);
+		if (!l2t)
 			goto error;
-		l2t = c->table;
 
 		/* Capture the state of the consistent QCOW image */
 		f_sz		= file_size(q->fd);
@@ -418,7 +410,7 @@ static ssize_t qcow_write_cluster(struct qcow *q, u64 offset, void *buf, u32 src
 			goto free_cache;
 
 		/* Write the l2 table of 0's at the end of the file */
-		l2t_off		= qcow_write_l2_table(q, l2t);
+		l2t_off		= qcow_write_l2_table(q, l2t->table);
 		if (!l2t_off)
 			goto free_cache;
 
@@ -433,7 +425,7 @@ static ssize_t qcow_write_cluster(struct qcow *q, u64 offset, void *buf, u32 src
 			goto free_cache;
 		}
 
-		if (cache_table(q, c) < 0) {
+		if (cache_table(q, l2t) < 0) {
 			if (ftruncate(q->fd, f_sz) < 0)
 				goto free_cache;
 
@@ -449,7 +441,7 @@ static ssize_t qcow_write_cluster(struct qcow *q, u64 offset, void *buf, u32 src
 	if (!f_sz)
 		goto error;
 
-	clust_start	= l2t[l2t_idx] & ~header->oflag_mask;
+	clust_start	= l2t->table[l2t_idx] & ~header->oflag_mask;
 	if (!clust_start) {
 		clust_start	= ALIGN(f_sz, clust_sz);
 		update_meta	= true;
@@ -471,13 +463,13 @@ static ssize_t qcow_write_cluster(struct qcow *q, u64 offset, void *buf, u32 src
 		}
 
 		/* Update the cached level2 entry */
-		l2t[l2t_idx] = clust_start;
+		l2t->table[l2t_idx] = clust_start;
 	}
 
 	return len;
 
 free_cache:
-	free(c);
+	free(l2t);
 error:
 	return -1;
 }
