@@ -4,7 +4,7 @@
 
 #include <kvm/util.h>
 #include <kvm/kvm-cmd.h>
-#include <kvm/kvm-pause.h>
+#include <kvm/builtin-pause.h>
 #include <kvm/kvm.h>
 
 static void do_pause(const char *name, int pid)

@@ -37,7 +37,7 @@
 #include <kvm/framebuffer.h>
 
 /* header files for gitish interface  */
-#include <kvm/kvm-run.h>
+#include <kvm/builtin-run.h>
 #include <kvm/parse-options.h>
 #include <kvm/mutex.h>
 

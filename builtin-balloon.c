@@ -4,7 +4,7 @@
 
 #include <kvm/util.h>
 #include <kvm/kvm-cmd.h>
-#include <kvm/kvm-balloon.h>
+#include <kvm/builtin-balloon.h>
 #include <kvm/kvm.h>
 
 int kvm_cmd_balloon(int argc, const char **argv, const char *prefix)

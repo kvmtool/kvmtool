@@ -20,6 +20,13 @@ TAGS	:= ctags
 
 PROGRAM	:= kvm
 
+OBJS	+= builtin-balloon.o
+OBJS	+= builtin-debug.o
+OBJS	+= builtin-help.o
+OBJS	+= builtin-list.o
+OBJS	+= builtin-pause.o
+OBJS	+= builtin-run.o
+OBJS	+= builtin-version.o
 OBJS	+= cpuid.o
 OBJS	+= disk/core.o
 OBJS	+= framebuffer.o
@@ -55,13 +62,6 @@ OBJS	+= uip/udp.o
 OBJS	+= uip/buf.o
 OBJS	+= uip/csum.o
 OBJS	+= kvm-cmd.o
-OBJS	+= kvm-debug.o
-OBJS	+= kvm-help.o
-OBJS	+= kvm-pause.o
-OBJS	+= kvm-balloon.o
-OBJS	+= kvm-list.o
-OBJS	+= kvm-run.o
-OBJS	+= kvm-version.o
 OBJS	+= mptable.o
 OBJS	+= rbtree.o
 OBJS	+= threadpool.o
@@ -167,8 +167,8 @@ $(DEPS):
 %.d: %.c
 	$(Q) $(CC) -M -MT $(patsubst %.d,%.o,$@) $(CFLAGS) $< -o $@
 
-# The header file common-cmds.h is needed for compilation of kvm-help.c.
-kvm-help.d: $(KVM_INCLUDE)/common-cmds.h
+# The header file common-cmds.h is needed for compilation of builtin-help.c.
+builtin-help.d: $(KVM_INCLUDE)/common-cmds.h
 
 $(OBJS):
 

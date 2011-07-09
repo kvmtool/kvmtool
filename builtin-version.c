@@ -1,6 +1,6 @@
 #include <kvm/util.h>
 #include <kvm/kvm-cmd.h>
-#include <kvm/kvm-version.h>
+#include <kvm/builtin-version.h>
 #include <kvm/kvm.h>
 
 #include <stdio.h>

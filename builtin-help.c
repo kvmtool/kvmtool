@@ -6,7 +6,7 @@
 
 #include <kvm/util.h>
 #include <kvm/kvm-cmd.h>
-#include <kvm/kvm-help.h>
+#include <kvm/builtin-help.h>
 
 
 const char kvm_usage_string[] =

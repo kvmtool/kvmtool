@@ -5,14 +5,14 @@
 #include <assert.h>
 
 /* user defined header files */
-#include "kvm/kvm-debug.h"
-#include "kvm/kvm-pause.h"
-#include "kvm/kvm-balloon.h"
-#include "kvm/kvm-list.h"
-#include "kvm/kvm-version.h"
-#include "kvm/kvm-help.h"
+#include "kvm/builtin-debug.h"
+#include "kvm/builtin-pause.h"
+#include "kvm/builtin-balloon.h"
+#include "kvm/builtin-list.h"
+#include "kvm/builtin-version.h"
+#include "kvm/builtin-help.h"
 #include "kvm/kvm-cmd.h"
-#include "kvm/kvm-run.h"
+#include "kvm/builtin-run.h"
 
 struct cmd_struct kvm_commands[] = {
 	{ "pause",	kvm_cmd_pause,		NULL,         0 },
