@@ -183,7 +183,6 @@ static struct qcow_l2_table *qcow_read_l2_table(struct qcow *q, u64 offset)
 	struct qcow_header *header = q->header;
 	struct qcow_l2_table *l2t;
 	u64 size;
-	u64 i;
 
 	size = 1 << header->l2_bits;
 
@@ -204,10 +203,6 @@ static struct qcow_l2_table *qcow_read_l2_table(struct qcow *q, u64 offset)
 	/* cache the table */
 	if (cache_table(q, l2t) < 0)
 		goto error;
-
-	/* change cached table to CPU's byte-order */
-	for (i = 0; i < size; i++)
-		be64_to_cpus(&l2t->table[i]);
 
 	return l2t;
 error:
@@ -259,7 +254,7 @@ static ssize_t qcow_read_cluster(struct qcow *q, u64 offset, void *dst, u32 dst_
 	if (l2_idx >= l2_table_size)
 		goto out_error;
 
-	clust_start = l2_table->table[l2_idx] & ~header->oflag_mask;
+	clust_start = be64_to_cpu(l2_table->table[l2_idx]) & ~header->oflag_mask;
 	if (!clust_start)
 		goto zero_cluster;
 
@@ -437,7 +432,7 @@ static ssize_t qcow_write_cluster(struct qcow *q, u64 offset, void *buf, u32 src
 	if (!f_sz)
 		goto error;
 
-	clust_start	= l2t->table[l2t_idx] & ~header->oflag_mask;
+	clust_start	= be64_to_cpu(l2t->table[l2t_idx]) & ~header->oflag_mask;
 	if (!clust_start) {
 		clust_start	= ALIGN(f_sz, clust_sz);
 		update_meta	= true;
@@ -459,7 +454,7 @@ static ssize_t qcow_write_cluster(struct qcow *q, u64 offset, void *buf, u32 src
 		}
 
 		/* Update the cached level2 entry */
-		l2t->table[l2t_idx] = clust_start;
+		l2t->table[l2t_idx] = cpu_to_be64(clust_start);
 	}
 
 	mutex_unlock(&q->mutex);
