@@ -27,6 +27,7 @@ struct qcow_l2_table {
 	u64                     offset;
 	struct rb_node          node;
 	struct list_head        list;
+	u8			dirty;
 	u64                     table[];
 };
 

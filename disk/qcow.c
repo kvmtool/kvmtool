@@ -93,9 +93,17 @@ static int qcow_l2_cache_write(struct qcow *q, struct qcow_l2_table *c)
 	struct qcow_header *header = q->header;
 	u64 size;
 
+	if (!c->dirty)
+		return 0;
+
 	size = 1 << header->l2_bits;
 
-	return pwrite_in_full(q->fd, c->table, size * sizeof(u64), c->offset);
+	if (pwrite_in_full(q->fd, c->table, size * sizeof(u64), c->offset) < 0)
+		return -1;
+
+	c->dirty = 0;
+
+	return 0;
 }
 
 static int cache_table(struct qcow *q, struct qcow_l2_table *c)
@@ -447,6 +455,7 @@ static ssize_t qcow_write_cluster(struct qcow *q, u64 offset, void *buf, u32 src
 	if (!clust_start) {
 		clust_start		= ALIGN(f_sz, clust_sz);
 		l2t->table[l2t_idx]	= cpu_to_be64(clust_start);
+		l2t->dirty		= 1;
 	}
 
 	mutex_unlock(&q->mutex);
