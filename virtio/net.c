@@ -348,7 +348,6 @@ static bool virtio_net__tap_init(const struct virtio_net_parameters *params)
 	hdr_len = sizeof(struct virtio_net_hdr);
 	if (ioctl(ndev.tap_fd, TUNSETVNETHDRSZ, &hdr_len) < 0) {
 		pr_warning("Config tap device TUNSETVNETHDRSZ error");
-		goto fail;
 	}
 
 	offload = TUN_F_CSUM | TUN_F_TSO4 | TUN_F_TSO6 | TUN_F_UFO;
