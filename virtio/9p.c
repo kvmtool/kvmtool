@@ -236,6 +236,9 @@ err_out:
 static void virtio_p9_create(struct p9_dev *p9dev,
 			     struct p9_pdu *pdu, u32 *outlen)
 {
+	DIR *dir;
+	int fd;
+	int res;
 	u8 mode;
 	u32 perm;
 	char *name;
@@ -243,24 +246,33 @@ static void virtio_p9_create(struct p9_dev *p9dev,
 	struct stat st;
 	struct p9_qid qid;
 	struct p9_fid *fid;
+	char full_path[PATH_MAX];
 
 	virtio_p9_pdu_readf(pdu, "dsdb", &fid_val, &name, &perm, &mode);
 	fid = &p9dev->fids[fid_val];
 
-	sprintf(fid->path, "%s/%.*s", fid->path, (int)strlen(name), name);
-	close_fid(p9dev, fid_val);
-
+	sprintf(full_path, "%s/%s", fid->abs_path, name);
 	if (perm & P9_DMDIR) {
-		mkdir(fid->abs_path, perm & 0xFFFF);
-		fid->dir = opendir(fid->abs_path);
+		res = mkdir(full_path, perm & 0xFFFF);
+		if (res < 0)
+			goto err_out;
+		dir = opendir(full_path);
+		if (!dir)
+			goto err_out;
+		close_fid(p9dev, fid_val);
+		fid->dir = dir;
 		fid->is_dir = 1;
 	} else {
-		fid->fd = open(fid->abs_path,
-			       omode2uflags(mode) | O_CREAT, 0777);
+		fd = open(full_path, omode2uflags(mode) | O_CREAT, 0777);
+		if (fd < 0)
+			goto err_out;
+		close_fid(p9dev, fid_val);
+		fid->fd = fd;
 	}
-	if (lstat(fid->abs_path, &st) < 0)
+	if (lstat(full_path, &st) < 0)
 		goto err_out;
 
+	sprintf(fid->path, "%s/%s", fid->path, name);
 	st2qid(&st, &qid);
 	virtio_p9_pdu_writef(pdu, "Qd", &qid, 0);
 	*outlen = pdu->write_offset;
@@ -493,12 +505,16 @@ static void virtio_p9_wstat(struct p9_dev *p9dev,
 	virtio_p9_pdu_readf(pdu, "dwS", &fid_val, &unused, &wstat);
 	fid = &p9dev->fids[fid_val];
 
-	if (wstat.length != -1UL)
+	if (wstat.length != -1UL) {
 		res = ftruncate(fid->fd, wstat.length);
-
-	if (wstat.mode != -1U)
-		chmod(fid->abs_path, wstat.mode & 0xFFFF);
-
+		if (res < 0)
+			goto err_out;
+	}
+	if (wstat.mode != -1U) {
+		res = chmod(fid->abs_path, wstat.mode & 0xFFFF);
+		if (res < 0)
+			goto err_out;
+	}
 	if (strlen(wstat.name) > 0) {
 		char new_name[PATH_MAX] = {0};
 		char full_path[PATH_MAX];
@@ -512,17 +528,24 @@ static void virtio_p9_wstat(struct p9_dev *p9dev,
 		       wstat.name, strlen(wstat.name));
 
 		/* fid is reused for the new file */
-		rename(fid->abs_path, rel_to_abs(p9dev, new_name, full_path));
+		res = rename(fid->abs_path,
+			     rel_to_abs(p9dev, new_name, full_path));
+		if (res < 0)
+			goto err_out;
 		sprintf(fid->path, "%s", new_name);
 	}
 	*outlen = VIRTIO_P9_HDR_LEN;
 	virtio_p9_set_reply_header(pdu, *outlen);
+	return;
+err_out:
+	virtio_p9_error_reply(p9dev, pdu, errno, outlen);
 	return;
 }
 
 static void virtio_p9_remove(struct p9_dev *p9dev,
 			     struct p9_pdu *pdu, u32 *outlen)
 {
+	int res;
 	u32 fid_val;
 	struct p9_fid *fid;
 
@@ -530,21 +553,28 @@ static void virtio_p9_remove(struct p9_dev *p9dev,
 	fid = &p9dev->fids[fid_val];
 	close_fid(p9dev, fid_val);
 	if (fid->is_dir)
-		rmdir(fid->abs_path);
+		res = rmdir(fid->abs_path);
 	else
-		unlink(fid->abs_path);
+		res = unlink(fid->abs_path);
+	if (res < 0)
+		goto err_out;
 
 	*outlen = VIRTIO_P9_HDR_LEN;
 	virtio_p9_set_reply_header(pdu, *outlen);
+	return;
+err_out:
+	virtio_p9_error_reply(p9dev, pdu, errno, outlen);
 	return;
 }
 
 static void virtio_p9_write(struct p9_dev *p9dev,
 			    struct p9_pdu *pdu, u32 *outlen)
 {
+
 	u64 offset;
 	u32 fid_val;
-	u32 count, rcount;
+	u32 count;
+	ssize_t res;
 	struct p9_fid *fid;
 
 	virtio_p9_pdu_readf(pdu, "dqd", &fid_val, &offset, &count);
@@ -557,10 +587,15 @@ static void virtio_p9_write(struct p9_dev *p9dev,
 				     sizeof(struct p9_twrite));
 	pdu->out_iov_cnt = virtio_p9_update_iov_cnt(pdu->out_iov, count,
 						    pdu->out_iov_cnt);
-	rcount = pwritev(fid->fd, pdu->out_iov, pdu->out_iov_cnt, offset);
-	virtio_p9_pdu_writef(pdu, "d", rcount);
+	res = pwritev(fid->fd, pdu->out_iov, pdu->out_iov_cnt, offset);
+	if (res < 0)
+		goto err_out;
+	virtio_p9_pdu_writef(pdu, "d", res);
 	*outlen = pdu->write_offset;
 	virtio_p9_set_reply_header(pdu, *outlen);
+	return;
+err_out:
+	virtio_p9_error_reply(p9dev, pdu, errno, outlen);
 	return;
 }
 
