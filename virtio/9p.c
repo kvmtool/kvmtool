@@ -506,7 +506,7 @@ static void virtio_p9_wstat(struct p9_dev *p9dev,
 	fid = &p9dev->fids[fid_val];
 
 	if (wstat.length != -1UL) {
-		res = ftruncate(fid->fd, wstat.length);
+		res = truncate(fid->abs_path, wstat.length);
 		if (res < 0)
 			goto err_out;
 	}
