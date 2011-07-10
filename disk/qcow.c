@@ -260,7 +260,14 @@ static ssize_t qcow_read_cluster(struct qcow *q, u64 offset, void *dst, u32 dst_
 		length = dst_len;
 
 	mutex_lock(&q->mutex);
-	l2_table_offset = be64_to_cpu(table->l1_table[l1_idx]) & ~header->oflag_mask;
+
+	l2_table_offset = be64_to_cpu(table->l1_table[l1_idx]);
+	if (l2_table_offset & QCOW_OFLAG_COMPRESSED) {
+		pr_warning("compressed sectors are not supported");
+		goto out_error;
+	}
+
+	l2_table_offset &= QCOW_OFFSET_MASK;
 	if (!l2_table_offset)
 		goto zero_cluster;
 
@@ -275,7 +282,13 @@ static ssize_t qcow_read_cluster(struct qcow *q, u64 offset, void *dst, u32 dst_
 	if (l2_idx >= l2_table_size)
 		goto out_error;
 
-	clust_start = be64_to_cpu(l2_table->table[l2_idx]) & ~header->oflag_mask;
+	clust_start = be64_to_cpu(l2_table->table[l2_idx]);
+	if (clust_start & QCOW_OFLAG_COMPRESSED) {
+		pr_warning("compressed sectors are not supported");
+		goto out_error;
+	}
+
+	clust_start &= QCOW_OFFSET_MASK;
 	if (!clust_start)
 		goto zero_cluster;
 
@@ -414,7 +427,13 @@ static ssize_t qcow_write_cluster(struct qcow *q, u64 offset, void *buf, u32 src
 
 	mutex_lock(&q->mutex);
 
-	l2t_off		= be64_to_cpu(table->l1_table[l1t_idx]) & ~header->oflag_mask;
+	l2t_off = be64_to_cpu(table->l1_table[l1t_idx]);
+	if (l2t_off & QCOW_OFLAG_COMPRESSED) {
+		pr_warning("compressed sectors are not supported");
+		goto error;
+	}
+
+	l2t_off &= QCOW_OFFSET_MASK;
 	if (l2t_off) {
 		/* read and cache l2 table */
 		l2t = qcow_read_l2_table(q, l2t_off);
@@ -451,7 +470,13 @@ static ssize_t qcow_write_cluster(struct qcow *q, u64 offset, void *buf, u32 src
 	if (!f_sz)
 		goto error;
 
-	clust_start	= be64_to_cpu(l2t->table[l2t_idx]) & ~header->oflag_mask;
+	clust_start	= be64_to_cpu(l2t->table[l2t_idx]);
+	if (clust_start & QCOW_OFLAG_COMPRESSED) {
+		pr_warning("compressed sectors are not supported");
+		goto error;
+	}
+
+	clust_start &= QCOW_OFFSET_MASK;
 	if (!clust_start) {
 		clust_start		= ALIGN(f_sz, clust_sz);
 		l2t->table[l2t_idx]	= cpu_to_be64(clust_start);
@@ -621,7 +646,6 @@ static void *qcow2_read_header(int fd)
 		.l1_size		= f_header.l1_size,
 		.cluster_bits		= f_header.cluster_bits,
 		.l2_bits		= f_header.cluster_bits - 3,
-		.oflag_mask		= QCOW2_OFLAG_MASK,
 	};
 
 	return header;
@@ -721,7 +745,6 @@ static void *qcow1_read_header(int fd)
 		.l1_size		= f_header.size / ((1 << f_header.l2_bits) * (1 << f_header.cluster_bits)),
 		.cluster_bits		= f_header.cluster_bits,
 		.l2_bits		= f_header.l2_bits,
-		.oflag_mask		= QCOW1_OFLAG_MASK,
 	};
 
 	return header;
