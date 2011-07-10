@@ -172,7 +172,7 @@ int kvm__enumerate_instances(void (*callback)(const char *name, int pid))
 	sprintf(full_name, "%s/%s", HOME_DIR, KVM_PID_FILE_PATH);
 	dir = opendir(full_name);
 
-	for (;;) {
+	while (dir != NULL) {
 		readdir_r(dir, &entry, &result);
 		if (result == NULL)
 			break;
