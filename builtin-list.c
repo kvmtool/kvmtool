@@ -27,6 +27,8 @@ static void print_guest(const char *name, int pid)
 
 	printf("%s (PID: %d)\n", name, pid);
 
+	close(fd);
+
 	return;
 
 cleanup:
