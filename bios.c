@@ -16,14 +16,14 @@ struct irq_handler {
 	size_t			size;
 };
 
-#define BIOS_IRQ_ADDR(name) (MB_BIOS_BEGIN + BIOS_OFFSET__##name)
-#define BIOS_IRQ_FUNC(name) ((char *)&bios_rom[BIOS_OFFSET__##name])
-#define BIOS_IRQ_SIZE(name) (BIOS_ENTRY_SIZE(BIOS_OFFSET__##name))
+#define BIOS_IRQ_PA_ADDR(name)	(MB_BIOS_BEGIN + BIOS_OFFSET__##name)
+#define BIOS_IRQ_FUNC(name)	((char *)&bios_rom[BIOS_OFFSET__##name])
+#define BIOS_IRQ_SIZE(name)	(BIOS_ENTRY_SIZE(BIOS_OFFSET__##name))
 
 #define DEFINE_BIOS_IRQ_HANDLER(_irq, _handler)			\
 	{							\
 		.irq		= _irq,				\
-		.address	= BIOS_IRQ_ADDR(_handler),	\
+		.address	= BIOS_IRQ_PA_ADDR(_handler),	\
 		.handler	= BIOS_IRQ_FUNC(_handler),	\
 		.size		= BIOS_IRQ_SIZE(_handler),	\
 	}
@@ -42,9 +42,11 @@ static void setup_irq_handler(struct kvm *kvm, struct irq_handler *handler)
 	memcpy(p, handler->handler, handler->size);
 
 	intr_desc = (struct real_intr_desc) {
-		.segment	= REAL_SEGMENT(handler->address),
-		.offset		= REAL_OFFSET(handler->address),
+		.segment	= REAL_SEGMENT(MB_BIOS_BEGIN),
+		.offset		= handler->address - MB_BIOS_BEGIN,
 	};
+
+	DIE_IF((handler->address - MB_BIOS_BEGIN) > (unsigned long)0xffff);
 
 	interrupt_table__set(&kvm->interrupt_table, &intr_desc, handler->irq);
 }
@@ -139,10 +141,10 @@ void setup_bios(struct kvm *kvm)
 	 * Setup a *fake* real mode vector table, it has only
 	 * one real hadler which does just iret
 	 */
-	address = BIOS_IRQ_ADDR(bios_intfake);
+	address = BIOS_IRQ_PA_ADDR(bios_intfake);
 	intr_desc = (struct real_intr_desc) {
-		.segment	= REAL_SEGMENT(address),
-		.offset		= REAL_OFFSET(address),
+		.segment	= REAL_SEGMENT(MB_BIOS_BEGIN),
+		.offset		= address - MB_BIOS_BEGIN,
 	};
 	interrupt_table__setup(&kvm->interrupt_table, &intr_desc);
 
