@@ -173,7 +173,7 @@ ssize_t xwritev(int fd, const struct iovec *iov, int iovcnt)
 	ssize_t nr;
 
 restart:
-	nr = write(fd, iov, iovcnt);
+	nr = writev(fd, iov, iovcnt);
 	if ((nr < 0) && ((errno == EAGAIN) || (errno == EINTR)))
 		goto restart;
 
