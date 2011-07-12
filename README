@@ -21,8 +21,9 @@ much guest or host side setup work needed.
 
 or alternatively, if you already have a kernel source tree:
 
-  git checkout -b kvm/tool
-  git pull git://github.com/penberg/linux-kvm.git
+  git remote add kvm-tool git://github.com/penberg/linux-kvm.git
+  git remote update
+  git checkout -b kvm-tool/master kvm-tool
 
 2. Compile the tool:
 
@@ -33,17 +34,42 @@ or alternatively, if you already have a kernel source tree:
   wget http://wiki.qemu.org/download/linux-0.2.img.bz2 && bunzip2
 linux-0.2.img.bz2
 
-4. Build a kernel with
+4. The guest kernel has to be built with the following configuration:
 
-  CONFIG_VIRTIO_BLK=y
-  CONFIG_VIRTIO_NET=y
-  CONFIG_VIRTIO_CONSOLE=y
-  CONFIG_SERIAL_8250_CONSOLE=y
-  CONFIG_HW_RANDOM_VIRTIO=y
+ - For the default console output:
+	CONFIG_SERIAL_8250=y
+	CONFIG_SERIAL_8250_CONSOLE=y
 
-configuration options.
-Note: also make sure you have CONFIG_EXT2_FS or
-CONFIG_EXT4_FS if you use the above image.
+ - For running 32bit images on 64bit hosts:
+	CONFIG_IA32_EMULATION=y
+
+ - Proper FS options according to image FS (e.g. CONFIG_EXT2_FS, CONFIG_EXT4_FS).
+
+ - For all virtio devices listed below:
+	CONFIG_VIRTIO=y
+	CONFIG_VIRTIO_RING=y
+	CONFIG_VIRTIO_PCI=y
+
+ - For virtio-blk devices (--disk, -d):
+	CONFIG_VIRTIO_BLK=y
+
+ - For virtio-net devices ([--network, -n] virtio):
+	CONFIG_VIRTIO_NET=y
+
+ - For virtio-9p devices (--virtio-9p):
+	CONFIG_NET_9P=y
+	CONFIG_NET_9P_VIRTIO=y
+	CONFIG_9P_FS=y
+
+ - For virtio-balloon device (--balloon):
+	CONFIG_VIRTIO_BALLOON=y
+
+ - For virtio-console device (--console virtio):
+	CONFIG_VIRTIO_CONSOLE=y
+
+ - For virtio-rng device (--rng):
+	CONFIG_HW_RANDOM_VIRTIO=y
+
 
 5. And finally, launch the hypervisor:
 
