@@ -59,6 +59,7 @@ void disk_image__close_all(struct disk_image **disks, int count);
 int disk_image__flush(struct disk_image *disk);
 ssize_t disk_image__read(struct disk_image *disk, u64 sector, const struct iovec *iov, int iovcount);
 ssize_t disk_image__write(struct disk_image *disk, u64 sector, const struct iovec *iov, int iovcount);
+ssize_t disk_image__get_serial(struct disk_image *disk, void *buffer, ssize_t *len);
 
 struct disk_image *raw_image__probe(int fd, struct stat *st, bool readonly);
 struct disk_image *blkdev__probe(const char *filename, struct stat *st);

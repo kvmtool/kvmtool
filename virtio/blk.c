@@ -152,6 +152,10 @@ static void virtio_blk_do_io_request(struct kvm *kvm, void *param)
 	case VIRTIO_BLK_T_FLUSH:
 		block_cnt       = disk_image__flush(bdev->disk);
 		break;
+	case VIRTIO_BLK_T_GET_ID:
+		block_cnt	= VIRTIO_BLK_ID_BYTES;
+		disk_image__get_serial(bdev->disk, (iov + 1)->iov_base, &block_cnt);
+		break;
 	default:
 		pr_warning("request type %d", req->type);
 		block_cnt	= -1;

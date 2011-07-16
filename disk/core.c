@@ -207,3 +207,14 @@ ssize_t disk_image__write(struct disk_image *disk, u64 sector, const struct iove
 
 	return total;
 }
+
+ssize_t disk_image__get_serial(struct disk_image *disk, void *buffer, ssize_t *len)
+{
+	struct stat st;
+
+	if (fstat(disk->fd, &st) != 0)
+		return 0;
+
+	*len = snprintf(buffer, *len, "%lu%lu%lu", st.st_dev, st.st_rdev, st.st_ino);
+	return *len;
+}
