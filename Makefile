@@ -61,6 +61,7 @@ OBJS	+= net/uip/tcp.o
 OBJS	+= net/uip/udp.o
 OBJS	+= net/uip/buf.o
 OBJS	+= net/uip/csum.o
+OBJS	+= net/uip/dhcp.o
 OBJS	+= kvm-cmd.o
 OBJS	+= mptable.o
 OBJS	+= rbtree.o

@@ -30,9 +30,12 @@
 #define UIP_TCP_FLAG_URG	32
 
 #define UIP_DHCP_VENDOR_SPECIFIC_LEN	312
+#define UIP_DHCP_PORT_SERVER		67
+#define UIP_DHCP_PORT_CLIENT		68
 #define UIP_DHCP_MACPAD_LEN		10
 #define UIP_DHCP_HOSTNAME_LEN		64
 #define UIP_DHCP_FILENAME_LEN		128
+#define UIP_DHCP_MAGIC_COOKIE		0x63825363
 #define UIP_DHCP_MAGIC_COOKIE_LEN	4
 #define UIP_DHCP_OPTION_LEN		(UIP_DHCP_VENDOR_SPECIFIC_LEN - UIP_DHCP_MAGIC_COOKIE_LEN)
 /*
@@ -317,4 +320,5 @@ struct uip_buf *uip_buf_get_free(struct uip_info *info);
 struct uip_buf *uip_buf_clone(struct uip_tx_arg *arg);
 
 int uip_udp_make_pkg(struct uip_info *info, struct uip_udp_socket *sk, struct uip_buf *buf, u8 *payload, int payload_len);
+bool uip_udp_is_dhcp(struct uip_udp *udp);
 #endif /* KVM__UIP_H */
