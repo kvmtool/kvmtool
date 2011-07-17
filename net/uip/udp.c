@@ -210,6 +210,11 @@ int uip_tx_do_ipv4_udp(struct uip_tx_arg *arg)
 	ip	= (struct uip_ip *)(arg->eth);
 	info	= arg->info;
 
+	if (uip_udp_is_dhcp(udp)) {
+		uip_tx_do_ipv4_udp_dhcp(arg);
+		return 0;
+	}
+
 	/*
 	 * Find socket we have allocated before, otherwise allocate one
 	 */
