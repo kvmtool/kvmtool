@@ -82,7 +82,6 @@ static struct net_dev ndev = {
 	.mutex	= PTHREAD_MUTEX_INITIALIZER,
 
 	.config = {
-		.mac			= {0x00, 0x15, 0x15, 0x15, 0x15, 0x15},
 		.status			= VIRTIO_NET_S_LINK_UP,
 	},
 	.host_features			= 1UL << VIRTIO_NET_F_MAC
@@ -318,12 +317,9 @@ static struct ioport_operations virtio_net_io_ops = {
 static bool virtio_net__tap_init(const struct virtio_net_parameters *params)
 {
 	int sock = socket(AF_INET, SOCK_STREAM, 0);
-	int i, pid, status, offload, hdr_len;
+	int pid, status, offload, hdr_len;
 	struct sockaddr_in sin = {0};
 	struct ifreq ifr;
-
-	for (i = 0 ; i < 6 ; i++)
-		ndev.config.mac[i] = params->guest_mac[i];
 
 	ndev.tap_fd = open("/dev/net/tun", O_RDWR);
 	if (ndev.tap_fd < 0) {
@@ -458,6 +454,9 @@ void virtio_net__init(const struct virtio_net_parameters *params)
 	pci_header.bar[0]   = net_base_addr | PCI_BASE_ADDRESS_SPACE_IO;
 	ndev.base_addr	    = net_base_addr;
 	pci__register(&pci_header, dev);
+
+	for (i = 0 ; i < 6 ; i++)
+		ndev.config.mac[i] = params->guest_mac[i];
 
 	ndev.mode = params->mode;
 	if (ndev.mode == NET_MODE_TAP) {
