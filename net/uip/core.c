@@ -184,5 +184,7 @@ int uip_init(struct uip_info *info)
 	info->buf_free_nr = buf_nr;
 	info->buf_used_nr = 0;
 
+	uip_dhcp_get_dns(info);
+
 	return 0;
 }
