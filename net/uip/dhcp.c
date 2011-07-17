@@ -133,3 +133,25 @@ static int uip_dhcp_fill_option(struct uip_info *info, struct uip_dhcp *dhcp, in
 
 	return 0;
 }
+
+static int uip_dhcp_make_pkg(struct uip_info *info, struct uip_udp_socket *sk, struct uip_buf *buf, u8 reply_msg_type)
+{
+	struct uip_dhcp *dhcp;
+
+	dhcp		= (struct uip_dhcp *)buf->eth;
+
+	dhcp->msg_type	= 2;
+	dhcp->client_ip	= 0;
+	dhcp->your_ip	= htonl(info->guest_ip);
+	dhcp->server_ip	= htonl(info->host_ip);
+	dhcp->agent_ip	= 0;
+
+	uip_dhcp_fill_option(info, dhcp, reply_msg_type);
+
+	sk->sip		= htonl(info->guest_ip);
+	sk->dip		= htonl(info->host_ip);
+	sk->sport	= htons(UIP_DHCP_PORT_CLIENT);
+	sk->dport	= htons(UIP_DHCP_PORT_SERVER);
+
+	return 0;
+}
