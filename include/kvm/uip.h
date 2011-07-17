@@ -37,6 +37,7 @@
 #define UIP_DHCP_FILENAME_LEN		128
 #define UIP_DHCP_MAGIC_COOKIE		0x63825363
 #define UIP_DHCP_MAGIC_COOKIE_LEN	4
+#define UIP_DHCP_LEASE_TIME		0x00003840
 #define UIP_DHCP_OPTION_LEN		(UIP_DHCP_VENDOR_SPECIFIC_LEN - UIP_DHCP_MAGIC_COOKIE_LEN)
 #define UIP_DHCP_DISCOVER		1
 #define UIP_DHCP_OFFER			2
@@ -46,9 +47,18 @@
 #define UIP_DHCP_MAX_DOMAIN_NAME_LEN	256
 #define UIP_DHCP_TAG_MSG_TYPE		53
 #define UIP_DHCP_TAG_MSG_TYPE_LEN	1
+#define UIP_DHCP_TAG_SERVER_ID		54
+#define UIP_DHCP_TAG_SERVER_ID_LEN	4
+#define UIP_DHCP_TAG_LEASE_TIME		51
+#define UIP_DHCP_TAG_LEASE_TIME_LEN	4
+#define UIP_DHCP_TAG_SUBMASK		1
+#define UIP_DHCP_TAG_SUBMASK_LEN	4
+#define UIP_DHCP_TAG_ROUTER		3
+#define UIP_DHCP_TAG_ROUTER_LEN		4
 #define UIP_DHCP_TAG_DNS_SERVER		6
 #define UIP_DHCP_TAG_DNS_SERVER_LEN	4
 #define UIP_DHCP_TAG_DOMAIN_NAME	15
+#define UIP_DHCP_TAG_END		255
 
 /*
  * IP package maxium len == 64 KBytes
@@ -183,6 +193,8 @@ struct uip_info {
 	int udp_epollfd;
 	int buf_free_nr;
 	int buf_used_nr;
+	u32 guest_ip;
+	u32 guest_netmask;
 	u32 host_ip;
 	u32 dns_ip[UIP_DHCP_MAX_DNS_SERVER_NR];
 	char *domain_name;

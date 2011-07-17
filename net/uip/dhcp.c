@@ -91,3 +91,45 @@ static int uip_dhcp_fill_option_name_and_server(struct uip_info *info, u8 *opt, 
 
 	return i;
 }
+static int uip_dhcp_fill_option(struct uip_info *info, struct uip_dhcp *dhcp, int reply_msg_type)
+{
+	int i = 0;
+	u32 *addr;
+	u8 *opt;
+
+	opt		= dhcp->option;
+
+	opt[i++]	= UIP_DHCP_TAG_MSG_TYPE;
+	opt[i++]	= UIP_DHCP_TAG_MSG_TYPE_LEN;
+	opt[i++]	= reply_msg_type;
+
+	opt[i++]	= UIP_DHCP_TAG_SERVER_ID;
+	opt[i++]	= UIP_DHCP_TAG_SERVER_ID_LEN;
+	addr		= (u32 *)&opt[i];
+	*addr		= htonl(info->host_ip);
+	i		+= UIP_DHCP_TAG_SERVER_ID_LEN;
+
+	opt[i++]	= UIP_DHCP_TAG_LEASE_TIME;
+	opt[i++]	= UIP_DHCP_TAG_LEASE_TIME_LEN;
+	addr		= (u32 *)&opt[i];
+	*addr		= htonl(UIP_DHCP_LEASE_TIME);
+	i		+= UIP_DHCP_TAG_LEASE_TIME_LEN;
+
+	opt[i++]	= UIP_DHCP_TAG_SUBMASK;
+	opt[i++]	= UIP_DHCP_TAG_SUBMASK_LEN;
+	addr		= (u32 *)&opt[i];
+	*addr		= htonl(info->guest_netmask);
+	i		+= UIP_DHCP_TAG_SUBMASK_LEN;
+
+	opt[i++]	= UIP_DHCP_TAG_ROUTER;
+	opt[i++]	= UIP_DHCP_TAG_ROUTER_LEN;
+	addr		= (u32 *)&opt[i];
+	*addr		= htonl(info->host_ip);
+	i		+= UIP_DHCP_TAG_ROUTER_LEN;
+
+	i 		= uip_dhcp_fill_option_name_and_server(info, opt, i);
+
+	opt[i++]	= UIP_DHCP_TAG_END;
+
+	return 0;
+}
