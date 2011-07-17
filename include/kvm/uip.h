@@ -46,6 +46,10 @@
 #define UIP_DHCP_MAX_DOMAIN_NAME_LEN	256
 #define UIP_DHCP_TAG_MSG_TYPE		53
 #define UIP_DHCP_TAG_MSG_TYPE_LEN	1
+#define UIP_DHCP_TAG_DNS_SERVER		6
+#define UIP_DHCP_TAG_DNS_SERVER_LEN	4
+#define UIP_DHCP_TAG_DOMAIN_NAME	15
+
 /*
  * IP package maxium len == 64 KBytes
  * IP header == 20 Bytes
