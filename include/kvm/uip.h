@@ -289,4 +289,5 @@ struct uip_buf *uip_buf_get_used(struct uip_info *info);
 struct uip_buf *uip_buf_get_free(struct uip_info *info);
 struct uip_buf *uip_buf_clone(struct uip_tx_arg *arg);
 
+int uip_udp_make_pkg(struct uip_info *info, struct uip_udp_socket *sk, struct uip_buf *buf, u8 *payload, int payload_len);
 #endif /* KVM__UIP_H */

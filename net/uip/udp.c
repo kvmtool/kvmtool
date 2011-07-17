@@ -98,18 +98,66 @@ static int uip_udp_socket_send(struct uip_udp_socket *sk, struct uip_udp *udp)
 	return 0;
 }
 
+int uip_udp_make_pkg(struct uip_info *info, struct uip_udp_socket *sk, struct uip_buf *buf, u8* payload, int payload_len)
+{
+	struct uip_eth *eth2;
+	struct uip_udp *udp2;
+	struct uip_ip *ip2;
+
+	/*
+	 * Cook a ethernet frame
+	 */
+	udp2		= (struct uip_udp *)(buf->eth);
+	eth2		= (struct uip_eth *)buf->eth;
+	ip2		= (struct uip_ip *)(buf->eth);
+
+	eth2->src	= info->host_mac;
+	eth2->dst	= info->guest_mac;
+	eth2->type	= htons(UIP_ETH_P_IP);
+
+	ip2->vhl	= UIP_IP_VER_4 | UIP_IP_HDR_LEN;
+	ip2->tos	= 0;
+	ip2->id		= 0;
+	ip2->flgfrag	= 0;
+	ip2->ttl	= UIP_IP_TTL;
+	ip2->proto	= UIP_IP_P_UDP;
+	ip2->csum	= 0;
+
+	ip2->sip	= sk->dip;
+	ip2->dip	= sk->sip;
+	udp2->sport	= sk->dport;
+	udp2->dport	= sk->sport;
+
+	udp2->len	= htons(payload_len + uip_udp_hdrlen(udp2));
+	udp2->csum	= 0;
+
+	if (payload)
+		memcpy(udp2->payload, payload, payload_len);
+
+	ip2->len	= udp2->len + htons(uip_ip_hdrlen(ip2));
+	ip2->csum	= uip_csum_ip(ip2);
+	udp2->csum	= uip_csum_udp(udp2);
+
+	/*
+	 * virtio_net_hdr
+	 */
+	buf->vnet_len	= sizeof(struct virtio_net_hdr);
+	memset(buf->vnet, 0, buf->vnet_len);
+
+	buf->eth_len	= ntohs(ip2->len) + uip_eth_hdrlen(&ip2->eth);
+
+	return 0;
+}
+
 static void *uip_udp_socket_thread(void *p)
 {
 	struct epoll_event events[UIP_UDP_MAX_EVENTS];
 	struct uip_udp_socket *sk;
 	struct uip_info *info;
-	struct uip_eth *eth2;
-	struct uip_udp *udp2;
 	struct uip_buf *buf;
-	struct uip_ip *ip2;
+	int payload_len;
 	u8 *payload;
 	int nfds;
-	int ret;
 	int i;
 
 	info = p;
@@ -127,8 +175,8 @@ static void *uip_udp_socket_thread(void *p)
 		for (i = 0; i < nfds; i++) {
 
 			sk = events[i].data.ptr;
-			ret = recvfrom(sk->fd, payload, UIP_MAX_UDP_PAYLOAD, 0, NULL, NULL);
-			if (ret < 0)
+			payload_len = recvfrom(sk->fd, payload, UIP_MAX_UDP_PAYLOAD, 0, NULL, NULL);
+			if (payload_len < 0)
 				continue;
 
 			/*
@@ -136,45 +184,7 @@ static void *uip_udp_socket_thread(void *p)
 			 */
 			buf		= uip_buf_get_free(info);
 
-			/*
-			 * Cook a ethernet frame
-			 */
-			udp2		= (struct uip_udp *)(buf->eth);
-			eth2		= (struct uip_eth *)buf->eth;
-			ip2		= (struct uip_ip *)(buf->eth);
-
-			eth2->src	= info->host_mac;
-			eth2->dst	= info->guest_mac;
-			eth2->type	= htons(UIP_ETH_P_IP);
-
-			ip2->vhl	= UIP_IP_VER_4 | UIP_IP_HDR_LEN;
-			ip2->tos	= 0;
-			ip2->id		= 0;
-			ip2->flgfrag	= 0;
-			ip2->ttl	= UIP_IP_TTL;
-			ip2->proto	= UIP_IP_P_UDP;
-			ip2->csum	= 0;
-			ip2->sip	= sk->dip;
-			ip2->dip	= sk->sip;
-
-			udp2->sport	= sk->dport;
-			udp2->dport	= sk->sport;
-			udp2->len	= htons(ret + uip_udp_hdrlen(udp2));
-			udp2->csum	= 0;
-
-			memcpy(udp2->payload, payload, ret);
-
-			ip2->len	= udp2->len + htons(uip_ip_hdrlen(ip2));
-			ip2->csum	= uip_csum_ip(ip2);
-			udp2->csum	= uip_csum_udp(udp2);
-
-			/*
-			 * virtio_net_hdr
-			 */
-			buf->vnet_len	= sizeof(struct virtio_net_hdr);
-			memset(buf->vnet, 0, buf->vnet_len);
-
-			buf->eth_len	= ntohs(ip2->len) + uip_eth_hdrlen(&ip2->eth);
+			uip_udp_make_pkg(info, sk, buf, payload, payload_len);
 
 			/*
 			 * Send data received from socket to guest
