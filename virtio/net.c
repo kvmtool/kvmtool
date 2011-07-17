@@ -93,9 +93,6 @@ static struct net_dev ndev = {
 					| 1UL << VIRTIO_NET_F_GUEST_TSO4
 					| 1UL << VIRTIO_NET_F_GUEST_TSO6,
 	.info = {
-		.host_mac.addr		= {0x00, 0x01, 0x01, 0x01, 0x01, 0x01},
-		.guest_mac.addr		= {0x00, 0x15, 0x15, 0x15, 0x15, 0x15},
-		.host_ip		= 0xc0a82101,
 		.buf_nr			= 20,
 	}
 };
@@ -455,14 +452,20 @@ void virtio_net__init(const struct virtio_net_parameters *params)
 	ndev.base_addr	    = net_base_addr;
 	pci__register(&pci_header, dev);
 
-	for (i = 0 ; i < 6 ; i++)
-		ndev.config.mac[i] = params->guest_mac[i];
+	for (i = 0 ; i < 6 ; i++) {
+		ndev.config.mac[i]		= params->guest_mac[i];
+		ndev.info.guest_mac.addr[i]	= params->guest_mac[i];
+		ndev.info.host_mac.addr[i]	= params->host_mac[i];
+	}
 
 	ndev.mode = params->mode;
 	if (ndev.mode == NET_MODE_TAP) {
 		virtio_net__tap_init(params);
 		ndev.ops = &tap_ops;
 	} else {
+		ndev.info.host_ip		= ntohl(inet_addr(params->host_ip));
+		ndev.info.guest_ip		= ntohl(inet_addr(params->guest_ip));
+		ndev.info.guest_netmask		= ntohl(inet_addr("255.255.255.0"));
 		uip_init(&ndev.info);
 		ndev.ops = &uip_ops;
 	}
