@@ -42,6 +42,8 @@
 #define UIP_DHCP_OFFER			2
 #define UIP_DHCP_REQUEST		3
 #define UIP_DHCP_ACK			5
+#define UIP_DHCP_MAX_DNS_SERVER_NR	3
+#define UIP_DHCP_MAX_DOMAIN_NAME_LEN	256
 #define UIP_DHCP_TAG_MSG_TYPE		53
 #define UIP_DHCP_TAG_MSG_TYPE_LEN	1
 /*
@@ -178,6 +180,8 @@ struct uip_info {
 	int buf_free_nr;
 	int buf_used_nr;
 	u32 host_ip;
+	u32 dns_ip[UIP_DHCP_MAX_DNS_SERVER_NR];
+	char *domain_name;
 	u32 buf_nr;
 };
 
@@ -327,4 +331,6 @@ struct uip_buf *uip_buf_clone(struct uip_tx_arg *arg);
 
 int uip_udp_make_pkg(struct uip_info *info, struct uip_udp_socket *sk, struct uip_buf *buf, u8 *payload, int payload_len);
 bool uip_udp_is_dhcp(struct uip_udp *udp);
+
+int uip_dhcp_get_dns(struct uip_info *info);
 #endif /* KVM__UIP_H */
