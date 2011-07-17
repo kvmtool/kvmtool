@@ -29,6 +29,12 @@
 #define UIP_TCP_FLAG_ACK	16
 #define UIP_TCP_FLAG_URG	32
 
+#define UIP_DHCP_VENDOR_SPECIFIC_LEN	312
+#define UIP_DHCP_MACPAD_LEN		10
+#define UIP_DHCP_HOSTNAME_LEN		64
+#define UIP_DHCP_FILENAME_LEN		128
+#define UIP_DHCP_MAGIC_COOKIE_LEN	4
+#define UIP_DHCP_OPTION_LEN		(UIP_DHCP_VENDOR_SPECIFIC_LEN - UIP_DHCP_MAGIC_COOKIE_LEN)
 /*
  * IP package maxium len == 64 KBytes
  * IP header == 20 Bytes
@@ -124,6 +130,27 @@ struct uip_pseudo_hdr {
 	u8 zero;
 	u8 proto;
 	u16 len;
+} __attribute__((packed));
+
+struct uip_dhcp {
+	struct uip_udp udp;
+	u8 msg_type;
+	u8 hardware_type;
+	u8 hardware_len;
+	u8 hops;
+	u32 id;
+	u16 time;
+	u16 flg;
+	u32 client_ip;
+	u32 your_ip;
+	u32 server_ip;
+	u32 agent_ip;
+	struct uip_eth_addr client_mac;
+	u8 pad[UIP_DHCP_MACPAD_LEN];
+	u8 server_hostname[UIP_DHCP_HOSTNAME_LEN];
+	u8 boot_filename[UIP_DHCP_FILENAME_LEN];
+	u32 magic_cookie;
+	u8 option[UIP_DHCP_OPTION_LEN];
 } __attribute__((packed));
 
 struct uip_info {
