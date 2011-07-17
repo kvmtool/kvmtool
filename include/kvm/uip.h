@@ -29,6 +29,8 @@
 #define UIP_TCP_FLAG_ACK	16
 #define UIP_TCP_FLAG_URG	32
 
+#define UIP_BOOTP_VENDOR_SPECIFIC_LEN	64
+#define UIP_BOOTP_MAX_PAYLOAD_LEN	300
 #define UIP_DHCP_VENDOR_SPECIFIC_LEN	312
 #define UIP_DHCP_PORT_SERVER		67
 #define UIP_DHCP_PORT_CLIENT		68
@@ -38,6 +40,7 @@
 #define UIP_DHCP_MAGIC_COOKIE		0x63825363
 #define UIP_DHCP_MAGIC_COOKIE_LEN	4
 #define UIP_DHCP_LEASE_TIME		0x00003840
+#define UIP_DHCP_MAX_PAYLOAD_LEN	(UIP_BOOTP_MAX_PAYLOAD_LEN - UIP_BOOTP_VENDOR_SPECIFIC_LEN +  UIP_DHCP_VENDOR_SPECIFIC_LEN)
 #define UIP_DHCP_OPTION_LEN		(UIP_DHCP_VENDOR_SPECIFIC_LEN - UIP_DHCP_MAGIC_COOKIE_LEN)
 #define UIP_DHCP_DISCOVER		1
 #define UIP_DHCP_OFFER			2
@@ -328,6 +331,7 @@ int uip_tx(struct iovec *iov, u16 out, struct uip_info *info);
 int uip_rx(struct iovec *iov, u16 in, struct uip_info *info);
 int uip_init(struct uip_info *info);
 
+int uip_tx_do_ipv4_udp_dhcp(struct uip_tx_arg *arg);
 int uip_tx_do_ipv4_icmp(struct uip_tx_arg *arg);
 int uip_tx_do_ipv4_tcp(struct uip_tx_arg *arg);
 int uip_tx_do_ipv4_udp(struct uip_tx_arg *arg);

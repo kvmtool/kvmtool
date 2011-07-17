@@ -155,3 +155,41 @@ static int uip_dhcp_make_pkg(struct uip_info *info, struct uip_udp_socket *sk, s
 
 	return 0;
 }
+
+int uip_tx_do_ipv4_udp_dhcp(struct uip_tx_arg *arg)
+{
+	struct uip_udp_socket sk;
+	struct uip_dhcp *dhcp;
+	struct uip_info *info;
+	struct uip_buf *buf;
+	u8 reply_msg_type;
+
+	dhcp = (struct uip_dhcp *)arg->eth;
+
+	if (uip_dhcp_is_discovery(dhcp))
+		reply_msg_type = UIP_DHCP_OFFER;
+	else if (uip_dhcp_is_request(dhcp))
+		reply_msg_type = UIP_DHCP_ACK;
+	else
+		return -1;
+
+	buf = uip_buf_clone(arg);
+	info = arg->info;
+
+	/*
+	 * Cook DHCP pkg
+	 */
+	uip_dhcp_make_pkg(info, &sk, buf, reply_msg_type);
+
+	/*
+	 * Cook UDP pkg
+	 */
+	uip_udp_make_pkg(info, &sk, buf, NULL, UIP_DHCP_MAX_PAYLOAD_LEN);
+
+	/*
+	 * Send data received from socket to guest
+	 */
+	uip_buf_set_used(info, buf);
+
+	return 0;
+}
