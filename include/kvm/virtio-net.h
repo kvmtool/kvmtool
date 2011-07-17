@@ -8,6 +8,7 @@ struct virtio_net_parameters {
 	const char *host_ip;
 	const char *script;
 	char guest_mac[6];
+	char host_mac[6];
 	struct kvm *kvm;
 	int mode;
 };
