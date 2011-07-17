@@ -45,6 +45,7 @@
 #define DEFAULT_CONSOLE		"serial"
 #define DEFAULT_NETWORK		"user"
 #define DEFAULT_HOST_ADDR	"192.168.33.1"
+#define DEFAULT_GUEST_ADDR	"192.168.33.15"
 #define DEFAULT_GUEST_MAC	"00:15:15:15:15:15"
 #define DEFAULT_SCRIPT		"none"
 
@@ -68,6 +69,7 @@ static const char *console;
 static const char *kvm_dev;
 static const char *network;
 static const char *host_ip_addr;
+static const char *guest_ip;
 static const char *guest_mac;
 static const char *script;
 static const char *guest_name;
@@ -164,6 +166,8 @@ static const struct option options[] = {
 			"Network to use"),
 	OPT_STRING('\0', "host-ip-addr", &host_ip_addr, "a.b.c.d",
 			"Assign this address to the host side networking"),
+	OPT_STRING('\0', "guest-ip", &guest_ip, "a.b.c.d",
+			"Assign this address to the guest side networking"),
 	OPT_STRING('\0', "guest-mac", &guest_mac, "aa:bb:cc:dd:ee:ff",
 			"Assign this address to the guest side NIC"),
 	OPT_STRING('\0', "tapscript", &script, "Script path",
@@ -542,6 +546,9 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	if (!host_ip_addr)
 		host_ip_addr = DEFAULT_HOST_ADDR;
 
+	if (!guest_ip)
+		guest_ip = DEFAULT_GUEST_ADDR;
+
 	if (!guest_mac)
 		guest_mac = DEFAULT_GUEST_MAC;
 
@@ -647,6 +654,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	if (strncmp(network, "none", 4)) {
 		net_params.host_ip = host_ip_addr;
+		net_params.guest_ip = guest_ip;
 		net_params.kvm = kvm;
 		net_params.script = script;
 		sscanf(guest_mac, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
