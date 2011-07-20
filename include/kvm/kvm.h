@@ -51,6 +51,7 @@ struct kvm {
 };
 
 struct kvm *kvm__init(const char *kvm_dev, u64 ram_size, const char *name);
+int kvm__recommended_cpus(struct kvm *kvm);
 int kvm__max_cpus(struct kvm *kvm);
 void kvm__init_ram(struct kvm *kvm);
 void kvm__delete(struct kvm *kvm);

@@ -304,13 +304,32 @@ void kvm__init_ram(struct kvm *kvm)
 	}
 }
 
-int kvm__max_cpus(struct kvm *kvm)
+int kvm__recommended_cpus(struct kvm *kvm)
 {
 	int ret;
 
 	ret = ioctl(kvm->sys_fd, KVM_CHECK_EXTENSION, KVM_CAP_NR_VCPUS);
-	if (ret < 0)
+	if (ret <= 0)
 		die_perror("KVM_CAP_NR_VCPUS");
+
+	return ret;
+}
+
+/*
+ * The following hack should be removed once 'x86: Raise the hard
+ * VCPU count limit' makes it's way into the mainline.
+ */
+#ifndef KVM_CAP_MAX_VCPUS
+#define KVM_CAP_MAX_VCPUS 66
+#endif
+
+int kvm__max_cpus(struct kvm *kvm)
+{
+	int ret;
+
+	ret = ioctl(kvm->sys_fd, KVM_CHECK_EXTENSION, KVM_CAP_MAX_VCPUS);
+	if (ret <= 0)
+		ret = kvm__recommended_cpus(kvm);
 
 	return ret;
 }

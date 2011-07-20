@@ -478,7 +478,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	struct framebuffer *fb = NULL;
 	unsigned int nr_online_cpus;
 	int exit_code = 0;
-	int max_cpus;
+	int max_cpus, recommended_cpus;
 	char *hi;
 	int i;
 	void *ret;
@@ -578,10 +578,14 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	ioeventfd__init();
 
 	max_cpus = kvm__max_cpus(kvm);
+	recommended_cpus = kvm__recommended_cpus(kvm);
 
 	if (nrcpus > max_cpus) {
 		printf("  # Limit the number of CPUs to %d\n", max_cpus);
 		kvm->nrcpus	= max_cpus;
+	} else if (nrcpus > recommended_cpus) {
+		printf("  # Warning: The maximum recommended amount of VCPUs"
+			" is %d\n", recommended_cpus);
 	}
 
 	kvm->nrcpus = nrcpus;
