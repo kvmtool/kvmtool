@@ -429,7 +429,11 @@ static ssize_t qcow_write_cluster(struct qcow *q, u64 offset, void *buf, u32 src
 
 	l2t_off = be64_to_cpu(table->l1_table[l1t_idx]);
 	if (l2t_off & QCOW_OFLAG_COMPRESSED) {
-		pr_warning("compressed sectors are not supported");
+		pr_warning("compressed clusters are not supported");
+		goto error;
+	}
+	if (!(l2t_off & QCOW_OFLAG_COPIED)) {
+		pr_warning("copy-on-write clusters are not supported");
 		goto error;
 	}
 
@@ -472,7 +476,11 @@ static ssize_t qcow_write_cluster(struct qcow *q, u64 offset, void *buf, u32 src
 
 	clust_start	= be64_to_cpu(l2t->table[l2t_idx]);
 	if (clust_start & QCOW_OFLAG_COMPRESSED) {
-		pr_warning("compressed sectors are not supported");
+		pr_warning("compressed clusters are not supported");
+		goto error;
+	}
+	if (!(clust_start & QCOW_OFLAG_COPIED)) {
+		pr_warning("copy-on-write clusters are not supported");
 		goto error;
 	}
 
