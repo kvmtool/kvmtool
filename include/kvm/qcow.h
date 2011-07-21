@@ -40,10 +40,32 @@ struct qcow_l1_table {
 	int				nr_cached;
 };
 
+#define QCOW_REFCOUNT_BLOCK_SHIFT	1
+
+struct qcow_refcount_block {
+	u64				offset;
+	struct rb_node			node;
+	struct list_head		list;
+	u64				size;
+	u8				dirty;
+	u16				entries[];
+};
+
+struct qcow_refcount_table {
+	u32				rf_size;
+	u64				*rf_table;
+
+	/* Refcount block caching data structures */
+	struct rb_root			root;
+	struct list_head		lru_list;
+	int				nr_cached;
+};
+
 struct qcow {
 	pthread_mutex_t			mutex;
 	void				*header;
 	struct qcow_l1_table		table;
+	struct qcow_refcount_table	refcount_table;
 	int				fd;
 };
 
@@ -53,6 +75,8 @@ struct qcow_header {
 	u32				l1_size;
 	u8				cluster_bits;
 	u8				l2_bits;
+	u64				refcount_table_offset;
+	u32				refcount_table_size;
 };
 
 struct qcow1_header_disk {

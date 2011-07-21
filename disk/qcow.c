@@ -382,6 +382,189 @@ static u64 qcow_write_l2_table(struct qcow *q, u64 *table)
 	return off;
 }
 
+static void refcount_table_free_cache(struct qcow_refcount_table *rft)
+{
+	struct rb_root *r = &rft->root;
+	struct list_head *pos, *n;
+	struct qcow_refcount_block *t;
+
+	list_for_each_safe(pos, n, &rft->lru_list) {
+		list_del(pos);
+		t = list_entry(pos, struct qcow_refcount_block, list);
+		rb_erase(&t->node, r);
+
+		free(t);
+	}
+}
+
+static int refcount_block_insert(struct rb_root *root, struct qcow_refcount_block *new)
+{
+	struct rb_node **link = &(root->rb_node), *parent = NULL;
+	u64 offset = new->offset;
+
+	/* search the tree */
+	while (*link) {
+		struct qcow_refcount_block *t;
+
+		t = rb_entry(*link, struct qcow_refcount_block, node);
+		if (!t)
+			goto error;
+
+		parent = *link;
+
+		if (t->offset > offset)
+			link = &(*link)->rb_left;
+		else if (t->offset < offset)
+			link = &(*link)->rb_right;
+		else
+			goto out;
+	}
+
+	/* add new node */
+	rb_link_node(&new->node, parent, link);
+	rb_insert_color(&new->node, root);
+out:
+	return 0;
+error:
+	return -1;
+}
+
+static int write_refcount_block(struct qcow *q, struct qcow_refcount_block *rfb)
+{
+	if (!rfb->dirty)
+		return 0;
+
+	if (pwrite_in_full(q->fd, rfb->entries, rfb->size * sizeof(u16), rfb->offset) < 0)
+		return -1;
+
+	rfb->dirty = 0;
+
+	return 0;
+}
+
+static int cache_refcount_block(struct qcow *q, struct qcow_refcount_block *c)
+{
+	struct qcow_refcount_table *rft = &q->refcount_table;
+	struct rb_root *r = &rft->root;
+	struct qcow_refcount_block *lru;
+
+	if (rft->nr_cached == MAX_CACHE_NODES) {
+		lru = list_first_entry(&rft->lru_list, struct qcow_refcount_block, list);
+
+		if (write_refcount_block(q, lru) < 0)
+			goto error;
+
+		rb_erase(&lru->node, r);
+		list_del_init(&lru->list);
+		rft->nr_cached--;
+
+		free(lru);
+	}
+
+	if (refcount_block_insert(r, c) < 0)
+		goto error;
+
+	list_add_tail(&c->list, &rft->lru_list);
+	rft->nr_cached++;
+
+	return 0;
+error:
+	return -1;
+}
+
+static struct qcow_refcount_block *new_refcount_block(struct qcow *q, u64 rfb_offset)
+{
+	struct qcow_header *header = q->header;
+	struct qcow_refcount_block *rfb;
+	u64 cluster_size;
+
+	cluster_size = 1 << header->cluster_bits;
+
+	rfb = malloc(sizeof *rfb + cluster_size);
+	if (!rfb)
+		return NULL;
+
+	rfb->offset = rfb_offset;
+	rfb->size = cluster_size / sizeof(u16);
+	RB_CLEAR_NODE(&rfb->node);
+	INIT_LIST_HEAD(&rfb->list);
+
+	return rfb;
+}
+
+static struct qcow_refcount_block *refcount_block_lookup(struct rb_root *root, u64 offset)
+{
+	struct rb_node *link = root->rb_node;
+
+	while (link) {
+		struct qcow_refcount_block *t;
+
+		t = rb_entry(link, struct qcow_refcount_block, node);
+		if (!t)
+			goto out;
+
+		if (t->offset > offset)
+			link = link->rb_left;
+		else if (t->offset < offset)
+			link = link->rb_right;
+		else
+			return t;
+	}
+out:
+	return NULL;
+}
+
+static struct qcow_refcount_block *refcount_block_search(struct qcow *q, u64 offset)
+{
+	struct qcow_refcount_table *rft = &q->refcount_table;
+	struct qcow_refcount_block *rfb;
+
+	rfb = refcount_block_lookup(&rft->root, offset);
+	if (!rfb)
+		return NULL;
+
+	/* Update the LRU state, by moving the searched node to list tail */
+	list_move_tail(&rfb->list, &rft->lru_list);
+
+	return rfb;
+}
+
+static struct qcow_refcount_block *qcow_read_refcount_block(struct qcow *q, u64 clust_idx)
+{
+	struct qcow_header *header = q->header;
+	struct qcow_refcount_table *rft = &q->refcount_table;
+	struct qcow_refcount_block *rfb;
+	u64 rfb_offset;
+	u64 rft_idx;
+
+	rft_idx = clust_idx >> (header->cluster_bits - QCOW_REFCOUNT_BLOCK_SHIFT);
+	if (rft_idx >= rft->rf_size)
+		return NULL;
+
+	rfb_offset = be64_to_cpu(rft->rf_table[rft_idx]);
+
+	rfb = refcount_block_search(q, rfb_offset);
+	if (rfb)
+		return rfb;
+
+	rfb = new_refcount_block(q, rfb_offset);
+	if (!rfb)
+		return NULL;
+
+	if (pread_in_full(q->fd, rfb->entries, rfb->size * sizeof(u16), rfb_offset) < 0)
+		goto error_free_rfb;
+
+	if (cache_refcount_block(q, rfb) < 0)
+		goto error_free_rfb;
+
+	return rfb;
+
+error_free_rfb:
+	free(rfb);
+
+	return NULL;
+}
+
 /*
  * QCOW file might grow during a write operation. Not only data but metadata is
  * also written at the end of the file. Therefore it is necessary to ensure
@@ -398,6 +581,7 @@ static ssize_t qcow_write_cluster(struct qcow *q, u64 offset, void *buf, u32 src
 	struct qcow_l1_table *l1t = &q->table;
 	struct qcow_l2_table *l2t;
 	u64 clust_start;
+	u64 clust_flags;
 	u64 l2t_offset;
 	u64 clust_off;
 	u64 l2t_size;
@@ -435,7 +619,7 @@ static ssize_t qcow_write_cluster(struct qcow *q, u64 offset, void *buf, u32 src
 		goto error;
 	}
 	if (!(l2t_offset & QCOW_OFLAG_COPIED)) {
-		pr_warning("copy-on-write clusters are not supported");
+		pr_warning("L2 copy-on-write clusters are not supported");
 		goto error;
 	}
 
@@ -476,21 +660,52 @@ static ssize_t qcow_write_cluster(struct qcow *q, u64 offset, void *buf, u32 src
 	if (!f_sz)
 		goto error;
 
-	clust_start	= be64_to_cpu(l2t->table[l2t_idx]);
-	if (clust_start & QCOW_OFLAG_COMPRESSED) {
+	clust_start = be64_to_cpu(l2t->table[l2t_idx]);
+
+	clust_flags = clust_start & QCOW_OFLAGS_MASK;
+	if (clust_flags & QCOW_OFLAG_COMPRESSED) {
 		pr_warning("compressed clusters are not supported");
-		goto error;
-	}
-	if (!(clust_start & QCOW_OFLAG_COPIED)) {
-		pr_warning("copy-on-write clusters are not supported");
 		goto error;
 	}
 
 	clust_start &= QCOW_OFFSET_MASK;
 	if (!clust_start) {
 		clust_start		= ALIGN(f_sz, clust_sz);
-		l2t->table[l2t_idx]	= cpu_to_be64(clust_start);
+		l2t->table[l2t_idx]	= cpu_to_be64(clust_start | QCOW_OFLAG_COPIED);
 		l2t->dirty		= 1;
+	}
+
+	if (!(clust_flags & QCOW_OFLAG_COPIED)) {
+		struct qcow_refcount_block *rfb = NULL;
+		u16 clust_refcount;
+		u64 clust_idx;
+		u64 rfb_idx;
+
+		clust_idx = (clust_start & QCOW_OFFSET_MASK) >> (header->cluster_bits);
+
+		rfb = qcow_read_refcount_block(q, clust_idx);
+		if (!rfb) {
+			pr_warning("L1: error while reading refcount table");
+			goto error;
+		}
+
+		rfb_idx = clust_idx & (((1ULL << (header->cluster_bits - QCOW_REFCOUNT_BLOCK_SHIFT)) - 1));
+		if (rfb_idx >= rfb->size) {
+			pr_warning("L1: refcount block index out of bounds");
+			goto error;
+		}
+
+		clust_refcount = be16_to_cpu(rfb->entries[rfb_idx]);
+		if (!clust_refcount) {
+			clust_refcount = 1;
+			rfb->entries[rfb_idx] = cpu_to_be16(clust_refcount);
+			rfb->dirty = 1;
+		}
+
+		if (clust_refcount > 1) {
+			pr_warning("L1 copy-on-write clusters are not supported");
+			goto error;
+		}
 	}
 
 	mutex_unlock(&q->mutex);
@@ -547,14 +762,26 @@ static ssize_t qcow_nowrite_sector(struct disk_image *disk, u64 sector, void *sr
 static int qcow_disk_flush(struct disk_image *disk)
 {
 	struct qcow *q = disk->priv;
+	struct qcow_refcount_table *rft;
 	struct qcow_header *header;
 	struct list_head *pos, *n;
 	struct qcow_l1_table *l1t;
 
 	header = q->header;
 	l1t = &q->table;
+	rft = &q->refcount_table;
 
 	mutex_lock(&q->mutex);
+
+	list_for_each_safe(pos, n, &rft->lru_list) {
+		struct qcow_refcount_block *c = list_entry(pos, struct qcow_refcount_block, list);
+
+		if (write_refcount_block(q, c) < 0)
+			goto error_unlock;
+	}
+
+	if (fdatasync(disk->fd) < 0)
+		goto error_unlock;
 
 	list_for_each_safe(pos, n, &l1t->lru_list) {
 		struct qcow_l2_table *c = list_entry(pos, struct qcow_l2_table, list);
@@ -587,7 +814,9 @@ static int qcow_disk_close(struct disk_image *disk)
 
 	q = disk->priv;
 
+	refcount_table_free_cache(&q->refcount_table);
 	l1_table_free_cache(&q->table);
+	free(q->refcount_table.rf_table);
 	free(q->table.l1_table);
 	free(q->header);
 	free(q);
@@ -607,6 +836,26 @@ static struct disk_image_operations qcow_disk_ops = {
 	.flush			= qcow_disk_flush,
 	.close			= qcow_disk_close,
 };
+
+static int qcow_read_refcount_table(struct qcow *q)
+{
+	struct qcow_header *header = q->header;
+	struct qcow_refcount_table *rft = &q->refcount_table;
+	u64 cluster_size;
+
+	cluster_size = 1 << header->cluster_bits;
+
+	rft->rf_size = (header->refcount_table_size * cluster_size) / sizeof(u64);
+
+	rft->rf_table = calloc(rft->rf_size, sizeof(u64));
+	if (!rft->rf_table)
+		return -1;
+
+	rft->root = RB_ROOT;
+	INIT_LIST_HEAD(&rft->lru_list);
+
+	return pread_in_full(q->fd, rft->rf_table, sizeof(u64) * rft->rf_size, header->refcount_table_offset);
+}
 
 static int qcow_read_l1_table(struct qcow *q)
 {
@@ -656,6 +905,8 @@ static void *qcow2_read_header(int fd)
 		.l1_size		= f_header.l1_size,
 		.cluster_bits		= f_header.cluster_bits,
 		.l2_bits		= f_header.cluster_bits - 3,
+		.refcount_table_offset	= f_header.refcount_table_offset,
+		.refcount_table_size	= f_header.refcount_table_clusters,
 	};
 
 	return header;
@@ -685,6 +936,9 @@ static struct disk_image *qcow2_probe(int fd, bool readonly)
 		goto error;
 
 	if (qcow_read_l1_table(q) < 0)
+		goto error;
+
+	if (qcow_read_refcount_table(q) < 0)
 		goto error;
 
 	/*
