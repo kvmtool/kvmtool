@@ -234,7 +234,7 @@ error:
 static ssize_t qcow_read_cluster(struct qcow *q, u64 offset, void *dst, u32 dst_len)
 {
 	struct qcow_header *header = q->header;
-	struct qcow_table *table  = &q->table;
+	struct qcow_l1_table *table  = &q->table;
 	struct qcow_l2_table *l2_table;
 	u64 l2_table_offset;
 	u64 l2_table_size;
@@ -393,7 +393,7 @@ static u64 qcow_write_l2_table(struct qcow *q, u64 *table)
 static ssize_t qcow_write_cluster(struct qcow *q, u64 offset, void *buf, u32 src_len)
 {
 	struct qcow_header *header = q->header;
-	struct qcow_table  *table  = &q->table;
+	struct qcow_l1_table  *table  = &q->table;
 	struct qcow_l2_table *l2t;
 	u64 clust_start;
 	u64 clust_off;
@@ -547,7 +547,7 @@ static int qcow_disk_flush(struct disk_image *disk)
 	struct qcow *q = disk->priv;
 	struct qcow_header *header;
 	struct list_head *pos, *n;
-	struct qcow_table *table;
+	struct qcow_l1_table *table;
 
 	header	= q->header;
 	table	= &q->table;
@@ -609,7 +609,7 @@ static struct disk_image_operations qcow_disk_ops = {
 static int qcow_read_l1_table(struct qcow *q)
 {
 	struct qcow_header *header = q->header;
-	struct qcow_table *table = &q->table;
+	struct qcow_l1_table *table = &q->table;
 
 	table->table_size	= header->l1_size;
 

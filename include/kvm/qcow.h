@@ -30,7 +30,7 @@ struct qcow_l2_table {
 	u64                     table[];
 };
 
-struct qcow_table {
+struct qcow_l1_table {
 	u32			table_size;
 	u64			*l1_table;
 };
@@ -38,7 +38,7 @@ struct qcow_table {
 struct qcow {
 	pthread_mutex_t		mutex;
 	void			*header;
-	struct qcow_table	table;
+	struct qcow_l1_table	table;
 	int			fd;
 
 	/* Level2 caching data structures */
