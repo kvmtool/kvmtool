@@ -234,21 +234,21 @@ error:
 static ssize_t qcow_read_cluster(struct qcow *q, u64 offset, void *dst, u32 dst_len)
 {
 	struct qcow_header *header = q->header;
-	struct qcow_l1_table *table  = &q->table;
-	struct qcow_l2_table *l2_table;
-	u64 l2_table_offset;
-	u64 l2_table_size;
+	struct qcow_l1_table *l1t = &q->table;
+	struct qcow_l2_table *l2t;
 	u64 cluster_size;
 	u64 clust_offset;
 	u64 clust_start;
+	u64 l2t_offset;
 	size_t length;
+	u64 l2t_size;
 	u64 l1_idx;
 	u64 l2_idx;
 
 	cluster_size = 1 << header->cluster_bits;
 
 	l1_idx = get_l1_index(q, offset);
-	if (l1_idx >= table->table_size)
+	if (l1_idx >= l1t->table_size)
 		return -1;
 
 	clust_offset = get_cluster_offset(q, offset);
@@ -261,28 +261,28 @@ static ssize_t qcow_read_cluster(struct qcow *q, u64 offset, void *dst, u32 dst_
 
 	mutex_lock(&q->mutex);
 
-	l2_table_offset = be64_to_cpu(table->l1_table[l1_idx]);
-	if (l2_table_offset & QCOW_OFLAG_COMPRESSED) {
+	l2t_offset = be64_to_cpu(l1t->l1_table[l1_idx]);
+	if (l2t_offset & QCOW_OFLAG_COMPRESSED) {
 		pr_warning("compressed sectors are not supported");
 		goto out_error;
 	}
 
-	l2_table_offset &= QCOW_OFFSET_MASK;
-	if (!l2_table_offset)
+	l2t_offset &= QCOW_OFFSET_MASK;
+	if (!l2t_offset)
 		goto zero_cluster;
 
-	l2_table_size = 1 << header->l2_bits;
+	l2t_size = 1 << header->l2_bits;
 
 	/* read and cache level 2 table */
-	l2_table = qcow_read_l2_table(q, l2_table_offset);
-	if (!l2_table)
+	l2t = qcow_read_l2_table(q, l2t_offset);
+	if (!l2t)
 		goto out_error;
 
 	l2_idx = get_l2_index(q, offset);
-	if (l2_idx >= l2_table_size)
+	if (l2_idx >= l2t_size)
 		goto out_error;
 
-	clust_start = be64_to_cpu(l2_table->table[l2_idx]);
+	clust_start = be64_to_cpu(l2t->table[l2_idx]);
 	if (clust_start & QCOW_OFLAG_COMPRESSED) {
 		pr_warning("compressed sectors are not supported");
 		goto out_error;
@@ -393,69 +393,69 @@ static u64 qcow_write_l2_table(struct qcow *q, u64 *table)
 static ssize_t qcow_write_cluster(struct qcow *q, u64 offset, void *buf, u32 src_len)
 {
 	struct qcow_header *header = q->header;
-	struct qcow_l1_table  *table  = &q->table;
+	struct qcow_l1_table *l1t = &q->table;
 	struct qcow_l2_table *l2t;
 	u64 clust_start;
+	u64 l2t_offset;
 	u64 clust_off;
+	u64 l2t_size;
 	u64 clust_sz;
 	u64 l1t_idx;
 	u64 l2t_idx;
-	u64 l2t_off;
-	u64 l2t_sz;
 	u64 f_sz;
 	u64 len;
 
 	l2t		= NULL;
-	l2t_sz		= 1 << header->l2_bits;
+	l2t_size	= 1 << header->l2_bits;
 	clust_sz	= 1 << header->cluster_bits;
 
-	l1t_idx		= get_l1_index(q, offset);
-	if (l1t_idx >= table->table_size)
+	l1t_idx = get_l1_index(q, offset);
+	if (l1t_idx >= l1t->table_size)
 		return -1;
 
-	l2t_idx		= get_l2_index(q, offset);
-	if (l2t_idx >= l2t_sz)
+	l2t_idx = get_l2_index(q, offset);
+	if (l2t_idx >= l2t_size)
 		return -1;
 
-	clust_off	= get_cluster_offset(q, offset);
+	clust_off = get_cluster_offset(q, offset);
 	if (clust_off >= clust_sz)
 		return -1;
 
-	len		= clust_sz - clust_off;
+	len = clust_sz - clust_off;
 	if (len > src_len)
 		len = src_len;
 
 	mutex_lock(&q->mutex);
 
-	l2t_off = be64_to_cpu(table->l1_table[l1t_idx]);
-	if (l2t_off & QCOW_OFLAG_COMPRESSED) {
+	l2t_offset = be64_to_cpu(l1t->l1_table[l1t_idx]);
+	if (l2t_offset & QCOW_OFLAG_COMPRESSED) {
 		pr_warning("compressed clusters are not supported");
 		goto error;
 	}
-	if (!(l2t_off & QCOW_OFLAG_COPIED)) {
+	if (!(l2t_offset & QCOW_OFLAG_COPIED)) {
 		pr_warning("copy-on-write clusters are not supported");
 		goto error;
 	}
 
-	l2t_off &= QCOW_OFFSET_MASK;
-	if (l2t_off) {
+	l2t_offset &= QCOW_OFFSET_MASK;
+	if (l2t_offset) {
 		/* read and cache l2 table */
-		l2t = qcow_read_l2_table(q, l2t_off);
+		l2t = qcow_read_l2_table(q, l2t_offset);
 		if (!l2t)
 			goto error;
 	} else {
-		l2t = new_cache_table(q, l2t_off);
+		l2t = new_cache_table(q, l2t_offset);
 		if (!l2t)
 			goto error;
 
 		/* Capture the state of the consistent QCOW image */
-		f_sz		= file_size(q->fd);
+		f_sz = file_size(q->fd);
 		if (!f_sz)
 			goto free_cache;
 
 		/* Write the l2 table of 0's at the end of the file */
-		l2t_off		= qcow_write_l2_table(q, l2t->table);
-		if (!l2t_off)
+		l2t_offset = qcow_write_l2_table(q, l2t->table);
+		if (!l2t_offset)
 			goto free_cache;
 
 		if (cache_table(q, l2t) < 0) {
@@ -466,7 +466,7 @@ static ssize_t qcow_write_cluster(struct qcow *q, u64 offset, void *buf, u32 src
 		}
 
 		/* Update the in-core entry */
-		table->l1_table[l1t_idx] = cpu_to_be64(l2t_off);
+		l1t->l1_table[l1t_idx] = cpu_to_be64(l2t_offset);
 	}
 
 	/* Capture the state of the consistent QCOW image */
