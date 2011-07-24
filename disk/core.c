@@ -46,9 +46,11 @@ struct disk_image *disk_image__open(const char *filename, bool readonly)
 		return NULL;
 
 	/* qcow image ?*/
-	disk		= qcow_probe(fd, readonly);
-	if (disk)
+	disk		= qcow_probe(fd, true);
+	if (disk) {
+		pr_warning("Forcing read-only support for QCOW");
 		return disk;
+	}
 
 	/* raw image ?*/
 	disk		= raw_image__probe(fd, &st, readonly);
