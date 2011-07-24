@@ -17,7 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 
-static int insert(struct rb_root *root, struct qcow_l2_table *new)
+static int l2_table_insert(struct rb_root *root, struct qcow_l2_table *new)
 {
 	struct rb_node **link = &(root->rb_node), *parent = NULL;
 	u64 offset = new->offset;
@@ -49,7 +49,7 @@ error:
 	return -1;
 }
 
-static struct qcow_l2_table *search(struct rb_root *root, u64 offset)
+static struct qcow_l2_table *l2_table_lookup(struct rb_root *root, u64 offset)
 {
 	struct rb_node *link = root->rb_node;
 
@@ -71,7 +71,7 @@ out:
 	return NULL;
 }
 
-static void free_cache(struct qcow_l1_table *l1t)
+static void l1_table_free_cache(struct qcow_l1_table *l1t)
 {
 	struct rb_root *r = &l1t->root;
 	struct list_head *pos, *n;
@@ -132,7 +132,7 @@ static int cache_table(struct qcow *q, struct qcow_l2_table *c)
 	}
 
 	/* Add new node in RB Tree: Helps in searching faster */
-	if (insert(r, c) < 0)
+	if (l2_table_insert(r, c) < 0)
 		goto error;
 
 	/* Add in LRU replacement list */
@@ -144,12 +144,12 @@ error:
 	return -1;
 }
 
-static struct qcow_l2_table *search_table(struct qcow *q, u64 offset)
+static struct qcow_l2_table *l2_table_search(struct qcow *q, u64 offset)
 {
 	struct qcow_l1_table *l1t = &q->table;
 	struct qcow_l2_table *l2t;
 
-	l2t = search(&l1t->root, offset);
+	l2t = l2_table_lookup(&l1t->root, offset);
 	if (!l2t)
 		return NULL;
 
@@ -210,7 +210,7 @@ static struct qcow_l2_table *qcow_read_l2_table(struct qcow *q, u64 offset)
 	size = 1 << header->l2_bits;
 
 	/* search an entry for offset in cache */
-	l2t = search_table(q, offset);
+	l2t = l2_table_search(q, offset);
 	if (l2t)
 		return l2t;
 
@@ -587,7 +587,7 @@ static int qcow_disk_close(struct disk_image *disk)
 
 	q = disk->priv;
 
-	free_cache(&q->table);
+	l1_table_free_cache(&q->table);
 	free(q->table.l1_table);
 	free(q->header);
 	free(q);
