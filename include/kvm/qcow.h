@@ -23,74 +23,74 @@
 #define MAX_CACHE_NODES         32
 
 struct qcow_l2_table {
-	u64                     offset;
-	struct rb_node          node;
-	struct list_head        list;
-	u8			dirty;
-	u64                     table[];
+	u64				offset;
+	struct rb_node			node;
+	struct list_head		list;
+	u8				dirty;
+	u64				table[];
 };
 
 struct qcow_l1_table {
-	u32			table_size;
-	u64			*l1_table;
+	u32				table_size;
+	u64				*l1_table;
 };
 
 struct qcow {
-	pthread_mutex_t		mutex;
-	void			*header;
-	struct qcow_l1_table	table;
-	int			fd;
+	pthread_mutex_t			mutex;
+	void				*header;
+	struct qcow_l1_table		table;
+	int				fd;
 
 	/* Level2 caching data structures */
-	struct rb_root          root;
-	struct list_head        lru_list;
-	int                     nr_cached;
+	struct rb_root			root;
+	struct list_head		lru_list;
+	int				nr_cached;
 };
 
 struct qcow_header {
-	u64			size; /* in bytes */
-	u64			l1_table_offset;
-	u32			l1_size;
-	u8			cluster_bits;
-	u8			l2_bits;
+	u64				size;	/* in bytes */
+	u64				l1_table_offset;
+	u32				l1_size;
+	u8				cluster_bits;
+	u8				l2_bits;
 };
 
 struct qcow1_header_disk {
-	u32			magic;
-	u32			version;
+	u32				magic;
+	u32				version;
 
-	u64			backing_file_offset;
-	u32 			backing_file_size;
-	u32			mtime;
+	u64				backing_file_offset;
+	u32 				backing_file_size;
+	u32				mtime;
 
-	u64			size; /* in bytes */
+	u64				size;	/* in bytes */
 
-	u8			cluster_bits;
-	u8			l2_bits;
-	u32			crypt_method;
+	u8				cluster_bits;
+	u8				l2_bits;
+	u32				crypt_method;
 
-	u64			l1_table_offset;
+	u64				l1_table_offset;
 };
 
 struct qcow2_header_disk {
-	u32			magic;
-	u32			version;
+	u32				magic;
+	u32				version;
 
-	u64			backing_file_offset;
-	u32			backing_file_size;
+	u64				backing_file_offset;
+	u32				backing_file_size;
 
-	u32			cluster_bits;
-	u64			size; /* in bytes */
-	u32			crypt_method;
+	u32				cluster_bits;
+	u64				size;	/* in bytes */
+	u32				crypt_method;
 
-	u32			l1_size;
-	u64			l1_table_offset;
+	u32				l1_size;
+	u64				l1_table_offset;
 
-	u64			refcount_table_offset;
-	u32			refcount_table_clusters;
+	u64				refcount_table_offset;
+	u32				refcount_table_clusters;
 
-	u32			nb_snapshots;
-	u64			snapshots_offset;
+	u32				nb_snapshots;
+	u64				snapshots_offset;
 };
 
 struct disk_image *qcow_probe(int fd, bool readonly);
