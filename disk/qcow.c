@@ -71,13 +71,13 @@ out:
 	return NULL;
 }
 
-static void free_cache(struct qcow *q)
+static void free_cache(struct qcow_l1_table *l1t)
 {
+	struct rb_root *r = &l1t->root;
 	struct list_head *pos, *n;
 	struct qcow_l2_table *t;
-	struct rb_root *r = &q->root;
 
-	list_for_each_safe(pos, n, &q->lru_list) {
+	list_for_each_safe(pos, n, &l1t->lru_list) {
 		/* Remove cache table from the list and RB tree */
 		list_del(pos);
 		t = list_entry(pos, struct qcow_l2_table, list);
@@ -108,15 +108,16 @@ static int qcow_l2_cache_write(struct qcow *q, struct qcow_l2_table *c)
 
 static int cache_table(struct qcow *q, struct qcow_l2_table *c)
 {
-	struct rb_root *r = &q->root;
+	struct qcow_l1_table *l1t = &q->table;
+	struct rb_root *r = &l1t->root;
 	struct qcow_l2_table *lru;
 
-	if (q->nr_cached == MAX_CACHE_NODES) {
+	if (l1t->nr_cached == MAX_CACHE_NODES) {
 		/*
 		 * The node at the head of the list is least recently used
 		 * node. Remove it from the list and replaced with a new node.
 		 */
-		lru = list_first_entry(&q->lru_list, struct qcow_l2_table, list);
+		lru = list_first_entry(&l1t->lru_list, struct qcow_l2_table, list);
 
 		if (qcow_l2_cache_write(q, lru) < 0)
 			goto error;
@@ -124,7 +125,7 @@ static int cache_table(struct qcow *q, struct qcow_l2_table *c)
 		/* Remove the node from the cache */
 		rb_erase(&lru->node, r);
 		list_del_init(&lru->list);
-		q->nr_cached--;
+		l1t->nr_cached--;
 
 		/* Free the LRUed node */
 		free(lru);
@@ -135,8 +136,8 @@ static int cache_table(struct qcow *q, struct qcow_l2_table *c)
 		goto error;
 
 	/* Add in LRU replacement list */
-	list_add_tail(&c->list, &q->lru_list);
-	q->nr_cached++;
+	list_add_tail(&c->list, &l1t->lru_list);
+	l1t->nr_cached++;
 
 	return 0;
 error:
@@ -145,14 +146,15 @@ error:
 
 static struct qcow_l2_table *search_table(struct qcow *q, u64 offset)
 {
+	struct qcow_l1_table *l1t = &q->table;
 	struct qcow_l2_table *l2t;
 
-	l2t = search(&q->root, offset);
+	l2t = search(&l1t->root, offset);
 	if (!l2t)
 		return NULL;
 
 	/* Update the LRU state, by moving the searched node to list tail */
-	list_move_tail(&l2t->list, &q->lru_list);
+	list_move_tail(&l2t->list, &l1t->lru_list);
 
 	return l2t;
 }
@@ -547,14 +549,14 @@ static int qcow_disk_flush(struct disk_image *disk)
 	struct qcow *q = disk->priv;
 	struct qcow_header *header;
 	struct list_head *pos, *n;
-	struct qcow_l1_table *table;
+	struct qcow_l1_table *l1t;
 
-	header	= q->header;
-	table	= &q->table;
+	header = q->header;
+	l1t = &q->table;
 
 	mutex_lock(&q->mutex);
 
-	list_for_each_safe(pos, n, &q->lru_list) {
+	list_for_each_safe(pos, n, &l1t->lru_list) {
 		struct qcow_l2_table *c = list_entry(pos, struct qcow_l2_table, list);
 
 		if (qcow_l2_cache_write(q, c) < 0)
@@ -564,7 +566,7 @@ static int qcow_disk_flush(struct disk_image *disk)
 	if (fdatasync(disk->fd) < 0)
 		goto error_unlock;
 
-	if (pwrite_in_full(disk->fd, table->l1_table, table->table_size * sizeof(u64), header->l1_table_offset) < 0)
+	if (pwrite_in_full(disk->fd, l1t->l1_table, l1t->table_size * sizeof(u64), header->l1_table_offset) < 0)
 		goto error_unlock;
 
 	mutex_unlock(&q->mutex);
@@ -585,7 +587,7 @@ static int qcow_disk_close(struct disk_image *disk)
 
 	q = disk->priv;
 
-	free_cache(q);
+	free_cache(&q->table);
 	free(q->table.l1_table);
 	free(q->header);
 	free(q);
@@ -661,9 +663,10 @@ static void *qcow2_read_header(int fd)
 
 static struct disk_image *qcow2_probe(int fd, bool readonly)
 {
-	struct qcow *q;
-	struct qcow_header *h;
 	struct disk_image *disk_image;
+	struct qcow_l1_table *l1t;
+	struct qcow_header *h;
+	struct qcow *q;
 
 	q = calloc(1, sizeof(struct qcow));
 	if (!q)
@@ -671,8 +674,11 @@ static struct disk_image *qcow2_probe(int fd, bool readonly)
 
 	mutex_init(&q->mutex);
 	q->fd = fd;
-	q->root = RB_ROOT;
-	INIT_LIST_HEAD(&q->lru_list);
+
+	l1t = &q->table;
+
+	l1t->root = RB_ROOT;
+	INIT_LIST_HEAD(&l1t->lru_list);
 
 	h = q->header = qcow2_read_header(fd);
 	if (!h)
@@ -760,9 +766,10 @@ static void *qcow1_read_header(int fd)
 
 static struct disk_image *qcow1_probe(int fd, bool readonly)
 {
-	struct qcow *q;
-	struct qcow_header *h;
 	struct disk_image *disk_image;
+	struct qcow_l1_table *l1t;
+	struct qcow_header *h;
+	struct qcow *q;
 
 	q = calloc(1, sizeof(struct qcow));
 	if (!q)
@@ -770,8 +777,11 @@ static struct disk_image *qcow1_probe(int fd, bool readonly)
 
 	mutex_init(&q->mutex);
 	q->fd = fd;
-	q->root = RB_ROOT;
-	INIT_LIST_HEAD(&q->lru_list);
+
+	l1t = &q->table;
+
+	l1t->root = RB_ROOT;
+	INIT_LIST_HEAD(&l1t->lru_list);
 
 	h = q->header = qcow1_read_header(fd);
 	if (!h)

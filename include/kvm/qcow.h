@@ -33,6 +33,11 @@ struct qcow_l2_table {
 struct qcow_l1_table {
 	u32				table_size;
 	u64				*l1_table;
+
+	/* Level2 caching data structures */
+	struct rb_root			root;
+	struct list_head		lru_list;
+	int				nr_cached;
 };
 
 struct qcow {
@@ -40,11 +45,6 @@ struct qcow {
 	void				*header;
 	struct qcow_l1_table		table;
 	int				fd;
-
-	/* Level2 caching data structures */
-	struct rb_root			root;
-	struct list_head		lru_list;
-	int				nr_cached;
 };
 
 struct qcow_header {
