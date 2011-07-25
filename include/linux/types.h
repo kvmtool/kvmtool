@@ -1,6 +1,7 @@
 #ifndef LINUX_TYPES_H
 #define LINUX_TYPES_H
 
+#include <kvm/compiler.h>
 #include <asm/types.h>
 
 typedef __u64 u64;
