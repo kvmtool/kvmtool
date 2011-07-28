@@ -15,7 +15,6 @@
 #define VIRTIO_P9_VERSION	"9P2000"
 #define MAX_TAG_LEN		32
 
-
 struct p9_msg {
 	u32			size;
 	u8			cmd;
@@ -67,7 +66,8 @@ struct p9_pdu {
 
 struct kvm;
 
-void virtio_9p__init(struct kvm *kvm, const char *root, const char *tag_name);
+int virtio_9p__init(struct kvm *kvm, const char *root, const char *tag_name);
 int virtio_p9_pdu_readf(struct p9_pdu *pdu, const char *fmt, ...);
 int virtio_p9_pdu_writef(struct p9_pdu *pdu, const char *fmt, ...);
+
 #endif

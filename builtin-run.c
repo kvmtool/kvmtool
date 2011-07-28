@@ -129,9 +129,10 @@ static int virtio_9p_rootdir_parser(const struct option *opt, const char *arg, i
 		*tag_name = '\0';
 		tag_name++;
 	}
-	if (realpath(arg, tmp))
-		virtio_9p__init(kvm, tmp, tag_name);
-	else
+	if (realpath(arg, tmp)) {
+		if (virtio_9p__init(kvm, tmp, tag_name) < 0)
+			die("Unable to initialize virtio 9p");
+	} else
 		die("Failed resolving 9p path");
 	return 0;
 }

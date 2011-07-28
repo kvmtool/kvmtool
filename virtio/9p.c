@@ -773,21 +773,26 @@ static struct ioport_operations virtio_p9_io_ops = {
 	.io_out				= virtio_p9_pci_io_out,
 };
 
-void virtio_9p__init(struct kvm *kvm, const char *root, const char *tag_name)
+int virtio_9p__init(struct kvm *kvm, const char *root, const char *tag_name)
 {
-	u8 pin, line, dev;
-	u32 i, root_len;
-	u16 p9_base_addr;
 	struct p9_dev *p9dev;
+	u8 pin, line, dev;
+	u16 p9_base_addr;
+	u32 i, root_len;
+	int err = 0;
 
 	p9dev = calloc(1, sizeof(*p9dev));
 	if (!p9dev)
-		return;
+		return -ENOMEM;
+
 	if (!tag_name)
 		tag_name = VIRTIO_P9_DEFAULT_TAG;
+
 	p9dev->config = calloc(1, sizeof(*p9dev->config) + strlen(tag_name) + 1);
-	if (p9dev->config == NULL)
+	if (p9dev->config == NULL) {
+		err = -ENOMEM;
 		goto free_p9dev;
+	}
 
 	strcpy(p9dev->root_dir, root);
 	root_len = strlen(root);
@@ -800,19 +805,22 @@ void virtio_9p__init(struct kvm *kvm, const char *root, const char *tag_name)
 		p9dev->fids[i].path = p9dev->fids[i].abs_path + root_len;
 	}
 	p9dev->config->tag_len = strlen(tag_name);
-	if (p9dev->config->tag_len > MAX_TAG_LEN)
+	if (p9dev->config->tag_len > MAX_TAG_LEN) {
+		err = -EINVAL;
 		goto free_p9dev_config;
+	}
 
 	memcpy(p9dev->config->tag, tag_name, strlen(tag_name));
 	p9dev->features |= 1 << VIRTIO_9P_MOUNT_TAG;
 
-	if (irq__register_device(VIRTIO_ID_9P, &dev, &pin, &line) < 0)
+	err = irq__register_device(VIRTIO_ID_9P, &dev, &pin, &line);
+	if (err < 0)
 		goto free_p9dev_config;
 
-	p9_base_addr			= ioport__register(IOPORT_EMPTY,
-							   &virtio_p9_io_ops,
-							   IOPORT_SIZE, p9dev);
-	p9dev->base_addr		    = p9_base_addr;
+	p9_base_addr = ioport__register(IOPORT_EMPTY, &virtio_p9_io_ops, IOPORT_SIZE, p9dev);
+
+	p9dev->base_addr = p9_base_addr;
+
 	p9dev->pci_hdr = (struct pci_device_header) {
 		.vendor_id		= PCI_VENDOR_ID_REDHAT_QUMRANET,
 		.device_id		= PCI_DEVICE_ID_VIRTIO_P9,
@@ -827,9 +835,11 @@ void virtio_9p__init(struct kvm *kvm, const char *root, const char *tag_name)
 	};
 	pci__register(&p9dev->pci_hdr, dev);
 
-	return;
+	return err;
+
 free_p9dev_config:
 	free(p9dev->config);
 free_p9dev:
 	free(p9dev);
+	return err;
 }
