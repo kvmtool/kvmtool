@@ -39,6 +39,8 @@ struct rng_dev {
 	u8			isr;
 	u16			config_vector;
 	int			fd;
+	u32			vq_vector[NUM_VIRT_QUEUES];
+	u32			msix_io_block;
 
 	/* virtio queue */
 	u16			queue_selector;
@@ -81,6 +83,9 @@ static bool virtio_rng_pci_io_in(struct ioport *ioport, struct kvm *kvm, u16 por
 	case VIRTIO_MSI_CONFIG_VECTOR:
 		ioport__write16(data, rdev->config_vector);
 		break;
+	case VIRTIO_MSI_QUEUE_VECTOR:
+		ioport__write16(data, rdev->vq_vector[rdev->queue_selector]);
+		break;
 	default:
 		ret		= false;
 		break;
@@ -109,10 +114,10 @@ static void virtio_rng_do_io(struct kvm *kvm, void *param)
 	struct virt_queue *vq = job->vq;
 	struct rng_dev *rdev = job->rdev;
 
-	while (virt_queue__available(vq)) {
+	while (virt_queue__available(vq))
 		virtio_rng_do_io_request(kvm, rdev, vq);
-		virt_queue__trigger_irq(vq, rdev->pci_hdr.irq_line, &rdev->isr, kvm);
-	}
+
+	kvm__irq_line(kvm, rdev->pci_hdr.irq_line, VIRTIO_IRQ_HIGH);
 }
 
 static bool virtio_rng_pci_io_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
@@ -125,7 +130,6 @@ static bool virtio_rng_pci_io_out(struct ioport *ioport, struct kvm *kvm, u16 po
 	offset = port - rdev->base_addr;
 
 	switch (offset) {
-	case VIRTIO_MSI_QUEUE_VECTOR:
 	case VIRTIO_PCI_GUEST_FEATURES:
 		break;
 	case VIRTIO_PCI_QUEUE_PFN: {
@@ -163,8 +167,21 @@ static bool virtio_rng_pci_io_out(struct ioport *ioport, struct kvm *kvm, u16 po
 		rdev->status		= ioport__read8(data);
 		break;
 	case VIRTIO_MSI_CONFIG_VECTOR:
-		rdev->config_vector	= VIRTIO_MSI_NO_VECTOR;
+		rdev->config_vector	= ioport__read16(data);
 		break;
+	case VIRTIO_MSI_QUEUE_VECTOR: {
+		u32 gsi;
+		u32 vec;
+
+		vec = rdev->vq_vector[rdev->queue_selector] = ioport__read16(data);
+
+		gsi = irq__add_msix_route(kvm,
+					  rdev->pci_hdr.msix.table[vec].low,
+					  rdev->pci_hdr.msix.table[vec].high,
+					  rdev->pci_hdr.msix.table[vec].data);
+		rdev->pci_hdr.irq_line = gsi;
+		break;
+	}
 	default:
 		ret			= false;
 		break;
@@ -185,6 +202,16 @@ static void ioevent_callback(struct kvm *kvm, void *param)
 	thread_pool__do_job(&job->job_id);
 }
 
+static void callback_mmio(u64 addr, u8 *data, u32 len, u8 is_write, void *ptr)
+{
+	struct rng_dev *rdev = ptr;
+	void *table = &rdev->pci_hdr.msix.table;
+	if (is_write)
+		memcpy(table + addr - rdev->msix_io_block, data, len);
+	else
+		memcpy(data, table + addr - rdev->msix_io_block, len);
+}
+
 void virtio_rng__init(struct kvm *kvm)
 {
 	u8 pin, line, dev, i;
@@ -196,7 +223,10 @@ void virtio_rng__init(struct kvm *kvm)
 	if (rdev == NULL)
 		return;
 
+	rdev->msix_io_block = pci_get_io_space_block();
+
 	rdev_base_addr = ioport__register(IOPORT_EMPTY, &virtio_rng_io_ops, IOPORT_SIZE, rdev);
+	kvm__register_mmio(kvm, rdev->msix_io_block, 0x100, callback_mmio, rdev);
 
 	rdev->pci_hdr = (struct pci_device_header) {
 		.vendor_id		= PCI_VENDOR_ID_REDHAT_QUMRANET,
@@ -207,8 +237,21 @@ void virtio_rng__init(struct kvm *kvm)
 		.subsys_vendor_id	= PCI_SUBSYSTEM_VENDOR_ID_REDHAT_QUMRANET,
 		.subsys_id		= VIRTIO_ID_RNG,
 		.bar[0]			= rdev_base_addr | PCI_BASE_ADDRESS_SPACE_IO,
+		.bar[1]			= rdev->msix_io_block |
+					PCI_BASE_ADDRESS_SPACE_MEMORY |
+					PCI_BASE_ADDRESS_MEM_TYPE_64,
+		/* bar[2] is the continuation of bar[1] for 64bit addressing */
+		.bar[2]			= 0,
+		.status			= PCI_STATUS_CAP_LIST,
+		.capabilities		= (void *)&rdev->pci_hdr.msix - (void *)&rdev->pci_hdr,
 	};
 
+	rdev->pci_hdr.msix.cap = PCI_CAP_ID_MSIX;
+	rdev->pci_hdr.msix.next = 0;
+	rdev->pci_hdr.msix.table_size = (NUM_VIRT_QUEUES + 1) | PCI_MSIX_FLAGS_ENABLE;
+	rdev->pci_hdr.msix.table_offset = 1; /* Use BAR 1 */
+
+	rdev->config_vector = 0;
 	rdev->base_addr = rdev_base_addr;
 	rdev->fd = open("/dev/urandom", O_RDONLY);
 	if (rdev->fd < 0)

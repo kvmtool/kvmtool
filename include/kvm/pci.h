@@ -24,6 +24,21 @@ struct pci_config_address {
 	unsigned	enable_bit	: 1;		/* 31       */
 };
 
+struct msix_table {
+	u32 low;
+	u32 high;
+	u32 data;
+	u32 ctrl;
+};
+
+struct msix_cap {
+	u8 cap;
+	u8 next;
+	u16 table_size;
+	u32 table_offset;
+	struct msix_table table[3 * PCI_MSIX_ENTRY_SIZE];
+};
+
 struct pci_device_header {
 	u16		vendor_id;
 	u16		device_id;
@@ -47,6 +62,7 @@ struct pci_device_header {
 	u8		irq_pin;
 	u8		min_gnt;
 	u8		max_lat;
+	struct msix_cap msix;
 };
 
 void pci__init(void);
