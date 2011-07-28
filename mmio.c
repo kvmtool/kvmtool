@@ -14,7 +14,8 @@
 
 struct mmio_mapping {
 	struct rb_int_node	node;
-	void			(*kvm_mmio_callback_fn)(u64 addr, u8 *data, u32 len, u8 is_write);
+	void			(*mmio_fn)(u64 addr, u8 *data, u32 len, u8 is_write, void *ptr);
+	void			*ptr;
 };
 
 static struct rb_root mmio_tree = RB_ROOT;
@@ -55,7 +56,7 @@ static const char *to_direction(u8 is_write)
 	return "read";
 }
 
-bool kvm__register_mmio(struct kvm *kvm, u64 phys_addr, u64 phys_addr_len, void (*kvm_mmio_callback_fn)(u64 addr, u8 *data, u32 len, u8 is_write))
+bool kvm__register_mmio(struct kvm *kvm, u64 phys_addr, u64 phys_addr_len, void (*mmio_fn)(u64 addr, u8 *data, u32 len, u8 is_write, void *ptr), void *ptr)
 {
 	struct mmio_mapping *mmio;
 	struct kvm_coalesced_mmio_zone zone;
@@ -67,7 +68,8 @@ bool kvm__register_mmio(struct kvm *kvm, u64 phys_addr, u64 phys_addr_len, void 
 
 	*mmio = (struct mmio_mapping) {
 		.node = RB_INT_INIT(phys_addr, phys_addr + phys_addr_len),
-		.kvm_mmio_callback_fn = kvm_mmio_callback_fn,
+		.mmio_fn = mmio_fn,
+		.ptr	= ptr,
 	};
 
 	zone = (struct kvm_coalesced_mmio_zone) {
@@ -120,7 +122,7 @@ bool kvm__emulate_mmio(struct kvm *kvm, u64 phys_addr, u8 *data, u32 len, u8 is_
 	mmio = mmio_search(&mmio_tree, phys_addr, len);
 
 	if (mmio)
-		mmio->kvm_mmio_callback_fn(phys_addr, data, len, is_write);
+		mmio->mmio_fn(phys_addr, data, len, is_write, mmio->ptr);
 	else
 		fprintf(stderr, "Warning: Ignoring MMIO %s at %016llx (length %u)\n",
 			to_direction(is_write), phys_addr, len);
