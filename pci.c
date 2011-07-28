@@ -1,14 +1,28 @@
 #include "kvm/pci.h"
 #include "kvm/ioport.h"
 #include "kvm/util.h"
+#include "kvm/kvm.h"
 
 #include <assert.h>
 
 #define PCI_MAX_DEVICES			256
+#define PCI_IO_SIZE			0x100
+#define PCI_BAR_OFFSET(b)		(offsetof(struct pci_device_header, bar[b]))
 
 static struct pci_device_header		*pci_devices[PCI_MAX_DEVICES];
 
 static struct pci_config_address	pci_config_address;
+
+/* This is within our PCI gap - in an unused area */
+static u32 io_space_blocks		= KVM_32BIT_GAP_START + 0x1000000;
+
+u32 pci_get_io_space_block(void)
+{
+	u32 block = io_space_blocks;
+	io_space_blocks += PCI_IO_SIZE;
+
+	return block;
+}
 
 static void *pci_config_address_ptr(u16 port)
 {
@@ -44,11 +58,6 @@ static struct ioport_operations pci_config_address_ops = {
 	.io_out		= pci_config_address_out,
 };
 
-static bool pci_config_data_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
-{
-	return true;
-}
-
 static bool pci_device_exists(u8 bus_number, u8 device_number, u8 function_number)
 {
 	struct pci_device_header *dev;
@@ -65,6 +74,47 @@ static bool pci_device_exists(u8 bus_number, u8 device_number, u8 function_numbe
 	dev		= pci_devices[device_number];
 
 	return dev != NULL;
+}
+
+static bool pci_config_data_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
+{
+	unsigned long start;
+	u8 dev_num;
+
+	/*
+	 * If someone accesses PCI configuration space offsets that are not
+	 * aligned to 4 bytes, it uses ioports to signify that.
+	 */
+	start = port - PCI_CONFIG_DATA;
+
+	dev_num		= pci_config_address.device_number;
+
+	if (pci_device_exists(0, dev_num, 0)) {
+		unsigned long offset;
+
+		offset = start + (pci_config_address.register_number << 2);
+		if (offset < sizeof(struct pci_device_header)) {
+			void *p = pci_devices[dev_num];
+			u32 sz = PCI_IO_SIZE;
+
+			/*
+			 * If the kernel masks the BAR it would expect to find the
+			 * size of the BAR there next time it reads from it.
+			 * When the kernel got the size it would write the address
+			 * back.
+			 */
+			if (*(u32 *)(p + offset)) {
+				/* See if kernel tries to mask one of the BARs */
+				if ((offset >= PCI_BAR_OFFSET(0)) &&
+				    (offset <= PCI_BAR_OFFSET(6)))
+					memcpy(p + offset, &sz, sizeof(sz));
+				else
+					memcpy(p + offset, data, size);
+			}
+		}
+	}
+
+	return true;
 }
 
 static bool pci_config_data_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)

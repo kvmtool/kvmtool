@@ -51,5 +51,6 @@ struct pci_device_header {
 
 void pci__init(void);
 void pci__register(struct pci_device_header *dev, u8 dev_num);
+u32 pci_get_io_space_block(void);
 
 #endif /* KVM__PCI_H */
