@@ -35,6 +35,7 @@
 #include <kvm/vnc.h>
 #include <kvm/sdl.h>
 #include <kvm/framebuffer.h>
+#include <kvm/irq.h>
 
 /* header files for gitish interface  */
 #include <kvm/builtin-run.h>
@@ -573,6 +574,8 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	}
 
 	kvm = kvm__init(kvm_dev, ram_size, guest_name);
+
+	irq__init(kvm);
 
 	kvm->single_step = single_step;
 
