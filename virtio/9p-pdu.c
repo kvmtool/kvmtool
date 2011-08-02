@@ -200,13 +200,15 @@ static int virtio_p9_pdu_encode(struct p9_pdu *pdu, const char *fmt, va_list ap)
 		case 'S':
 		{
 			struct p9_wstat *stbuf = va_arg(ap, struct p9_wstat *);
-			retval = virtio_p9_pdu_writef(pdu, "wwdQdddqssss",
+			retval = virtio_p9_pdu_writef(pdu, "wwdQdddqsssssddd",
 						stbuf->size, stbuf->type,
 						stbuf->dev, &stbuf->qid,
 						stbuf->mode, stbuf->atime,
 						stbuf->mtime, stbuf->length,
 						stbuf->name, stbuf->uid,
-						stbuf->gid, stbuf->muid);
+						stbuf->gid, stbuf->muid,
+						stbuf->extension, stbuf->n_uid,
+						stbuf->n_gid, stbuf->n_muid);
 		}
 		break;
 		default:

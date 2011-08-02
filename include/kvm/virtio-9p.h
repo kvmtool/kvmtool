@@ -11,8 +11,8 @@
 #define VIRTQUEUE_NUM		128
 #define	VIRTIO_P9_DEFAULT_TAG	"kvm_9p"
 #define VIRTIO_P9_HDR_LEN	(sizeof(u32)+sizeof(u8)+sizeof(u16))
-#define VIRTIO_P9_MAX_FID	128
-#define VIRTIO_P9_VERSION	"9P2000"
+#define VIRTIO_P9_MAX_FID	256
+#define VIRTIO_P9_VERSION	"9P2000.u"
 #define MAX_TAG_LEN		32
 
 struct p9_msg {
