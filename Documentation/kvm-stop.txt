@@ -1,0 +1,16 @@
+kvm-stop(1)
+================
+
+NAME
+----
+kvm-stop - Stop a running instance
+
+SYNOPSIS
+--------
+[verse]
+'kvm stop [instance]'
+
+DESCRIPTION
+-----------
+The command stops a running instance.
+For a list of running instances see 'kvm list'.

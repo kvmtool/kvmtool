@@ -8,3 +8,4 @@ kvm-version			common
 kvm-list			common
 kvm-debug			common
 kvm-balloon			common
+kvm-stop			common

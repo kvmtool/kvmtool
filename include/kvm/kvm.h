@@ -20,6 +20,7 @@
 #define SIGKVMPAUSE		(SIGRTMIN + 1)
 #define SIGKVMADDMEM		(SIGRTMIN + 2)
 #define SIGKVMDELMEM		(SIGRTMIN + 3)
+#define SIGKVMSTOP		(SIGRTMIN + 4)
 
 struct kvm {
 	int			sys_fd;		/* For system ioctls(), i.e. /dev/kvm */

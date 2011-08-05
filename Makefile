@@ -26,6 +26,7 @@ OBJS	+= builtin-help.o
 OBJS	+= builtin-list.o
 OBJS	+= builtin-pause.o
 OBJS	+= builtin-run.o
+OBJS	+= builtin-stop.o
 OBJS	+= builtin-version.o
 OBJS	+= cpuid.o
 OBJS	+= disk/core.o

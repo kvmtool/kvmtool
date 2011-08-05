@@ -274,6 +274,11 @@ static void handle_sigalrm(int sig)
 	virtio_console__inject_interrupt(kvm);
 }
 
+static void handle_sigstop(int sig)
+{
+	kvm_cpu__reboot();
+}
+
 static void *kvm_cpu_thread(void *arg)
 {
 	current_kvm_cpu		= arg;
@@ -502,6 +507,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	signal(SIGQUIT, handle_sigquit);
 	signal(SIGUSR1, handle_sigusr1);
 	signal(SIGUSR2, handle_sigusr2);
+	signal(SIGKVMSTOP, handle_sigstop);
 
 	nr_online_cpus = sysconf(_SC_NPROCESSORS_ONLN);
 
