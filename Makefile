@@ -237,6 +237,7 @@ clean:
 	$(Q) rm -f $(DEPS) $(OBJS) $(PROGRAM)
 	$(Q) rm -f cscope.*
 	$(Q) rm -f $(KVM_INCLUDE)/common-cmds.h
+	$(Q) rm -f KVMTOOLS-VERSION-FILE
 .PHONY: clean
 
 KVM_DEV	?= /dev/kvm
