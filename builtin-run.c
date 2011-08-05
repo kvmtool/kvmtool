@@ -81,6 +81,7 @@ static bool readonly_image[MAX_DISK_IMAGES];
 static bool vnc;
 static bool sdl;
 static bool balloon;
+static bool using_rootfs;
 extern bool ioport_debug;
 extern int  active_console;
 extern int  debug_iodelay;
@@ -98,6 +99,18 @@ static const char * const run_usage[] = {
 static int img_name_parser(const struct option *opt, const char *arg, int unset)
 {
 	char *sep;
+	struct stat st;
+
+	if (stat(arg, &st) == 0 &&
+	    S_ISDIR(st.st_mode)) {
+		char tmp[PATH_MAX];
+
+		if (realpath(arg, tmp) == 0 ||
+		    virtio_9p__init(kvm, tmp, "/dev/root") < 0)
+			die("Unable to initialize virtio 9p");
+		using_rootfs = 1;
+		return 0;
+	}
 
 	if (image_count >= MAX_DISK_IMAGES)
 		die("Currently only 4 images are supported");
@@ -615,7 +628,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 		strlcat(real_cmdline, kernel_cmdline, sizeof(real_cmdline));
 
 	hi = NULL;
-	if (!image_filename[0]) {
+	if (!using_rootfs && !image_filename[0]) {
 		hi = host_image(real_cmdline, sizeof(real_cmdline));
 		if (hi) {
 			image_filename[0] = hi;
@@ -626,6 +639,9 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	if (!strstr(real_cmdline, "root="))
 		strlcat(real_cmdline, " root=/dev/vda rw ", sizeof(real_cmdline));
+
+	if (using_rootfs)
+		strcat(real_cmdline, " root=/dev/root rootflags=rw,trans=virtio,version=9p2000.u rootfstype=9p");
 
 	if (image_count) {
 		kvm->nr_disks = image_count;
