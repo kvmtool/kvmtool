@@ -36,7 +36,7 @@ struct msix_cap {
 	u8 next;
 	u16 table_size;
 	u32 table_offset;
-	struct msix_table table[3 * PCI_MSIX_ENTRY_SIZE];
+	struct msix_table table[3];
 };
 
 struct pci_device_header {
@@ -63,6 +63,8 @@ struct pci_device_header {
 	u8		min_gnt;
 	u8		max_lat;
 	struct msix_cap msix;
+	u8		empty[136]; /* Rest of PCI config space */
+	u32		bar_size[6];
 };
 
 void pci__init(void);

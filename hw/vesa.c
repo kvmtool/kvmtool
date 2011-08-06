@@ -56,6 +56,7 @@ struct framebuffer *vesa__init(struct kvm *kvm)
 	vesa_pci_device.irq_line	= line;
 	vesa_base_addr			= ioport__register(IOPORT_EMPTY, &vesa_io_ops, IOPORT_SIZE, NULL);
 	vesa_pci_device.bar[0]		= vesa_base_addr | PCI_BASE_ADDRESS_SPACE_IO;
+	vesa_pci_device.bar_size[0]	= VESA_MEM_SIZE;
 	pci__register(&vesa_pci_device, dev);
 
 	mem = mmap(NULL, VESA_MEM_SIZE, PROT_RW, MAP_ANON_NORESERVE, -1, 0);

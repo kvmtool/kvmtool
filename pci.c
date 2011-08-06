@@ -95,7 +95,11 @@ static bool pci_config_data_out(struct ioport *ioport, struct kvm *kvm, u16 port
 		offset = start + (pci_config_address.register_number << 2);
 		if (offset < sizeof(struct pci_device_header)) {
 			void *p = pci_devices[dev_num];
+			u8 bar = offset - PCI_BAR_OFFSET(0);
 			u32 sz = PCI_IO_SIZE;
+
+			if (bar < 6 && pci_devices[dev_num]->bar_size[bar])
+				sz = pci_devices[dev_num]->bar_size[bar];
 
 			/*
 			 * If the kernel masks the BAR it would expect to find the
@@ -103,12 +107,13 @@ static bool pci_config_data_out(struct ioport *ioport, struct kvm *kvm, u16 port
 			 * When the kernel got the size it would write the address
 			 * back.
 			 */
-			if (*(u32 *)(p + offset)) {
+			if (ioport__read32(p + offset)) {
 				/* See if kernel tries to mask one of the BARs */
 				if ((offset >= PCI_BAR_OFFSET(0)) &&
-				    (offset <= PCI_BAR_OFFSET(6)))
+				    (offset <= PCI_BAR_OFFSET(6)) &&
+				    (ioport__read32(data)  == 0xFFFFFFFF))
 					memcpy(p + offset, &sz, sizeof(sz));
-				else
+				    else
 					memcpy(p + offset, data, size);
 			}
 		}
