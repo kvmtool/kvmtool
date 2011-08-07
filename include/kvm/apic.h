@@ -12,6 +12,6 @@
 #define APIC_ADDR(apic)		(APIC_DEFAULT_PHYS_BASE + apic * APIC_BASE_ADDR_STEP)
 #define IOAPIC_ADDR(ioapic)	(IO_APIC_DEFAULT_PHYS_BASE + ioapic * IOAPIC_BASE_ADDR_STEP)
 
-#define KVM_APIC_VERSION	0x11
+#define KVM_APIC_VERSION	0x14 /* xAPIC */
 
 #endif /* KVM_APIC_H_ */
