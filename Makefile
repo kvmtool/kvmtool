@@ -25,6 +25,7 @@ OBJS	+= builtin-debug.o
 OBJS	+= builtin-help.o
 OBJS	+= builtin-list.o
 OBJS	+= builtin-pause.o
+OBJS	+= builtin-resume.o
 OBJS	+= builtin-run.o
 OBJS	+= builtin-stop.o
 OBJS	+= builtin-version.o

@@ -4,23 +4,23 @@
 
 #include <kvm/util.h>
 #include <kvm/kvm-cmd.h>
-#include <kvm/builtin-pause.h>
+#include <kvm/builtin-resume.h>
 #include <kvm/kvm.h>
 
-static void do_pause(const char *name, int pid)
+static void do_resume(const char *name, int pid)
 {
-	kill(pid, SIGUSR2);
+	kill(pid, SIGKVMRESUME);
 }
 
-int kvm_cmd_pause(int argc, const char **argv, const char *prefix)
+int kvm_cmd_resume(int argc, const char **argv, const char *prefix)
 {
 	int pid;
 
 	if (argc != 1)
-		die("Usage: kvm pause [instance name]\n");
+		die("Usage: kvm resume [instance name]\n");
 
 	if (strcmp(argv[0], "all") == 0) {
-		kvm__enumerate_instances(do_pause);
+		kvm__enumerate_instances(do_resume);
 		return 0;
 	}
 
@@ -28,5 +28,5 @@ int kvm_cmd_pause(int argc, const char **argv, const char *prefix)
 	if (pid < 0)
 		die("Failed locating instance name");
 
-	return kill(pid, SIGUSR2);
+	return kill(pid, SIGKVMRESUME);
 }

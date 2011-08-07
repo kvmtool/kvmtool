@@ -235,10 +235,12 @@ static int is_paused;
 
 static void handle_sigusr2(int sig)
 {
-	if (is_paused)
+	if (sig == SIGKVMRESUME && is_paused)
 		kvm__continue();
-	else
+	else if (sig == SIGUSR2 && !is_paused)
 		kvm__pause();
+	else
+		return;
 
 	is_paused = !is_paused;
 	pr_info("Guest %s\n", is_paused ? "paused" : "resumed");
@@ -508,6 +510,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	signal(SIGUSR1, handle_sigusr1);
 	signal(SIGUSR2, handle_sigusr2);
 	signal(SIGKVMSTOP, handle_sigstop);
+	signal(SIGKVMRESUME, handle_sigusr2);
 
 	nr_online_cpus = sysconf(_SC_NPROCESSORS_ONLN);
 

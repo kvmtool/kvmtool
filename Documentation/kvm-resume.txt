@@ -1,16 +1,16 @@
-kvm-pause(1)
+kvm-resume(1)
 ================
 
 NAME
 ----
-kvm-pause - Pause the virtual machine
+kvm-resume - Resume the virtual machine
 
 SYNOPSIS
 --------
 [verse]
-'kvm pause [instance]'
+'kvm resume [instance]'
 
 DESCRIPTION
 -----------
-The command pauses a virtual machine.
+The command resumes a virtual machine.
 For a list of running instances see 'kvm list'.

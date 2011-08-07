@@ -4,6 +4,7 @@
 #
 kvm-run				mainporcelain common
 kvm-pause			common
+kvm-resume			common
 kvm-version			common
 kvm-list			common
 kvm-debug			common
