@@ -14,9 +14,9 @@ int kvm_cmd_balloon(int argc, const char **argv, const char *prefix)
 	int inflate = 0;
 
 	if (argc != 3)
-		die("Usage: kvm balloon [command] [instance name] [amount]\n");
+		die("Usage: kvm balloon [inflate/deflate] [size in MiB] [instance name]\n");
 
-	pid = kvm__get_pid_by_instance(argv[1]);
+	pid = kvm__get_pid_by_instance(argv[2]);
 	if (pid < 0)
 		die("Failed locating instance name");
 
@@ -25,7 +25,7 @@ int kvm_cmd_balloon(int argc, const char **argv, const char *prefix)
 	else if (strcmp(argv[0], "deflate"))
 		die("command can be either 'inflate' or 'deflate'");
 
-	amount = atoi(argv[2]);
+	amount = atoi(argv[1]);
 
 	for (i = 0; i < amount; i++)
 		kill(pid, inflate ? SIGKVMADDMEM : SIGKVMDELMEM);

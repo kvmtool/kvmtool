@@ -8,7 +8,7 @@ kvm-balloon - Inflate or deflate the virtio balloon
 SYNOPSIS
 --------
 [verse]
-'kvm balloon [instance] [command] [size]'
+'kvm balloon [command] [size] [instance]'
 
 DESCRIPTION
 -----------
