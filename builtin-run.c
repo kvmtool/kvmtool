@@ -158,7 +158,7 @@ static const struct option options[] = {
 			"A name for the guest"),
 	OPT_INTEGER('c', "cpus", &nrcpus, "Number of CPUs"),
 	OPT_U64('m', "mem", &ram_size, "Virtual machine memory size in MiB."),
-	OPT_CALLBACK('d', "disk", NULL, "image", "Disk image", img_name_parser),
+	OPT_CALLBACK('d', "disk", NULL, "image or rootfs_dir", "Disk image or rootfs directory", img_name_parser),
 	OPT_BOOLEAN('\0', "balloon", &balloon, "Enable virtio balloon"),
 	OPT_BOOLEAN('\0', "vnc", &vnc, "Enable VNC framebuffer"),
 	OPT_BOOLEAN('\0', "sdl", &sdl, "Enable SDL framebuffer"),
