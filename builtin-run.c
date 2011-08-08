@@ -68,7 +68,7 @@ static const char *vmlinux_filename;
 static const char *initrd_filename;
 static const char *image_filename[MAX_DISK_IMAGES];
 static const char *console;
-static const char *kvm_dev;
+static const char *dev;
 static const char *network;
 static const char *host_ip;
 static const char *guest_ip;
@@ -163,7 +163,7 @@ static const struct option options[] = {
 			"Console to use"),
 	OPT_INCR('\0', "rng", &virtio_rng,
 			"Enable virtio Random Number Generator"),
-	OPT_STRING('\0', "kvm-dev", &kvm_dev, "kvm-dev", "KVM device file"),
+	OPT_STRING('\0', "dev", &dev, "device_file", "KVM device file"),
 	OPT_CALLBACK('\0', "virtio-9p", NULL, "dirname,tag_name",
 		     "Enable 9p over virtio", virtio_9p_rootdir_parser),
 	OPT_BOOLEAN('\0', "balloon", &balloon, "Enable virtio balloon"),
@@ -560,8 +560,8 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	ram_size <<= MB_SHIFT;
 
-	if (!kvm_dev)
-		kvm_dev = DEFAULT_KVM_DEV;
+	if (!dev)
+		dev = DEFAULT_KVM_DEV;
 
 	if (!console)
 		console = DEFAULT_CONSOLE;
@@ -595,7 +595,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 		guest_name = default_name;
 	}
 
-	kvm = kvm__init(kvm_dev, ram_size, guest_name);
+	kvm = kvm__init(dev, ram_size, guest_name);
 
 	irq__init(kvm);
 

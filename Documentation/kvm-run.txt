@@ -32,8 +32,7 @@ OPTIONS
 --kernel=::
 	The virtual machine kernel.
 
--d
---kvm-dev=::
+--dev=::
 	KVM device file.
 
 -i::
