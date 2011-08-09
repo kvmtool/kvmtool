@@ -709,12 +709,11 @@ static bool virtio_p9_do_io_request(struct kvm *kvm, struct p9_dev_job *job)
 	cmd = virtio_p9_get_cmd(p9pdu);
 
 	if (cmd >= ARRAY_SIZE(virtio_9p_handler) ||
-	    !virtio_9p_handler[cmd]) {
+	    !virtio_9p_handler[cmd])
 		handler = virtio_p9_eopnotsupp;
-	} else {
+	else
 		handler = virtio_9p_handler[cmd];
-		handler(p9dev, p9pdu, &len);
-	}
+	handler(p9dev, p9pdu, &len);
 	virt_queue__set_used_elem(vq, p9pdu->queue_head, len);
 	free(p9pdu);
 	return true;
