@@ -447,46 +447,6 @@ static const char *find_vmlinux(void)
 	return NULL;
 }
 
-static int root_device(char *dev, long *part)
-{
-	struct stat st;
-
-	if (stat("/", &st) < 0)
-		return -1;
-
-	*part = minor(st.st_dev);
-
-	sprintf(dev, "/dev/block/%u:0", major(st.st_dev));
-	if (access(dev, R_OK) < 0)
-		return -1;
-
-	return 0;
-}
-
-static char *host_image(char *cmd_line, size_t size)
-{
-	char *t;
-	char device[PATH_MAX];
-	long part = 0;
-
-	t = malloc(PATH_MAX);
-	if (!t)
-		return NULL;
-
-	/* check for the root file system */
-	if (root_device(device, &part) < 0) {
-		free(t);
-		return NULL;
-	}
-	strncpy(t, device, PATH_MAX);
-	if (!strstr(cmd_line, "root=")) {
-		char tmp[PATH_MAX];
-		snprintf(tmp, sizeof(tmp), "root=/dev/vda%ld rw ", part);
-		strlcat(cmd_line, tmp, size);
-	}
-	return t;
-}
-
 void kvm_run_help(void)
 {
 	usage_with_options(run_usage, options);
@@ -500,7 +460,6 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	unsigned int nr_online_cpus;
 	int exit_code = 0;
 	int max_cpus, recommended_cpus;
-	char *hi;
 	int i;
 	void *ret;
 
@@ -635,14 +594,14 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	if (kernel_cmdline)
 		strlcat(real_cmdline, kernel_cmdline, sizeof(real_cmdline));
 
-	hi = NULL;
 	if (!using_rootfs && !image_filename[0]) {
-		hi = host_image(real_cmdline, sizeof(real_cmdline));
-		if (hi) {
-			image_filename[0] = hi;
-			readonly_image[0] = true;
-			image_count++;
-		}
+		if (virtio_9p__init(kvm, "/", "/dev/root") < 0)
+			die("Unable to initialize virtio 9p");
+
+		using_rootfs = 1;
+
+		if (!strstr(real_cmdline, "init="))
+			strlcat(real_cmdline, " init=/bin/sh ", sizeof(real_cmdline));
 	}
 
 	if (!strstr(real_cmdline, "root="))
@@ -659,8 +618,6 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 		virtio_blk__init_all(kvm);
 	}
-
-	free(hi);
 
 	printf("  # kvm run -k %s -m %Lu -c %d --name %s\n", kernel_filename, ram_size / 1024 / 1024, nrcpus, guest_name);
 
