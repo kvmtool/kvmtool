@@ -70,6 +70,9 @@ linux-0.2.img.bz2
  - For virtio-rng device (--rng):
 	CONFIG_HW_RANDOM_VIRTIO=y
 
+ - For kernel DHCP autoconf (when booting to /bin/sh):
+	CONFIG_IP_PNP=y
+	CONFIG_IP_PNP_DHCP=y
 
 5. And finally, launch the hypervisor:
 
