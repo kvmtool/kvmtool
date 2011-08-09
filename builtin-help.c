@@ -10,7 +10,7 @@
 
 
 const char kvm_usage_string[] =
-	"kvm [--version] [--help] COMMAND [ARGS]";
+	"kvm COMMAND [ARGS]";
 
 const char kvm_more_info_string[] =
 	"See 'kvm help COMMAND' for more information on a specific command.";
