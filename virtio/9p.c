@@ -487,6 +487,14 @@ static void virtio_p9_read(struct p9_dev *p9dev,
 			cur = readdir(fid->dir);
 		}
 	} else {
+		u16 iov_cnt;
+		void *iov_base;
+		size_t iov_len;
+
+		iov_base = pdu->in_iov[0].iov_base;
+		iov_len  = pdu->in_iov[0].iov_len;
+		iov_cnt  = pdu->in_iov_cnt;
+
 		pdu->in_iov[0].iov_base += VIRTIO_P9_HDR_LEN + sizeof(u32);
 		pdu->in_iov[0].iov_len -= VIRTIO_P9_HDR_LEN + sizeof(u32);
 		pdu->in_iov_cnt = virtio_p9_update_iov_cnt(pdu->in_iov,
@@ -500,9 +508,9 @@ static void virtio_p9_read(struct p9_dev *p9dev,
 		 * Update the iov_base back, so that rest of
 		 * pdu_writef works correctly.
 		 */
-		pdu->in_iov[0].iov_base -= VIRTIO_P9_HDR_LEN + sizeof(u32);
-		pdu->in_iov[0].iov_len += VIRTIO_P9_HDR_LEN + sizeof(u32);
-
+		pdu->in_iov[0].iov_base = iov_base;
+		pdu->in_iov[0].iov_len  = iov_len;
+		pdu->in_iov_cnt         = iov_cnt;
 	}
 	pdu->write_offset = VIRTIO_P9_HDR_LEN;
 	virtio_p9_pdu_writef(pdu, "d", rcount);
@@ -619,6 +627,9 @@ static void virtio_p9_write(struct p9_dev *p9dev,
 	u32 fid_val;
 	u32 count;
 	ssize_t res;
+	u16 iov_cnt;
+	void *iov_base;
+	size_t iov_len;
 	struct p9_fid *fid;
 	/* u32 fid + u64 offset + u32 count */
 	int twrite_size = sizeof(u32) + sizeof(u64) + sizeof(u32);
@@ -626,12 +637,23 @@ static void virtio_p9_write(struct p9_dev *p9dev,
 	virtio_p9_pdu_readf(pdu, "dqd", &fid_val, &offset, &count);
 	fid = &p9dev->fids[fid_val];
 
+	iov_base = pdu->out_iov[0].iov_base;
+	iov_len  = pdu->out_iov[0].iov_len;
+	iov_cnt  = pdu->out_iov_cnt;
+
 	/* Adjust the iovec to skip the header and meta data */
 	pdu->out_iov[0].iov_base += (sizeof(struct p9_msg) + twrite_size);
 	pdu->out_iov[0].iov_len -=  (sizeof(struct p9_msg) + twrite_size);
 	pdu->out_iov_cnt = virtio_p9_update_iov_cnt(pdu->out_iov, count,
 						    pdu->out_iov_cnt);
 	res = pwritev(fid->fd, pdu->out_iov, pdu->out_iov_cnt, offset);
+	/*
+	 * Update the iov_base back, so that rest of
+	 * pdu_readf works correctly.
+	 */
+	pdu->out_iov[0].iov_base = iov_base;
+	pdu->out_iov[0].iov_len  = iov_len;
+	pdu->out_iov_cnt         = iov_cnt;
 	if (res < 0)
 		goto err_out;
 	virtio_p9_pdu_writef(pdu, "d", res);
