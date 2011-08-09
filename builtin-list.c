@@ -13,25 +13,32 @@
 static void print_guest(const char *name, int pid)
 {
 	char proc_name[PATH_MAX];
-	char comm[sizeof(PROCESS_NAME)];
-	int fd;
+	char *comm = NULL;
+	FILE *fd;
 
-	sprintf(proc_name, "/proc/%d/comm", pid);
-	fd = open(proc_name, O_RDONLY);
-	if (fd <= 0)
+	sprintf(proc_name, "/proc/%d/stat", pid);
+	fd = fopen(proc_name, "r");
+	if (fd == NULL)
 		goto cleanup;
-	if (read(fd, comm, sizeof(PROCESS_NAME)) == 0)
+	if (fscanf(fd, "%*u (%as)", &comm) == 0)
 		goto cleanup;
 	if (strncmp(comm, PROCESS_NAME, strlen(PROCESS_NAME)))
 		goto cleanup;
 
 	printf("%s (PID: %d)\n", name, pid);
 
-	close(fd);
+	free(comm);
+
+	fclose(fd);
 
 	return;
 
 cleanup:
+	if (fd)
+		fclose(fd);
+	if (comm)
+		free(comm);
+
 	kvm__remove_pidfile(name);
 }
 
