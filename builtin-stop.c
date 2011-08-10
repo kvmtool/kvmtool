@@ -7,9 +7,9 @@
 #include <string.h>
 #include <signal.h>
 
-static void do_stop(const char *name, int pid)
+static int do_stop(const char *name, int pid)
 {
-	kill(pid, SIGKVMSTOP);
+	return kill(pid, SIGKVMSTOP);
 }
 
 int kvm_cmd_stop(int argc, const char **argv, const char *prefix)
@@ -20,8 +20,7 @@ int kvm_cmd_stop(int argc, const char **argv, const char *prefix)
 		die("Usage: kvm stop [instance name]\n");
 
 	if (strcmp(argv[0], "all") == 0) {
-		kvm__enumerate_instances(do_stop);
-		return 0;
+		return kvm__enumerate_instances(do_stop);
 	}
 
 	pid = kvm__get_pid_by_instance(argv[0]);

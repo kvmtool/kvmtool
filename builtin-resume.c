@@ -7,9 +7,9 @@
 #include <kvm/builtin-resume.h>
 #include <kvm/kvm.h>
 
-static void do_resume(const char *name, int pid)
+static int do_resume(const char *name, int pid)
 {
-	kill(pid, SIGKVMRESUME);
+	return kill(pid, SIGKVMRESUME);
 }
 
 int kvm_cmd_resume(int argc, const char **argv, const char *prefix)
@@ -20,8 +20,7 @@ int kvm_cmd_resume(int argc, const char **argv, const char *prefix)
 		die("Usage: kvm resume [instance name]\n");
 
 	if (strcmp(argv[0], "all") == 0) {
-		kvm__enumerate_instances(do_resume);
-		return 0;
+		return kvm__enumerate_instances(do_resume);
 	}
 
 	pid = kvm__get_pid_by_instance(argv[0]);

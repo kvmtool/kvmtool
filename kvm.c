@@ -164,12 +164,13 @@ int kvm__get_pid_by_instance(const char *name)
 	return pid;
 }
 
-int kvm__enumerate_instances(void (*callback)(const char *name, int pid))
+int kvm__enumerate_instances(int (*callback)(const char *name, int pid))
 {
 	char full_name[PATH_MAX];
 	int pid;
 	DIR *dir;
 	struct dirent entry, *result;
+	int ret = 0;
 
 	sprintf(full_name, "%s/%s", HOME_DIR, KVM_PID_FILE_PATH);
 	dir = opendir(full_name);
@@ -181,13 +182,15 @@ int kvm__enumerate_instances(void (*callback)(const char *name, int pid))
 		if (entry.d_type == DT_REG) {
 			entry.d_name[strlen(entry.d_name)-4] = 0;
 			pid = kvm__get_pid_by_instance(entry.d_name);
-			callback(entry.d_name, pid);
+			ret = callback(entry.d_name, pid);
+			if (ret < 0)
+				break;
 		}
 	}
 
 	closedir(dir);
 
-	return 0;
+	return ret;
 }
 
 void kvm__delete(struct kvm *kvm)

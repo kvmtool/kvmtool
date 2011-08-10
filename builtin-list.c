@@ -10,7 +10,7 @@
 
 #define PROCESS_NAME "kvm"
 
-static void print_guest(const char *name, int pid)
+static int print_guest(const char *name, int pid)
 {
 	char proc_name[PATH_MAX];
 	char *comm = NULL;
@@ -31,7 +31,7 @@ static void print_guest(const char *name, int pid)
 
 	fclose(fd);
 
-	return;
+	return 0;
 
 cleanup:
 	if (fd)
@@ -40,11 +40,10 @@ cleanup:
 		free(comm);
 
 	kvm__remove_pidfile(name);
+	return 0;
 }
 
 int kvm_cmd_list(int argc, const char **argv, const char *prefix)
 {
-	kvm__enumerate_instances(print_guest);
-
-	return 0;
+	return kvm__enumerate_instances(print_guest);
 }
