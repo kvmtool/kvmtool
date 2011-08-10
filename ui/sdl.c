@@ -3,9 +3,11 @@
 #include "kvm/framebuffer.h"
 #include "kvm/i8042.h"
 #include "kvm/util.h"
+#include "kvm/kvm.h"
 
 #include <SDL/SDL.h>
 #include <pthread.h>
+#include <signal.h>
 
 #define FRAME_RATE		25
 
@@ -127,6 +129,8 @@ static void *sdl__thread(void *p)
 		SDL_Delay(1000 / FRAME_RATE);
 	}
 exit:
+	kill(0, SIGKVMSTOP);
+
 	return NULL;
 }
 
