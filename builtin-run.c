@@ -601,7 +601,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 		using_rootfs = 1;
 
 		if (!strstr(real_cmdline, "init="))
-			strlcat(real_cmdline, " init=/bin/sh ip=dhcp ", sizeof(real_cmdline));
+			strlcat(real_cmdline, " init=/bin/sh ", sizeof(real_cmdline));
 	}
 
 	if (!strstr(real_cmdline, "root="))
