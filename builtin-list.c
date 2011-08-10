@@ -25,7 +25,7 @@ static int print_guest(const char *name, int pid)
 	if (strncmp(comm, PROCESS_NAME, strlen(PROCESS_NAME)))
 		goto cleanup;
 
-	printf("%s (PID: %d)\n", name, pid);
+	printf("%5d %s\n", pid, name);
 
 	free(comm);
 
@@ -45,5 +45,7 @@ cleanup:
 
 int kvm_cmd_list(int argc, const char **argv, const char *prefix)
 {
+	printf("  PID GUEST\n");
+
 	return kvm__enumerate_instances(print_guest);
 }
