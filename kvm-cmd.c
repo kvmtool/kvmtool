@@ -15,6 +15,7 @@
 #include "kvm/builtin-help.h"
 #include "kvm/kvm-cmd.h"
 #include "kvm/builtin-run.h"
+#include "kvm/util.h"
 
 struct cmd_struct kvm_commands[] = {
 	{ "pause",	kvm_cmd_pause,		NULL,         0 },
@@ -59,6 +60,7 @@ int handle_command(struct cmd_struct *command, int argc, const char **argv)
 {
 	struct cmd_struct *p;
 	const char *prefix = NULL;
+	int ret = 0;
 
 	if (!argv || !*argv) {
 		p = kvm_get_command(command, "help");
@@ -74,5 +76,11 @@ int handle_command(struct cmd_struct *command, int argc, const char **argv)
 		return EINVAL;
 	}
 
-	return p->fn(argc - 1, &argv[1], prefix);
+	ret = p->fn(argc - 1, &argv[1], prefix);
+	if (ret < 0) {
+		if (errno == EPERM)
+			die("Permission error - are you root?");
+	}
+
+	return ret;
 }
