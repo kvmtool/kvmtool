@@ -5,7 +5,17 @@
 #include <kvm/util.h>
 #include <kvm/kvm-cmd.h>
 #include <kvm/builtin-balloon.h>
+#include <kvm/parse-options.h>
 #include <kvm/kvm.h>
+
+static const char * const balloon_usage[] = {
+	"kvm balloon {inflate|deflate} <size in MiB> <instance name>",
+	NULL
+};
+
+static const struct option balloon_options[] = {
+	OPT_END()
+};
 
 int kvm_cmd_balloon(int argc, const char **argv, const char *prefix)
 {
@@ -14,7 +24,7 @@ int kvm_cmd_balloon(int argc, const char **argv, const char *prefix)
 	int inflate = 0;
 
 	if (argc != 3)
-		die("Usage: kvm balloon [inflate/deflate] [size in MiB] [instance name]\n");
+		usage_with_options(balloon_usage, balloon_options);
 
 	pid = kvm__get_pid_by_instance(argv[2]);
 	if (pid < 0)

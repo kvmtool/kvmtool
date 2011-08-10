@@ -6,6 +6,16 @@
 #include <kvm/kvm-cmd.h>
 #include <kvm/builtin-resume.h>
 #include <kvm/kvm.h>
+#include <kvm/parse-options.h>
+
+static const char * const resume_usage[] = {
+	"kvm resume <instance name>",
+	NULL
+};
+
+static const struct option resume_options[] = {
+	OPT_END()
+};
 
 static int do_resume(const char *name, int pid)
 {
@@ -17,7 +27,7 @@ int kvm_cmd_resume(int argc, const char **argv, const char *prefix)
 	int pid;
 
 	if (argc != 1)
-		die("Usage: kvm resume [instance name]\n");
+		usage_with_options(resume_usage, resume_options);
 
 	if (strcmp(argv[0], "all") == 0) {
 		return kvm__enumerate_instances(do_resume);

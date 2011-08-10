@@ -6,6 +6,16 @@
 #include <kvm/kvm-cmd.h>
 #include <kvm/builtin-pause.h>
 #include <kvm/kvm.h>
+#include <kvm/parse-options.h>
+
+static const char * const pause_usage[] = {
+	"kvm pause <instance name>",
+	NULL
+};
+
+static const struct option pause_options[] = {
+	OPT_END()
+};
 
 static int do_pause(const char *name, int pid)
 {
@@ -17,7 +27,7 @@ int kvm_cmd_pause(int argc, const char **argv, const char *prefix)
 	int pid;
 
 	if (argc != 1)
-		die("Usage: kvm pause [instance name]\n");
+		usage_with_options(pause_usage, pause_options);
 
 	if (strcmp(argv[0], "all") == 0) {
 		return kvm__enumerate_instances(do_pause);

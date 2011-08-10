@@ -2,10 +2,20 @@
 #include <kvm/kvm-cmd.h>
 #include <kvm/builtin-debug.h>
 #include <kvm/kvm.h>
+#include <kvm/parse-options.h>
 
 #include <stdio.h>
 #include <string.h>
 #include <signal.h>
+
+static const char * const debug_usage[] = {
+	"kvm debug <instance name>",
+	NULL
+};
+
+static const struct option debug_options[] = {
+	OPT_END()
+};
 
 static int do_debug(const char *name, int pid)
 {
@@ -17,7 +27,7 @@ int kvm_cmd_debug(int argc, const char **argv, const char *prefix)
 	int pid;
 
 	if (argc != 1)
-		die("Usage: kvm debug [instance name]\n");
+		usage_with_options(debug_usage, debug_options);
 
 	if (strcmp(argv[0], "all") == 0) {
 		return kvm__enumerate_instances(do_debug);
