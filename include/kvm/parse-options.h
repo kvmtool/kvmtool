@@ -1,6 +1,8 @@
 #ifndef __PARSE_OPTIONS_H__
 #define __PARSE_OPTIONS_H__
 
+#include <inttypes.h>
+
 enum parse_opt_type {
 	/* special types */
 	OPTION_END,

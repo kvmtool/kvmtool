@@ -1,46 +1,45 @@
-#include <stdio.h>
-#include <string.h>
-#include <signal.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <termios.h>
+#include "kvm/builtin-run.h"
+
+#include "kvm/virtio-balloon.h"
+#include "kvm/virtio-console.h"
+#include "kvm/parse-options.h"
+#include "kvm/8250-serial.h"
+#include "kvm/framebuffer.h"
+#include "kvm/disk-image.h"
+#include "kvm/threadpool.h"
+#include "kvm/virtio-blk.h"
+#include "kvm/virtio-net.h"
+#include "kvm/virtio-rng.h"
+#include "kvm/ioeventfd.h"
+#include "kvm/virtio-9p.h"
+#include "kvm/barrier.h"
+#include "kvm/kvm-cpu.h"
+#include "kvm/ioport.h"
+#include "kvm/symbol.h"
+#include "kvm/i8042.h"
+#include "kvm/mutex.h"
+#include "kvm/term.h"
+#include "kvm/util.h"
+#include "kvm/vesa.h"
+#include "kvm/irq.h"
+#include "kvm/kvm.h"
+#include "kvm/pci.h"
+#include "kvm/rtc.h"
+#include "kvm/sdl.h"
+#include "kvm/vnc.h"
+
+#include <linux/types.h>
+
 #include <sys/utsname.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <termios.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 #include <ctype.h>
-
-/* user defined header files */
-#include <linux/types.h>
-#include <kvm/kvm.h>
-#include <kvm/kvm-cpu.h>
-#include <kvm/8250-serial.h>
-#include <kvm/virtio-blk.h>
-#include <kvm/virtio-net.h>
-#include <kvm/virtio-console.h>
-#include <kvm/virtio-rng.h>
-#include <kvm/virtio-balloon.h>
-#include <kvm/disk-image.h>
-#include <kvm/util.h>
-#include <kvm/pci.h>
-#include <kvm/rtc.h>
-#include <kvm/term.h>
-#include <kvm/ioport.h>
-#include <kvm/threadpool.h>
-#include <kvm/barrier.h>
-#include <kvm/symbol.h>
-#include <kvm/virtio-9p.h>
-#include <kvm/vesa.h>
-#include <kvm/ioeventfd.h>
-#include <kvm/i8042.h>
-#include <kvm/vnc.h>
-#include <kvm/sdl.h>
-#include <kvm/framebuffer.h>
-#include <kvm/irq.h>
-
-/* header files for gitish interface  */
-#include <kvm/builtin-run.h>
-#include <kvm/parse-options.h>
-#include <kvm/mutex.h>
+#include <stdio.h>
 
 #define DEFAULT_KVM_DEV		"/dev/kvm"
 #define DEFAULT_CONSOLE		"serial"
