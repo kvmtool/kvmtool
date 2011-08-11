@@ -221,12 +221,6 @@ static bool virtio_net_pci_io_in(struct ioport *ioport, struct kvm *kvm, u16 por
 		kvm__irq_line(kvm, pci_header.irq_line, VIRTIO_IRQ_LOW);
 		ndev.isr = VIRTIO_IRQ_LOW;
 		break;
-	case VIRTIO_MSI_CONFIG_VECTOR:
-		ioport__write16(data, ndev.config_vector);
-		break;
-	case VIRTIO_MSI_QUEUE_VECTOR:
-		ioport__write16(data, ndev.vq_vector[ndev.queue_selector]);
-		break;
 	default:
 		ret = virtio_net_pci_io_device_specific_in(data, offset, size, count);
 	};
