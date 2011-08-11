@@ -60,6 +60,9 @@ struct net_dev {
 	u8				isr;
 	u16				queue_selector;
 	u16				base_addr;
+	u32				vq_vector[VIRTIO_NET_NUM_QUEUES];
+	u32				gsis[VIRTIO_NET_NUM_QUEUES];
+	u32				msix_io_block;
 
 	pthread_t			io_rx_thread;
 	pthread_mutex_t			io_rx_lock;
@@ -125,7 +128,7 @@ static void *virtio_net_rx_thread(void *p)
 			virt_queue__set_used_elem(vq, head, len);
 
 			/* We should interrupt guest right now, otherwise latency is huge. */
-			virt_queue__trigger_irq(vq, pci_header.irq_line, &ndev.isr, kvm);
+			kvm__irq_trigger(kvm, ndev.gsis[VIRTIO_NET_RX_QUEUE]);
 		}
 
 	}
@@ -162,8 +165,7 @@ static void *virtio_net_tx_thread(void *p)
 			virt_queue__set_used_elem(vq, head, len);
 		}
 
-		virt_queue__trigger_irq(vq, pci_header.irq_line, &ndev.isr, kvm);
-
+		kvm__irq_trigger(kvm, ndev.gsis[VIRTIO_NET_TX_QUEUE]);
 	}
 
 	pthread_exit(NULL);
@@ -218,6 +220,12 @@ static bool virtio_net_pci_io_in(struct ioport *ioport, struct kvm *kvm, u16 por
 		ioport__write8(data, ndev.isr);
 		kvm__irq_line(kvm, pci_header.irq_line, VIRTIO_IRQ_LOW);
 		ndev.isr = VIRTIO_IRQ_LOW;
+		break;
+	case VIRTIO_MSI_CONFIG_VECTOR:
+		ioport__write16(data, ndev.config_vector);
+		break;
+	case VIRTIO_MSI_QUEUE_VECTOR:
+		ioport__write16(data, ndev.vq_vector[ndev.queue_selector]);
 		break;
 	default:
 		ret = virtio_net_pci_io_device_specific_in(data, offset, size, count);
@@ -285,10 +293,22 @@ static bool virtio_net_pci_io_out(struct ioport *ioport, struct kvm *kvm, u16 po
 		ndev.status		= ioport__read8(data);
 		break;
 	case VIRTIO_MSI_CONFIG_VECTOR:
-		ndev.config_vector	= VIRTIO_MSI_NO_VECTOR;
+		ndev.config_vector	= ioport__read16(data);
 		break;
-	case VIRTIO_MSI_QUEUE_VECTOR:
+	case VIRTIO_MSI_QUEUE_VECTOR: {
+		u32 gsi;
+		u32 vec;
+
+		vec = ndev.vq_vector[ndev.queue_selector] = ioport__read16(data);
+
+		gsi = irq__add_msix_route(kvm,
+					  pci_header.msix.table[vec].low,
+					  pci_header.msix.table[vec].high,
+					  pci_header.msix.table[vec].data);
+
+		ndev.gsis[ndev.queue_selector] = gsi;
 		break;
+	}
 	default:
 		ret			= false;
 	};
@@ -307,6 +327,15 @@ static struct ioport_operations virtio_net_io_ops = {
 	.io_in	= virtio_net_pci_io_in,
 	.io_out	= virtio_net_pci_io_out,
 };
+
+static void callback_mmio(u64 addr, u8 *data, u32 len, u8 is_write, void *ptr)
+{
+	void *table = pci_header.msix.table;
+	if (is_write)
+		memcpy(table + addr - ndev.msix_io_block, data, len);
+	else
+		memcpy(data, table + addr - ndev.msix_io_block, len);
+}
 
 static bool virtio_net__tap_init(const struct virtio_net_parameters *params)
 {
@@ -466,6 +495,21 @@ void virtio_net__init(const struct virtio_net_parameters *params)
 		uip_init(&ndev.info);
 		ndev.ops = &uip_ops;
 	}
+
+	ndev.msix_io_block = pci_get_io_space_block();
+	kvm__register_mmio(params->kvm, ndev.msix_io_block, 0x100, callback_mmio, NULL);
+	pci_header.bar[1]	= ndev.msix_io_block |
+				PCI_BASE_ADDRESS_SPACE_MEMORY |
+				PCI_BASE_ADDRESS_MEM_TYPE_64;
+	/* bar[2] is the continuation of bar[1] for 64bit addressing */
+	pci_header.bar[2]	= 0;
+	pci_header.status	= PCI_STATUS_CAP_LIST;
+	pci_header.capabilities	= (void *)&pci_header.msix - (void *)&pci_header;
+
+	pci_header.msix.cap = PCI_CAP_ID_MSIX;
+	pci_header.msix.next = 0;
+	pci_header.msix.table_size = (VIRTIO_NET_NUM_QUEUES + 1) | PCI_MSIX_FLAGS_ENABLE;
+	pci_header.msix.table_offset = 1; /* Use BAR 1 */
 
 	virtio_net__io_thread_init(params->kvm);
 
