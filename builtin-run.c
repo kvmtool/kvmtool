@@ -722,10 +722,11 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 		exit_code = 1;
 
 	for (i = 1; i < nrcpus; i++) {
-		pthread_kill(kvm_cpus[i]->thread, SIGKVMEXIT);
-		if (pthread_join(kvm_cpus[i]->thread, &ret) != 0)
-			die("pthread_join");
-
+		if (kvm_cpus[i]->is_running) {
+			pthread_kill(kvm_cpus[i]->thread, SIGKVMEXIT);
+			if (pthread_join(kvm_cpus[i]->thread, &ret) != 0)
+				die("pthread_join");
+		}
 		if (ret != NULL)
 			exit_code = 1;
 	}

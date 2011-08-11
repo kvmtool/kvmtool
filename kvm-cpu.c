@@ -421,7 +421,11 @@ static void kvm_cpu__handle_coalesced_mmio(struct kvm_cpu *cpu)
 
 void kvm_cpu__reboot(void)
 {
-	pthread_kill(kvm_cpus[0]->thread, SIGKVMEXIT);
+	int i;
+
+	for (i = 0; i < KVM_NR_CPUS; i++)
+		if (kvm_cpus[i])
+			pthread_kill(kvm_cpus[i]->thread, SIGKVMEXIT);
 }
 
 int kvm_cpu__start(struct kvm_cpu *cpu)
@@ -442,7 +446,7 @@ int kvm_cpu__start(struct kvm_cpu *cpu)
 	if (cpu->kvm->single_step)
 		kvm_cpu__enable_singlestep(cpu);
 
-	for (;;) {
+	while (cpu->is_running) {
 		if (cpu->paused) {
 			kvm__notify_paused();
 			cpu->paused = 0;

@@ -34,12 +34,8 @@ int term_getc(int who)
 
 	if (term_got_escape) {
 		term_got_escape = false;
-		if (c == 'x') {
+		if (c == 'x')
 			kvm_cpu__reboot();
-			kvm__delete(kvm);
-			printf("\n  # KVM session terminated.\n");
-			exit(1);
-		}
 		if (c == term_escape_char)
 			return c;
 	}
