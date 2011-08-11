@@ -587,7 +587,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 		vidmode = 0;
 
 	memset(real_cmdline, 0, sizeof(real_cmdline));
-	strcpy(real_cmdline, "notsc noapic noacpi pci=conf1 reboot=k panic=1");
+	strcpy(real_cmdline, "notsc noapic noacpi pci=conf1 reboot=k panic=1 i8042.direct=1 i8042.dumbkbd=1 i8042.nopnp=1");
 	if (vnc || sdl) {
 		strcat(real_cmdline, " video=vesafb console=tty0");
 	} else
