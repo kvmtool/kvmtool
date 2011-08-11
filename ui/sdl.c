@@ -99,6 +99,8 @@ static void *sdl__thread(void *p)
 	if (!screen)
 		die("Unable to set SDL video mode");
 
+	SDL_EnableKeyRepeat(200, 50);
+
 	for (;;) {
 		SDL_BlitSurface(guest_screen, NULL, screen, NULL);
 		SDL_Flip(screen);
