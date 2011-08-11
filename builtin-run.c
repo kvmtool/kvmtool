@@ -469,6 +469,9 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	signal(SIGUSR2, handle_sigusr2);
 	signal(SIGKVMSTOP, handle_sigstop);
 	signal(SIGKVMRESUME, handle_sigusr2);
+	/* ignore balloon signal by default if not enable balloon optiion */
+	signal(SIGKVMADDMEM, SIG_IGN);
+	signal(SIGKVMDELMEM, SIG_IGN);
 
 	nr_online_cpus = sysconf(_SC_NPROCESSORS_ONLN);
 
