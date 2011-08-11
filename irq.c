@@ -147,17 +147,18 @@ void irq__init(struct kvm *kvm)
 
 	/* Hook first 8 GSIs to master IRQCHIP */
 	for (i = 0; i < 8; i++)
-		irq__add_routing(i, KVM_IRQ_ROUTING_IRQCHIP, IRQCHIP_MASTER, i);
+		if (i != 2)
+			irq__add_routing(i, KVM_IRQ_ROUTING_IRQCHIP, IRQCHIP_MASTER, i);
 
 	/* Hook next 8 GSIs to slave IRQCHIP */
 	for (i = 8; i < 16; i++)
-		irq__add_routing(i, KVM_IRQ_ROUTING_IRQCHIP, IRQCHIP_SLAVE, 8-i);
+		irq__add_routing(i, KVM_IRQ_ROUTING_IRQCHIP, IRQCHIP_SLAVE, i - 8);
 
 	/* Last but not least, IOAPIC */
 	for (i = 0; i < 24; i++) {
 		if (i == 0)
 			irq__add_routing(i, KVM_IRQ_ROUTING_IRQCHIP, IRQCHIP_IOAPIC, 2);
-		else
+		else if (i != 2)
 			irq__add_routing(i, KVM_IRQ_ROUTING_IRQCHIP, IRQCHIP_IOAPIC, i);
 	}
 
