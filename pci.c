@@ -95,7 +95,7 @@ static bool pci_config_data_out(struct ioport *ioport, struct kvm *kvm, u16 port
 		offset = start + (pci_config_address.register_number << 2);
 		if (offset < sizeof(struct pci_device_header)) {
 			void *p = pci_devices[dev_num];
-			u8 bar = offset - PCI_BAR_OFFSET(0);
+			u8 bar = offset - PCI_BAR_OFFSET(0) / (sizeof(u32));
 			u32 sz = PCI_IO_SIZE;
 
 			if (bar < 6 && pci_devices[dev_num]->bar_size[bar])
