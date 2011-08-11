@@ -220,10 +220,14 @@ static struct ioport_operations virtio_bln_io_ops = {
 
 static void handle_sigmem(int sig)
 {
-	if (sig == SIGKVMADDMEM)
+	if (sig == SIGKVMADDMEM) {
 		bdev.config.num_pages += 256;
-	else
+	} else {
+		if (bdev.config.num_pages < 256)
+			return;
+
 		bdev.config.num_pages -= 256;
+	}
 
 	/* Notify that the configuration space has changed */
 	bdev.isr = VIRTIO_PCI_ISR_CONFIG;
