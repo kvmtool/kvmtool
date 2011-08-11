@@ -676,6 +676,12 @@ void kvm__irq_line(struct kvm *kvm, int irq, int level)
 		die_perror("KVM_IRQ_LINE failed");
 }
 
+void kvm__irq_trigger(struct kvm *kvm, int irq)
+{
+	kvm__irq_line(kvm, irq, 1);
+	kvm__irq_line(kvm, irq, 0);
+}
+
 void kvm__dump_mem(struct kvm *kvm, unsigned long addr, unsigned long size)
 {
 	unsigned char *p;
