@@ -1,21 +1,39 @@
-#include <stdio.h>
-#include <string.h>
-#include <signal.h>
-
 #include <kvm/util.h>
 #include <kvm/kvm-cmd.h>
 #include <kvm/builtin-resume.h>
 #include <kvm/kvm.h>
 #include <kvm/parse-options.h>
 
+#include <stdio.h>
+#include <string.h>
+#include <signal.h>
+
+static bool all;
+static u64 instance_pid;
+static const char *instance_name;
+
 static const char * const resume_usage[] = {
-	"kvm resume <instance name>",
+	"kvm resume [--all] [-n name] [-p pid]",
 	NULL
 };
 
 static const struct option resume_options[] = {
+	OPT_GROUP("General options:"),
+	OPT_BOOLEAN('a', "all", &all, "Resume all instances"),
+	OPT_STRING('n', "name", &instance_name, "name", "Instance name"),
+	OPT_U64('p', "pid", &instance_pid, "Instance pid"),
 	OPT_END()
 };
+
+static void parse_resume_options(int argc, const char **argv)
+{
+	while (argc != 0) {
+		argc = parse_options(argc, argv, resume_options, resume_usage,
+				PARSE_OPT_STOP_AT_NON_OPTION);
+		if (argc != 0)
+			kvm_resume_help();
+	}
+}
 
 void kvm_resume_help(void)
 {
@@ -29,18 +47,20 @@ static int do_resume(const char *name, int pid)
 
 int kvm_cmd_resume(int argc, const char **argv, const char *prefix)
 {
-	int pid;
+	parse_resume_options(argc, argv);
 
-	if (argc != 1)
+	if (all)
+		return kvm__enumerate_instances(do_resume);
+
+	if (instance_name == NULL &&
+	    instance_pid == 0)
 		kvm_resume_help();
 
-	if (strcmp(argv[0], "all") == 0) {
-		return kvm__enumerate_instances(do_resume);
-	}
+	if (instance_name)
+		instance_pid = kvm__get_pid_by_instance(argv[0]);
 
-	pid = kvm__get_pid_by_instance(argv[0]);
-	if (pid < 0)
-		die("Failed locating instance name");
+	if (instance_pid <= 0)
+		die("Failed locating instance");
 
-	return kill(pid, SIGKVMRESUME);
+	return kill(instance_pid, SIGKVMRESUME);
 }
