@@ -8,9 +8,36 @@
 	.org 0
 	.code16gcc
 
+#define EFLAGS_CF	(1 << 0)
+
 #include "macro.S"
 
-#define EFLAGS_CF	(1 << 0)
+/* If you change these macros, remember to update 'struct biosregs' */
+.macro SAVE_BIOSREGS
+	pushw	%fs
+	pushl	%es
+	pushl	%edi
+	pushl	%esi
+	pushl	%ebp
+	pushl	%esp
+	pushl	%edx
+	pushl	%ecx
+	pushl	%ebx
+	pushl	%eax
+.endm
+
+.macro RESTORE_BIOSREGS
+	popl	%eax
+	popl	%ebx
+	popl	%ecx
+	popl	%edx
+	popl	%esp
+	popl	%ebp
+	popl	%esi
+	popl	%edi
+	popl	%es
+	popw	%fs
+.endm
 
 /*
  * fake interrupt handler, nothing can be faster ever
@@ -30,32 +57,14 @@ ENTRY_END(bios_intfake)
  * int 10 - video - service
  */
 ENTRY(bios_int10)
-	pushw	%fs
-	pushl	%es
-	pushl	%edi
-	pushl	%esi
-	pushl	%ebp
-	pushl	%esp
-	pushl	%edx
-	pushl	%ecx
-	pushl	%ebx
-	pushl	%eax
+	SAVE_BIOSREGS
 
 	movl		%esp, %eax
 	/* this is way easier than doing it in assembly */
 	/* just push all the regs and jump to a C handler */
 	call	int10_handler
 
-	popl	%eax
-	popl	%ebx
-	popl	%ecx
-	popl	%edx
-	popl	%esp
-	popl	%ebp
-	popl	%esi
-	popl	%edi
-	popl	%es
-	popw	%fs
+	RESTORE_BIOSREGS
 
 	/* Clear CF to indicate success.  */
 	andl	$~EFLAGS_CF, 0x4(%esp)
