@@ -10,10 +10,19 @@
 
 #include "macro.S"
 
+#define EFLAGS_CF	(1 << 0)
+
 /*
  * fake interrupt handler, nothing can be faster ever
  */
 ENTRY(bios_intfake)
+	/*
+	 * Set CF to indicate failure. We don't want callers to think that the
+	 * interrupt handler succeeded and then treat the return values in
+	 * registers as valid data.
+	 */
+	orl	$EFLAGS_CF, 0x4(%esp)
+
 	IRET
 ENTRY_END(bios_intfake)
 
@@ -48,10 +57,11 @@ ENTRY(bios_int10)
 	popl	%es
 	popw	%fs
 
+	/* Clear CF to indicate success.  */
+	andl	$~EFLAGS_CF, 0x4(%esp)
+
 	IRET
 ENTRY_END(bios_int10)
-
-#define EFLAGS_CF	(1 << 0)
 
 ENTRY(bios_int15)
 	cmp $0xE820, %eax
@@ -76,7 +86,7 @@ ENTRY(bios_int15)
 
 	popw	%fs
 
-	/* Clear CF */
+	/* Clear CF to indicate success.  */
 	andl	$~EFLAGS_CF, 0x4(%esp)
 1:
 	IRET
