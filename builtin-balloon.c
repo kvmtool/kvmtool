@@ -8,13 +8,29 @@
 #include <kvm/parse-options.h>
 #include <kvm/kvm.h>
 
+static u64 instance_pid;
+static const char *instance_name;
+static u64 inflate;
+static u64 deflate;
+
 static const char * const balloon_usage[] = {
 	"kvm balloon {inflate|deflate} <size in MiB> <instance name>",
 	NULL
 };
 
+static const char * const debug_usage[] = {
+	"kvm balloon [-n name] [-p pid] [-i amount] [-d amount]",
+	NULL
+};
+
 static const struct option balloon_options[] = {
-	OPT_END()
+	OPT_GROUP("Instance options:"),
+	OPT_STRING('n', "name", &instance_name, "name", "Instance name"),
+	OPT_U64('p', "pid", &instance_pid, "Instance pid"),
+	OPT_GROUP("Balloon options:"),
+	OPT_U64('i', "inflate", &inflate, "Amount to inflate"),
+	OPT_U64('d', "deflate", &deflate, "Amount to deflate"),
+	OPT_END(),
 };
 
 void kvm_balloon_help(void)
@@ -22,28 +38,43 @@ void kvm_balloon_help(void)
 	usage_with_options(balloon_usage, balloon_options);
 }
 
+static void parse_balloon_options(int argc, const char **argv)
+{
+	while (argc != 0) {
+		argc = parse_options(argc, argv, balloon_options, balloon_usage,
+				PARSE_OPT_STOP_AT_NON_OPTION);
+		if (argc != 0)
+			kvm_balloon_help();
+	}
+}
+
 int kvm_cmd_balloon(int argc, const char **argv, const char *prefix)
 {
-	int pid;
-	int amount, i;
-	int inflate = 0;
+	u64 i;
 
-	if (argc != 3)
+	parse_balloon_options(argc, argv);
+
+	if (inflate == 0 && deflate == 0)
 		kvm_balloon_help();
 
-	pid = kvm__get_pid_by_instance(argv[2]);
-	if (pid < 0)
-		die("Failed locating instance name");
+	if (instance_name == NULL &&
+	    instance_pid == 0)
+		kvm_balloon_help();
 
-	if (strcmp(argv[0], "inflate") == 0)
-		inflate = 1;
-	else if (strcmp(argv[0], "deflate"))
-		die("command can be either 'inflate' or 'deflate'");
+	if (instance_name)
+		instance_pid = kvm__get_pid_by_instance(argv[0]);
 
-	amount = atoi(argv[1]);
+	if (instance_pid <= 0)
+		die("Failed locating instance");
 
-	for (i = 0; i < amount; i++)
-		kill(pid, inflate ? SIGKVMADDMEM : SIGKVMDELMEM);
+	if (inflate)
+		for (i = 0; i < inflate; i++)
+			kill(instance_pid, SIGKVMADDMEM);
+	else if (deflate)
+		for (i = 0; i < deflate; i++)
+			kill(instance_pid, SIGKVMDELMEM);
+	else
+		kvm_balloon_help();
 
 	return 0;
 }
