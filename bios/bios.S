@@ -14,7 +14,7 @@
 
 /* If you change these macros, remember to update 'struct biosregs' */
 .macro SAVE_BIOSREGS
-	pushw	%fs
+	pushl	%fs
 	pushl	%es
 	pushl	%edi
 	pushl	%esi
@@ -36,7 +36,7 @@
 	popl	%esi
 	popl	%edi
 	popl	%es
-	popw	%fs
+	popl	%fs
 .endm
 
 /*
