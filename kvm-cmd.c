@@ -24,6 +24,7 @@ struct cmd_struct kvm_commands[] = {
 	{ "balloon",	kvm_cmd_balloon,	NULL,         0 },
 	{ "list",	kvm_cmd_list,		NULL,         0 },
 	{ "version",	kvm_cmd_version,	NULL,         0 },
+	{ "--version",	kvm_cmd_version,	NULL,         0 },
 	{ "stop",	kvm_cmd_stop,		NULL,         0 },
 	{ "help",	kvm_cmd_help,		NULL,         0 },
 	{ "run",	kvm_cmd_run,		kvm_run_help, 0 },
