@@ -14,6 +14,5 @@ struct kvm;
 struct biosregs;
 
 struct framebuffer *vesa__init(struct kvm *self);
-void int10_handler(struct biosregs *args);
 
 #endif

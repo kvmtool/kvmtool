@@ -58,6 +58,8 @@
 
 #ifndef __ASSEMBLER__
 
+#include <linux/types.h>
+
 struct biosregs {
 	u32			eax;
 	u32			ebx;
@@ -72,6 +74,9 @@ struct biosregs {
 	u32			eip;
 	u32			eflags;
 };
+
+void int10_handler(struct biosregs *regs);
+void int15_handler(struct biosregs *regs);
 
 #endif
 

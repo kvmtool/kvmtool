@@ -73,16 +73,13 @@ ENTRY(bios_int10)
 ENTRY_END(bios_int10)
 
 ENTRY(bios_int15)
-	cmp $0xE820, %eax
-	jne 1f
-
 	SAVE_BIOSREGS
 
-	movl	%esp, %eax	# it's bioscall case
-	call	e820_query_map
+	movl	%esp, %eax
+	call	int15_handler
 
 	RESTORE_BIOSREGS
-1:
+
 	IRET
 ENTRY_END(bios_int15)
 
