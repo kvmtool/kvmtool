@@ -17,6 +17,11 @@ static const struct option debug_options[] = {
 	OPT_END()
 };
 
+void kvm_debug_help(void)
+{
+	usage_with_options(debug_usage, debug_options);
+}
+
 static int do_debug(const char *name, int pid)
 {
 	return kill(pid, SIGQUIT);
@@ -27,7 +32,7 @@ int kvm_cmd_debug(int argc, const char **argv, const char *prefix)
 	int pid;
 
 	if (argc != 1)
-		usage_with_options(debug_usage, debug_options);
+		kvm_debug_help();
 
 	if (strcmp(argv[0], "all") == 0) {
 		return kvm__enumerate_instances(do_debug);

@@ -17,6 +17,11 @@ static const struct option pause_options[] = {
 	OPT_END()
 };
 
+void kvm_pause_help(void)
+{
+	usage_with_options(pause_usage, pause_options);
+}
+
 static int do_pause(const char *name, int pid)
 {
 	return kill(pid, SIGUSR2);
@@ -27,7 +32,7 @@ int kvm_cmd_pause(int argc, const char **argv, const char *prefix)
 	int pid;
 
 	if (argc != 1)
-		usage_with_options(pause_usage, pause_options);
+		kvm_pause_help();
 
 	if (strcmp(argv[0], "all") == 0) {
 		return kvm__enumerate_instances(do_pause);

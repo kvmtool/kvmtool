@@ -2,6 +2,7 @@
 #include <kvm/kvm-cmd.h>
 #include <kvm/builtin-list.h>
 #include <kvm/kvm.h>
+#include <kvm/parse-options.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -9,6 +10,20 @@
 #include <fcntl.h>
 
 #define PROCESS_NAME "kvm"
+
+static const char * const list_usage[] = {
+	"kvm list",
+	NULL
+};
+
+static const struct option list_options[] = {
+	OPT_END()
+};
+
+void kvm_list_help(void)
+{
+	usage_with_options(list_usage, list_options);
+}
 
 static int print_guest(const char *name, int pid)
 {

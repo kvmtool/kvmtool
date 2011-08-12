@@ -17,6 +17,11 @@ static const struct option balloon_options[] = {
 	OPT_END()
 };
 
+void kvm_balloon_help(void)
+{
+	usage_with_options(balloon_usage, balloon_options);
+}
+
 int kvm_cmd_balloon(int argc, const char **argv, const char *prefix)
 {
 	int pid;
@@ -24,7 +29,7 @@ int kvm_cmd_balloon(int argc, const char **argv, const char *prefix)
 	int inflate = 0;
 
 	if (argc != 3)
-		usage_with_options(balloon_usage, balloon_options);
+		kvm_balloon_help();
 
 	pid = kvm__get_pid_by_instance(argv[2]);
 	if (pid < 0)

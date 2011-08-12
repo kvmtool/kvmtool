@@ -17,6 +17,11 @@ static const struct option resume_options[] = {
 	OPT_END()
 };
 
+void kvm_resume_help(void)
+{
+	usage_with_options(resume_usage, resume_options);
+}
+
 static int do_resume(const char *name, int pid)
 {
 	return kill(pid, SIGKVMRESUME);
@@ -27,7 +32,7 @@ int kvm_cmd_resume(int argc, const char **argv, const char *prefix)
 	int pid;
 
 	if (argc != 1)
-		usage_with_options(resume_usage, resume_options);
+		kvm_resume_help();
 
 	if (strcmp(argv[0], "all") == 0) {
 		return kvm__enumerate_instances(do_resume);

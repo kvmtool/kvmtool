@@ -18,17 +18,17 @@
 #include "kvm/util.h"
 
 struct cmd_struct kvm_commands[] = {
-	{ "pause",	kvm_cmd_pause,		NULL,         0 },
-	{ "resume",	kvm_cmd_resume,		NULL,         0 },
-	{ "debug",	kvm_cmd_debug,		NULL,         0 },
-	{ "balloon",	kvm_cmd_balloon,	NULL,         0 },
-	{ "list",	kvm_cmd_list,		NULL,         0 },
-	{ "version",	kvm_cmd_version,	NULL,         0 },
-	{ "--version",	kvm_cmd_version,	NULL,         0 },
-	{ "stop",	kvm_cmd_stop,		NULL,         0 },
-	{ "help",	kvm_cmd_help,		NULL,         0 },
-	{ "run",	kvm_cmd_run,		kvm_run_help, 0 },
-	{ NULL,		NULL,			NULL,         0 },
+	{ "pause",	kvm_cmd_pause,		kvm_pause_help,		0 },
+	{ "resume",	kvm_cmd_resume,		kvm_resume_help,	0 },
+	{ "debug",	kvm_cmd_debug,		kvm_debug_help,		0 },
+	{ "balloon",	kvm_cmd_balloon,	kvm_balloon_help,	0 },
+	{ "list",	kvm_cmd_list,		kvm_list_help,		0 },
+	{ "version",	kvm_cmd_version,	NULL,			0 },
+	{ "--version",	kvm_cmd_version,	NULL,			0 },
+	{ "stop",	kvm_cmd_stop,		kvm_stop_help,		0 },
+	{ "help",	kvm_cmd_help,		NULL,			0 },
+	{ "run",	kvm_cmd_run,		kvm_run_help,		0 },
+	{ NULL,		NULL,			NULL,			0 },
 };
 
 /*

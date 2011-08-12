@@ -17,6 +17,11 @@ static const struct option stop_options[] = {
 	OPT_END()
 };
 
+void kvm_stop_help(void)
+{
+	usage_with_options(stop_usage, stop_options);
+}
+
 static int do_stop(const char *name, int pid)
 {
 	return kill(pid, SIGKVMSTOP);
@@ -27,7 +32,7 @@ int kvm_cmd_stop(int argc, const char **argv, const char *prefix)
 	int pid;
 
 	if (argc != 1)
-		usage_with_options(stop_usage, stop_options);
+		kvm_stop_help();
 
 	if (strcmp(argv[0], "all") == 0) {
 		return kvm__enumerate_instances(do_stop);
