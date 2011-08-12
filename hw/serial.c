@@ -31,6 +31,12 @@ struct serial8250_device {
 	u8			scr;
 };
 
+#define SERIAL_REGS_SETTING \
+	.iir			= UART_IIR_NO_INT, \
+	.lsr			= UART_LSR_TEMT | UART_LSR_THRE, \
+	.msr			= UART_MSR_DCD | UART_MSR_DSR | UART_MSR_CTS, \
+	.mcr			= UART_MCR_OUT2,
+
 static struct serial8250_device devices[] = {
 	/* ttyS0 */
 	[0]	= {
@@ -39,10 +45,7 @@ static struct serial8250_device devices[] = {
 		.iobase			= 0x3f8,
 		.irq			= 4,
 
-		.iir			= UART_IIR_NO_INT,
-		.lsr			= UART_LSR_TEMT | UART_LSR_THRE,
-		.msr			= UART_MSR_DCD | UART_MSR_DSR | UART_MSR_CTS,
-		.mcr			= UART_MCR_OUT2,
+		SERIAL_REGS_SETTING
 	},
 	/* ttyS1 */
 	[1]	= {
@@ -51,7 +54,7 @@ static struct serial8250_device devices[] = {
 		.iobase			= 0x2f8,
 		.irq			= 3,
 
-		.iir			= UART_IIR_NO_INT,
+		SERIAL_REGS_SETTING
 	},
 	/* ttyS2 */
 	[2]	= {
@@ -60,7 +63,7 @@ static struct serial8250_device devices[] = {
 		.iobase			= 0x3e8,
 		.irq			= 4,
 
-		.iir			= UART_IIR_NO_INT,
+		SERIAL_REGS_SETTING
 	},
 	/* ttyS3 */
 	[3]	= {
@@ -69,7 +72,7 @@ static struct serial8250_device devices[] = {
 		.iobase			= 0x2e8,
 		.irq			= 3,
 
-		.iir			= UART_IIR_NO_INT,
+		SERIAL_REGS_SETTING
 	},
 };
 
