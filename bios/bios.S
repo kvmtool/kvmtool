@@ -76,24 +76,12 @@ ENTRY(bios_int15)
 	cmp $0xE820, %eax
 	jne 1f
 
-	pushw	%fs
-
-	pushl	%edx
-	pushl	%ecx
-	pushl	%edi
-	pushl	%ebx
-	pushl	%eax
+	SAVE_BIOSREGS
 
 	movl	%esp, %eax	# it's bioscall case
 	call	e820_query_map
 
-	popl	%eax
-	popl	%ebx
-	popl	%edi
-	popl	%ecx
-	popl	%edx
-
-	popw	%fs
+	RESTORE_BIOSREGS
 
 	/* Clear CF to indicate success.  */
 	andl	$~EFLAGS_CF, 0x4(%esp)

@@ -29,7 +29,7 @@ static inline u32 rdfs32(unsigned long addr)
 	return v;
 }
 
-bioscall void e820_query_map(struct e820_query *query)
+bioscall void e820_query_map(struct biosregs *regs)
 {
 	struct e820map *e820;
 	u32 map_size;
@@ -40,7 +40,7 @@ bioscall void e820_query_map(struct e820_query *query)
 	fs_seg		= flat_to_seg16(E820_MAP_START);
 	set_fs(fs_seg);
 
-	ndx		= query->ebx;
+	ndx		= regs->ebx;
 
 	map_size	= rdfs32(flat_to_off16((u32)&e820->nr_map, fs_seg));
 
@@ -54,16 +54,16 @@ bioscall void e820_query_map(struct e820_query *query)
 
 		start	= (u32)&e820->map[ndx];
 
-		p	= (void *) query->edi;
+		p	= (void *) regs->edi;
 
 		for (i = 0; i < sizeof(struct e820entry); i++)
 			*p++	= rdfs8(flat_to_off16(start + i, fs_seg));
 	}
 
-	query->eax	= SMAP;
-	query->ecx	= sizeof(struct e820entry);
-	query->ebx	= ++ndx;
+	regs->eax	= SMAP;
+	regs->ecx	= sizeof(struct e820entry);
+	regs->ebx	= ++ndx;
 
 	if (ndx >= map_size)
-		query->ebx	= 0;	/* end of map */
+		regs->ebx	= 0;	/* end of map */
 }
