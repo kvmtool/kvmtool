@@ -11,9 +11,9 @@
 #define VESA_BPP	32
 
 struct kvm;
-struct int10_args;
+struct biosregs;
 
 struct framebuffer *vesa__init(struct kvm *self);
-void int10_handler(struct int10_args *args);
+void int10_handler(struct biosregs *args);
 
 #endif

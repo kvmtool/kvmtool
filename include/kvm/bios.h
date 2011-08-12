@@ -56,4 +56,20 @@
  */
 #define bioscall __attribute__((regparm(3)))
 
+#ifndef __ASSEMBLER__
+
+struct biosregs {
+	u32			eax;
+	u32			ebx;
+	u32			ecx;
+	u32			edx;
+	u32			esp;
+	u32			ebp;
+	u32			esi;
+	u32			edi;
+	u32			es;
+};
+
+#endif
+
 #endif /* BIOS_H_ */

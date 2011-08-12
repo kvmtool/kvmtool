@@ -6,18 +6,6 @@
 
 #define VESA_MAGIC ('V' + ('E' << 8) + ('S' << 16) + ('A' << 24))
 
-struct int10_args {
-	u32	eax;
-	u32	ebx;
-	u32	ecx;
-	u32	edx;
-	u32	esp;
-	u32	ebp;
-	u32	esi;
-	u32	edi;
-	u32	es;
-};
-
 /* VESA General Information table */
 struct vesa_general_info {
 	u32	signature;		/* 0 Magic number = "VESA" */
@@ -79,14 +67,14 @@ static inline void outb(unsigned short port, unsigned char val)
  * It's probably much more useful to make this print to the serial
  * line rather than print to a non-displayed VGA memory
  */
-static inline void int10_putchar(struct int10_args *args)
+static inline void int10_putchar(struct biosregs *args)
 {
 	u8 al = args->eax & 0xFF;
 
 	outb(0x3f8, al);
 }
 
-static void vbe_get_mode(struct int10_args *args)
+static void vbe_get_mode(struct biosregs *args)
 {
 	struct vminfo *info = (struct vminfo *) args->edi;
 
@@ -109,7 +97,7 @@ static void vbe_get_mode(struct int10_args *args)
 	};
 }
 
-static void vbe_get_info(struct int10_args *args)
+static void vbe_get_info(struct biosregs *args)
 {
 	struct vesa_general_info *info = (struct vesa_general_info *) args->edi;
 
@@ -127,7 +115,7 @@ static void vbe_get_info(struct int10_args *args)
 
 #define VBE_STATUS_OK		0x004F
 
-static void int10_vesa(struct int10_args *args)
+static void int10_vesa(struct biosregs *args)
 {
 	u8 al;
 
@@ -145,7 +133,7 @@ static void int10_vesa(struct int10_args *args)
 	args->eax = VBE_STATUS_OK;
 }
 
-bioscall void int10_handler(struct int10_args *args)
+bioscall void int10_handler(struct biosregs *args)
 {
 	u8 ah;
 
