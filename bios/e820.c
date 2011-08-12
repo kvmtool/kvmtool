@@ -4,6 +4,7 @@
 #include "kvm/bios.h"
 #include "kvm/util.h"
 
+#include <asm/processor-flags.h>
 #include <asm/e820.h>
 
 static inline void set_fs(u16 seg)
@@ -63,6 +64,9 @@ bioscall void e820_query_map(struct biosregs *regs)
 	regs->eax	= SMAP;
 	regs->ecx	= sizeof(struct e820entry);
 	regs->ebx	= ++ndx;
+
+	/* Clear CF to indicate success.  */
+	regs->eflags	&= ~X86_EFLAGS_CF;
 
 	if (ndx >= map_size)
 		regs->ebx	= 0;	/* end of map */

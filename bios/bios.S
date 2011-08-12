@@ -82,9 +82,6 @@ ENTRY(bios_int15)
 	call	e820_query_map
 
 	RESTORE_BIOSREGS
-
-	/* Clear CF to indicate success.  */
-	andl	$~EFLAGS_CF, 0x4(%esp)
 1:
 	IRET
 ENTRY_END(bios_int15)
