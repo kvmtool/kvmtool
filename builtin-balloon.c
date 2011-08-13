@@ -14,11 +14,6 @@ static u64 inflate;
 static u64 deflate;
 
 static const char * const balloon_usage[] = {
-	"kvm balloon {inflate|deflate} <size in MiB> <instance name>",
-	NULL
-};
-
-static const char * const debug_usage[] = {
 	"kvm balloon [-n name] [-p pid] [-i amount] [-d amount]",
 	NULL
 };
@@ -62,7 +57,7 @@ int kvm_cmd_balloon(int argc, const char **argv, const char *prefix)
 		kvm_balloon_help();
 
 	if (instance_name)
-		instance_pid = kvm__get_pid_by_instance(argv[0]);
+		instance_pid = kvm__get_pid_by_instance(instance_name);
 
 	if (instance_pid <= 0)
 		die("Failed locating instance");

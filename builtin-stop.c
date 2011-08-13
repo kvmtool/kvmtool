@@ -57,7 +57,7 @@ int kvm_cmd_stop(int argc, const char **argv, const char *prefix)
 		kvm_stop_help();
 
 	if (instance_name)
-		instance_pid = kvm__get_pid_by_instance(argv[0]);
+		instance_pid = kvm__get_pid_by_instance(instance_name);
 
 	if (instance_pid <= 0)
 		die("Failed locating instance");
