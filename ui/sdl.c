@@ -95,6 +95,8 @@ static void *sdl__thread(void *p)
 
 	flags = SDL_HWSURFACE | SDL_ASYNCBLIT | SDL_HWACCEL | SDL_DOUBLEBUF;
 
+	SDL_WM_SetCaption("KVM tool", "KVM tool");
+
 	screen = SDL_SetVideoMode(fb->width, fb->height, fb->depth, flags);
 	if (!screen)
 		die("Unable to set SDL video mode");
