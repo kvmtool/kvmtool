@@ -21,10 +21,11 @@
 #include <sys/stat.h>
 #include <pthread.h>
 
-#define NUM_VIRT_QUEUES		2
+#define NUM_VIRT_QUEUES		3
 #define VIRTIO_BLN_QUEUE_SIZE	128
 #define VIRTIO_BLN_INFLATE	0
 #define VIRTIO_BLN_DEFLATE	1
+#define VIRTIO_BLN_STATS	2
 
 struct bln_dev {
 	struct pci_device_header pci_hdr;
@@ -40,6 +41,12 @@ struct bln_dev {
 	u16			queue_selector;
 	struct virt_queue	vqs[NUM_VIRT_QUEUES];
 	struct thread_pool__job	jobs[NUM_VIRT_QUEUES];
+
+	struct virtio_balloon_stat stats[VIRTIO_BALLOON_S_NR];
+	struct virtio_balloon_stat *cur_stat;
+	u32			cur_stat_head;
+	u16			stat_count;
+	int			stat_waitfd;
 
 	struct virtio_balloon_config config;
 };
@@ -127,7 +134,7 @@ static bool virtio_bln_do_io_request(struct kvm *kvm, struct bln_dev *bdev, stru
 		if (queue == &bdev->vqs[VIRTIO_BLN_INFLATE]) {
 			madvise(guest_ptr, 1 << VIRTIO_BALLOON_PFN_SHIFT, MADV_DONTNEED);
 			bdev->config.actual++;
-		} else {
+		} else if (queue == &bdev->vqs[VIRTIO_BLN_DEFLATE]) {
 			bdev->config.actual--;
 		}
 	}
@@ -137,9 +144,45 @@ static bool virtio_bln_do_io_request(struct kvm *kvm, struct bln_dev *bdev, stru
 	return true;
 }
 
+static bool virtio_bln_do_stat_request(struct kvm *kvm, struct bln_dev *bdev, struct virt_queue *queue)
+{
+	struct iovec iov[VIRTIO_BLN_QUEUE_SIZE];
+	u16 out, in, head;
+	struct virtio_balloon_stat *stat;
+	u64 wait_val = 1;
+
+	head = virt_queue__get_iov(queue, iov, &out, &in, kvm);
+	stat = iov[0].iov_base;
+
+	/* Initial empty stat buffer */
+	if (bdev->cur_stat == NULL) {
+		bdev->cur_stat = stat;
+		bdev->cur_stat_head = head;
+
+		return true;
+	}
+
+	memcpy(bdev->stats, stat, iov[0].iov_len);
+
+	bdev->stat_count = iov[0].iov_len / sizeof(struct virtio_balloon_stat);
+	bdev->cur_stat = stat;
+	bdev->cur_stat_head = head;
+
+	if (write(bdev->stat_waitfd, &wait_val, sizeof(wait_val)) <= 0)
+		return -EFAULT;
+
+	return 1;
+}
+
 static void virtio_bln_do_io(struct kvm *kvm, void *param)
 {
 	struct virt_queue *vq = param;
+
+	if (vq == &bdev.vqs[VIRTIO_BLN_STATS]) {
+		virtio_bln_do_stat_request(kvm, &bdev, vq);
+		virt_queue__trigger_irq(vq, bdev.pci_hdr.irq_line, &bdev.isr, kvm);
+		return;
+	}
 
 	while (virt_queue__available(vq)) {
 		virtio_bln_do_io_request(kvm, &bdev, vq);
@@ -218,15 +261,70 @@ static struct ioport_operations virtio_bln_io_ops = {
 	.io_out				= virtio_bln_pci_io_out,
 };
 
+static int virtio_bln__collect_stats(void)
+{
+	u64 tmp;
+
+	virt_queue__set_used_elem(&bdev.vqs[VIRTIO_BLN_STATS], bdev.cur_stat_head,
+				  sizeof(struct virtio_balloon_stat));
+	virt_queue__trigger_irq(&bdev.vqs[VIRTIO_BLN_STATS], bdev.pci_hdr.irq_line,
+				&bdev.isr, kvm);
+
+	if (read(bdev.stat_waitfd, &tmp, sizeof(tmp)) <= 0)
+		return -EFAULT;
+
+	return 0;
+}
+
+static int virtio_bln__print_stats(void)
+{
+	u16 i;
+
+	if (virtio_bln__collect_stats() < 0)
+		return -EFAULT;
+
+	printf("\n\n\t*** Guest memory statistics ***\n\n");
+	for (i = 0; i < bdev.stat_count; i++) {
+		switch (bdev.stats[i].tag) {
+		case VIRTIO_BALLOON_S_SWAP_IN:
+			printf("The amount of memory that has been swapped in (in bytes):");
+			break;
+		case VIRTIO_BALLOON_S_SWAP_OUT:
+			printf("The amount of memory that has been swapped out to disk (in bytes):");
+			break;
+		case VIRTIO_BALLOON_S_MAJFLT:
+			printf("The number of major page faults that have occurred:");
+			break;
+		case VIRTIO_BALLOON_S_MINFLT:
+			printf("The number of minor page faults that have occurred:");
+			break;
+		case VIRTIO_BALLOON_S_MEMFREE:
+			printf("The amount of memory not being used for any purpose (in bytes):");
+			break;
+		case VIRTIO_BALLOON_S_MEMTOT:
+			printf("The total amount of memory available (in bytes):");
+			break;
+		}
+		printf("%llu\n", bdev.stats[i].val);
+	}
+	printf("\n");
+
+	return 0;
+}
+
 static void handle_sigmem(int sig)
 {
 	if (sig == SIGKVMADDMEM) {
 		bdev.config.num_pages += 256;
-	} else {
+	} else if (sig == SIGKVMDELMEM) {
 		if (bdev.config.num_pages < 256)
 			return;
 
 		bdev.config.num_pages -= 256;
+	} else if (sig == SIGKVMMEMSTAT) {
+		virtio_bln__print_stats();
+
+		return;
 	}
 
 	/* Notify that the configuration space has changed */
@@ -241,6 +339,7 @@ void virtio_bln__init(struct kvm *kvm)
 
 	signal(SIGKVMADDMEM, handle_sigmem);
 	signal(SIGKVMDELMEM, handle_sigmem);
+	signal(SIGKVMMEMSTAT, handle_sigmem);
 
 	bdev_base_addr = ioport__register(IOPORT_EMPTY, &virtio_bln_io_ops, IOPORT_SIZE, &bdev);
 
@@ -262,7 +361,8 @@ void virtio_bln__init(struct kvm *kvm)
 
 	bdev.pci_hdr.irq_pin	= pin;
 	bdev.pci_hdr.irq_line	= line;
-	bdev.host_features	= 0;
+	bdev.host_features	= 1 << VIRTIO_BALLOON_F_STATS_VQ;
+	bdev.stat_waitfd	= eventfd(0, 0);
 	memset(&bdev.config, 0, sizeof(struct virtio_balloon_config));
 
 	pci__register(&bdev.pci_hdr, dev);

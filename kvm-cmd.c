@@ -12,6 +12,7 @@
 #include "kvm/builtin-list.h"
 #include "kvm/builtin-version.h"
 #include "kvm/builtin-stop.h"
+#include "kvm/builtin-stat.h"
 #include "kvm/builtin-help.h"
 #include "kvm/kvm-cmd.h"
 #include "kvm/builtin-run.h"
@@ -26,6 +27,7 @@ struct cmd_struct kvm_commands[] = {
 	{ "version",	kvm_cmd_version,	NULL,			0 },
 	{ "--version",	kvm_cmd_version,	NULL,			0 },
 	{ "stop",	kvm_cmd_stop,		kvm_stop_help,		0 },
+	{ "stat",	kvm_cmd_stat,		kvm_stat_help,		0 },
 	{ "help",	kvm_cmd_help,		NULL,			0 },
 	{ "run",	kvm_cmd_run,		kvm_run_help,		0 },
 	{ NULL,		NULL,			NULL,			0 },

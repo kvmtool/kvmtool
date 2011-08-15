@@ -1,0 +1,19 @@
+kvm-stat(1)
+================
+
+NAME
+----
+kvm-stat - Print statistics about a running instance
+
+SYNOPSIS
+--------
+[verse]
+'kvm [command] [-n instance] [-p instance pid] [--all]'
+
+DESCRIPTION
+-----------
+The command prints statistics about a running instance.
+For a list of running instances see 'kvm list'.
+
+Commands:
+ --memory, -m	Display memory statistics

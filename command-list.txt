@@ -10,3 +10,4 @@ kvm-list			common
 kvm-debug			common
 kvm-balloon			common
 kvm-stop			common
+kvm-stat			common

@@ -24,6 +24,7 @@ OBJS	+= builtin-balloon.o
 OBJS	+= builtin-debug.o
 OBJS	+= builtin-help.o
 OBJS	+= builtin-list.o
+OBJS	+= builtin-stat.o
 OBJS	+= builtin-pause.o
 OBJS	+= builtin-resume.o
 OBJS	+= builtin-run.o
