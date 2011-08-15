@@ -8,7 +8,7 @@
 #include <kvm/parse-options.h>
 #include <kvm/kvm.h>
 
-static u64 instance_pid;
+static pid_t instance_pid;
 static const char *instance_name;
 static u64 inflate;
 static u64 deflate;
@@ -21,7 +21,7 @@ static const char * const balloon_usage[] = {
 static const struct option balloon_options[] = {
 	OPT_GROUP("Instance options:"),
 	OPT_STRING('n', "name", &instance_name, "name", "Instance name"),
-	OPT_U64('p', "pid", &instance_pid, "Instance pid"),
+	OPT_INTEGER('p', "pid", &instance_pid, "Instance pid"),
 	OPT_GROUP("Balloon options:"),
 	OPT_U64('i', "inflate", &inflate, "Amount to inflate"),
 	OPT_U64('d', "deflate", &deflate, "Amount to deflate"),

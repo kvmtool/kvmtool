@@ -9,7 +9,7 @@
 #include <signal.h>
 
 static bool all;
-static u64 instance_pid;
+static pid_t instance_pid;
 static const char *instance_name;
 
 static const char * const resume_usage[] = {
@@ -21,7 +21,7 @@ static const struct option resume_options[] = {
 	OPT_GROUP("General options:"),
 	OPT_BOOLEAN('a', "all", &all, "Resume all instances"),
 	OPT_STRING('n', "name", &instance_name, "name", "Instance name"),
-	OPT_U64('p', "pid", &instance_pid, "Instance pid"),
+	OPT_INTEGER('p', "pid", &instance_pid, "Instance pid"),
 	OPT_END()
 };
 

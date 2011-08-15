@@ -142,9 +142,10 @@ void kvm__remove_pidfile(const char *name)
 	unlink(full_name);
 }
 
-int kvm__get_pid_by_instance(const char *name)
+pid_t kvm__get_pid_by_instance(const char *name)
 {
-	int fd, pid;
+	int fd;
+	pid_t pid;
 	char pid_str[10], pid_file[PATH_MAX];
 
 	sprintf(pid_file, "%s/%s/%s.pid", HOME_DIR, KVM_PID_FILE_PATH, name);

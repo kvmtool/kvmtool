@@ -10,7 +10,7 @@
 
 static bool mem;
 static bool all;
-static u64 instance_pid;
+static pid_t instance_pid;
 static const char *instance_name;
 
 static const char * const stat_usage[] = {
@@ -24,7 +24,7 @@ static const struct option stat_options[] = {
 	OPT_GROUP("Instance options:"),
 	OPT_BOOLEAN('a', "all", &all, "All instances"),
 	OPT_STRING('n', "name", &instance_name, "name", "Instance name"),
-	OPT_U64('p', "pid", &instance_pid, "Instance pid"),
+	OPT_INTEGER('p', "pid", &instance_pid, "Instance pid"),
 	OPT_END()
 };
 
