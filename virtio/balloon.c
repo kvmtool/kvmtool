@@ -356,7 +356,7 @@ void virtio_bln__init(struct kvm *kvm)
 
 	bdev.base_addr = bdev_base_addr;
 
-	if (irq__register_device(VIRTIO_ID_RNG, &dev, &pin, &line) < 0)
+	if (irq__register_device(VIRTIO_ID_BALLOON, &dev, &pin, &line) < 0)
 		return;
 
 	bdev.pci_hdr.irq_pin	= pin;
