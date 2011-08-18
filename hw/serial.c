@@ -167,7 +167,7 @@ static struct serial8250_device *find_device(u16 port)
 	return NULL;
 }
 
-static bool serial8250_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
+static bool serial8250_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
 {
 	struct serial8250_device *dev;
 	u16 offset;
@@ -217,7 +217,7 @@ static bool serial8250_out(struct ioport *ioport, struct kvm *kvm, u16 port, voi
 			char *addr = data;
 
 			if (!(dev->mcr & UART_MCR_LOOP))
-				term_putc(CONSOLE_8250, addr, size * count);
+				term_putc(CONSOLE_8250, addr, size);
 
 			dev->iir		= UART_IIR_NO_INT;
 			break;
@@ -255,7 +255,7 @@ out_unlock:
 	return ret;
 }
 
-static bool serial8250_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
+static bool serial8250_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
 {
 	struct serial8250_device *dev;
 	u16 offset;

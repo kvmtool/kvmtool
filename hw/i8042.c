@@ -294,7 +294,7 @@ static void kbd_reset(void)
 /*
  * Called when the OS has written to one of the keyboard's ports (0x60 or 0x64)
  */
-static bool kbd_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
+static bool kbd_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
 {
 	switch (port) {
 	case I8042_COMMAND_REG: {
@@ -314,7 +314,7 @@ static bool kbd_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data,
 	return true;
 }
 
-static bool kbd_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
+static bool kbd_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
 {
 	switch (port) {
 	case I8042_COMMAND_REG: {

@@ -29,11 +29,11 @@ static const char *rel_to_abs(struct p9_dev *p9dev,
 
 static bool virtio_p9_dev_in(struct p9_dev *p9dev, void *data,
 			     unsigned long offset,
-			     int size, u32 count)
+			     int size)
 {
 	u8 *config_space = (u8 *) p9dev->config;
 
-	if (size != 1 || count != 1)
+	if (size != 1)
 		return false;
 
 	ioport__write8(data, config_space[offset - VIRTIO_MSI_CONFIG_VECTOR]);
@@ -42,7 +42,7 @@ static bool virtio_p9_dev_in(struct p9_dev *p9dev, void *data,
 }
 
 static bool virtio_p9_pci_io_in(struct ioport *ioport, struct kvm *kvm,
-				u16 port, void *data, int size, u32 count)
+				u16 port, void *data, int size)
 {
 	bool ret = true;
 	unsigned long offset;
@@ -76,7 +76,7 @@ static bool virtio_p9_pci_io_in(struct ioport *ioport, struct kvm *kvm,
 		p9dev->isr = VIRTIO_IRQ_LOW;
 		break;
 	default:
-		ret = virtio_p9_dev_in(p9dev, data, offset, size, count);
+		ret = virtio_p9_dev_in(p9dev, data, offset, size);
 		break;
 	};
 
@@ -762,7 +762,7 @@ static void ioevent_callback(struct kvm *kvm, void *param)
 }
 
 static bool virtio_p9_pci_io_out(struct ioport *ioport, struct kvm *kvm,
-				 u16 port, void *data, int size, u32 count)
+				 u16 port, void *data, int size)
 {
 	unsigned long offset;
 	bool ret = true;

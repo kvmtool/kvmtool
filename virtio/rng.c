@@ -50,7 +50,7 @@ struct rng_dev {
 
 static LIST_HEAD(rdevs);
 
-static bool virtio_rng_pci_io_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
+static bool virtio_rng_pci_io_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
 {
 	unsigned long offset;
 	bool ret = true;
@@ -120,7 +120,7 @@ static void virtio_rng_do_io(struct kvm *kvm, void *param)
 	kvm__irq_line(kvm, rdev->pci_hdr.irq_line, VIRTIO_IRQ_HIGH);
 }
 
-static bool virtio_rng_pci_io_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
+static bool virtio_rng_pci_io_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
 {
 	unsigned long offset;
 	bool ret = true;

@@ -54,11 +54,11 @@ struct bln_dev {
 static struct bln_dev bdev;
 extern struct kvm *kvm;
 
-static bool virtio_bln_dev_in(void *data, unsigned long offset, int size, u32 count)
+static bool virtio_bln_dev_in(void *data, unsigned long offset, int size)
 {
 	u8 *config_space = (u8 *) &bdev.config;
 
-	if (size != 1 || count != 1)
+	if (size != 1)
 		return false;
 
 	ioport__write8(data, config_space[offset - VIRTIO_MSI_CONFIG_VECTOR]);
@@ -66,11 +66,11 @@ static bool virtio_bln_dev_in(void *data, unsigned long offset, int size, u32 co
 	return true;
 }
 
-static bool virtio_bln_dev_out(void *data, unsigned long offset, int size, u32 count)
+static bool virtio_bln_dev_out(void *data, unsigned long offset, int size)
 {
 	u8 *config_space = (u8 *) &bdev.config;
 
-	if (size != 1 || count != 1)
+	if (size != 1)
 		return false;
 
 	config_space[offset - VIRTIO_MSI_CONFIG_VECTOR] = *(u8 *)data;
@@ -78,7 +78,7 @@ static bool virtio_bln_dev_out(void *data, unsigned long offset, int size, u32 c
 	return true;
 }
 
-static bool virtio_bln_pci_io_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
+static bool virtio_bln_pci_io_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
 {
 	unsigned long offset;
 	bool ret = true;
@@ -109,7 +109,7 @@ static bool virtio_bln_pci_io_in(struct ioport *ioport, struct kvm *kvm, u16 por
 		bdev.isr = VIRTIO_IRQ_LOW;
 		break;
 	default:
-		ret = virtio_bln_dev_in(data, offset, size, count);
+		ret = virtio_bln_dev_in(data, offset, size);
 		break;
 	};
 
@@ -195,7 +195,7 @@ static void ioevent_callback(struct kvm *kvm, void *param)
 	thread_pool__do_job(param);
 }
 
-static bool virtio_bln_pci_io_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
+static bool virtio_bln_pci_io_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
 {
 	unsigned long offset;
 	bool ret = true;
@@ -249,7 +249,7 @@ static bool virtio_bln_pci_io_out(struct ioport *ioport, struct kvm *kvm, u16 po
 		bdev.config_vector	= VIRTIO_MSI_NO_VECTOR;
 		break;
 	default:
-		ret = virtio_bln_dev_out(data, offset, size, count);
+		ret = virtio_bln_dev_out(data, offset, size);
 		break;
 	};
 

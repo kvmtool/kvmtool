@@ -60,11 +60,11 @@ struct blk_dev {
 
 static LIST_HEAD(bdevs);
 
-static bool virtio_blk_dev_in(struct blk_dev *bdev, void *data, unsigned long offset, int size, u32 count)
+static bool virtio_blk_dev_in(struct blk_dev *bdev, void *data, unsigned long offset, int size)
 {
 	u8 *config_space = (u8 *) &bdev->blk_config;
 
-	if (size != 1 || count != 1)
+	if (size != 1)
 		return false;
 
 	ioport__write8(data, config_space[offset - VIRTIO_MSI_CONFIG_VECTOR]);
@@ -72,7 +72,7 @@ static bool virtio_blk_dev_in(struct blk_dev *bdev, void *data, unsigned long of
 	return true;
 }
 
-static bool virtio_blk_pci_io_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
+static bool virtio_blk_pci_io_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
 {
 	struct blk_dev *bdev;
 	u16 offset;
@@ -112,7 +112,7 @@ static bool virtio_blk_pci_io_in(struct ioport *ioport, struct kvm *kvm, u16 por
 		ioport__write16(data, bdev->config_vector);
 		break;
 	default:
-		ret = virtio_blk_dev_in(bdev, data, offset, size, count);
+		ret = virtio_blk_dev_in(bdev, data, offset, size);
 		break;
 	};
 
@@ -189,7 +189,7 @@ static void virtio_blk_do_io(struct kvm *kvm, struct virt_queue *vq, struct blk_
 	}
 }
 
-static bool virtio_blk_pci_io_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
+static bool virtio_blk_pci_io_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
 {
 	struct blk_dev *bdev;
 	u16 offset;

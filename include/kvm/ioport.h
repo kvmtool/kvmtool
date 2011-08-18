@@ -23,8 +23,8 @@ struct ioport {
 };
 
 struct ioport_operations {
-	bool (*io_in)(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count);
-	bool (*io_out)(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count);
+	bool (*io_in)(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size);
+	bool (*io_out)(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size);
 };
 
 void ioport__setup_legacy(void);
