@@ -129,6 +129,7 @@ bool kvm__emulate_io(struct kvm *kvm, u16 port, void *data, int direction, int s
 	struct ioport_operations *ops;
 	bool ret = false;
 	struct ioport *entry;
+	void *ptr = data;
 
 	br_read_lock();
 	entry = ioport_search(&ioport_tree, port);
@@ -137,12 +138,16 @@ bool kvm__emulate_io(struct kvm *kvm, u16 port, void *data, int direction, int s
 
 	ops	= entry->ops;
 
-	if (direction == KVM_EXIT_IO_IN) {
-		if (ops->io_in)
-			ret = ops->io_in(entry, kvm, port, data, size, count);
-	} else {
-		if (ops->io_out)
-			ret = ops->io_out(entry, kvm, port, data, size, count);
+	while (count--) {
+		if (direction == KVM_EXIT_IO_IN) {
+			if (ops->io_in)
+				ret = ops->io_in(entry, kvm, port, ptr, size, count);
+		} else {
+			if (ops->io_out)
+				ret = ops->io_out(entry, kvm, port, ptr, size, count);
+		}
+
+		ptr += size;
 	}
 
 	br_read_unlock();
