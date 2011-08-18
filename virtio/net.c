@@ -10,6 +10,7 @@
 #include "kvm/irq.h"
 #include "kvm/uip.h"
 #include "kvm/ioeventfd.h"
+#include "kvm/guest_compat.h"
 
 #include <linux/virtio_net.h>
 #include <linux/if_tun.h>
@@ -63,6 +64,7 @@ struct net_dev {
 	u32				vq_vector[VIRTIO_NET_NUM_QUEUES];
 	u32				gsis[VIRTIO_NET_NUM_QUEUES];
 	u32				msix_io_block;
+	int				compat_id;
 
 	pthread_t			io_rx_thread;
 	pthread_mutex_t			io_rx_lock;
@@ -264,6 +266,8 @@ static bool virtio_net_pci_io_out(struct ioport *ioport, struct kvm *kvm, u16 po
 		void *p;
 
 		assert(ndev.queue_selector < VIRTIO_NET_NUM_QUEUES);
+
+		compat__remove_message(ndev.compat_id);
 
 		queue			= &ndev.vqs[ndev.queue_selector];
 		queue->pfn		= ioport__read32(data);
@@ -520,4 +524,10 @@ void virtio_net__init(const struct virtio_net_parameters *params)
 
 		ioeventfd__add_event(&ioevent);
 	}
+
+	ndev.compat_id = compat__add_message("virtio-net device was not detected",
+						"While you have requested a virtio-net device, "
+						"the guest kernel didn't seem to detect it.\n"
+						"Please make sure that the kernel was compiled"
+						"with CONFIG_VIRTIO_NET.");
 }
