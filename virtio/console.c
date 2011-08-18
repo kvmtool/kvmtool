@@ -10,6 +10,7 @@
 #include "kvm/pci.h"
 #include "kvm/threadpool.h"
 #include "kvm/irq.h"
+#include "kvm/guest_compat.h"
 
 #include <linux/virtio_console.h>
 #include <linux/virtio_ring.h>
@@ -50,6 +51,7 @@ struct con_dev {
 	u8				isr;
 	u16				queue_selector;
 	u16				base_addr;
+	int				compat_id;
 
 	struct thread_pool__job		jobs[VIRTIO_CONSOLE_NUM_QUEUES];
 };
@@ -196,6 +198,8 @@ static bool virtio_console_pci_io_out(struct ioport *ioport, struct kvm *kvm, u1
 
 		assert(cdev.queue_selector < VIRTIO_CONSOLE_NUM_QUEUES);
 
+		compat__remove_message(cdev.compat_id);
+
 		queue			= &cdev.vqs[cdev.queue_selector];
 		queue->pfn		= ioport__read32(data);
 		p			= guest_pfn_to_host(kvm, queue->pfn);
@@ -254,4 +258,10 @@ void virtio_console__init(struct kvm *kvm)
 	virtio_console_pci_device.bar[0]	= console_base_addr | PCI_BASE_ADDRESS_SPACE_IO;
 	cdev.base_addr				= console_base_addr;
 	pci__register(&virtio_console_pci_device, dev);
+
+	cdev.compat_id = compat__add_message("virtio-console device was not detected",
+						"While you have requested a virtio-console device, "
+						"the guest kernel didn't seem to detect it.\n"
+						"Please make sure that the kernel was compiled"
+						"with CONFIG_VIRTIO_CONSOLE.");
 }
