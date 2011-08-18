@@ -11,6 +11,7 @@
 #include "kvm/threadpool.h"
 #include "kvm/irq.h"
 #include "kvm/ioeventfd.h"
+#include "kvm/guest_compat.h"
 
 #include <linux/virtio_ring.h>
 #include <linux/virtio_balloon.h>
@@ -48,6 +49,7 @@ struct bln_dev {
 	u16			stat_count;
 	int			stat_waitfd;
 
+	int			compat_id;
 	struct virtio_balloon_config config;
 };
 
@@ -211,6 +213,8 @@ static bool virtio_bln_pci_io_out(struct ioport *ioport, struct kvm *kvm, u16 po
 		struct virt_queue *queue;
 		void *p;
 
+		compat__remove_message(bdev.compat_id);
+
 		queue			= &bdev.vqs[bdev.queue_selector];
 		queue->pfn		= ioport__read32(data);
 		p			= guest_pfn_to_host(kvm, queue->pfn);
@@ -366,4 +370,10 @@ void virtio_bln__init(struct kvm *kvm)
 	memset(&bdev.config, 0, sizeof(struct virtio_balloon_config));
 
 	pci__register(&bdev.pci_hdr, dev);
+
+	bdev.compat_id = compat__add_message("virtio-balloon device was not detected",
+						"While you have requested a virtio-balloon device, "
+						"the guest kernel didn't seem to detect it.\n"
+						"Please make sure that the kernel was compiled"
+						"with CONFIG_VIRTIO_BALLOON.");
 }
