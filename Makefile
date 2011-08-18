@@ -33,6 +33,7 @@ OBJS	+= builtin-version.o
 OBJS	+= cpuid.o
 OBJS	+= disk/core.o
 OBJS	+= framebuffer.o
+OBJS	+= guest_compat.o
 OBJS	+= hw/rtc.o
 OBJS	+= hw/serial.o
 OBJS	+= interrupt.o

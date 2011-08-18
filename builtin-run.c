@@ -27,6 +27,7 @@
 #include "kvm/rtc.h"
 #include "kvm/sdl.h"
 #include "kvm/vnc.h"
+#include "kvm/guest_compat.h"
 
 #include <linux/types.h>
 
@@ -728,6 +729,8 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 		if (ret != NULL)
 			exit_code = 1;
 	}
+
+	compat__print_all_messages();
 
 	fb__stop();
 
