@@ -5,6 +5,7 @@
 #include "kvm/ioeventfd.h"
 #include "kvm/irq.h"
 #include "kvm/virtio-9p.h"
+#include "kvm/guest_compat.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -781,6 +782,8 @@ static bool virtio_p9_pci_io_out(struct ioport *ioport, struct kvm *kvm,
 		struct p9_dev_job *job;
 		struct virt_queue *queue;
 
+		compat__remove_message(p9dev->compat_id);
+
 		job			= &p9dev->jobs[p9dev->queue_selector];
 		queue			= &p9dev->vqs[p9dev->queue_selector];
 		queue->pfn		= ioport__read32(data);
@@ -899,6 +902,12 @@ int virtio_9p__init(struct kvm *kvm, const char *root, const char *tag_name)
 		.bar[0]			= p9_base_addr | PCI_BASE_ADDRESS_SPACE_IO,
 	};
 	pci__register(&p9dev->pci_hdr, dev);
+
+	p9dev->compat_id = compat__add_message("virtio-9p device was not detected",
+						"While you have requested a virtio-9p device, "
+						"the guest kernel didn't seem to detect it.\n"
+						"Please make sure that the kernel was compiled"
+						"with CONFIG_NET_9P_VIRTIO.");
 
 	return err;
 

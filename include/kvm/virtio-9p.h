@@ -44,6 +44,7 @@ struct p9_dev {
 	u32			features;
 	struct virtio_9p_config	*config;
 	u16			base_addr;
+	int			compat_id;
 
 	/* virtio queue */
 	u16			queue_selector;
