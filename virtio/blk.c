@@ -11,6 +11,7 @@
 #include "kvm/pci.h"
 #include "kvm/threadpool.h"
 #include "kvm/ioeventfd.h"
+#include "kvm/guest_compat.h"
 
 #include <linux/virtio_ring.h>
 #include <linux/virtio_blk.h>
@@ -48,6 +49,7 @@ struct blk_dev {
 	u16				config_vector;
 	u8				status;
 	u8				isr;
+	int				compat_id;
 
 	/* virtio queue */
 	u16				queue_selector;
@@ -208,6 +210,8 @@ static bool virtio_blk_pci_io_out(struct ioport *ioport, struct kvm *kvm, u16 po
 		struct virt_queue *queue;
 		void *p;
 
+		compat__remove_message(bdev->compat_id);
+
 		queue			= &bdev->vqs[bdev->queue_selector];
 		queue->pfn		= ioport__read32(data);
 		p			= guest_pfn_to_host(kvm, queue->pfn);
@@ -322,6 +326,12 @@ void virtio_blk__init(struct kvm *kvm, struct disk_image *disk)
 
 		ioeventfd__add_event(&ioevent);
 	}
+
+	bdev->compat_id = compat__add_message("virtio-blk device was not detected",
+						"While you have requested a virtio-blk device, "
+						"the guest kernel didn't seem to detect it.\n"
+						"Please make sure that the kernel was compiled"
+						"with CONFIG_VIRTIO_BLK.");
 }
 
 void virtio_blk__init_all(struct kvm *kvm)
