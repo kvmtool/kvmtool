@@ -11,6 +11,7 @@
 #include "kvm/threadpool.h"
 #include "kvm/irq.h"
 #include "kvm/ioeventfd.h"
+#include "kvm/guest_compat.h"
 
 #include <linux/virtio_ring.h>
 #include <linux/virtio_rng.h>
@@ -41,6 +42,7 @@ struct rng_dev {
 	int			fd;
 	u32			vq_vector[NUM_VIRT_QUEUES];
 	u32			msix_io_block;
+	int			compat_id;
 
 	/* virtio queue */
 	u16			queue_selector;
@@ -136,6 +138,8 @@ static bool virtio_rng_pci_io_out(struct ioport *ioport, struct kvm *kvm, u16 po
 		struct virt_queue *queue;
 		struct rng_dev_job *job;
 		void *p;
+
+		compat__remove_message(rdev->compat_id);
 
 		queue			= &rdev->vqs[rdev->queue_selector];
 		queue->pfn		= ioport__read32(data);
@@ -279,6 +283,12 @@ void virtio_rng__init(struct kvm *kvm)
 
 		ioeventfd__add_event(&ioevent);
 	}
+
+	rdev->compat_id = compat__add_message("virtio-rng device was not detected",
+						"While you have requested a virtio-rng device, "
+						"the guest kernel didn't seem to detect it.\n"
+						"Please make sure that the kernel was compiled"
+						"with CONFIG_HW_RANDOM_VIRTIO.");
 }
 
 void virtio_rng__delete_all(struct kvm *kvm)
