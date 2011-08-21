@@ -65,6 +65,7 @@ struct net_dev {
 	u32				gsis[VIRTIO_NET_NUM_QUEUES];
 	u32				msix_io_block;
 	int				compat_id;
+	bool				msix_enabled;
 
 	pthread_t			io_rx_thread;
 	pthread_mutex_t			io_rx_lock;
@@ -176,17 +177,67 @@ static void *virtio_net_tx_thread(void *p)
 
 }
 
-static bool virtio_net_pci_io_device_specific_in(void *data, unsigned long offset, int size)
+static bool virtio_net_pci_io_device_specific_out(struct kvm *kvm, void *data,
+							unsigned long offset, int size)
 {
 	u8 *config_space = (u8 *)&ndev.config;
+	int type;
+	u32 config_offset;
+
+	type = virtio__get_dev_specific_field(offset - 20, ndev.msix_enabled, 0, &config_offset);
+	if (type == VIRTIO_PCI_O_MSIX) {
+		if (offset == VIRTIO_MSI_CONFIG_VECTOR) {
+			ndev.config_vector	= ioport__read16(data);
+		} else {
+			u32 gsi;
+			u32 vec;
+
+			vec = ndev.vq_vector[ndev.queue_selector] = ioport__read16(data);
+
+			gsi = irq__add_msix_route(kvm,
+						  pci_header.msix.table[vec].low,
+						  pci_header.msix.table[vec].high,
+						  pci_header.msix.table[vec].data);
+
+			ndev.gsis[ndev.queue_selector] = gsi;
+		}
+		return true;
+	}
 
 	if (size != 1)
 		return false;
 
-	if ((offset - VIRTIO_MSI_CONFIG_VECTOR) > sizeof(struct virtio_net_config))
-		pr_error("config offset is too big: %li", offset - VIRTIO_MSI_CONFIG_VECTOR);
+	if ((config_offset) > sizeof(struct virtio_net_config))
+		pr_error("config offset is too big: %u", config_offset);
 
-	ioport__write8(data, config_space[offset - VIRTIO_MSI_CONFIG_VECTOR]);
+	config_space[config_offset] = *(u8 *)data;
+
+	return true;
+}
+
+static bool virtio_net_pci_io_device_specific_in(void *data, unsigned long offset, int size)
+{
+	u8 *config_space = (u8 *)&ndev.config;
+	int type;
+	u32 config_offset;
+
+	type = virtio__get_dev_specific_field(offset - 20, ndev.msix_enabled, 0, &config_offset);
+	if (type == VIRTIO_PCI_O_MSIX) {
+		if (offset == VIRTIO_MSI_CONFIG_VECTOR)
+			ioport__write16(data, ndev.config_vector);
+		else
+			ioport__write16(data, ndev.vq_vector[ndev.queue_selector]);
+
+		return true;
+	}
+
+	if (size != 1)
+		return false;
+
+	if ((config_offset) > sizeof(struct virtio_net_config))
+		pr_error("config offset is too big: %u", config_offset);
+
+	ioport__write8(data, config_space[config_offset]);
 
 	return true;
 }
@@ -290,25 +341,8 @@ static bool virtio_net_pci_io_out(struct ioport *ioport, struct kvm *kvm, u16 po
 	case VIRTIO_PCI_STATUS:
 		ndev.status		= ioport__read8(data);
 		break;
-	case VIRTIO_MSI_CONFIG_VECTOR:
-		ndev.config_vector	= ioport__read16(data);
-		break;
-	case VIRTIO_MSI_QUEUE_VECTOR: {
-		u32 gsi;
-		u32 vec;
-
-		vec = ndev.vq_vector[ndev.queue_selector] = ioport__read16(data);
-
-		gsi = irq__add_msix_route(kvm,
-					  pci_header.msix.table[vec].low,
-					  pci_header.msix.table[vec].high,
-					  pci_header.msix.table[vec].data);
-
-		ndev.gsis[ndev.queue_selector] = gsi;
-		break;
-	}
 	default:
-		ret			= false;
+		ret = virtio_net_pci_io_device_specific_out(kvm, data, offset, size);
 	};
 
 	mutex_unlock(&ndev.mutex);
@@ -333,6 +367,8 @@ static void callback_mmio(u64 addr, u8 *data, u32 len, u8 is_write, void *ptr)
 		memcpy(table + addr - ndev.msix_io_block, data, len);
 	else
 		memcpy(data, table + addr - ndev.msix_io_block, len);
+
+	ndev.msix_enabled = 1;
 }
 
 static bool virtio_net__tap_init(const struct virtio_net_parameters *params)
