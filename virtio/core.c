@@ -100,3 +100,24 @@ void virt_queue__trigger_irq(struct virt_queue *vq, int irq, u8 *isr, struct kvm
 		kvm__irq_line(kvm, irq, VIRTIO_IRQ_HIGH);
 	}
 }
+
+int virtio__get_dev_specific_field(int offset, bool msix, bool features_hi, u32 *config_off)
+{
+	if (msix) {
+		if (offset < 4)
+			return VIRTIO_PCI_O_MSIX;
+		else
+			offset -= 4;
+	}
+
+	if (features_hi) {
+		if (offset < 4)
+			return VIRTIO_PCI_O_FEATURES;
+		else
+			offset -= 4;
+	}
+
+	*config_off = offset;
+
+	return VIRTIO_PCI_O_CONFIG;
+}
