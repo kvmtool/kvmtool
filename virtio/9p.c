@@ -294,6 +294,7 @@ static void virtio_p9_walk(struct p9_dev *p9dev,
 	if (nwname) {
 		struct p9_fid *fid = &p9dev->fids[fid_val];
 
+		strcpy(new_fid->path, fid->path);
 		/* skip the space for count */
 		pdu->write_offset += sizeof(u16);
 		for (i = 0; i < nwname; i++) {
@@ -303,13 +304,8 @@ static void virtio_p9_walk(struct p9_dev *p9dev,
 
 			virtio_p9_pdu_readf(pdu, "s", &str);
 
-			/*
-			 * FIXME!! we should add the previous path
-			 * to path component.
-			 */
 			/* Format the new path we're 'walk'ing into */
-			sprintf(tmp, "%s/%.*s",
-				fid->path, (int)strlen(str), str);
+			sprintf(tmp, "%s/%s", new_fid->path, str);
 			if (lstat(rel_to_abs(p9dev, tmp, full_path), &st) < 0)
 				goto err_out;
 
