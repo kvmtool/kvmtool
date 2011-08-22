@@ -4,6 +4,7 @@
 #include "kvm/rbtree-interval.h"
 
 #include <stdbool.h>
+#include <limits.h>
 #include <asm/types.h>
 #include <linux/types.h>
 
