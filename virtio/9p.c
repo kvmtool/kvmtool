@@ -14,6 +14,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
+#include <sys/vfs.h>
 
 #include <linux/virtio_ring.h>
 #include <linux/virtio_9p.h>
@@ -30,27 +31,7 @@ static const char *rel_to_abs(struct p9_dev *p9dev,
 	return abs_path;
 }
 
-static int omode2uflags(u8 mode)
-{
-	int ret = 0;
-
-	/* Basic open modes are same as uflags */
-	ret = mode & 3;
-
-	/* Everything else is different */
-	if (mode & P9_OTRUNC)
-		ret |= O_TRUNC;
-
-	if (mode & P9_OAPPEND)
-		ret |= O_APPEND;
-
-	if (mode & P9_OEXCL)
-		ret |= O_EXCL;
-
-	return ret;
-}
-
-static void st2qid(struct stat *st, struct p9_qid *qid)
+static void stat2qid(struct stat *st, struct p9_qid *qid)
 {
 	*qid = (struct p9_qid) {
 		.path		= st->st_ino,
@@ -71,6 +52,7 @@ static void close_fid(struct p9_dev *p9dev, u32 fid)
 		closedir(p9dev->fids[fid].dir);
 		p9dev->fids[fid].dir = NULL;
 	}
+	p9dev->fids[fid].fid = P9_NOFID;
 }
 
 static void virtio_p9_set_reply_header(struct p9_pdu *pdu, u32 size)
@@ -105,27 +87,38 @@ static void virtio_p9_error_reply(struct p9_dev *p9dev,
 				  struct p9_pdu *pdu, int err, u32 *outlen)
 {
 	u16 tag;
-	char *err_str;
 
-	err_str = strerror(err);
 	pdu->write_offset = VIRTIO_P9_HDR_LEN;
-	virtio_p9_pdu_writef(pdu, "sd", err_str, err);
+	virtio_p9_pdu_writef(pdu, "d", err);
 	*outlen = pdu->write_offset;
 
+	/* read the tag from input */
 	pdu->read_offset = sizeof(u32) + sizeof(u8);
 	virtio_p9_pdu_readf(pdu, "w", &tag);
 
+	/* Update the header */
 	pdu->write_offset = 0;
-	virtio_p9_pdu_writef(pdu, "dbw", *outlen, P9_RERROR, tag);
+	virtio_p9_pdu_writef(pdu, "dbw", *outlen, P9_RLERROR, tag);
 }
 
 static void virtio_p9_version(struct p9_dev *p9dev,
 			      struct p9_pdu *pdu, u32 *outlen)
 {
-	virtio_p9_pdu_writef(pdu, "ds", 4096, VIRTIO_P9_VERSION);
+	u32 msize;
+	char *version;
+	virtio_p9_pdu_readf(pdu, "ds", &msize, &version);
+	/*
+	 * reply with the same msize the client sent us
+	 * Error out if the request is not for 9P2000.L
+	 */
+	if (!strcmp(version, VIRTIO_P9_VERSION_DOTL))
+		virtio_p9_pdu_writef(pdu, "ds", msize, version);
+	else
+		virtio_p9_pdu_writef(pdu, "ds", msize, "unknown");
 
 	*outlen = pdu->write_offset;
 	virtio_p9_set_reply_header(pdu, *outlen);
+	free(version);
 	return;
 }
 
@@ -142,22 +135,33 @@ static void virtio_p9_clunk(struct p9_dev *p9dev,
 	return;
 }
 
+/*
+ * FIXME!! Need to map to protocol independent value. Upstream
+ * 9p also have the same BUG
+ */
+static int virtio_p9_openflags(int flags)
+{
+	flags &= ~(O_NOCTTY | O_ASYNC | O_CREAT | O_DIRECT);
+	flags |= O_NOFOLLOW;
+	return flags;
+}
+
 static void virtio_p9_open(struct p9_dev *p9dev,
 			   struct p9_pdu *pdu, u32 *outlen)
 {
-	u8 mode;
-	u32 fid;
+	u32 fid, flags;
 	struct stat st;
 	struct p9_qid qid;
 	struct p9_fid *new_fid;
 
-	virtio_p9_pdu_readf(pdu, "db", &fid, &mode);
+
+	virtio_p9_pdu_readf(pdu, "dd", &fid, &flags);
 	new_fid = &p9dev->fids[fid];
 
 	if (lstat(new_fid->abs_path, &st) < 0)
 		goto err_out;
 
-	st2qid(&st, &qid);
+	stat2qid(&st, &qid);
 
 	if (new_fid->is_dir) {
 		new_fid->dir = opendir(new_fid->abs_path);
@@ -165,10 +169,11 @@ static void virtio_p9_open(struct p9_dev *p9dev,
 			goto err_out;
 	} else {
 		new_fid->fd  = open(new_fid->abs_path,
-				    omode2uflags(mode) | O_NOFOLLOW);
+				    virtio_p9_openflags(flags));
 		if (new_fid->fd < 0)
 			goto err_out;
 	}
+	/* FIXME!! need ot send proper iounit  */
 	virtio_p9_pdu_writef(pdu, "Qd", &qid, 0);
 
 	*outlen = pdu->write_offset;
@@ -182,64 +187,91 @@ err_out:
 static void virtio_p9_create(struct p9_dev *p9dev,
 			     struct p9_pdu *pdu, u32 *outlen)
 {
-	DIR *dir;
-	int fd;
-	int res;
-	u8 mode;
-	u32 perm;
+	int fd, ret;
 	char *name;
-	char *ext = NULL;
-	u32 fid_val;
 	struct stat st;
 	struct p9_qid qid;
-	struct p9_fid *fid;
+	struct p9_fid *dfid;
 	char full_path[PATH_MAX];
+	u32 dfid_val, flags, mode, gid;
 
-	virtio_p9_pdu_readf(pdu, "dsdbs", &fid_val, &name, &perm, &mode, &ext);
-	fid = &p9dev->fids[fid_val];
+	virtio_p9_pdu_readf(pdu, "dsddd", &dfid_val,
+			    &name, &flags, &mode, &gid);
+	dfid = &p9dev->fids[dfid_val];
 
-	sprintf(full_path, "%s/%s", fid->abs_path, name);
-	if (perm & P9_DMDIR) {
-		res = mkdir(full_path, perm & 0xFFFF);
-		if (res < 0)
-			goto err_out;
-		dir = opendir(full_path);
-		if (!dir)
-			goto err_out;
-		close_fid(p9dev, fid_val);
-		fid->dir = dir;
-		fid->is_dir = 1;
-	} else if (perm & P9_DMSYMLINK) {
-		if (symlink(ext, full_path) < 0)
-			goto err_out;
-	} else if (perm & P9_DMLINK) {
-		int ext_fid = atoi(ext);
+	flags = virtio_p9_openflags(flags);
 
-		if (link(p9dev->fids[ext_fid].abs_path, full_path) < 0)
-			goto err_out;
-	} else {
-		fd = open(full_path, omode2uflags(mode) | O_CREAT, 0777);
-		if (fd < 0)
-			goto err_out;
-		close_fid(p9dev, fid_val);
-		fid->fd = fd;
-	}
+	sprintf(full_path, "%s/%s", dfid->abs_path, name);
+	fd = open(full_path, flags | O_CREAT, mode);
+	if (fd < 0)
+		goto err_out;
+	close_fid(p9dev, dfid_val);
+	dfid->fd = fd;
+
 	if (lstat(full_path, &st) < 0)
 		goto err_out;
 
-	sprintf(fid->path, "%s/%s", fid->path, name);
-	st2qid(&st, &qid);
+	ret = chmod(full_path, mode & 0777);
+	if (ret < 0)
+		goto err_out;
+
+	ret = lchown(full_path, dfid->uid, gid);
+	if (ret < 0)
+		goto err_out;
+
+	sprintf(dfid->path, "%s/%s", dfid->path, name);
+	stat2qid(&st, &qid);
 	virtio_p9_pdu_writef(pdu, "Qd", &qid, 0);
 	*outlen = pdu->write_offset;
 	virtio_p9_set_reply_header(pdu, *outlen);
-
 	free(name);
-	free(ext);
 	return;
 err_out:
-	virtio_p9_error_reply(p9dev, pdu, errno, outlen);
 	free(name);
-	free(ext);
+	virtio_p9_error_reply(p9dev, pdu, errno, outlen);
+	return;
+}
+
+static void virtio_p9_mkdir(struct p9_dev *p9dev,
+			    struct p9_pdu *pdu, u32 *outlen)
+{
+	int ret;
+	char *name;
+	struct stat st;
+	struct p9_qid qid;
+	struct p9_fid *dfid;
+	char full_path[PATH_MAX];
+	u32 dfid_val, mode, gid;
+
+	virtio_p9_pdu_readf(pdu, "dsdd", &dfid_val,
+			    &name, &mode, &gid);
+	dfid = &p9dev->fids[dfid_val];
+
+	sprintf(full_path, "%s/%s", dfid->abs_path, name);
+	ret = mkdir(full_path, mode);
+	if (ret < 0)
+		goto err_out;
+
+	if (lstat(full_path, &st) < 0)
+		goto err_out;
+
+	ret = chmod(full_path, mode & 0777);
+	if (ret < 0)
+		goto err_out;
+
+	ret = lchown(full_path, dfid->uid, gid);
+	if (ret < 0)
+		goto err_out;
+
+	stat2qid(&st, &qid);
+	virtio_p9_pdu_writef(pdu, "Qd", &qid, 0);
+	*outlen = pdu->write_offset;
+	virtio_p9_set_reply_header(pdu, *outlen);
+	free(name);
+	return;
+err_out:
+	free(name);
+	virtio_p9_error_reply(p9dev, pdu, errno, outlen);
 	return;
 }
 
@@ -250,11 +282,10 @@ static void virtio_p9_walk(struct p9_dev *p9dev,
 	u16 nwqid;
 	char *str;
 	u16 nwname;
-	u32 fid_val;
-	u32 newfid_val;
 	struct p9_qid wqid;
 	struct p9_fid *new_fid;
-	int ret;
+	u32 fid_val, newfid_val;
+
 
 	virtio_p9_pdu_readf(pdu, "ddw", &fid_val, &newfid_val, &nwname);
 	new_fid	= &p9dev->fids[newfid_val];
@@ -272,18 +303,21 @@ static void virtio_p9_walk(struct p9_dev *p9dev,
 
 			virtio_p9_pdu_readf(pdu, "s", &str);
 
+			/*
+			 * FIXME!! we should add the previous path
+			 * to path component.
+			 */
 			/* Format the new path we're 'walk'ing into */
 			sprintf(tmp, "%s/%.*s",
 				fid->path, (int)strlen(str), str);
-
-			ret = lstat(rel_to_abs(p9dev, tmp, full_path), &st);
-			if (ret < 0)
+			if (lstat(rel_to_abs(p9dev, tmp, full_path), &st) < 0)
 				goto err_out;
 
-			st2qid(&st, &wqid);
+			stat2qid(&st, &wqid);
 			new_fid->is_dir = S_ISDIR(st.st_mode);
 			strcpy(new_fid->path, tmp);
 			new_fid->fid = newfid_val;
+			new_fid->uid = fid->uid;
 			nwqid++;
 			virtio_p9_pdu_writef(pdu, "Q", &wqid);
 		}
@@ -295,6 +329,7 @@ static void virtio_p9_walk(struct p9_dev *p9dev,
 		new_fid->is_dir = p9dev->fids[fid_val].is_dir;
 		strcpy(new_fid->path, p9dev->fids[fid_val].path);
 		new_fid->fid	= newfid_val;
+		new_fid->uid    = p9dev->fids[fid_val].uid;
 	}
 	*outlen = pdu->write_offset;
 	pdu->write_offset = VIRTIO_P9_HDR_LEN;
@@ -309,16 +344,16 @@ err_out:
 static void virtio_p9_attach(struct p9_dev *p9dev,
 			     struct p9_pdu *pdu, u32 *outlen)
 {
-	u32 i;
-	u32 fid_val;
-	u32 afid;
+	int i;
 	char *uname;
 	char *aname;
 	struct stat st;
 	struct p9_qid qid;
 	struct p9_fid *fid;
+	u32 fid_val, afid, uid;
 
-	virtio_p9_pdu_readf(pdu, "ddss", &fid_val, &afid, &uname, &aname);
+	virtio_p9_pdu_readf(pdu, "ddssd", &fid_val, &afid,
+			    &uname, &aname, &uid);
 
 	/* Reset everything */
 	for (i = 0; i < VIRTIO_P9_MAX_FID; i++)
@@ -327,77 +362,44 @@ static void virtio_p9_attach(struct p9_dev *p9dev,
 	if (lstat(p9dev->root_dir, &st) < 0)
 		goto err_out;
 
-	st2qid(&st, &qid);
+	stat2qid(&st, &qid);
 
 	fid = &p9dev->fids[fid_val];
 	fid->fid = fid_val;
+	fid->uid = uid;
 	fid->is_dir = 1;
 	strcpy(fid->path, "/");
 
 	virtio_p9_pdu_writef(pdu, "Q", &qid);
 	*outlen = pdu->write_offset;
 	virtio_p9_set_reply_header(pdu, *outlen);
-	free(uname);
-	free(aname);
 	return;
 err_out:
-	free(uname);
-	free(aname);
 	virtio_p9_error_reply(p9dev, pdu, errno, outlen);
 	return;
 }
 
-static void virtio_p9_free_stat(struct p9_wstat *wstat)
+static void virtio_p9_fill_stat(struct p9_dev *p9dev,
+				struct stat *st, struct p9_stat_dotl *statl)
 {
-	free(wstat->extension);
-	free(wstat->name);
-}
-
-static void virtio_p9_fill_stat(struct p9_dev *p9dev, const char *name,
-				struct stat *st, struct p9_wstat *wstat)
-{
-	wstat->type = 0;
-	wstat->dev = 0;
-	st2qid(st, &wstat->qid);
-	wstat->mode = st->st_mode;
-	wstat->length = st->st_size;
-	if (S_ISDIR(st->st_mode)) {
-		wstat->length = 0;
-		wstat->mode |= P9_DMDIR;
-	}
-	if (S_ISLNK(st->st_mode)) {
-		char tmp[PATH_MAX] = {0}, full_path[PATH_MAX] = {0};
-
-		rel_to_abs(p9dev, name, full_path);
-
-		if (readlink(full_path, tmp, PATH_MAX) > 0)
-			wstat->extension = strdup(tmp);
-		wstat->mode |= P9_DMSYMLINK;
-	} else {
-		wstat->extension = NULL;
-	}
-
-	wstat->atime = st->st_atime;
-	wstat->mtime = st->st_mtime;
-
-	wstat->name = strdup(name);
-	wstat->uid = NULL;
-	wstat->gid = NULL;
-	wstat->muid = NULL;
-	wstat->n_uid = wstat->n_gid = wstat->n_muid = 0;
-
-	/*
-	 * NOTE: size shouldn't include its own length
-	 * size[2] type[2] dev[4] qid[13]
-	 * mode[4] atime[4] mtime[4] length[8]
-	 * name[s] uid[s] gid[s] muid[s]
-	 * ext[s] uid[4] gid[4] muid[4]
-	 */
-	wstat->size = 2+4+13+4+4+4+8+2+2+2+2+2+4+4+4;
-	if (wstat->name)
-		wstat->size += strlen(wstat->name);
-	if (wstat->extension)
-		wstat->size += strlen(wstat->extension);
+	memset(statl, 0, sizeof(*statl));
+	statl->st_mode = st->st_mode;
+	statl->st_nlink = st->st_nlink;
+	statl->st_uid = st->st_uid;
+	statl->st_gid = st->st_gid;
+	statl->st_rdev = st->st_rdev;
+	statl->st_size = st->st_size;
+	statl->st_blksize = st->st_blksize;
+	statl->st_blocks = st->st_blocks;
+	statl->st_atime_sec = st->st_atime;
+	statl->st_atime_nsec = st->st_atim.tv_nsec;
+	statl->st_mtime_sec = st->st_mtime;
+	statl->st_mtime_nsec = st->st_mtim.tv_nsec;
+	statl->st_ctime_sec = st->st_ctime;
+	statl->st_ctime_nsec = st->st_ctim.tv_nsec;
+	/* Currently we only support BASIC fields in stat */
+	statl->st_result_mask = P9_STATS_BASIC;
+	stat2qid(st, &statl->qid);
 }
 
 static void virtio_p9_read(struct p9_dev *p9dev,
@@ -405,86 +407,129 @@ static void virtio_p9_read(struct p9_dev *p9dev,
 {
 	u64 offset;
 	u32 fid_val;
+	u16 iov_cnt;
+	void *iov_base;
+	size_t iov_len;
 	u32 count, rcount;
-	struct stat st;
 	struct p9_fid *fid;
-	struct p9_wstat wstat;
+
 
 	rcount = 0;
 	virtio_p9_pdu_readf(pdu, "dqd", &fid_val, &offset, &count);
 	fid = &p9dev->fids[fid_val];
-	if (fid->is_dir) {
-		/* If reading a dir, fill the buffer with p9_stat entries */
-		char full_path[PATH_MAX];
-		struct dirent *cur = readdir(fid->dir);
 
-		/* Skip the space for writing count */
-		pdu->write_offset += sizeof(u32);
-		while (cur) {
-			u32 read;
+	iov_base = pdu->in_iov[0].iov_base;
+	iov_len  = pdu->in_iov[0].iov_len;
+	iov_cnt  = pdu->in_iov_cnt;
+	pdu->in_iov[0].iov_base += VIRTIO_P9_HDR_LEN + sizeof(u32);
+	pdu->in_iov[0].iov_len -= VIRTIO_P9_HDR_LEN + sizeof(u32);
+	pdu->in_iov_cnt = virtio_p9_update_iov_cnt(pdu->in_iov,
+						   count,
+						   pdu->in_iov_cnt);
+	rcount = preadv(fid->fd, pdu->in_iov,
+			pdu->in_iov_cnt, offset);
+	if (rcount > count)
+		rcount = count;
+	/*
+	 * Update the iov_base back, so that rest of
+	 * pdu_writef works correctly.
+	 */
+	pdu->in_iov[0].iov_base = iov_base;
+	pdu->in_iov[0].iov_len  = iov_len;
+	pdu->in_iov_cnt         = iov_cnt;
 
-			lstat(rel_to_abs(p9dev, cur->d_name, full_path), &st);
-			virtio_p9_fill_stat(p9dev, cur->d_name, &st, &wstat);
-
-			read = pdu->write_offset;
-			virtio_p9_pdu_writef(pdu, "S", &wstat);
-			rcount += pdu->write_offset - read;
-			virtio_p9_free_stat(&wstat);
-
-			cur = readdir(fid->dir);
-		}
-	} else {
-		u16 iov_cnt;
-		void *iov_base;
-		size_t iov_len;
-
-		iov_base = pdu->in_iov[0].iov_base;
-		iov_len  = pdu->in_iov[0].iov_len;
-		iov_cnt  = pdu->in_iov_cnt;
-
-		pdu->in_iov[0].iov_base += VIRTIO_P9_HDR_LEN + sizeof(u32);
-		pdu->in_iov[0].iov_len -= VIRTIO_P9_HDR_LEN + sizeof(u32);
-		pdu->in_iov_cnt = virtio_p9_update_iov_cnt(pdu->in_iov,
-							   count,
-							   pdu->in_iov_cnt);
-		rcount = preadv(fid->fd, pdu->in_iov,
-				pdu->in_iov_cnt, offset);
-		if (rcount > count)
-			rcount = count;
-		/*
-		 * Update the iov_base back, so that rest of
-		 * pdu_writef works correctly.
-		 */
-		pdu->in_iov[0].iov_base = iov_base;
-		pdu->in_iov[0].iov_len  = iov_len;
-		pdu->in_iov_cnt         = iov_cnt;
-	}
 	pdu->write_offset = VIRTIO_P9_HDR_LEN;
 	virtio_p9_pdu_writef(pdu, "d", rcount);
 	*outlen = pdu->write_offset + rcount;
 	virtio_p9_set_reply_header(pdu, *outlen);
-
 	return;
 }
 
-static void virtio_p9_stat(struct p9_dev *p9dev,
-			   struct p9_pdu *pdu, u32 *outlen)
+static int virtio_p9_dentry_size(struct dirent *dent)
+{
+	/*
+	 * Size of each dirent:
+	 * qid(13) + offset(8) + type(1) + name_len(2) + name
+	 */
+	return 24 + strlen(dent->d_name);
+}
+
+static void virtio_p9_readdir(struct p9_dev *p9dev,
+			      struct p9_pdu *pdu, u32 *outlen)
+{
+	u32 fid_val;
+	u32 count, rcount;
+	struct stat st;
+	struct p9_fid *fid;
+	struct dirent *dent;
+	char full_path[PATH_MAX];
+	u64 offset, old_offset;
+
+	rcount = 0;
+	virtio_p9_pdu_readf(pdu, "dqd", &fid_val, &offset, &count);
+	fid = &p9dev->fids[fid_val];
+
+	if (!fid->is_dir) {
+		errno = -EINVAL;
+		goto err_out;
+	}
+
+	/* Move the offset specified */
+	seekdir(fid->dir, offset);
+
+	old_offset = offset;
+	/* If reading a dir, fill the buffer with p9_stat entries */
+	dent = readdir(fid->dir);
+
+	/* Skip the space for writing count */
+	pdu->write_offset += sizeof(u32);
+	while (dent) {
+		u32 read;
+		struct p9_qid qid;
+
+		if ((rcount + virtio_p9_dentry_size(dent)) > count) {
+			/* seek to the previous offset and return */
+			seekdir(fid->dir, old_offset);
+			break;
+		}
+		old_offset = dent->d_off;
+		lstat(rel_to_abs(p9dev, dent->d_name, full_path), &st);
+		stat2qid(&st, &qid);
+		read = pdu->write_offset;
+		virtio_p9_pdu_writef(pdu, "Qqbs", &qid, dent->d_off,
+				     dent->d_type, dent->d_name);
+		rcount += pdu->write_offset - read;
+		dent = readdir(fid->dir);
+	}
+
+	pdu->write_offset = VIRTIO_P9_HDR_LEN;
+	virtio_p9_pdu_writef(pdu, "d", rcount);
+	*outlen = pdu->write_offset + rcount;
+	virtio_p9_set_reply_header(pdu, *outlen);
+	return;
+err_out:
+	virtio_p9_error_reply(p9dev, pdu, errno, outlen);
+	return;
+}
+
+
+static void virtio_p9_getattr(struct p9_dev *p9dev,
+			      struct p9_pdu *pdu, u32 *outlen)
 {
 	u32 fid_val;
 	struct stat st;
+	u64 request_mask;
 	struct p9_fid *fid;
-	struct p9_wstat wstat;
+	struct p9_stat_dotl statl;
 
-	virtio_p9_pdu_readf(pdu, "d", &fid_val);
+	virtio_p9_pdu_readf(pdu, "dq", &fid_val, &request_mask);
 	fid = &p9dev->fids[fid_val];
 	if (lstat(fid->abs_path, &st) < 0)
 		goto err_out;
 
-	virtio_p9_fill_stat(p9dev, fid->path, &st, &wstat);
-
-	virtio_p9_pdu_writef(pdu, "wS", 0, &wstat);
+	virtio_p9_fill_stat(p9dev, &st, &statl);
+	virtio_p9_pdu_writef(pdu, "A", &statl);
 	*outlen = pdu->write_offset;
-	virtio_p9_free_stat(&wstat);
 	virtio_p9_set_reply_header(pdu, *outlen);
 	return;
 err_out:
@@ -492,72 +537,95 @@ err_out:
 	return;
 }
 
-static void virtio_p9_wstat(struct p9_dev *p9dev,
-			    struct p9_pdu *pdu, u32 *outlen)
+/* FIXME!! from linux/fs.h */
+/*
+ * Attribute flags.  These should be or-ed together to figure out what
+ * has been changed!
+ */
+#define ATTR_MODE	(1 << 0)
+#define ATTR_UID	(1 << 1)
+#define ATTR_GID	(1 << 2)
+#define ATTR_SIZE	(1 << 3)
+#define ATTR_ATIME	(1 << 4)
+#define ATTR_MTIME	(1 << 5)
+#define ATTR_CTIME	(1 << 6)
+#define ATTR_ATIME_SET	(1 << 7)
+#define ATTR_MTIME_SET	(1 << 8)
+#define ATTR_FORCE	(1 << 9) /* Not a change, but a change it */
+#define ATTR_ATTR_FLAG	(1 << 10)
+#define ATTR_KILL_SUID	(1 << 11)
+#define ATTR_KILL_SGID	(1 << 12)
+#define ATTR_FILE	(1 << 13)
+#define ATTR_KILL_PRIV	(1 << 14)
+#define ATTR_OPEN	(1 << 15) /* Truncating from open(O_TRUNC) */
+#define ATTR_TIMES_SET	(1 << 16)
+
+#define ATTR_MASK    127
+
+static void virtio_p9_setattr(struct p9_dev *p9dev,
+			      struct p9_pdu *pdu, u32 *outlen)
 {
-	int res = 0;
-	u32 fid_val;
-	u16 unused;
-	struct p9_fid *fid;
-	struct p9_wstat wstat;
-
-	virtio_p9_pdu_readf(pdu, "dwS", &fid_val, &unused, &wstat);
-	fid = &p9dev->fids[fid_val];
-
-	if (wstat.length != -1UL) {
-		res = truncate(fid->abs_path, wstat.length);
-		if (res < 0)
-			goto err_out;
-	}
-	if (wstat.mode != -1U) {
-		res = chmod(fid->abs_path, wstat.mode & 0xFFFF);
-		if (res < 0)
-			goto err_out;
-	}
-	if (strlen(wstat.name) > 0) {
-		char new_name[PATH_MAX] = {0};
-		char full_path[PATH_MAX];
-		char *last_dir = strrchr(fid->path, '/');
-
-		/* We need to get the full file name out of twstat->name */
-		if (last_dir)
-			strncpy(new_name, fid->path, last_dir - fid->path + 1);
-
-		memcpy(new_name + strlen(new_name),
-		       wstat.name, strlen(wstat.name));
-
-		/* fid is reused for the new file */
-		res = rename(fid->abs_path,
-			     rel_to_abs(p9dev, new_name, full_path));
-		if (res < 0)
-			goto err_out;
-		sprintf(fid->path, "%s", new_name);
-	}
-	*outlen = VIRTIO_P9_HDR_LEN;
-	virtio_p9_set_reply_header(pdu, *outlen);
-	return;
-err_out:
-	virtio_p9_error_reply(p9dev, pdu, errno, outlen);
-	return;
-}
-
-static void virtio_p9_remove(struct p9_dev *p9dev,
-			     struct p9_pdu *pdu, u32 *outlen)
-{
-	int res;
+	int ret = 0;
 	u32 fid_val;
 	struct p9_fid *fid;
+	struct p9_iattr_dotl p9attr;
 
-	virtio_p9_pdu_readf(pdu, "d", &fid_val);
+	virtio_p9_pdu_readf(pdu, "dI", &fid_val, &p9attr);
 	fid = &p9dev->fids[fid_val];
-	close_fid(p9dev, fid_val);
-	if (fid->is_dir)
-		res = rmdir(fid->abs_path);
-	else
-		res = unlink(fid->abs_path);
-	if (res < 0)
-		goto err_out;
 
+	if (p9attr.valid & ATTR_MODE) {
+		ret = chmod(fid->abs_path, p9attr.mode);
+		if (ret < 0)
+			goto err_out;
+	}
+	if (p9attr.valid & (ATTR_ATIME | ATTR_MTIME)) {
+		struct timespec times[2];
+		if (p9attr.valid & ATTR_ATIME) {
+			if (p9attr.valid & ATTR_ATIME_SET) {
+				times[0].tv_sec = p9attr.atime_sec;
+				times[0].tv_nsec = p9attr.atime_nsec;
+			} else {
+				times[0].tv_nsec = UTIME_NOW;
+			}
+		} else {
+			times[0].tv_nsec = UTIME_OMIT;
+		}
+		if (p9attr.valid & ATTR_MTIME) {
+			if (p9attr.valid & ATTR_MTIME_SET) {
+				times[1].tv_sec = p9attr.mtime_sec;
+				times[1].tv_nsec = p9attr.mtime_nsec;
+			} else {
+				times[1].tv_nsec = UTIME_NOW;
+			}
+		} else
+			times[1].tv_nsec = UTIME_OMIT;
+
+		ret = utimensat(-1, fid->abs_path, times, AT_SYMLINK_NOFOLLOW);
+		if (ret < 0)
+			goto err_out;
+	}
+	/*
+	 * If the only valid entry in iattr is ctime we can call
+	 * chown(-1,-1) to update the ctime of the file
+	 */
+	if ((p9attr.valid & (ATTR_UID | ATTR_GID)) ||
+	    ((p9attr.valid & ATTR_CTIME)
+	     && !((p9attr.valid & ATTR_MASK) & ~ATTR_CTIME))) {
+		if (!(p9attr.valid & ATTR_UID))
+			p9attr.uid = -1;
+
+		if (!(p9attr.valid & ATTR_GID))
+			p9attr.gid = -1;
+
+		ret = lchown(fid->abs_path, p9attr.uid, p9attr.gid);
+		if (ret < 0)
+			goto err_out;
+	}
+	if (p9attr.valid & (ATTR_SIZE)) {
+		ret = truncate(fid->abs_path, p9attr.size);
+		if (ret < 0)
+			goto err_out;
+	}
 	*outlen = VIRTIO_P9_HDR_LEN;
 	virtio_p9_set_reply_header(pdu, *outlen);
 	return;
@@ -601,6 +669,7 @@ static void virtio_p9_write(struct p9_dev *p9dev,
 	pdu->out_iov[0].iov_base = iov_base;
 	pdu->out_iov[0].iov_len  = iov_len;
 	pdu->out_iov_cnt         = iov_cnt;
+
 	if (res < 0)
 		goto err_out;
 	virtio_p9_pdu_writef(pdu, "d", res);
@@ -612,21 +681,377 @@ err_out:
 	return;
 }
 
+static void virtio_p9_readlink(struct p9_dev *p9dev,
+			       struct p9_pdu *pdu, u32 *outlen)
+{
+	int ret;
+	u32 fid_val;
+	struct p9_fid *fid;
+	char target_path[PATH_MAX];
+
+	virtio_p9_pdu_readf(pdu, "d", &fid_val);
+	fid = &p9dev->fids[fid_val];
+
+	memset(target_path, 0, PATH_MAX);
+	ret = readlink(fid->abs_path, target_path, PATH_MAX - 1);
+	if (ret < 0)
+		goto err_out;
+
+	virtio_p9_pdu_writef(pdu, "s", target_path);
+	*outlen = pdu->write_offset;
+	virtio_p9_set_reply_header(pdu, *outlen);
+	return;
+err_out:
+	virtio_p9_error_reply(p9dev, pdu, errno, outlen);
+	return;
+}
+
+static void virtio_p9_statfs(struct p9_dev *p9dev,
+			     struct p9_pdu *pdu, u32 *outlen)
+{
+	int ret;
+	u64 fsid;
+	u32 fid_val;
+	struct p9_fid *fid;
+	struct statfs stat_buf;
+
+	virtio_p9_pdu_readf(pdu, "d", &fid_val);
+	fid = &p9dev->fids[fid_val];
+
+	ret = statfs(fid->abs_path, &stat_buf);
+	if (ret < 0)
+		goto err_out;
+	/* FIXME!! f_blocks needs update based on client msize */
+	fsid = (unsigned int) stat_buf.f_fsid.__val[0] |
+		(unsigned long long)stat_buf.f_fsid.__val[1] << 32;
+	virtio_p9_pdu_writef(pdu, "ddqqqqqqd", stat_buf.f_type,
+			     stat_buf.f_bsize, stat_buf.f_blocks,
+			     stat_buf.f_bfree, stat_buf.f_bavail,
+			     stat_buf.f_files, stat_buf.f_ffree,
+			     fsid, stat_buf.f_namelen);
+	*outlen = pdu->write_offset;
+	virtio_p9_set_reply_header(pdu, *outlen);
+	return;
+err_out:
+	virtio_p9_error_reply(p9dev, pdu, errno, outlen);
+	return;
+}
+
+static void virtio_p9_mknod(struct p9_dev *p9dev,
+			    struct p9_pdu *pdu, u32 *outlen)
+{
+	int ret;
+	char *name;
+	struct stat st;
+	struct p9_fid *dfid;
+	struct p9_qid qid;
+	char full_path[PATH_MAX];
+	u32 fid_val, mode, major, minor, gid;
+
+	virtio_p9_pdu_readf(pdu, "dsdddd", &fid_val, &name, &mode,
+			    &major, &minor, &gid);
+
+	dfid = &p9dev->fids[fid_val];
+	sprintf(full_path, "%s/%s", dfid->abs_path, name);
+	ret = mknod(full_path, mode, makedev(major, minor));
+	if (ret < 0)
+		goto err_out;
+
+	if (lstat(full_path, &st) < 0)
+		goto err_out;
+
+	ret = chmod(full_path, mode & 0777);
+	if (ret < 0)
+		goto err_out;
+
+	ret = lchown(full_path, dfid->uid, gid);
+	if (ret < 0)
+		goto err_out;
+
+	stat2qid(&st, &qid);
+	virtio_p9_pdu_writef(pdu, "Q", &qid);
+	free(name);
+	*outlen = pdu->write_offset;
+	virtio_p9_set_reply_header(pdu, *outlen);
+	return;
+err_out:
+	free(name);
+	virtio_p9_error_reply(p9dev, pdu, errno, outlen);
+	return;
+}
+
+static void virtio_p9_fsync(struct p9_dev *p9dev,
+			    struct p9_pdu *pdu, u32 *outlen)
+{
+	int ret;
+	struct p9_fid *fid;
+	u32 fid_val, datasync;
+
+	virtio_p9_pdu_readf(pdu, "dd", &fid_val, &datasync);
+	fid = &p9dev->fids[fid_val];
+
+	if (datasync)
+		ret = fdatasync(fid->fd);
+	else
+		ret = fsync(fid->fd);
+	if (ret < 0)
+		goto err_out;
+	*outlen = pdu->write_offset;
+	virtio_p9_set_reply_header(pdu, *outlen);
+	return;
+err_out:
+	virtio_p9_error_reply(p9dev, pdu, errno, outlen);
+	return;
+}
+
+static void virtio_p9_symlink(struct p9_dev *p9dev,
+			      struct p9_pdu *pdu, u32 *outlen)
+{
+	int ret;
+	struct stat st;
+	u32 fid_val, gid;
+	struct p9_qid qid;
+	struct p9_fid *dfid;
+	char new_name[PATH_MAX];
+	char *old_path, *name;
+
+	virtio_p9_pdu_readf(pdu, "dssd", &fid_val, &name, &old_path, &gid);
+
+	dfid = &p9dev->fids[fid_val];
+	sprintf(new_name, "%s/%s", dfid->abs_path, name);
+	ret = symlink(old_path, new_name);
+	if (ret < 0)
+		goto err_out;
+
+	if (lstat(new_name, &st) < 0)
+		goto err_out;
+
+	ret = lchown(new_name, dfid->uid, gid);
+	if (ret < 0)
+		goto err_out;
+
+	stat2qid(&st, &qid);
+	virtio_p9_pdu_writef(pdu, "Q", &qid);
+	free(name);
+	free(old_path);
+	*outlen = pdu->write_offset;
+	virtio_p9_set_reply_header(pdu, *outlen);
+	return;
+err_out:
+	free(name);
+	free(old_path);
+	virtio_p9_error_reply(p9dev, pdu, errno, outlen);
+	return;
+}
+
+static void virtio_p9_link(struct p9_dev *p9dev,
+			   struct p9_pdu *pdu, u32 *outlen)
+{
+	int ret;
+	char *name;
+	u32 fid_val, dfid_val;
+	struct p9_fid *dfid, *fid;
+	char full_path[PATH_MAX];
+
+	virtio_p9_pdu_readf(pdu, "dds", &dfid_val, &fid_val, &name);
+
+	dfid = &p9dev->fids[dfid_val];
+	fid =  &p9dev->fids[fid_val];
+	sprintf(full_path, "%s/%s", dfid->abs_path, name);
+	ret = link(fid->abs_path, full_path);
+	if (ret < 0)
+		goto err_out;
+	free(name);
+	*outlen = pdu->write_offset;
+	virtio_p9_set_reply_header(pdu, *outlen);
+	return;
+err_out:
+	free(name);
+	virtio_p9_error_reply(p9dev, pdu, errno, outlen);
+	return;
+
+}
+
+static void virtio_p9_lock(struct p9_dev *p9dev,
+			   struct p9_pdu *pdu, u32 *outlen)
+{
+	u8 ret;
+	u32 fid_val;
+	struct p9_flock flock;
+
+	virtio_p9_pdu_readf(pdu, "dbdqqds", &fid_val, &flock.type,
+			    &flock.flags, &flock.start, &flock.length,
+			    &flock.proc_id, &flock.client_id);
+
+	/* Just return success */
+	ret = P9_LOCK_SUCCESS;
+	virtio_p9_pdu_writef(pdu, "d", ret);
+	*outlen = pdu->write_offset;
+	virtio_p9_set_reply_header(pdu, *outlen);
+	free(flock.client_id);
+	return;
+}
+
+static void virtio_p9_getlock(struct p9_dev *p9dev,
+			      struct p9_pdu *pdu, u32 *outlen)
+{
+	u32 fid_val;
+	struct p9_getlock glock;
+	virtio_p9_pdu_readf(pdu, "dbqqds", &fid_val, &glock.type,
+			    &glock.start, &glock.length, &glock.proc_id,
+			    &glock.client_id);
+
+	/* Just return success */
+	glock.type = F_UNLCK;
+	virtio_p9_pdu_writef(pdu, "bqqds", glock.type,
+			     glock.start, glock.length, glock.proc_id,
+			     glock.client_id);
+	*outlen = pdu->write_offset;
+	virtio_p9_set_reply_header(pdu, *outlen);
+	free(glock.client_id);
+	return;
+}
+
+static int virtio_p9_ancestor(char *path, char *ancestor)
+{
+	int size = strlen(ancestor);
+	if (!strncmp(path, ancestor, size)) {
+		/*
+		 * Now check whether ancestor is a full name or
+		 * or directory component and not just part
+		 * of a name.
+		 */
+		if (path[size] == '\0' || path[size] == '/')
+			return 1;
+	}
+	return 0;
+}
+
+static void virtio_p9_fix_path(char *fid_path, char *old_name, char *new_name)
+{
+	char tmp_name[PATH_MAX];
+	size_t rp_sz = strlen(old_name);
+
+	if (rp_sz == strlen(fid_path)) {
+		/* replace the full name */
+		strcpy(fid_path, new_name);
+		return;
+	}
+	/* save the trailing path details */
+	strcpy(tmp_name, fid_path + rp_sz);
+	sprintf(fid_path, "%s%s", new_name, tmp_name);
+	return;
+}
+
+static void virtio_p9_renameat(struct p9_dev *p9dev,
+			       struct p9_pdu *pdu, u32 *outlen)
+{
+	int i, ret;
+	char *old_name, *new_name;
+	u32 old_dfid_val, new_dfid_val;
+	struct p9_fid *old_dfid, *new_dfid;
+	char old_full_path[PATH_MAX], new_full_path[PATH_MAX];
+
+
+	virtio_p9_pdu_readf(pdu, "dsds", &old_dfid_val, &old_name,
+			    &new_dfid_val, &new_name);
+
+	old_dfid = &p9dev->fids[old_dfid_val];
+	new_dfid = &p9dev->fids[new_dfid_val];
+
+	sprintf(old_full_path, "%s/%s", old_dfid->abs_path, old_name);
+	sprintf(new_full_path, "%s/%s", new_dfid->abs_path, new_name);
+	ret = rename(old_full_path, new_full_path);
+	if (ret < 0)
+		goto err_out;
+	/*
+	 * Now fix path in other fids, if the renamed path is part of
+	 * that.
+	 */
+	for (i = 0; i < VIRTIO_P9_MAX_FID; i++) {
+		if (p9dev->fids[i].fid != P9_NOFID &&
+		    virtio_p9_ancestor(p9dev->fids[i].path, old_name)) {
+			virtio_p9_fix_path(p9dev->fids[i].path, old_name,
+					   new_name);
+		}
+	}
+	free(old_name);
+	free(new_name);
+	*outlen = pdu->write_offset;
+	virtio_p9_set_reply_header(pdu, *outlen);
+	return;
+err_out:
+	free(old_name);
+	free(new_name);
+	virtio_p9_error_reply(p9dev, pdu, errno, outlen);
+	return;
+}
+
+static void virtio_p9_unlinkat(struct p9_dev *p9dev,
+			       struct p9_pdu *pdu, u32 *outlen)
+{
+	int ret;
+	char *name;
+	u32 fid_val, flags;
+	struct p9_fid *fid;
+	char full_path[PATH_MAX];
+
+	virtio_p9_pdu_readf(pdu, "dsd", &fid_val, &name, &flags);
+	fid = &p9dev->fids[fid_val];
+
+	sprintf(full_path, "%s/%s", fid->abs_path, name);
+	ret = remove(full_path);
+	if (ret < 0)
+		goto err_out;
+	free(name);
+	*outlen = pdu->write_offset;
+	virtio_p9_set_reply_header(pdu, *outlen);
+	return;
+err_out:
+	free(name);
+	virtio_p9_error_reply(p9dev, pdu, errno, outlen);
+	return;
+}
+
+static void virtio_p9_eopnotsupp(struct p9_dev *p9dev,
+				 struct p9_pdu *pdu, u32 *outlen)
+{
+	return virtio_p9_error_reply(p9dev, pdu, EOPNOTSUPP, outlen);
+}
+
 typedef void p9_handler(struct p9_dev *p9dev,
 			struct p9_pdu *pdu, u32 *outlen);
 
-static p9_handler *virtio_9p_handler [] = {
-	[P9_TVERSION] = virtio_p9_version,
-	[P9_TATTACH]  = virtio_p9_attach,
-	[P9_TSTAT]    = virtio_p9_stat,
-	[P9_TCLUNK]   =	virtio_p9_clunk,
-	[P9_TWALK]    =	virtio_p9_walk,
-	[P9_TOPEN]    =	virtio_p9_open,
-	[P9_TREAD]    = virtio_p9_read,
-	[P9_TCREATE]  =	virtio_p9_create,
-	[P9_TWSTAT]   =	virtio_p9_wstat,
-	[P9_TREMOVE]  =	virtio_p9_remove,
-	[P9_TWRITE]   =	virtio_p9_write,
+/* FIXME should be removed when merging with latest linus tree */
+#define P9_TRENAMEAT 74
+#define P9_TUNLINKAT 76
+
+static p9_handler *virtio_9p_dotl_handler [] = {
+	[P9_TREADDIR]     = virtio_p9_readdir,
+	[P9_TSTATFS]      = virtio_p9_statfs,
+	[P9_TGETATTR]     = virtio_p9_getattr,
+	[P9_TSETATTR]     = virtio_p9_setattr,
+	[P9_TXATTRWALK]   = virtio_p9_eopnotsupp,
+	[P9_TXATTRCREATE] = virtio_p9_eopnotsupp,
+	[P9_TMKNOD]       = virtio_p9_mknod,
+	[P9_TLOCK]        = virtio_p9_lock,
+	[P9_TGETLOCK]     = virtio_p9_getlock,
+	[P9_TRENAMEAT]    = virtio_p9_renameat,
+	[P9_TREADLINK]    = virtio_p9_readlink,
+	[P9_TUNLINKAT]    = virtio_p9_unlinkat,
+	[P9_TMKDIR]       = virtio_p9_mkdir,
+	[P9_TVERSION]     = virtio_p9_version,
+	[P9_TLOPEN]       = virtio_p9_open,
+	[P9_TATTACH]      = virtio_p9_attach,
+	[P9_TWALK]        = virtio_p9_walk,
+	[P9_TCLUNK]       = virtio_p9_clunk,
+	[P9_TFSYNC]       = virtio_p9_fsync,
+	[P9_TREAD]        = virtio_p9_read,
+	[P9_TFLUSH]       = virtio_p9_eopnotsupp,
+	[P9_TLINK]        = virtio_p9_link,
+	[P9_TSYMLINK]     = virtio_p9_symlink,
+	[P9_TLCREATE]     = virtio_p9_create,
+	[P9_TWRITE]       = virtio_p9_write,
 };
 
 static struct p9_pdu *virtio_p9_pdu_init(struct kvm *kvm, struct virt_queue *vq)
@@ -656,12 +1081,6 @@ static u8 virtio_p9_get_cmd(struct p9_pdu *pdu)
 	return msg->cmd;
 }
 
-static void virtio_p9_eopnotsupp(struct p9_dev *p9dev,
-				 struct p9_pdu *pdu, u32 *outlen)
-{
-	return virtio_p9_error_reply(p9dev, pdu, EOPNOTSUPP, outlen);
-}
-
 static bool virtio_p9_do_io_request(struct kvm *kvm, struct p9_dev_job *job)
 {
 	u8 cmd;
@@ -677,11 +1096,12 @@ static bool virtio_p9_do_io_request(struct kvm *kvm, struct p9_dev_job *job)
 	p9pdu = virtio_p9_pdu_init(kvm, vq);
 	cmd = virtio_p9_get_cmd(p9pdu);
 
-	if (cmd >= ARRAY_SIZE(virtio_9p_handler) ||
-	    !virtio_9p_handler[cmd])
+	if ((cmd >= ARRAY_SIZE(virtio_9p_dotl_handler)) ||
+	    !virtio_9p_dotl_handler[cmd])
 		handler = virtio_p9_eopnotsupp;
 	else
-		handler = virtio_9p_handler[cmd];
+		handler = virtio_9p_dotl_handler[cmd];
+
 	handler(p9dev, p9pdu, &len);
 	virt_queue__set_used_elem(vq, p9pdu->queue_head, len);
 	free(p9pdu);

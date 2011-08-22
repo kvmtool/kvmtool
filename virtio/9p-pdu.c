@@ -140,6 +140,23 @@ static int virtio_p9_decode(struct p9_pdu *pdu, const char *fmt, va_list ap)
 				virtio_p9_wstat_free(stbuf);
 		}
 		break;
+		case 'I':
+		{
+			struct p9_iattr_dotl *p9attr = va_arg(ap,
+						       struct p9_iattr_dotl *);
+
+			retval = virtio_p9_pdu_readf(pdu, "ddddqqqqq",
+						     &p9attr->valid,
+						     &p9attr->mode,
+						     &p9attr->uid,
+						     &p9attr->gid,
+						     &p9attr->size,
+						     &p9attr->atime_sec,
+						     &p9attr->atime_nsec,
+						     &p9attr->mtime_sec,
+						     &p9attr->mtime_nsec);
+		}
+		break;
 		default:
 			retval = EINVAL;
 			break;
@@ -200,15 +217,41 @@ static int virtio_p9_pdu_encode(struct p9_pdu *pdu, const char *fmt, va_list ap)
 		case 'S':
 		{
 			struct p9_wstat *stbuf = va_arg(ap, struct p9_wstat *);
-			retval = virtio_p9_pdu_writef(pdu, "wwdQdddqsssssddd",
+			retval = virtio_p9_pdu_writef(pdu, "wwdQdddqssss",
 						stbuf->size, stbuf->type,
 						stbuf->dev, &stbuf->qid,
 						stbuf->mode, stbuf->atime,
 						stbuf->mtime, stbuf->length,
 						stbuf->name, stbuf->uid,
-						stbuf->gid, stbuf->muid,
-						stbuf->extension, stbuf->n_uid,
-						stbuf->n_gid, stbuf->n_muid);
+						stbuf->gid, stbuf->muid);
+		}
+		break;
+		case 'A':
+		{
+			struct p9_stat_dotl *stbuf = va_arg(ap,
+						      struct p9_stat_dotl *);
+			retval  = virtio_p9_pdu_writef(pdu,
+						       "qQdddqqqqqqqqqqqqqqq",
+						       stbuf->st_result_mask,
+						       &stbuf->qid,
+						       stbuf->st_mode,
+						       stbuf->st_uid,
+						       stbuf->st_gid,
+						       stbuf->st_nlink,
+						       stbuf->st_rdev,
+						       stbuf->st_size,
+						       stbuf->st_blksize,
+						       stbuf->st_blocks,
+						       stbuf->st_atime_sec,
+						       stbuf->st_atime_nsec,
+						       stbuf->st_mtime_sec,
+						       stbuf->st_mtime_nsec,
+						       stbuf->st_ctime_sec,
+						       stbuf->st_ctime_nsec,
+						       stbuf->st_btime_sec,
+						       stbuf->st_btime_nsec,
+						       stbuf->st_gen,
+						       stbuf->st_data_version);
 		}
 		break;
 		default:

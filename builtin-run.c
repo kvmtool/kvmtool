@@ -611,7 +611,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 		strlcat(real_cmdline, " root=/dev/vda rw ", sizeof(real_cmdline));
 
 	if (using_rootfs)
-		strcat(real_cmdline, " root=/dev/root rootflags=rw,trans=virtio,version=9p2000.u rootfstype=9p");
+		strcat(real_cmdline, " root=/dev/root rootflags=rw,trans=virtio,version=9p2000.L rootfstype=9p");
 
 	if (image_count) {
 		kvm->nr_disks = image_count;

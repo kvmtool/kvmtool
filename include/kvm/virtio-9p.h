@@ -14,7 +14,7 @@
 #define	VIRTIO_P9_DEFAULT_TAG	"kvm_9p"
 #define VIRTIO_P9_HDR_LEN	(sizeof(u32)+sizeof(u8)+sizeof(u16))
 #define VIRTIO_P9_MAX_FID	256
-#define VIRTIO_P9_VERSION	"9P2000.u"
+#define VIRTIO_P9_VERSION_DOTL	"9P2000.L"
 #define MAX_TAG_LEN		32
 
 struct p9_msg {
@@ -26,6 +26,7 @@ struct p9_msg {
 
 struct p9_fid {
 	u32			fid;
+	u32			uid;
 	u8			is_dir;
 	char			abs_path[PATH_MAX];
 	char			*path;
