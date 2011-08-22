@@ -3,9 +3,11 @@
 #include "kvm/virtio.h"
 #include "kvm/pci.h"
 #include "kvm/threadpool.h"
+#include "kvm/virtio-pci.h"
 
 #include <sys/types.h>
 #include <dirent.h>
+#include <linux/list.h>
 
 #define NUM_VIRT_QUEUES		1
 #define VIRTQUEUE_NUM		128
@@ -38,21 +40,18 @@ struct p9_dev_job {
 };
 
 struct p9_dev {
-	u8			status;
-	u8			isr;
-	u16			config_vector;
-	u32			features;
+	struct list_head	list;
+	struct virtio_pci	vpci;
+
 	struct virtio_9p_config	*config;
-	u16			base_addr;
 	int			compat_id;
+	u32			features;
 
 	/* virtio queue */
-	u16			queue_selector;
 	struct virt_queue	vqs[NUM_VIRT_QUEUES];
 	struct p9_dev_job	jobs[NUM_VIRT_QUEUES];
 	struct p9_fid		fids[VIRTIO_P9_MAX_FID];
 	char			root_dir[PATH_MAX];
-	struct pci_device_header pci_hdr;
 };
 
 struct p9_pdu {
@@ -67,7 +66,8 @@ struct p9_pdu {
 
 struct kvm;
 
-int virtio_9p__init(struct kvm *kvm, const char *root, const char *tag_name);
+int virtio_9p__register(struct kvm *kvm, const char *root, const char *tag_name);
+int virtio_9p__init(struct kvm *kvm);
 int virtio_p9_pdu_readf(struct p9_pdu *pdu, const char *fmt, ...);
 int virtio_p9_pdu_writef(struct p9_pdu *pdu, const char *fmt, ...);
 

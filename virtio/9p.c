@@ -19,6 +19,8 @@
 #include <linux/virtio_9p.h>
 #include <net/9p/9p.h>
 
+static LIST_HEAD(devs);
+
 /* Warning: Immediately use value returned from this function */
 static const char *rel_to_abs(struct p9_dev *p9dev,
 			      const char *path, char *abs_path)
@@ -26,62 +28,6 @@ static const char *rel_to_abs(struct p9_dev *p9dev,
 	sprintf(abs_path, "%s/%s", p9dev->root_dir, path);
 
 	return abs_path;
-}
-
-static bool virtio_p9_dev_in(struct p9_dev *p9dev, void *data,
-			     unsigned long offset,
-			     int size)
-{
-	u8 *config_space = (u8 *) p9dev->config;
-
-	if (size != 1)
-		return false;
-
-	ioport__write8(data, config_space[offset - VIRTIO_MSI_CONFIG_VECTOR]);
-
-	return true;
-}
-
-static bool virtio_p9_pci_io_in(struct ioport *ioport, struct kvm *kvm,
-				u16 port, void *data, int size)
-{
-	bool ret = true;
-	unsigned long offset;
-	struct p9_dev *p9dev = ioport->priv;
-
-
-	offset = port - p9dev->base_addr;
-
-	switch (offset) {
-	case VIRTIO_PCI_HOST_FEATURES:
-		ioport__write32(data, p9dev->features);
-		ret = true;
-		break;
-	case VIRTIO_PCI_GUEST_FEATURES:
-	case VIRTIO_PCI_QUEUE_SEL:
-	case VIRTIO_PCI_QUEUE_NOTIFY:
-		ret = false;
-		break;
-	case VIRTIO_PCI_QUEUE_PFN:
-		ioport__write32(data, p9dev->vqs[p9dev->queue_selector].pfn);
-		break;
-	case VIRTIO_PCI_QUEUE_NUM:
-		ioport__write16(data, VIRTQUEUE_NUM);
-		break;
-	case VIRTIO_PCI_STATUS:
-		ioport__write8(data, p9dev->status);
-		break;
-	case VIRTIO_PCI_ISR:
-		ioport__write8(data, p9dev->isr);
-		kvm__irq_line(kvm, p9dev->pci_hdr.irq_line, VIRTIO_IRQ_LOW);
-		p9dev->isr = VIRTIO_IRQ_LOW;
-		break;
-	default:
-		ret = virtio_p9_dev_in(p9dev, data, offset, size);
-		break;
-	};
-
-	return ret;
 }
 
 static int omode2uflags(u8 mode)
@@ -750,8 +696,7 @@ static void virtio_p9_do_io(struct kvm *kvm, void *param)
 
 	while (virt_queue__available(vq)) {
 		virtio_p9_do_io_request(kvm, job);
-		virt_queue__trigger_irq(vq, p9dev->pci_hdr.irq_line,
-					&p9dev->isr, kvm);
+		virtio_pci__signal_vq(kvm, &p9dev->vpci, vq - p9dev->vqs);
 	}
 }
 
@@ -762,90 +707,115 @@ static void ioevent_callback(struct kvm *kvm, void *param)
 	thread_pool__do_job(&job->job_id);
 }
 
-static bool virtio_p9_pci_io_out(struct ioport *ioport, struct kvm *kvm,
-				 u16 port, void *data, int size)
+static void set_config(struct kvm *kvm, void *dev, u8 data, u32 offset)
 {
-	unsigned long offset;
-	bool ret = true;
-	struct p9_dev  *p9dev;
-	struct ioevent ioevent;
+	struct p9_dev *p9dev = dev;
 
-	p9dev = ioport->priv;
-	offset = port - p9dev->base_addr;
-
-	switch (offset) {
-	case VIRTIO_MSI_QUEUE_VECTOR:
-	case VIRTIO_PCI_GUEST_FEATURES:
-		break;
-	case VIRTIO_PCI_QUEUE_PFN: {
-		void *p;
-		struct p9_dev_job *job;
-		struct virt_queue *queue;
-
-		compat__remove_message(p9dev->compat_id);
-
-		job			= &p9dev->jobs[p9dev->queue_selector];
-		queue			= &p9dev->vqs[p9dev->queue_selector];
-		queue->pfn		= ioport__read32(data);
-		p			= guest_pfn_to_host(kvm, queue->pfn);
-
-		vring_init(&queue->vring, VIRTQUEUE_NUM, p,
-			   VIRTIO_PCI_VRING_ALIGN);
-
-		*job			= (struct p9_dev_job) {
-			.vq			= queue,
-			.p9dev			= p9dev,
-		};
-		thread_pool__init_job(&job->job_id, kvm, virtio_p9_do_io, job);
-
-		ioevent = (struct ioevent) {
-			.io_addr		= p9dev->base_addr + VIRTIO_PCI_QUEUE_NOTIFY,
-			.io_len			= sizeof(u16),
-			.fn			= ioevent_callback,
-			.datamatch		= p9dev->queue_selector,
-			.fn_ptr			= &p9dev->jobs[p9dev->queue_selector],
-			.fn_kvm			= kvm,
-			.fd			= eventfd(0, 0),
-		};
-
-		ioeventfd__add_event(&ioevent);
-
-		break;
-	}
-	case VIRTIO_PCI_QUEUE_SEL:
-		p9dev->queue_selector	= ioport__read16(data);
-		break;
-	case VIRTIO_PCI_QUEUE_NOTIFY: {
-		u16 queue_index;
-
-		queue_index		= ioport__read16(data);
-		thread_pool__do_job(&p9dev->jobs[queue_index].job_id);
-		break;
-	}
-	case VIRTIO_PCI_STATUS:
-		p9dev->status		= ioport__read8(data);
-		break;
-	case VIRTIO_MSI_CONFIG_VECTOR:
-		p9dev->config_vector	= VIRTIO_MSI_NO_VECTOR;
-		break;
-	default:
-		ret			= false;
-		break;
-	};
-
-	return ret;
+	((u8 *)(p9dev->config))[offset] = data;
 }
 
-static struct ioport_operations virtio_p9_io_ops = {
-	.io_in				= virtio_p9_pci_io_in,
-	.io_out				= virtio_p9_pci_io_out,
-};
+static u8 get_config(struct kvm *kvm, void *dev, u32 offset)
+{
+	struct p9_dev *p9dev = dev;
 
-int virtio_9p__init(struct kvm *kvm, const char *root, const char *tag_name)
+	return ((u8 *)(p9dev->config))[offset];
+}
+
+static u32 get_host_features(struct kvm *kvm, void *dev)
+{
+	return 1 << VIRTIO_9P_MOUNT_TAG;
+}
+
+static void set_guest_features(struct kvm *kvm, void *dev, u32 features)
+{
+	struct p9_dev *p9dev = dev;
+
+	p9dev->features = features;
+}
+
+static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 pfn)
+{
+	struct p9_dev *p9dev = dev;
+	struct p9_dev_job *job;
+	struct virt_queue *queue;
+	void *p;
+	struct ioevent ioevent;
+
+	compat__remove_message(p9dev->compat_id);
+
+	queue			= &p9dev->vqs[vq];
+	queue->pfn		= pfn;
+	p			= guest_pfn_to_host(kvm, queue->pfn);
+	job			= &p9dev->jobs[vq];
+
+	vring_init(&queue->vring, VIRTQUEUE_NUM, p, VIRTIO_PCI_VRING_ALIGN);
+
+	*job			= (struct p9_dev_job) {
+		.vq			= queue,
+		.p9dev			= p9dev,
+	};
+	thread_pool__init_job(&job->job_id, kvm, virtio_p9_do_io, job);
+
+	ioevent = (struct ioevent) {
+		.io_addr	= p9dev->vpci.base_addr + VIRTIO_PCI_QUEUE_NOTIFY,
+		.io_len		= sizeof(u16),
+		.fn		= ioevent_callback,
+		.fn_ptr		= &p9dev->jobs[vq],
+		.datamatch	= vq,
+		.fn_kvm		= kvm,
+		.fd		= eventfd(0, 0),
+	};
+
+	ioeventfd__add_event(&ioevent);
+
+	return 0;
+}
+
+static int notify_vq(struct kvm *kvm, void *dev, u32 vq)
+{
+	struct p9_dev *p9dev = dev;
+
+	thread_pool__do_job(&p9dev->jobs[vq].job_id);
+
+	return 0;
+}
+
+static int get_pfn_vq(struct kvm *kvm, void *dev, u32 vq)
+{
+	struct p9_dev *p9dev = dev;
+
+	return p9dev->vqs[vq].pfn;
+}
+
+static int get_size_vq(struct kvm *kvm, void *dev, u32 vq)
+{
+	return VIRTQUEUE_NUM;
+}
+
+int virtio_9p__init(struct kvm *kvm)
 {
 	struct p9_dev *p9dev;
-	u8 pin, line, dev;
-	u16 p9_base_addr;
+
+	list_for_each_entry(p9dev, &devs, list) {
+		virtio_pci__init(kvm, &p9dev->vpci, p9dev, PCI_DEVICE_ID_VIRTIO_P9, VIRTIO_ID_9P);
+		p9dev->vpci.ops = (struct virtio_pci_ops) {
+			.set_config		= set_config,
+			.get_config		= get_config,
+			.get_host_features	= get_host_features,
+			.set_guest_features	= set_guest_features,
+			.init_vq		= init_vq,
+			.notify_vq		= notify_vq,
+			.get_pfn_vq		= get_pfn_vq,
+			.get_size_vq		= get_size_vq,
+		};
+	}
+
+	return 0;
+}
+
+int virtio_9p__register(struct kvm *kvm, const char *root, const char *tag_name)
+{
+	struct p9_dev *p9dev;
 	u32 i, root_len;
 	int err = 0;
 
@@ -878,30 +848,9 @@ int virtio_9p__init(struct kvm *kvm, const char *root, const char *tag_name)
 		goto free_p9dev_config;
 	}
 
-	memcpy(p9dev->config->tag, tag_name, strlen(tag_name));
-	p9dev->features |= 1 << VIRTIO_9P_MOUNT_TAG;
+	memcpy(&p9dev->config->tag, tag_name, strlen(tag_name));
 
-	err = irq__register_device(VIRTIO_ID_9P, &dev, &pin, &line);
-	if (err < 0)
-		goto free_p9dev_config;
-
-	p9_base_addr = ioport__register(IOPORT_EMPTY, &virtio_p9_io_ops, IOPORT_SIZE, p9dev);
-
-	p9dev->base_addr = p9_base_addr;
-
-	p9dev->pci_hdr = (struct pci_device_header) {
-		.vendor_id		= PCI_VENDOR_ID_REDHAT_QUMRANET,
-		.device_id		= PCI_DEVICE_ID_VIRTIO_P9,
-		.header_type		= PCI_HEADER_TYPE_NORMAL,
-		.revision_id		= 0,
-		.class			= 0x010000,
-		.subsys_vendor_id	= PCI_SUBSYSTEM_VENDOR_ID_REDHAT_QUMRANET,
-		.subsys_id		= VIRTIO_ID_9P,
-		.irq_pin		= pin,
-		.irq_line		= line,
-		.bar[0]			= p9_base_addr | PCI_BASE_ADDRESS_SPACE_IO,
-	};
-	pci__register(&p9dev->pci_hdr, dev);
+	list_add(&p9dev->list, &devs);
 
 	p9dev->compat_id = compat__add_message("virtio-9p device was not detected",
 						"While you have requested a virtio-9p device, "

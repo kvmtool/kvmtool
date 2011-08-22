@@ -106,7 +106,7 @@ static int img_name_parser(const struct option *opt, const char *arg, int unset)
 		char tmp[PATH_MAX];
 
 		if (realpath(arg, tmp) == 0 ||
-		    virtio_9p__init(kvm, tmp, "/dev/root") < 0)
+		    virtio_9p__register(kvm, tmp, "/dev/root") < 0)
 			die("Unable to initialize virtio 9p");
 		using_rootfs = 1;
 		return 0;
@@ -144,7 +144,7 @@ static int virtio_9p_rootdir_parser(const struct option *opt, const char *arg, i
 		tag_name++;
 	}
 	if (realpath(arg, tmp)) {
-		if (virtio_9p__init(kvm, tmp, tag_name) < 0)
+		if (virtio_9p__register(kvm, tmp, tag_name) < 0)
 			die("Unable to initialize virtio 9p");
 	} else
 		die("Failed resolving 9p path");
@@ -598,7 +598,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 		strlcat(real_cmdline, kernel_cmdline, sizeof(real_cmdline));
 
 	if (!using_rootfs && !image_filename[0]) {
-		if (virtio_9p__init(kvm, "/", "/dev/root") < 0)
+		if (virtio_9p__register(kvm, "/", "/dev/root") < 0)
 			die("Unable to initialize virtio 9p");
 
 		using_rootfs = 1;
@@ -649,6 +649,8 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	if (!network)
 		network = DEFAULT_NETWORK;
+
+	virtio_9p__init(kvm);
 
 	if (strncmp(network, "none", 4)) {
 		net_params.guest_ip = guest_ip;
