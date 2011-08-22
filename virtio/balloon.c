@@ -2,24 +2,24 @@
 
 #include "kvm/virtio-pci-dev.h"
 
-#include "kvm/disk-image.h"
 #include "kvm/virtio.h"
-#include "kvm/ioport.h"
 #include "kvm/util.h"
 #include "kvm/kvm.h"
 #include "kvm/pci.h"
 #include "kvm/threadpool.h"
-#include "kvm/irq.h"
 #include "kvm/ioeventfd.h"
 #include "kvm/guest_compat.h"
+#include "kvm/virtio-pci.h"
 
 #include <linux/virtio_ring.h>
 #include <linux/virtio_balloon.h>
 
+#include <linux/kernel.h>
 #include <linux/list.h>
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/mman.h>
 #include <pthread.h>
 
 #define NUM_VIRT_QUEUES		3
@@ -29,17 +29,12 @@
 #define VIRTIO_BLN_STATS	2
 
 struct bln_dev {
-	struct pci_device_header pci_hdr;
 	struct list_head	list;
+	struct virtio_pci	vpci;
 
-	u16			base_addr;
-	u8			status;
-	u8			isr;
-	u16			config_vector;
-	u32			host_features;
+	u32			features;
 
 	/* virtio queue */
-	u16			queue_selector;
 	struct virt_queue	vqs[NUM_VIRT_QUEUES];
 	struct thread_pool__job	jobs[NUM_VIRT_QUEUES];
 
@@ -55,68 +50,6 @@ struct bln_dev {
 
 static struct bln_dev bdev;
 extern struct kvm *kvm;
-
-static bool virtio_bln_dev_in(void *data, unsigned long offset, int size)
-{
-	u8 *config_space = (u8 *) &bdev.config;
-
-	if (size != 1)
-		return false;
-
-	ioport__write8(data, config_space[offset - VIRTIO_MSI_CONFIG_VECTOR]);
-
-	return true;
-}
-
-static bool virtio_bln_dev_out(void *data, unsigned long offset, int size)
-{
-	u8 *config_space = (u8 *) &bdev.config;
-
-	if (size != 1)
-		return false;
-
-	config_space[offset - VIRTIO_MSI_CONFIG_VECTOR] = *(u8 *)data;
-
-	return true;
-}
-
-static bool virtio_bln_pci_io_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
-{
-	unsigned long offset;
-	bool ret = true;
-
-	offset = port - bdev.base_addr;
-
-	switch (offset) {
-	case VIRTIO_PCI_HOST_FEATURES:
-		ioport__write32(data, bdev.host_features);
-		break;
-	case VIRTIO_PCI_GUEST_FEATURES:
-	case VIRTIO_PCI_QUEUE_SEL:
-	case VIRTIO_PCI_QUEUE_NOTIFY:
-		ret		= false;
-		break;
-	case VIRTIO_PCI_QUEUE_PFN:
-		ioport__write32(data, bdev.vqs[bdev.queue_selector].pfn);
-		break;
-	case VIRTIO_PCI_QUEUE_NUM:
-		ioport__write16(data, VIRTIO_BLN_QUEUE_SIZE);
-		break;
-	case VIRTIO_PCI_STATUS:
-		ioport__write8(data, bdev.status);
-		break;
-	case VIRTIO_PCI_ISR:
-		ioport__write8(data, bdev.isr);
-		kvm__irq_line(kvm, bdev.pci_hdr.irq_line, VIRTIO_IRQ_LOW);
-		bdev.isr = VIRTIO_IRQ_LOW;
-		break;
-	default:
-		ret = virtio_bln_dev_in(data, offset, size);
-		break;
-	};
-
-	return ret;
-}
 
 static bool virtio_bln_do_io_request(struct kvm *kvm, struct bln_dev *bdev, struct virt_queue *queue)
 {
@@ -182,13 +115,13 @@ static void virtio_bln_do_io(struct kvm *kvm, void *param)
 
 	if (vq == &bdev.vqs[VIRTIO_BLN_STATS]) {
 		virtio_bln_do_stat_request(kvm, &bdev, vq);
-		virt_queue__trigger_irq(vq, bdev.pci_hdr.irq_line, &bdev.isr, kvm);
+		virtio_pci__signal_vq(kvm, &bdev.vpci, VIRTIO_BLN_STATS);
 		return;
 	}
 
 	while (virt_queue__available(vq)) {
 		virtio_bln_do_io_request(kvm, &bdev, vq);
-		virt_queue__trigger_irq(vq, bdev.pci_hdr.irq_line, &bdev.isr, kvm);
+		virtio_pci__signal_vq(kvm, &bdev.vpci, vq - bdev.vqs);
 	}
 }
 
@@ -197,82 +130,13 @@ static void ioevent_callback(struct kvm *kvm, void *param)
 	thread_pool__do_job(param);
 }
 
-static bool virtio_bln_pci_io_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
-{
-	unsigned long offset;
-	bool ret = true;
-	struct ioevent ioevent;
-
-	offset = port - bdev.base_addr;
-
-	switch (offset) {
-	case VIRTIO_MSI_QUEUE_VECTOR:
-	case VIRTIO_PCI_GUEST_FEATURES:
-		break;
-	case VIRTIO_PCI_QUEUE_PFN: {
-		struct virt_queue *queue;
-		void *p;
-
-		compat__remove_message(bdev.compat_id);
-
-		queue			= &bdev.vqs[bdev.queue_selector];
-		queue->pfn		= ioport__read32(data);
-		p			= guest_pfn_to_host(kvm, queue->pfn);
-
-		vring_init(&queue->vring, VIRTIO_BLN_QUEUE_SIZE, p, VIRTIO_PCI_VRING_ALIGN);
-
-		thread_pool__init_job(&bdev.jobs[bdev.queue_selector], kvm, virtio_bln_do_io, queue);
-
-		ioevent = (struct ioevent) {
-			.io_addr		= bdev.base_addr + VIRTIO_PCI_QUEUE_NOTIFY,
-			.io_len			= sizeof(u16),
-			.fn			= ioevent_callback,
-			.fn_ptr			= &bdev.jobs[bdev.queue_selector],
-			.datamatch		= bdev.queue_selector,
-			.fn_kvm			= kvm,
-			.fd			= eventfd(0, 0),
-		};
-
-		ioeventfd__add_event(&ioevent);
-
-		break;
-	}
-	case VIRTIO_PCI_QUEUE_SEL:
-		bdev.queue_selector	= ioport__read16(data);
-		break;
-	case VIRTIO_PCI_QUEUE_NOTIFY: {
-		u16 queue_index;
-		queue_index		= ioport__read16(data);
-		thread_pool__do_job(&bdev.jobs[queue_index]);
-		break;
-	}
-	case VIRTIO_PCI_STATUS:
-		bdev.status		= ioport__read8(data);
-		break;
-	case VIRTIO_MSI_CONFIG_VECTOR:
-		bdev.config_vector	= VIRTIO_MSI_NO_VECTOR;
-		break;
-	default:
-		ret = virtio_bln_dev_out(data, offset, size);
-		break;
-	};
-
-	return ret;
-}
-
-static struct ioport_operations virtio_bln_io_ops = {
-	.io_in				= virtio_bln_pci_io_in,
-	.io_out				= virtio_bln_pci_io_out,
-};
-
 static int virtio_bln__collect_stats(void)
 {
 	u64 tmp;
 
 	virt_queue__set_used_elem(&bdev.vqs[VIRTIO_BLN_STATS], bdev.cur_stat_head,
 				  sizeof(struct virtio_balloon_stat));
-	virt_queue__trigger_irq(&bdev.vqs[VIRTIO_BLN_STATS], bdev.pci_hdr.irq_line,
-				&bdev.isr, kvm);
+	virtio_pci__signal_vq(kvm, &bdev.vpci, VIRTIO_BLN_STATS);
 
 	if (read(bdev.stat_waitfd, &tmp, sizeof(tmp)) <= 0)
 		return -EFAULT;
@@ -332,44 +196,107 @@ static void handle_sigmem(int sig)
 	}
 
 	/* Notify that the configuration space has changed */
-	bdev.isr = VIRTIO_PCI_ISR_CONFIG;
-	kvm__irq_line(kvm, bdev.pci_hdr.irq_line, 1);
+	virtio_pci__signal_config(kvm, &bdev.vpci);
+}
+
+static void set_config(struct kvm *kvm, void *dev, u8 data, u32 offset)
+{
+	struct bln_dev *bdev = dev;
+
+	((u8 *)(&bdev->config))[offset] = data;
+}
+
+static u8 get_config(struct kvm *kvm, void *dev, u32 offset)
+{
+	struct bln_dev *bdev = dev;
+
+	return ((u8 *)(&bdev->config))[offset];
+}
+
+static u32 get_host_features(struct kvm *kvm, void *dev)
+{
+	return 1 << VIRTIO_BALLOON_F_STATS_VQ;
+}
+
+static void set_guest_features(struct kvm *kvm, void *dev, u32 features)
+{
+	struct bln_dev *bdev = dev;
+
+	bdev->features = features;
+}
+
+static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 pfn)
+{
+	struct bln_dev *bdev = dev;
+	struct virt_queue *queue;
+	void *p;
+	struct ioevent ioevent;
+
+	compat__remove_message(bdev->compat_id);
+
+	queue			= &bdev->vqs[vq];
+	queue->pfn		= pfn;
+	p			= guest_pfn_to_host(kvm, queue->pfn);
+
+	thread_pool__init_job(&bdev->jobs[vq], kvm, virtio_bln_do_io, queue);
+	vring_init(&queue->vring, VIRTIO_BLN_QUEUE_SIZE, p, VIRTIO_PCI_VRING_ALIGN);
+
+	ioevent = (struct ioevent) {
+		.io_addr	= bdev->vpci.base_addr + VIRTIO_PCI_QUEUE_NOTIFY,
+		.io_len		= sizeof(u16),
+		.fn		= ioevent_callback,
+		.fn_ptr		= &bdev->jobs[vq],
+		.datamatch	= vq,
+		.fn_kvm		= kvm,
+		.fd		= eventfd(0, 0),
+	};
+
+	ioeventfd__add_event(&ioevent);
+
+	return 0;
+}
+
+static int notify_vq(struct kvm *kvm, void *dev, u32 vq)
+{
+	struct bln_dev *bdev = dev;
+
+	thread_pool__do_job(&bdev->jobs[vq]);
+
+	return 0;
+}
+
+static int get_pfn_vq(struct kvm *kvm, void *dev, u32 vq)
+{
+	struct bln_dev *bdev = dev;
+
+	return bdev->vqs[vq].pfn;
+}
+
+static int get_size_vq(struct kvm *kvm, void *dev, u32 vq)
+{
+	return VIRTIO_BLN_QUEUE_SIZE;
 }
 
 void virtio_bln__init(struct kvm *kvm)
 {
-	u8 pin, line, dev;
-	u16 bdev_base_addr;
-
 	signal(SIGKVMADDMEM, handle_sigmem);
 	signal(SIGKVMDELMEM, handle_sigmem);
 	signal(SIGKVMMEMSTAT, handle_sigmem);
 
-	bdev_base_addr = ioport__register(IOPORT_EMPTY, &virtio_bln_io_ops, IOPORT_SIZE, &bdev);
-
-	bdev.pci_hdr = (struct pci_device_header) {
-		.vendor_id		= PCI_VENDOR_ID_REDHAT_QUMRANET,
-		.device_id		= PCI_DEVICE_ID_VIRTIO_BLN,
-		.header_type		= PCI_HEADER_TYPE_NORMAL,
-		.revision_id		= 0,
-		.class			= 0x010000,
-		.subsys_vendor_id	= PCI_SUBSYSTEM_VENDOR_ID_REDHAT_QUMRANET,
-		.subsys_id		= VIRTIO_ID_BALLOON,
-		.bar[0]			= bdev_base_addr | PCI_BASE_ADDRESS_SPACE_IO,
-	};
-
-	bdev.base_addr = bdev_base_addr;
-
-	if (irq__register_device(VIRTIO_ID_BALLOON, &dev, &pin, &line) < 0)
-		return;
-
-	bdev.pci_hdr.irq_pin	= pin;
-	bdev.pci_hdr.irq_line	= line;
-	bdev.host_features	= 1 << VIRTIO_BALLOON_F_STATS_VQ;
 	bdev.stat_waitfd	= eventfd(0, 0);
 	memset(&bdev.config, 0, sizeof(struct virtio_balloon_config));
 
-	pci__register(&bdev.pci_hdr, dev);
+	virtio_pci__init(kvm, &bdev.vpci, &bdev, PCI_DEVICE_ID_VIRTIO_BLN, VIRTIO_ID_BALLOON);
+	bdev.vpci.ops = (struct virtio_pci_ops) {
+		.set_config		= set_config,
+		.get_config		= get_config,
+		.get_host_features	= get_host_features,
+		.set_guest_features	= set_guest_features,
+		.init_vq		= init_vq,
+		.notify_vq		= notify_vq,
+		.get_pfn_vq		= get_pfn_vq,
+		.get_size_vq		= get_size_vq,
+	};
 
 	bdev.compat_id = compat__add_message("virtio-balloon device was not detected",
 						"While you have requested a virtio-balloon device, "
