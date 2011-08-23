@@ -42,7 +42,9 @@ struct virtio_pci {
 	u32			vq_vector[VIRTIO_PCI_MAX_VQ];
 	u32			gsis[VIRTIO_PCI_MAX_VQ];
 	u32			msix_io_block;
-	int			msix_enabled;
+	u32			msix_pba_block;
+	u64			msix_pba;
+	struct msix_table	msix_table[VIRTIO_PCI_MAX_VQ + 1];
 
 	/* virtio queue */
 	u16			queue_selector;

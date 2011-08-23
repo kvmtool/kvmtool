@@ -34,9 +34,9 @@ struct msix_table {
 struct msix_cap {
 	u8 cap;
 	u8 next;
-	u16 table_size;
+	u16 ctrl;
 	u32 table_offset;
-	struct msix_table table[3];
+	u32 pba_offset;
 };
 
 struct pci_device_header {

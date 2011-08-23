@@ -41,11 +41,17 @@ static int virtio_pci__init_ioeventfd(struct kvm *kvm, struct virtio_pci *vpci, 
 	return 0;
 }
 
+static inline bool virtio_pci__msix_enabled(struct virtio_pci *vpci)
+{
+	return vpci->pci_hdr.msix.ctrl & PCI_MSIX_FLAGS_ENABLE;
+}
+
 static bool virtio_pci__specific_io_in(struct kvm *kvm, struct virtio_pci *vpci, u16 port,
 					void *data, int size, int offset)
 {
 	u32 config_offset;
-	int type = virtio__get_dev_specific_field(offset - 20, vpci->msix_enabled,
+	int type = virtio__get_dev_specific_field(offset - 20,
+							virtio_pci__msix_enabled(vpci),
 							0, &config_offset);
 	if (type == VIRTIO_PCI_O_MSIX) {
 		switch (offset) {
@@ -113,7 +119,7 @@ static bool virtio_pci__specific_io_out(struct kvm *kvm, struct virtio_pci *vpci
 					void *data, int size, int offset)
 {
 	u32 config_offset, gsi, vec;
-	int type = virtio__get_dev_specific_field(offset - 20, vpci->msix_enabled,
+	int type = virtio__get_dev_specific_field(offset - 20, virtio_pci__msix_enabled(vpci),
 							0, &config_offset);
 	if (type == VIRTIO_PCI_O_MSIX) {
 		switch (offset) {
@@ -121,9 +127,9 @@ static bool virtio_pci__specific_io_out(struct kvm *kvm, struct virtio_pci *vpci
 			vec = vpci->config_vector = ioport__read16(data);
 
 			gsi = irq__add_msix_route(kvm,
-						  vpci->pci_hdr.msix.table[vec].low,
-						  vpci->pci_hdr.msix.table[vec].high,
-						  vpci->pci_hdr.msix.table[vec].data);
+						  vpci->msix_table[vec].low,
+						  vpci->msix_table[vec].high,
+						  vpci->msix_table[vec].data);
 
 			vpci->config_gsi = gsi;
 			break;
@@ -131,9 +137,9 @@ static bool virtio_pci__specific_io_out(struct kvm *kvm, struct virtio_pci *vpci
 			vec = vpci->vq_vector[vpci->queue_selector] = ioport__read16(data);
 
 			gsi = irq__add_msix_route(kvm,
-						  vpci->pci_hdr.msix.table[vec].low,
-						  vpci->pci_hdr.msix.table[vec].high,
-						  vpci->pci_hdr.msix.table[vec].data);
+						  vpci->msix_table[vec].low,
+						  vpci->msix_table[vec].high,
+						  vpci->msix_table[vec].data);
 			vpci->gsis[vpci->queue_selector] = gsi;
 			break;
 		}
@@ -192,28 +198,64 @@ static struct ioport_operations virtio_pci__io_ops = {
 	.io_out	= virtio_pci__io_out,
 };
 
-static void callback_mmio(u64 addr, u8 *data, u32 len, u8 is_write, void *ptr)
+static void callback_mmio_table(u64 addr, u8 *data, u32 len, u8 is_write, void *ptr)
 {
 	struct virtio_pci *vpci = ptr;
-	void *table = &vpci->pci_hdr.msix.table;
+	void *table = &vpci->msix_table;
 
-	vpci->msix_enabled = 1;
 	if (is_write)
 		memcpy(table + addr - vpci->msix_io_block, data, len);
 	else
 		memcpy(data, table + addr - vpci->msix_io_block, len);
 }
 
+static void callback_mmio_pba(u64 addr, u8 *data, u32 len, u8 is_write, void *ptr)
+{
+	struct virtio_pci *vpci = ptr;
+	void *pba = &vpci->msix_pba;
+
+	if (is_write)
+		memcpy(pba + addr - vpci->msix_pba_block, data, len);
+	else
+		memcpy(data, pba + addr - vpci->msix_pba_block, len);
+}
+
 int virtio_pci__signal_vq(struct kvm *kvm, struct virtio_pci *vpci, u32 vq)
 {
-	kvm__irq_line(kvm, vpci->gsis[vq], VIRTIO_IRQ_HIGH);
+	int tbl = vpci->vq_vector[vq];
 
+	if (virtio_pci__msix_enabled(vpci)) {
+		if (vpci->pci_hdr.msix.ctrl & PCI_MSIX_FLAGS_MASKALL ||
+			vpci->msix_table[tbl].ctrl & PCI_MSIX_ENTRY_CTRL_MASKBIT) {
+
+			vpci->msix_pba |= 1 << tbl;
+			return 0;
+		}
+
+		kvm__irq_trigger(kvm, vpci->gsis[vq]);
+	} else {
+		kvm__irq_trigger(kvm, vpci->pci_hdr.irq_line);
+	}
 	return 0;
 }
 
 int virtio_pci__signal_config(struct kvm *kvm, struct virtio_pci *vpci)
 {
-	kvm__irq_line(kvm, vpci->config_gsi, VIRTIO_IRQ_HIGH);
+	int tbl = vpci->config_vector;
+
+	if (virtio_pci__msix_enabled(vpci)) {
+		if (vpci->pci_hdr.msix.ctrl & PCI_MSIX_FLAGS_MASKALL ||
+			vpci->msix_table[tbl].ctrl & PCI_MSIX_ENTRY_CTRL_MASKBIT) {
+
+			vpci->msix_pba |= 1 << tbl;
+			return 0;
+		}
+
+		kvm__irq_trigger(kvm, vpci->config_gsi);
+	} else {
+		vpci->isr = VIRTIO_PCI_ISR_CONFIG;
+		kvm__irq_trigger(kvm, vpci->pci_hdr.irq_line);
+	}
 
 	return 0;
 }
@@ -225,9 +267,11 @@ int virtio_pci__init(struct kvm *kvm, struct virtio_pci *vpci, void *dev,
 
 	vpci->dev = dev;
 	vpci->msix_io_block = pci_get_io_space_block();
+	vpci->msix_pba_block = pci_get_io_space_block();
 
 	vpci->base_addr = ioport__register(IOPORT_EMPTY, &virtio_pci__io_ops, IOPORT_SIZE, vpci);
-	kvm__register_mmio(kvm, vpci->msix_io_block, 0x100, callback_mmio, vpci);
+	kvm__register_mmio(kvm, vpci->msix_io_block, 0x100, callback_mmio_table, vpci);
+	kvm__register_mmio(kvm, vpci->msix_pba_block, 0x100, callback_mmio_pba, vpci);
 
 	vpci->pci_hdr = (struct pci_device_header) {
 		.vendor_id		= PCI_VENDOR_ID_REDHAT_QUMRANET,
@@ -238,19 +282,24 @@ int virtio_pci__init(struct kvm *kvm, struct virtio_pci *vpci, void *dev,
 		.subsys_vendor_id	= PCI_SUBSYSTEM_VENDOR_ID_REDHAT_QUMRANET,
 		.subsys_id		= subsys_id,
 		.bar[0]			= vpci->base_addr | PCI_BASE_ADDRESS_SPACE_IO,
-		.bar[1]			= vpci->msix_io_block |
-					PCI_BASE_ADDRESS_SPACE_MEMORY |
-					PCI_BASE_ADDRESS_MEM_TYPE_64,
-		/* bar[2] is the continuation of bar[1] for 64bit addressing */
-		.bar[2]			= 0,
+		.bar[1]			= vpci->msix_io_block | PCI_BASE_ADDRESS_SPACE_MEMORY
+					| PCI_BASE_ADDRESS_MEM_TYPE_64,
+		.bar[3]			= vpci->msix_pba_block | PCI_BASE_ADDRESS_SPACE_MEMORY
+					| PCI_BASE_ADDRESS_MEM_TYPE_64,
 		.status			= PCI_STATUS_CAP_LIST,
 		.capabilities		= (void *)&vpci->pci_hdr.msix - (void *)&vpci->pci_hdr,
 	};
 
 	vpci->pci_hdr.msix.cap = PCI_CAP_ID_MSIX;
 	vpci->pci_hdr.msix.next = 0;
-	vpci->pci_hdr.msix.table_size = (VIRTIO_PCI_MAX_VQ + 1) | PCI_MSIX_FLAGS_ENABLE;
+	vpci->pci_hdr.msix.ctrl = (VIRTIO_PCI_MAX_VQ + 1);
+
+	/*
+	 * Both table and PBA could be mapped on the same BAR, but for now
+	 * we're not in short of BARs
+	 */
 	vpci->pci_hdr.msix.table_offset = 1; /* Use BAR 1 */
+	vpci->pci_hdr.msix.pba_offset = 3; /* Use BAR 3 */
 	vpci->config_vector = 0;
 
 	if (irq__register_device(VIRTIO_ID_RNG, &ndev, &pin, &line) < 0)
