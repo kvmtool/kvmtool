@@ -1,0 +1,15 @@
+kvm-setup(1)
+================
+
+NAME
+----
+kvm-setup - Setup a new virtual machine
+
+SYNOPSIS
+--------
+[verse]
+'kvm setup <name>'
+
+DESCRIPTION
+-----------
+The command setups a virtual machine.

@@ -3,6 +3,7 @@
 # command name			category [deprecated] [common]
 #
 kvm-run				mainporcelain common
+kvm-setup			mainporcelain common
 kvm-pause			common
 kvm-resume			common
 kvm-version			common
