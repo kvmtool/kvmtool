@@ -106,6 +106,7 @@ static const char *guestfs_dirs[] = {
 	"/proc",
 	"/root",
 	"/sys",
+	"/tmp",
 	"/var",
 	"/var/lib",
 	"/virt",
