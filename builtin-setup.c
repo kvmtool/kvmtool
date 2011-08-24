@@ -141,6 +141,15 @@ static int make_guestfs_symlink(const char *guestfs_name, const char *path)
 	return symlink(target, name);
 }
 
+static void make_root_dir(void)
+{
+	char name[PATH_MAX];
+
+	snprintf(name, PATH_MAX, "%s%s", HOME_DIR, KVM_PID_FILE_PATH);
+
+	mkdir(name, 0777);
+}
+
 static void make_dir(const char *dir)
 {
 	char name[PATH_MAX];
@@ -162,6 +171,8 @@ static void make_guestfs_dir(const char *guestfs_name, const char *dir)
 static int do_setup(const char *guestfs_name)
 {
 	unsigned int i;
+
+	make_root_dir();
 
 	make_dir(guestfs_name);
 
