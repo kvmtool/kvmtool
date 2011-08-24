@@ -122,13 +122,6 @@ static void virtio_blk_do_io(struct kvm *kvm, struct virt_queue *vq, struct blk_
 	}
 }
 
-static void ioevent_callback(struct kvm *kvm, void *param)
-{
-	struct blk_dev *bdev = param;
-
-	virtio_blk_do_io(kvm, &bdev->vqs[0], bdev);
-}
-
 static void set_config(struct kvm *kvm, void *dev, u8 data, u32 offset)
 {
 	struct blk_dev *bdev = dev;
@@ -160,7 +153,6 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 pfn)
 	struct blk_dev *bdev = dev;
 	struct virt_queue *queue;
 	void *p;
-	struct ioevent ioevent;
 
 	compat__remove_message(bdev->compat_id);
 
@@ -169,18 +161,6 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 pfn)
 	p			= guest_pfn_to_host(kvm, queue->pfn);
 
 	vring_init(&queue->vring, VIRTIO_BLK_QUEUE_SIZE, p, VIRTIO_PCI_VRING_ALIGN);
-
-	ioevent = (struct ioevent) {
-		.io_addr	= bdev->vpci.base_addr + VIRTIO_PCI_QUEUE_NOTIFY,
-		.io_len		= sizeof(u16),
-		.fn		= ioevent_callback,
-		.fn_ptr		= bdev,
-		.datamatch	= vq,
-		.fn_kvm		= kvm,
-		.fd		= eventfd(0, 0),
-	};
-
-	ioeventfd__add_event(&ioevent);
 
 	return 0;
 }
@@ -261,7 +241,6 @@ void virtio_blk__delete_all(struct kvm *kvm)
 		struct blk_dev *bdev;
 
 		bdev = list_first_entry(&bdevs, struct blk_dev, list);
-		ioeventfd__del_event(bdev->vpci.base_addr + VIRTIO_PCI_QUEUE_NOTIFY, 0);
 		list_del(&bdev->list);
 		free(bdev);
 	}

@@ -7,7 +7,6 @@
 #include "kvm/kvm.h"
 #include "kvm/pci.h"
 #include "kvm/threadpool.h"
-#include "kvm/ioeventfd.h"
 #include "kvm/guest_compat.h"
 #include "kvm/virtio-pci.h"
 
@@ -21,6 +20,7 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <pthread.h>
+#include <sys/eventfd.h>
 
 #define NUM_VIRT_QUEUES		3
 #define VIRTIO_BLN_QUEUE_SIZE	128
@@ -125,11 +125,6 @@ static void virtio_bln_do_io(struct kvm *kvm, void *param)
 	}
 }
 
-static void ioevent_callback(struct kvm *kvm, void *param)
-{
-	thread_pool__do_job(param);
-}
-
 static int virtio_bln__collect_stats(void)
 {
 	u64 tmp;
@@ -230,7 +225,6 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 pfn)
 	struct bln_dev *bdev = dev;
 	struct virt_queue *queue;
 	void *p;
-	struct ioevent ioevent;
 
 	compat__remove_message(bdev->compat_id);
 
@@ -240,18 +234,6 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 pfn)
 
 	thread_pool__init_job(&bdev->jobs[vq], kvm, virtio_bln_do_io, queue);
 	vring_init(&queue->vring, VIRTIO_BLN_QUEUE_SIZE, p, VIRTIO_PCI_VRING_ALIGN);
-
-	ioevent = (struct ioevent) {
-		.io_addr	= bdev->vpci.base_addr + VIRTIO_PCI_QUEUE_NOTIFY,
-		.io_len		= sizeof(u16),
-		.fn		= ioevent_callback,
-		.fn_ptr		= &bdev->jobs[vq],
-		.datamatch	= vq,
-		.fn_kvm		= kvm,
-		.fd		= eventfd(0, 0),
-	};
-
-	ioeventfd__add_event(&ioevent);
 
 	return 0;
 }

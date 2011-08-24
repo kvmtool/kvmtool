@@ -5,9 +5,41 @@
 #include "kvm/virtio-pci-dev.h"
 #include "kvm/irq.h"
 #include "kvm/virtio.h"
+#include "kvm/ioeventfd.h"
 
 #include <linux/virtio_pci.h>
 #include <string.h>
+
+static void virtio_pci__ioevent_callback(struct kvm *kvm, void *param)
+{
+	struct virtio_pci_ioevent_param *ioeventfd = param;
+
+	ioeventfd->vpci->ops.notify_vq(kvm, ioeventfd->vpci->dev, ioeventfd->vq);
+}
+
+static int virtio_pci__init_ioeventfd(struct kvm *kvm, struct virtio_pci *vpci, u32 vq)
+{
+	struct ioevent ioevent;
+
+	vpci->ioeventfds[vq] = (struct virtio_pci_ioevent_param) {
+		.vpci		= vpci,
+		.vq		= vq,
+	};
+
+	ioevent = (struct ioevent) {
+		.io_addr	= vpci->base_addr + VIRTIO_PCI_QUEUE_NOTIFY,
+		.io_len		= sizeof(u16),
+		.fn		= virtio_pci__ioevent_callback,
+		.fn_ptr		= &vpci->ioeventfds[vq],
+		.datamatch	= vq,
+		.fn_kvm		= kvm,
+		.fd		= eventfd(0, 0),
+	};
+
+	ioeventfd__add_event(&ioevent);
+
+	return 0;
+}
 
 static bool virtio_pci__specific_io_in(struct kvm *kvm, struct virtio_pci *vpci, u16 port,
 					void *data, int size, int offset)
@@ -134,6 +166,7 @@ static bool virtio_pci__io_out(struct ioport *ioport, struct kvm *kvm, u16 port,
 		break;
 	case VIRTIO_PCI_QUEUE_PFN:
 		val = ioport__read32(data);
+		virtio_pci__init_ioeventfd(kvm, vpci, vpci->queue_selector);
 		vpci->ops.init_vq(kvm, vpci->dev, vpci->queue_selector, val);
 		break;
 	case VIRTIO_PCI_QUEUE_SEL:

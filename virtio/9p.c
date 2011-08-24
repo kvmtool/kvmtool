@@ -2,7 +2,6 @@
 #include "kvm/ioport.h"
 #include "kvm/util.h"
 #include "kvm/threadpool.h"
-#include "kvm/ioeventfd.h"
 #include "kvm/irq.h"
 #include "kvm/virtio-9p.h"
 #include "kvm/guest_compat.h"
@@ -1116,13 +1115,6 @@ static void virtio_p9_do_io(struct kvm *kvm, void *param)
 	}
 }
 
-static void ioevent_callback(struct kvm *kvm, void *param)
-{
-	struct p9_dev_job *job = param;
-
-	thread_pool__do_job(&job->job_id);
-}
-
 static void set_config(struct kvm *kvm, void *dev, u8 data, u32 offset)
 {
 	struct p9_dev *p9dev = dev;
@@ -1155,7 +1147,6 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 pfn)
 	struct p9_dev_job *job;
 	struct virt_queue *queue;
 	void *p;
-	struct ioevent ioevent;
 
 	compat__remove_message(p9dev->compat_id);
 
@@ -1171,18 +1162,6 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 pfn)
 		.p9dev			= p9dev,
 	};
 	thread_pool__init_job(&job->job_id, kvm, virtio_p9_do_io, job);
-
-	ioevent = (struct ioevent) {
-		.io_addr	= p9dev->vpci.base_addr + VIRTIO_PCI_QUEUE_NOTIFY,
-		.io_len		= sizeof(u16),
-		.fn		= ioevent_callback,
-		.fn_ptr		= &p9dev->jobs[vq],
-		.datamatch	= vq,
-		.fn_kvm		= kvm,
-		.fd		= eventfd(0, 0),
-	};
-
-	ioeventfd__add_event(&ioevent);
 
 	return 0;
 }

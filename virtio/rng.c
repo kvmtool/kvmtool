@@ -6,7 +6,6 @@
 #include "kvm/util.h"
 #include "kvm/kvm.h"
 #include "kvm/threadpool.h"
-#include "kvm/ioeventfd.h"
 #include "kvm/guest_compat.h"
 #include "kvm/virtio-pci.h"
 
@@ -97,7 +96,6 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 pfn)
 	struct virt_queue *queue;
 	struct rng_dev_job *job;
 	void *p;
-	struct ioevent ioevent;
 
 	compat__remove_message(rdev->compat_id);
 
@@ -113,18 +111,6 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 pfn)
 		.vq		= queue,
 		.rdev		= rdev,
 	};
-
-	ioevent = (struct ioevent) {
-		.io_addr	= rdev->vpci.base_addr + VIRTIO_PCI_QUEUE_NOTIFY,
-		.io_len		= sizeof(u16),
-		.fn		= virtio_rng_do_io,
-		.fn_ptr		= &rdev->jobs[vq],
-		.datamatch	= vq,
-		.fn_kvm		= kvm,
-		.fd		= eventfd(0, 0),
-	};
-
-	ioeventfd__add_event(&ioevent);
 
 	thread_pool__init_job(&job->job_id, kvm, virtio_rng_do_io, job);
 
@@ -192,7 +178,6 @@ void virtio_rng__delete_all(struct kvm *kvm)
 
 		rdev = list_first_entry(&rdevs, struct rng_dev, list);
 		list_del(&rdev->list);
-		ioeventfd__del_event(rdev->vpci.base_addr + VIRTIO_PCI_QUEUE_NOTIFY, 0);
 		free(rdev);
 	}
 }

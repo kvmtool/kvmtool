@@ -7,7 +7,6 @@
 #include "kvm/kvm.h"
 #include "kvm/irq.h"
 #include "kvm/uip.h"
-#include "kvm/ioeventfd.h"
 #include "kvm/guest_compat.h"
 #include "kvm/virtio-pci.h"
 
@@ -168,11 +167,6 @@ static void virtio_net_handle_callback(struct kvm *kvm, u16 queue_index)
 	default:
 		pr_warning("Unknown queue index %u", queue_index);
 	}
-}
-
-static void ioevent_callback(struct kvm *kvm, void *param)
-{
-	virtio_net_handle_callback(kvm, (u64)(long)param);
 }
 
 static bool virtio_net__tap_init(const struct virtio_net_parameters *params)
@@ -337,7 +331,6 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 pfn)
 	struct net_dev *ndev = dev;
 	struct virt_queue *queue;
 	void *p;
-	struct ioevent ioevent;
 
 	compat__remove_message(ndev->compat_id);
 
@@ -346,18 +339,6 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 pfn)
 	p			= guest_pfn_to_host(kvm, queue->pfn);
 
 	vring_init(&queue->vring, VIRTIO_NET_QUEUE_SIZE, p, VIRTIO_PCI_VRING_ALIGN);
-
-	ioevent = (struct ioevent) {
-		.io_addr	= ndev->vpci.base_addr + VIRTIO_PCI_QUEUE_NOTIFY,
-		.io_len		= sizeof(u16),
-		.fn		= ioevent_callback,
-		.fn_ptr		= (void *)(u64)vq,
-		.datamatch	= vq,
-		.fn_kvm		= kvm,
-		.fd		= eventfd(0, 0),
-	};
-
-	ioeventfd__add_event(&ioevent);
 
 	return 0;
 }
