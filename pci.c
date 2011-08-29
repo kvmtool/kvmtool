@@ -6,7 +6,6 @@
 #include <assert.h>
 
 #define PCI_MAX_DEVICES			256
-#define PCI_IO_SIZE			0x100
 #define PCI_BAR_OFFSET(b)		(offsetof(struct pci_device_header, bar[b]))
 
 static struct pci_device_header		*pci_devices[PCI_MAX_DEVICES];
@@ -16,10 +15,10 @@ static struct pci_config_address	pci_config_address;
 /* This is within our PCI gap - in an unused area */
 static u32 io_space_blocks		= KVM_32BIT_GAP_START + 0x1000000;
 
-u32 pci_get_io_space_block(void)
+u32 pci_get_io_space_block(u32 size)
 {
 	u32 block = io_space_blocks;
-	io_space_blocks += PCI_IO_SIZE;
+	io_space_blocks += size;
 
 	return block;
 }

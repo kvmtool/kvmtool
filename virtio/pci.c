@@ -266,8 +266,8 @@ int virtio_pci__init(struct kvm *kvm, struct virtio_pci *vpci, void *dev,
 	u8 pin, line, ndev;
 
 	vpci->dev = dev;
-	vpci->msix_io_block = pci_get_io_space_block();
-	vpci->msix_pba_block = pci_get_io_space_block();
+	vpci->msix_io_block = pci_get_io_space_block(PCI_IO_SIZE);
+	vpci->msix_pba_block = pci_get_io_space_block(PCI_IO_SIZE);
 
 	vpci->base_addr = ioport__register(IOPORT_EMPTY, &virtio_pci__io_ops, IOPORT_SIZE, vpci);
 	kvm__register_mmio(kvm, vpci->msix_io_block, 0x100, callback_mmio_table, vpci);

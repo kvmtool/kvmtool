@@ -13,6 +13,7 @@
 #define PCI_CONFIG_ADDRESS	0xcf8
 #define PCI_CONFIG_DATA		0xcfc
 #define PCI_CONFIG_BUS_FORWARD	0xcfa
+#define PCI_IO_SIZE		0x100
 
 struct pci_config_address {
 	unsigned	zeros		: 2;		/* 1  .. 0  */
@@ -69,6 +70,6 @@ struct pci_device_header {
 
 void pci__init(void);
 void pci__register(struct pci_device_header *dev, u8 dev_num);
-u32 pci_get_io_space_block(void);
+u32 pci_get_io_space_block(u32 size);
 
 #endif /* KVM__PCI_H */

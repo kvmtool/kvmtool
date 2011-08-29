@@ -28,6 +28,7 @@
 #include "kvm/sdl.h"
 #include "kvm/vnc.h"
 #include "kvm/guest_compat.h"
+#include "kvm/pci-shmem.h"
 
 #include <linux/types.h>
 
@@ -52,6 +53,8 @@
 #define DEFAULT_SCRIPT		"none"
 
 #define MB_SHIFT		(20)
+#define KB_SHIFT		(10)
+#define GB_SHIFT		(30)
 #define MIN_RAM_SIZE_MB		(64ULL)
 #define MIN_RAM_SIZE_BYTE	(MIN_RAM_SIZE_MB << MB_SHIFT)
 
@@ -151,6 +154,131 @@ static int virtio_9p_rootdir_parser(const struct option *opt, const char *arg, i
 	return 0;
 }
 
+static int shmem_parser(const struct option *opt, const char *arg, int unset)
+{
+	const uint64_t default_size = SHMEM_DEFAULT_SIZE;
+	const uint64_t default_phys_addr = SHMEM_DEFAULT_ADDR;
+	const char *default_handle = SHMEM_DEFAULT_HANDLE;
+	struct shmem_info *si = malloc(sizeof(struct shmem_info));
+	enum { PCI, UNK } addr_type = PCI;
+	uint64_t phys_addr;
+	uint64_t size;
+	char *handle = NULL;
+	int create = 0;
+	const char *p = arg;
+	char *next;
+	int base = 10;
+	int verbose = 0;
+
+	const int skip_pci = strlen("pci:");
+	if (verbose)
+		pr_info("shmem_parser(%p,%s,%d)", opt, arg, unset);
+	/* parse out optional addr family */
+	if (strcasestr(p, "pci:")) {
+		p += skip_pci;
+		addr_type = PCI;
+	} else if (strcasestr(p, "mem:")) {
+		die("I can't add to E820 map yet.\n");
+	}
+	/* parse out physical addr */
+	base = 10;
+	if (strcasestr(p, "0x"))
+		base = 16;
+	phys_addr = strtoll(p, &next, base);
+	if (next == p && phys_addr == 0) {
+		pr_info("shmem: no physical addr specified, using default.");
+		phys_addr = default_phys_addr;
+	}
+	if (*next != ':' && *next != '\0')
+		die("shmem: unexpected chars after phys addr.\n");
+	if (*next == '\0')
+		p = next;
+	else
+		p = next + 1;
+	/* parse out size */
+	base = 10;
+	if (strcasestr(p, "0x"))
+		base = 16;
+	size = strtoll(p, &next, base);
+	if (next == p && size == 0) {
+		pr_info("shmem: no size specified, using default.");
+		size = default_size;
+	}
+	/* look for [KMGkmg][Bb]*  uses base 2. */
+	int skip_B = 0;
+	if (strspn(next, "KMGkmg")) {	/* might have a prefix */
+		if (*(next + 1) == 'B' || *(next + 1) == 'b')
+			skip_B = 1;
+		switch (*next) {
+		case 'K':
+		case 'k':
+			size = size << KB_SHIFT;
+			break;
+		case 'M':
+		case 'm':
+			size = size << MB_SHIFT;
+			break;
+		case 'G':
+		case 'g':
+			size = size << GB_SHIFT;
+			break;
+		default:
+			die("shmem: bug in detecting size prefix.");
+			break;
+		}
+		next += 1 + skip_B;
+	}
+	if (*next != ':' && *next != '\0') {
+		die("shmem: unexpected chars after phys size. <%c><%c>\n",
+		    *next, *p);
+	}
+	if (*next == '\0')
+		p = next;
+	else
+		p = next + 1;
+	/* parse out optional shmem handle */
+	const int skip_handle = strlen("handle=");
+	next = strcasestr(p, "handle=");
+	if (*p && next) {
+		if (p != next)
+			die("unexpected chars before handle\n");
+		p += skip_handle;
+		next = strchrnul(p, ':');
+		if (next - p) {
+			handle = malloc(next - p + 1);
+			strncpy(handle, p, next - p);
+			handle[next - p] = '\0';	/* just in case. */
+		}
+		if (*next == '\0')
+			p = next;
+		else
+			p = next + 1;
+	}
+	/* parse optional create flag to see if we should create shm seg. */
+	if (*p && strcasestr(p, "create")) {
+		create = 1;
+		p += strlen("create");
+	}
+	if (*p != '\0')
+		die("shmem: unexpected trailing chars\n");
+	if (handle == NULL) {
+		handle = malloc(strlen(default_handle) + 1);
+		strcpy(handle, default_handle);
+	}
+	if (verbose) {
+		pr_info("shmem: phys_addr = %lx", phys_addr);
+		pr_info("shmem: size      = %lx", size);
+		pr_info("shmem: handle    = %s", handle);
+		pr_info("shmem: create    = %d", create);
+	}
+
+	si->phys_addr = phys_addr;
+	si->size = size;
+	si->handle = handle;
+	si->create = create;
+	pci_shmem__register_mem(si);	/* ownership of si, etc. passed on. */
+	return 0;
+}
 
 static const struct option options[] = {
 	OPT_GROUP("Basic options:"),
@@ -158,6 +286,10 @@ static const struct option options[] = {
 			"A name for the guest"),
 	OPT_INTEGER('c', "cpus", &nrcpus, "Number of CPUs"),
 	OPT_U64('m', "mem", &ram_size, "Virtual machine memory size in MiB."),
+	OPT_CALLBACK('\0', "shmem", NULL,
+		     "[pci:]<addr>:<size>[:handle=<handle>][:create]",
+		     "Share host shmem with guest via pci device",
+		     shmem_parser),
 	OPT_CALLBACK('d', "disk", NULL, "image or rootfs_dir", "Disk image or rootfs directory", img_name_parser),
 	OPT_BOOLEAN('\0', "balloon", &balloon, "Enable virtio balloon"),
 	OPT_BOOLEAN('\0', "vnc", &vnc, "Enable VNC framebuffer"),
@@ -694,6 +826,8 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	kvm__init_ram(kvm);
 
 	kbd__init(kvm);
+
+	pci_shmem__init(kvm);
 
 	if (vnc || sdl)
 		fb = vesa__init(kvm);
