@@ -222,10 +222,8 @@ int pci_shmem__init(struct kvm *kvm)
 	u8 dev, line, pin;
 	char *mem;
 
-	if (shmem_region == 0) {
-		pr_warning("pci_shmem_init: memory region not registered\n");
+	if (shmem_region == 0)
 		return 0;
-	}
 
 	/* Register good old INTx */
 	if (irq__register_device(PCI_DEVICE_ID_PCI_SHMEM, &dev, &pin, &line) < 0)
