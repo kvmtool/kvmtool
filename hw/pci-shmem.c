@@ -205,7 +205,7 @@ static void *setup_shmem(const char *key, size_t len, int creating)
 	if (creating) {
 		rtn = ftruncate(fd, (off_t) len);
 		if (rtn < 0)
-			pr_warning("Can't ftruncate(fd,%ld)\n", len);
+			pr_warning("Can't ftruncate(fd,%zu)\n", len);
 	}
 	mem = mmap(NULL, len,
 		   PROT_READ | PROT_WRITE, MAP_SHARED | MAP_NORESERVE, fd, 0);
