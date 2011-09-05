@@ -32,8 +32,6 @@
 #include <dirent.h>
 
 #define DEFINE_KVM_EXIT_REASON(reason) [reason] = #reason
-#define KVM_PID_FILE_PATH	"/.kvm-tools/"
-#define HOME_DIR		getenv("HOME")
 
 const char *kvm_exit_reasons[] = {
 	DEFINE_KVM_EXIT_REASON(KVM_EXIT_UNKNOWN),

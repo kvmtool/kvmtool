@@ -85,6 +85,7 @@ static bool vnc;
 static bool sdl;
 static bool balloon;
 static bool using_rootfs;
+static bool custom_rootfs;
 extern bool ioport_debug;
 extern int  active_console;
 extern int  debug_iodelay;
@@ -103,6 +104,7 @@ static int img_name_parser(const struct option *opt, const char *arg, int unset)
 {
 	char *sep;
 	struct stat st;
+	char path[PATH_MAX];
 
 	if (stat(arg, &st) == 0 &&
 	    S_ISDIR(st.st_mode)) {
@@ -112,6 +114,21 @@ static int img_name_parser(const struct option *opt, const char *arg, int unset)
 		    virtio_9p__register(kvm, tmp, "/dev/root") < 0)
 			die("Unable to initialize virtio 9p");
 		using_rootfs = 1;
+		return 0;
+	}
+
+	snprintf(path, PATH_MAX, "%s%s%s", HOME_DIR, KVM_PID_FILE_PATH, arg);
+
+	if (stat(path, &st) == 0 &&
+	    S_ISDIR(st.st_mode)) {
+		char tmp[PATH_MAX];
+
+		if (realpath(path, tmp) == 0 ||
+		    virtio_9p__register(kvm, tmp, "/dev/root") < 0)
+			die("Unable to initialize virtio 9p");
+		if (virtio_9p__register(kvm, "/", "hostfs") < 0)
+			die("Unable to initialize virtio 9p");
+		using_rootfs = custom_rootfs = 1;
 		return 0;
 	}
 
@@ -739,10 +756,13 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 			strlcat(real_cmdline, " init=/bin/sh ", sizeof(real_cmdline));
 	}
 
-	if (using_rootfs)
+	if (using_rootfs) {
 		strcat(real_cmdline, " root=/dev/root rw rootflags=rw,trans=virtio,version=9p2000.L rootfstype=9p");
-	else if (!strstr(real_cmdline, "root="))
+		if (custom_rootfs)
+			strcat(real_cmdline, " init=/virt/init");
+	} else if (!strstr(real_cmdline, "root=")) {
 		strlcat(real_cmdline, " root=/dev/vda rw ", sizeof(real_cmdline));
+	}
 
 	if (image_count) {
 		kvm->nr_disks = image_count;

@@ -24,6 +24,9 @@
 #define SIGKVMRESUME		(SIGRTMIN + 5)
 #define SIGKVMMEMSTAT		(SIGRTMIN + 6)
 
+#define KVM_PID_FILE_PATH	"/.kvm-tools/"
+#define HOME_DIR		getenv("HOME")
+
 struct kvm {
 	int			sys_fd;		/* For system ioctls(), i.e. /dev/kvm */
 	int			vm_fd;		/* For VM ioctls() */
