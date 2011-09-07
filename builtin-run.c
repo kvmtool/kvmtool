@@ -178,7 +178,6 @@ static int shmem_parser(const struct option *opt, const char *arg, int unset)
 	const uint64_t default_phys_addr = SHMEM_DEFAULT_ADDR;
 	const char *default_handle = SHMEM_DEFAULT_HANDLE;
 	struct shmem_info *si = malloc(sizeof(struct shmem_info));
-	enum { PCI, UNK } addr_type = PCI;
 	uint64_t phys_addr;
 	uint64_t size;
 	char *handle = NULL;
@@ -194,7 +193,6 @@ static int shmem_parser(const struct option *opt, const char *arg, int unset)
 	/* parse out optional addr family */
 	if (strcasestr(p, "pci:")) {
 		p += skip_pci;
-		addr_type = PCI;
 	} else if (strcasestr(p, "mem:")) {
 		die("I can't add to E820 map yet.\n");
 	}
