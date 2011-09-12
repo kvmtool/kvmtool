@@ -167,7 +167,7 @@ void virtio_rng__init(struct kvm *kvm)
 	rdev->compat_id = compat__add_message("virtio-rng device was not detected",
 						"While you have requested a virtio-rng device, "
 						"the guest kernel didn't seem to detect it.\n"
-						"Please make sure that the kernel was compiled"
+						"Please make sure that the kernel was compiled "
 						"with CONFIG_HW_RANDOM_VIRTIO.");
 }
 

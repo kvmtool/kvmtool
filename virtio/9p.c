@@ -1250,7 +1250,7 @@ int virtio_9p__register(struct kvm *kvm, const char *root, const char *tag_name)
 	p9dev->compat_id = compat__add_message("virtio-9p device was not detected",
 						"While you have requested a virtio-9p device, "
 						"the guest kernel didn't seem to detect it.\n"
-						"Please make sure that the kernel was compiled"
+						"Please make sure that the kernel was compiled "
 						"with CONFIG_NET_9P_VIRTIO.");
 
 	return err;

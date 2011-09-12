@@ -223,7 +223,7 @@ void virtio_blk__init(struct kvm *kvm, struct disk_image *disk)
 	bdev->compat_id = compat__add_message("virtio-blk device was not detected",
 						"While you have requested a virtio-blk device, "
 						"the guest kernel didn't seem to detect it.\n"
-						"Please make sure that the kernel was compiled"
+						"Please make sure that the kernel was compiled "
 						"with CONFIG_VIRTIO_BLK.");
 }
 

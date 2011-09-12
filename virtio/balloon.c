@@ -283,6 +283,6 @@ void virtio_bln__init(struct kvm *kvm)
 	bdev.compat_id = compat__add_message("virtio-balloon device was not detected",
 						"While you have requested a virtio-balloon device, "
 						"the guest kernel didn't seem to detect it.\n"
-						"Please make sure that the kernel was compiled"
+						"Please make sure that the kernel was compiled "
 						"with CONFIG_VIRTIO_BALLOON.");
 }
