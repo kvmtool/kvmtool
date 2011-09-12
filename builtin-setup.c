@@ -159,13 +159,13 @@ static void make_root_dir(void)
 	mkdir(name, 0777);
 }
 
-static void make_dir(const char *dir)
+static int make_dir(const char *dir)
 {
 	char name[PATH_MAX];
 
 	snprintf(name, PATH_MAX, "%s%s%s", HOME_DIR, KVM_PID_FILE_PATH, dir);
 
-	mkdir(name, 0777);
+	return mkdir(name, 0777);
 }
 
 static void make_guestfs_dir(const char *guestfs_name, const char *dir)
@@ -184,7 +184,9 @@ static int do_setup(const char *guestfs_name)
 
 	make_root_dir();
 
-	make_dir(guestfs_name);
+	ret = make_dir(guestfs_name);
+	if (ret < 0)
+		return ret;
 
 	for (i = 0; i < ARRAY_SIZE(guestfs_dirs); i++)
 		make_guestfs_dir(guestfs_name, guestfs_dirs[i]);
@@ -198,6 +200,11 @@ static int do_setup(const char *guestfs_name)
 		return ret;
 
 	return copy_init(guestfs_name);
+}
+
+int kvm_setup_create_new(const char *guestfs_name)
+{
+	return do_setup(guestfs_name);
 }
 
 int kvm_cmd_setup(int argc, const char **argv, const char *prefix)

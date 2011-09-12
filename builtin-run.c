@@ -1,5 +1,6 @@
 #include "kvm/builtin-run.h"
 
+#include "kvm/builtin-setup.h"
 #include "kvm/virtio-balloon.h"
 #include "kvm/virtio-console.h"
 #include "kvm/parse-options.h"
@@ -747,10 +748,16 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 		strlcat(real_cmdline, kernel_cmdline, sizeof(real_cmdline));
 
 	if (!using_rootfs && !image_filename[0]) {
-		if (virtio_9p__register(kvm, "/", "/dev/root") < 0)
-			die("Unable to initialize virtio 9p");
+		char tmp[PATH_MAX];
 
-		using_rootfs = 1;
+		kvm_setup_create_new("default");
+
+		snprintf(tmp, PATH_MAX, "%s%s%s", HOME_DIR, KVM_PID_FILE_PATH, "default");
+		if (virtio_9p__register(kvm, tmp, "/dev/root") < 0)
+			die("Unable to initialize virtio 9p");
+		if (virtio_9p__register(kvm, "/", "hostfs") < 0)
+			die("Unable to initialize virtio 9p");
+		using_rootfs = custom_rootfs = 1;
 
 		if (!strstr(real_cmdline, "init="))
 			strlcat(real_cmdline, " init=/bin/sh ", sizeof(real_cmdline));
