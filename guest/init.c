@@ -30,10 +30,6 @@ int main(int argc, char *argv[])
 
 	do_mounts();
 
-	puts("Setting up network...");
-
-	system("/bin/sh virt/setnet.sh");
-
 	puts("Starting '/bin/sh'...");
 
 	run_process("/bin/sh");

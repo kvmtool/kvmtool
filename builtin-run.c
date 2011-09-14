@@ -764,7 +764,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	if (using_rootfs) {
 		strcat(real_cmdline, " root=/dev/root rw rootflags=rw,trans=virtio,version=9p2000.L rootfstype=9p");
 		if (custom_rootfs)
-			strcat(real_cmdline, " init=/virt/init");
+			strcat(real_cmdline, " init=/virt/init ip=dhcp");
 	} else if (!strstr(real_cmdline, "root=")) {
 		strlcat(real_cmdline, " root=/dev/vda rw ", sizeof(real_cmdline));
 	}

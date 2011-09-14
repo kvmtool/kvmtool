@@ -2,6 +2,8 @@
 
 #include <arpa/inet.h>
 
+#define EMPTY_ADDR "0.0.0.0"
+
 static inline bool uip_dhcp_is_discovery(struct uip_dhcp *dhcp)
 {
 	return (dhcp->option[2] == UIP_DHCP_DISCOVER &&
@@ -126,6 +128,12 @@ static int uip_dhcp_fill_option(struct uip_info *info, struct uip_dhcp *dhcp, in
 	addr		= (u32 *)&opt[i];
 	*addr		= htonl(info->host_ip);
 	i		+= UIP_DHCP_TAG_ROUTER_LEN;
+
+	opt[i++]	= UIP_DHCP_TAG_ROOT;
+	opt[i++]	= strlen(EMPTY_ADDR);
+	addr		= (u32 *)&opt[i];
+	strncpy((void *) addr, EMPTY_ADDR, strlen(EMPTY_ADDR));
+	i		+= strlen(EMPTY_ADDR);
 
 	i 		= uip_dhcp_fill_option_name_and_server(info, opt, i);
 
