@@ -129,15 +129,6 @@ static int copy_init(const char *guestfs_name)
 	return copy_file("guest/init", path);
 }
 
-static int copy_net(const char *guestfs_name)
-{
-	char path[PATH_MAX];
-
-	snprintf(path, PATH_MAX, "%s%s%s/virt/setnet.sh", HOME_DIR, KVM_PID_FILE_PATH, guestfs_name);
-
-	return copy_file("guest/setnet.sh", path);
-}
-
 static int make_guestfs_symlink(const char *guestfs_name, const char *path)
 {
 	char target[PATH_MAX];
@@ -194,10 +185,6 @@ static int do_setup(const char *guestfs_name)
 	for (i = 0; i < ARRAY_SIZE(guestfs_symlinks); i++) {
 		make_guestfs_symlink(guestfs_name, guestfs_symlinks[i]);
 	}
-
-	ret = copy_net(guestfs_name);
-	if (ret < 0)
-		return ret;
 
 	return copy_init(guestfs_name);
 }
