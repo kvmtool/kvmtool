@@ -129,6 +129,7 @@ static int img_name_parser(const struct option *opt, const char *arg, int unset)
 			die("Unable to initialize virtio 9p");
 		if (virtio_9p__register(kvm, "/", "hostfs") < 0)
 			die("Unable to initialize virtio 9p");
+		kvm_setup_resolv(arg);
 		using_rootfs = custom_rootfs = 1;
 		return 0;
 	}
@@ -762,6 +763,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 		char tmp[PATH_MAX];
 
 		kvm_setup_create_new("default");
+		kvm_setup_resolv("default");
 
 		snprintf(tmp, PATH_MAX, "%s%s%s", HOME_DIR, KVM_PID_FILE_PATH, "default");
 		if (virtio_9p__register(kvm, tmp, "/dev/root") < 0)

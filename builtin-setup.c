@@ -168,6 +168,15 @@ static void make_guestfs_dir(const char *guestfs_name, const char *dir)
 	make_dir(name);
 }
 
+void kvm_setup_resolv(const char *guestfs_name)
+{
+	char path[PATH_MAX];
+
+	snprintf(path, PATH_MAX, "%s%s%s/etc/resolv.conf", HOME_DIR, KVM_PID_FILE_PATH, guestfs_name);
+
+	copy_file("/etc/resolv.conf", path);
+}
+
 static int do_setup(const char *guestfs_name)
 {
 	unsigned int i;
