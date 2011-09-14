@@ -174,12 +174,12 @@ static int virtio_9p_rootdir_parser(const struct option *opt, const char *arg, i
 
 static int shmem_parser(const struct option *opt, const char *arg, int unset)
 {
-	const uint64_t default_size = SHMEM_DEFAULT_SIZE;
-	const uint64_t default_phys_addr = SHMEM_DEFAULT_ADDR;
+	const u64 default_size = SHMEM_DEFAULT_SIZE;
+	const u64 default_phys_addr = SHMEM_DEFAULT_ADDR;
 	const char *default_handle = SHMEM_DEFAULT_HANDLE;
 	struct shmem_info *si = malloc(sizeof(struct shmem_info));
-	uint64_t phys_addr;
-	uint64_t size;
+	u64 phys_addr;
+	u64 size;
 	char *handle = NULL;
 	int create = 0;
 	const char *p = arg;
@@ -282,8 +282,8 @@ static int shmem_parser(const struct option *opt, const char *arg, int unset)
 		strcpy(handle, default_handle);
 	}
 	if (verbose) {
-		pr_info("shmem: phys_addr = %lx", phys_addr);
-		pr_info("shmem: size      = %lx", size);
+		pr_info("shmem: phys_addr = %llx", phys_addr);
+		pr_info("shmem: size      = %llx", size);
 		pr_info("shmem: handle    = %s", handle);
 		pr_info("shmem: create    = %d", create);
 	}
