@@ -172,6 +172,15 @@ static int virtio_9p_rootdir_parser(const struct option *opt, const char *arg, i
 	return 0;
 }
 
+static int tty_parser(const struct option *opt, const char *arg, int unset)
+{
+	int tty = atoi(arg);
+
+	term_set_tty(tty);
+
+	return 0;
+}
+
 static int shmem_parser(const struct option *opt, const char *arg, int unset)
 {
 	const u64 default_size = SHMEM_DEFAULT_SIZE;
@@ -316,6 +325,9 @@ static const struct option options[] = {
 	OPT_STRING('\0', "console", &console, "serial or virtio",
 			"Console to use"),
 	OPT_STRING('\0', "dev", &dev, "device_file", "KVM device file"),
+	OPT_CALLBACK('\0', "tty", NULL, "tty id",
+		     "Remap guest TTY into a pty on the host",
+		     tty_parser),
 
 	OPT_GROUP("Kernel options:"),
 	OPT_STRING('k', "kernel", &kernel_filename, "kernel",

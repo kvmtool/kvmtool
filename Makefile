@@ -115,6 +115,7 @@ OBJS	+= bios/bios-rom.o
 
 LIBS	+= -lrt
 LIBS	+= -lpthread
+LIBS	+= -lutil
 
 # Additional ARCH settings for x86
 ARCH ?= $(shell echo $(uname_M) | sed -e s/i.86/i386/ -e s/sun4u/sparc64/ \

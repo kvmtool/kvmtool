@@ -14,6 +14,7 @@
 
 struct serial8250_device {
 	pthread_mutex_t		mutex;
+	u8			id;
 
 	u16			iobase;
 	u8			irq;
@@ -42,6 +43,7 @@ static struct serial8250_device devices[] = {
 	[0]	= {
 		.mutex			= PTHREAD_MUTEX_INITIALIZER,
 
+		.id			= 0,
 		.iobase			= 0x3f8,
 		.irq			= 4,
 
@@ -51,6 +53,7 @@ static struct serial8250_device devices[] = {
 	[1]	= {
 		.mutex			= PTHREAD_MUTEX_INITIALIZER,
 
+		.id			= 1,
 		.iobase			= 0x2f8,
 		.irq			= 3,
 
@@ -60,6 +63,7 @@ static struct serial8250_device devices[] = {
 	[2]	= {
 		.mutex			= PTHREAD_MUTEX_INITIALIZER,
 
+		.id			= 2,
 		.iobase			= 0x3e8,
 		.irq			= 4,
 
@@ -69,6 +73,7 @@ static struct serial8250_device devices[] = {
 	[3]	= {
 		.mutex			= PTHREAD_MUTEX_INITIALIZER,
 
+		.id			= 3,
 		.iobase			= 0x2e8,
 		.irq			= 3,
 
@@ -111,10 +116,10 @@ static void serial8250__receive(struct kvm *kvm, struct serial8250_device *dev)
 		return;
 	}
 
-	if (!term_readable(CONSOLE_8250))
+	if (!term_readable(CONSOLE_8250, dev->id))
 		return;
 
-	c		= term_getc(CONSOLE_8250);
+	c = term_getc(CONSOLE_8250, dev->id);
 
 	if (c < 0)
 		return;
@@ -123,30 +128,31 @@ static void serial8250__receive(struct kvm *kvm, struct serial8250_device *dev)
 	dev->lsr	|= UART_LSR_DR;
 }
 
-/*
- * Interrupts are injected for ttyS0 only.
- */
 void serial8250__inject_interrupt(struct kvm *kvm)
 {
-	struct serial8250_device *dev = &devices[0];
+	int i;
 
-	mutex_lock(&dev->mutex);
+	for (i = 0; i < 4; i++) {
+		struct serial8250_device *dev = &devices[i];
 
-	serial8250__receive(kvm, dev);
+		mutex_lock(&dev->mutex);
 
-	if (dev->ier & UART_IER_RDI && dev->lsr & UART_LSR_DR)
-		dev->iir		= UART_IIR_RDI;
-	else if (dev->ier & UART_IER_THRI)
-		dev->iir		= UART_IIR_THRI;
-	else
-		dev->iir		= UART_IIR_NO_INT;
+		serial8250__receive(kvm, dev);
 
-	if (dev->iir != UART_IIR_NO_INT) {
-		kvm__irq_line(kvm, dev->irq, 0);
-		kvm__irq_line(kvm, dev->irq, 1);
+		if (dev->ier & UART_IER_RDI && dev->lsr & UART_LSR_DR)
+			dev->iir		= UART_IIR_RDI;
+		else if (dev->ier & UART_IER_THRI)
+			dev->iir		= UART_IIR_THRI;
+		else
+			dev->iir		= UART_IIR_NO_INT;
+
+		if (dev->iir != UART_IIR_NO_INT) {
+			kvm__irq_line(kvm, dev->irq, 0);
+			kvm__irq_line(kvm, dev->irq, 1);
+		}
+
+		mutex_unlock(&dev->mutex);
 	}
-
-	mutex_unlock(&dev->mutex);
 }
 
 void serial8250__inject_sysrq(struct kvm *kvm)
@@ -217,7 +223,7 @@ static bool serial8250_out(struct ioport *ioport, struct kvm *kvm, u16 port, voi
 			char *addr = data;
 
 			if (!(dev->mcr & UART_MCR_LOOP))
-				term_putc(CONSOLE_8250, addr, size);
+				term_putc(CONSOLE_8250, addr, size, dev->id);
 
 			dev->iir		= UART_IIR_NO_INT;
 			break;
