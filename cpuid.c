@@ -22,6 +22,10 @@ static void filter_cpuid(struct kvm_cpuid2 *kvm_cpuid)
 		struct kvm_cpuid_entry2 *entry = &kvm_cpuid->entries[i];
 
 		switch (entry->function) {
+		case 6:
+			/* Clear presence of IA32_ENERGY_PERF_BIAS */
+			entry->ecx	= entry->ecx & ~(1 << 3);
+			break;
 		case CPUID_FUNC_PERFMON:
 			entry->eax	= 0x00;	/* disable it */
 			break;
