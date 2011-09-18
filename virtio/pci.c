@@ -302,7 +302,7 @@ int virtio_pci__init(struct kvm *kvm, struct virtio_pci *vpci, void *dev,
 	vpci->pci_hdr.msix.pba_offset = 3; /* Use BAR 3 */
 	vpci->config_vector = 0;
 
-	if (irq__register_device(VIRTIO_ID_RNG, &ndev, &pin, &line) < 0)
+	if (irq__register_device(subsys_id, &ndev, &pin, &line) < 0)
 		return -1;
 
 	vpci->pci_hdr.irq_pin	= pin;
