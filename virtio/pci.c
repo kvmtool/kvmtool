@@ -234,6 +234,7 @@ int virtio_pci__signal_vq(struct kvm *kvm, struct virtio_pci *vpci, u32 vq)
 
 		kvm__irq_trigger(kvm, vpci->gsis[vq]);
 	} else {
+		vpci->isr = VIRTIO_IRQ_HIGH;
 		kvm__irq_trigger(kvm, vpci->pci_hdr.irq_line);
 	}
 	return 0;
