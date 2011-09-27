@@ -11,7 +11,7 @@
 static int run_process(char *filename)
 {
 	char *new_argv[] = { filename, NULL };
-	char *new_env[] = { NULL };
+	char *new_env[] = { "TERM=linux" };
 
 	return execve(filename, new_argv, new_env);
 }
@@ -29,6 +29,12 @@ int main(int argc, char *argv[])
 	puts("Mounting...");
 
 	do_mounts();
+
+        /* get session leader */
+        setsid();
+
+        /* set controlling terminal */
+        ioctl (0, TIOCSCTTY, 1);
 
 	puts("Starting '/bin/sh'...");
 
