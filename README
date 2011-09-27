@@ -102,7 +102,7 @@ For rpm based systems:
 32-bit:
 yum install glibc-devel
 64-bit:
-yum install glibc-devel glibc-devel.i386
+yum install glibc-devel glibc-devel.i686 glibc-static
 
 On 64-bit Arch Linux make sure the multilib repository is enabled in your
 /etc/pacman.conf and run
