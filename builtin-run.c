@@ -65,6 +65,7 @@ __thread struct kvm_cpu *current_kvm_cpu;
 
 static u64 ram_size;
 static u8  image_count;
+static u8 num_net_devices;
 static bool virtio_rng;
 static const char *kernel_cmdline;
 static const char *kernel_filename;
@@ -80,6 +81,7 @@ static const char *guest_mac;
 static const char *host_mac;
 static const char *script;
 static const char *guest_name;
+static struct virtio_net_params *net_params;
 static bool single_step;
 static bool readonly_image[MAX_DISK_IMAGES];
 static bool vnc;
@@ -87,6 +89,7 @@ static bool sdl;
 static bool balloon;
 static bool using_rootfs;
 static bool custom_rootfs;
+static bool no_net;
 extern bool ioport_debug;
 extern int  active_console;
 extern int  debug_iodelay;
@@ -179,6 +182,90 @@ static int tty_parser(const struct option *opt, const char *arg, int unset)
 
 	term_set_tty(tty);
 
+	return 0;
+}
+
+static inline void str_to_mac(const char *str, char *mac)
+{
+	sscanf(str, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
+		mac, mac+1, mac+2, mac+3, mac+4, mac+5);
+}
+static int set_net_param(struct virtio_net_params *p, const char *param,
+				const char *val)
+{
+	if (strcmp(param, "guest_mac") == 0) {
+		str_to_mac(val, p->guest_mac);
+	} else if (strcmp(param, "mode") == 0) {
+		if (!strncmp(val, "user", 4)) {
+			int i;
+
+			for (i = 0; i < num_net_devices; i++)
+				if (net_params[i].mode == NET_MODE_USER)
+					die("Only one usermode network device allowed at a time");
+			p->mode = NET_MODE_USER;
+		} else if (!strncmp(val, "tap", 3)) {
+			p->mode = NET_MODE_TAP;
+		} else if (!strncmp(val, "none", 4)) {
+			no_net = 1;
+			return -1;
+		} else
+			die("Unkown network mode %s, please use user, tap or none", network);
+	} else if (strcmp(param, "script") == 0) {
+		p->script = strdup(val);
+	} else if (strcmp(param, "guest_ip") == 0) {
+		p->guest_ip = strdup(val);
+	} else if (strcmp(param, "host_ip") == 0) {
+		p->host_ip = strdup(val);
+	}
+
+	return 0;
+}
+
+static int netdev_parser(const struct option *opt, const char *arg, int unset)
+{
+	struct virtio_net_params p;
+	char *buf = NULL, *cmd = NULL, *cur = NULL;
+	bool on_cmd = true;
+
+	if (arg) {
+		buf = strdup(arg);
+		if (buf == NULL)
+			die("Failed allocating new net buffer");
+		cur = strtok(buf, ",=");
+	}
+
+	p = (struct virtio_net_params) {
+		.guest_ip	= DEFAULT_GUEST_ADDR,
+		.host_ip	= DEFAULT_HOST_ADDR,
+		.script		= DEFAULT_SCRIPT,
+		.mode		= NET_MODE_TAP,
+	};
+
+	str_to_mac(DEFAULT_GUEST_MAC, p.guest_mac);
+	p.guest_mac[5] += num_net_devices;
+
+	while (cur) {
+		if (on_cmd) {
+			cmd = cur;
+		} else {
+			if (set_net_param(&p, cmd, cur) < 0)
+				goto done;
+		}
+		on_cmd = !on_cmd;
+
+		cur = strtok(NULL, ",=");
+	};
+
+	num_net_devices++;
+
+	net_params = realloc(net_params, num_net_devices * sizeof(*net_params));
+	if (net_params == NULL)
+		die("Failed adding new network device");
+
+	net_params[num_net_devices - 1] = p;
+
+done:
+	free(buf);
 	return 0;
 }
 
@@ -339,18 +426,9 @@ static const struct option options[] = {
 			"Kernel command line arguments"),
 
 	OPT_GROUP("Networking options:"),
-	OPT_STRING('n', "network", &network, "user, tap, none",
-			"Network to use"),
-	OPT_STRING('\0', "host-ip", &host_ip, "a.b.c.d",
-			"Assign this address to the host side networking"),
-	OPT_STRING('\0', "guest-ip", &guest_ip, "a.b.c.d",
-			"Assign this address to the guest side networking"),
-	OPT_STRING('\0', "host-mac", &host_mac, "aa:bb:cc:dd:ee:ff",
-			"Assign this address to the host side NIC"),
-	OPT_STRING('\0', "guest-mac", &guest_mac, "aa:bb:cc:dd:ee:ff",
-			"Assign this address to the guest side NIC"),
-	OPT_STRING('\0', "tapscript", &script, "Script path",
-			 "Assign a script to process created tap device"),
+	OPT_CALLBACK_DEFAULT('n', "network", NULL, "network params",
+		     "Create a new guest NIC",
+		     netdev_parser, NULL),
 
 	OPT_GROUP("BIOS options:"),
 	OPT_INTEGER('\0', "vidmode", &vidmode,
@@ -615,7 +693,6 @@ void kvm_run_help(void)
 
 int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 {
-	struct virtio_net_parameters net_params;
 	static char real_cmdline[2048], default_name[20];
 	struct framebuffer *fb = NULL;
 	unsigned int nr_online_cpus;
@@ -823,32 +900,24 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	virtio_9p__init(kvm);
 
-	if (strncmp(network, "none", 4)) {
-		net_params.guest_ip = guest_ip;
-		net_params.host_ip = host_ip;
-		net_params.kvm = kvm;
-		net_params.script = script;
-		sscanf(guest_mac, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
-			net_params.guest_mac,
-			net_params.guest_mac+1,
-			net_params.guest_mac+2,
-			net_params.guest_mac+3,
-			net_params.guest_mac+4,
-			net_params.guest_mac+5);
-		sscanf(host_mac, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
-			net_params.host_mac,
-			net_params.host_mac+1,
-			net_params.host_mac+2,
-			net_params.host_mac+3,
-			net_params.host_mac+4,
-			net_params.host_mac+5);
+	for (i = 0; i < num_net_devices; i++) {
+		net_params[i].kvm = kvm;
+		virtio_net__init(&net_params[i]);
+	}
 
-		if (!strncmp(network, "user", 4))
-			net_params.mode = NET_MODE_USER;
-		else if (!strncmp(network, "tap", 3))
-			net_params.mode = NET_MODE_TAP;
-		else
-			die("Unkown network mode %s, please use -network user, tap, none", network);
+	if (num_net_devices == 0 && no_net == 0) {
+		struct virtio_net_params net_params;
+
+		net_params = (struct virtio_net_params) {
+			.guest_ip	= guest_ip,
+			.host_ip	= host_ip,
+			.kvm		= kvm,
+			.script		= script,
+			.mode		= NET_MODE_USER,
+		};
+		str_to_mac(guest_mac, net_params.guest_mac);
+		str_to_mac(host_mac, net_params.host_mac);
+
 		virtio_net__init(&net_params);
 	}
 

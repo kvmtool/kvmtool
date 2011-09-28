@@ -43,6 +43,7 @@ struct net_dev_operations {
 struct net_dev {
 	pthread_mutex_t			mutex;
 	struct virtio_pci		vpci;
+	struct list_head		list;
 
 	struct virt_queue		vqs[VIRTIO_NET_NUM_QUEUES];
 	struct virtio_net_config	config;
@@ -64,48 +65,41 @@ struct net_dev {
 
 	struct uip_info			info;
 	struct net_dev_operations	*ops;
+	struct kvm			*kvm;
 };
 
-static struct net_dev ndev = {
-	.mutex	= PTHREAD_MUTEX_INITIALIZER,
-
-	.config = {
-		.status			= VIRTIO_NET_S_LINK_UP,
-	},
-	.info = {
-		.buf_nr			= 20,
-	}
-};
+static LIST_HEAD(ndevs);
 
 static void *virtio_net_rx_thread(void *p)
 {
 	struct iovec iov[VIRTIO_NET_QUEUE_SIZE];
 	struct virt_queue *vq;
 	struct kvm *kvm;
+	struct net_dev *ndev = p;
 	u16 out, in;
 	u16 head;
 	int len;
 
-	kvm	= p;
-	vq	= &ndev.vqs[VIRTIO_NET_RX_QUEUE];
+	kvm	= ndev->kvm;
+	vq	= &ndev->vqs[VIRTIO_NET_RX_QUEUE];
 
 	while (1) {
 
-		mutex_lock(&ndev.io_rx_lock);
+		mutex_lock(&ndev->io_rx_lock);
 		if (!virt_queue__available(vq))
-			pthread_cond_wait(&ndev.io_rx_cond, &ndev.io_rx_lock);
-		mutex_unlock(&ndev.io_rx_lock);
+			pthread_cond_wait(&ndev->io_rx_cond, &ndev->io_rx_lock);
+		mutex_unlock(&ndev->io_rx_lock);
 
 		while (virt_queue__available(vq)) {
 
 			head = virt_queue__get_iov(vq, iov, &out, &in, kvm);
 
-			len = ndev.ops->rx(iov, in, &ndev);
+			len = ndev->ops->rx(iov, in, ndev);
 
 			virt_queue__set_used_elem(vq, head, len);
 
 			/* We should interrupt guest right now, otherwise latency is huge. */
-			virtio_pci__signal_vq(kvm, &ndev.vpci, VIRTIO_NET_RX_QUEUE);
+			virtio_pci__signal_vq(kvm, &ndev->vpci, VIRTIO_NET_RX_QUEUE);
 		}
 
 	}
@@ -120,29 +114,30 @@ static void *virtio_net_tx_thread(void *p)
 	struct iovec iov[VIRTIO_NET_QUEUE_SIZE];
 	struct virt_queue *vq;
 	struct kvm *kvm;
+	struct net_dev *ndev = p;
 	u16 out, in;
 	u16 head;
 	int len;
 
-	kvm	= p;
-	vq	= &ndev.vqs[VIRTIO_NET_TX_QUEUE];
+	kvm	= ndev->kvm;
+	vq	= &ndev->vqs[VIRTIO_NET_TX_QUEUE];
 
 	while (1) {
-		mutex_lock(&ndev.io_tx_lock);
+		mutex_lock(&ndev->io_tx_lock);
 		if (!virt_queue__available(vq))
-			pthread_cond_wait(&ndev.io_tx_cond, &ndev.io_tx_lock);
-		mutex_unlock(&ndev.io_tx_lock);
+			pthread_cond_wait(&ndev->io_tx_cond, &ndev->io_tx_lock);
+		mutex_unlock(&ndev->io_tx_lock);
 
 		while (virt_queue__available(vq)) {
 
 			head = virt_queue__get_iov(vq, iov, &out, &in, kvm);
 
-			len = ndev.ops->tx(iov, out, &ndev);
+			len = ndev->ops->tx(iov, out, ndev);
 
 			virt_queue__set_used_elem(vq, head, len);
 		}
 
-		virtio_pci__signal_vq(kvm, &ndev.vpci, VIRTIO_NET_TX_QUEUE);
+		virtio_pci__signal_vq(kvm, &ndev->vpci, VIRTIO_NET_TX_QUEUE);
 	}
 
 	pthread_exit(NULL);
@@ -151,58 +146,58 @@ static void *virtio_net_tx_thread(void *p)
 
 }
 
-static void virtio_net_handle_callback(struct kvm *kvm, u16 queue_index)
+static void virtio_net_handle_callback(struct kvm *kvm, struct net_dev *ndev, int queue)
 {
-	switch (queue_index) {
+	switch (queue) {
 	case VIRTIO_NET_TX_QUEUE:
-		mutex_lock(&ndev.io_tx_lock);
-		pthread_cond_signal(&ndev.io_tx_cond);
-		mutex_unlock(&ndev.io_tx_lock);
+		mutex_lock(&ndev->io_tx_lock);
+		pthread_cond_signal(&ndev->io_tx_cond);
+		mutex_unlock(&ndev->io_tx_lock);
 		break;
 	case VIRTIO_NET_RX_QUEUE:
-		mutex_lock(&ndev.io_rx_lock);
-		pthread_cond_signal(&ndev.io_rx_cond);
-		mutex_unlock(&ndev.io_rx_lock);
+		mutex_lock(&ndev->io_rx_lock);
+		pthread_cond_signal(&ndev->io_rx_cond);
+		mutex_unlock(&ndev->io_rx_lock);
 		break;
 	default:
-		pr_warning("Unknown queue index %u", queue_index);
+		pr_warning("Unknown queue index %u", queue);
 	}
 }
 
-static bool virtio_net__tap_init(const struct virtio_net_parameters *params)
+static bool virtio_net__tap_init(const struct virtio_net_params *params,
+					struct net_dev *ndev)
 {
 	int sock = socket(AF_INET, SOCK_STREAM, 0);
 	int pid, status, offload, hdr_len;
 	struct sockaddr_in sin = {0};
 	struct ifreq ifr;
 
-	ndev.tap_fd = open("/dev/net/tun", O_RDWR);
-	if (ndev.tap_fd < 0) {
+	ndev->tap_fd = open("/dev/net/tun", O_RDWR);
+	if (ndev->tap_fd < 0) {
 		pr_warning("Unable to open /dev/net/tun");
 		goto fail;
 	}
 
 	memset(&ifr, 0, sizeof(ifr));
 	ifr.ifr_flags = IFF_TAP | IFF_NO_PI | IFF_VNET_HDR;
-	if (ioctl(ndev.tap_fd, TUNSETIFF, &ifr) < 0) {
+	if (ioctl(ndev->tap_fd, TUNSETIFF, &ifr) < 0) {
 		pr_warning("Config tap device error. Are you root?");
 		goto fail;
 	}
 
-	strncpy(ndev.tap_name, ifr.ifr_name, sizeof(ndev.tap_name));
+	strncpy(ndev->tap_name, ifr.ifr_name, sizeof(ndev->tap_name));
 
-	if (ioctl(ndev.tap_fd, TUNSETNOCSUM, 1) < 0) {
+	if (ioctl(ndev->tap_fd, TUNSETNOCSUM, 1) < 0) {
 		pr_warning("Config tap device TUNSETNOCSUM error");
 		goto fail;
 	}
 
 	hdr_len = sizeof(struct virtio_net_hdr);
-	if (ioctl(ndev.tap_fd, TUNSETVNETHDRSZ, &hdr_len) < 0) {
+	if (ioctl(ndev->tap_fd, TUNSETVNETHDRSZ, &hdr_len) < 0)
 		pr_warning("Config tap device TUNSETVNETHDRSZ error");
-	}
 
 	offload = TUN_F_CSUM | TUN_F_TSO4 | TUN_F_TSO6 | TUN_F_UFO;
-	if (ioctl(ndev.tap_fd, TUNSETOFFLOAD, offload) < 0) {
+	if (ioctl(ndev->tap_fd, TUNSETOFFLOAD, offload) < 0) {
 		pr_warning("Config tap device TUNSETOFFLOAD error");
 		goto fail;
 	}
@@ -210,7 +205,7 @@ static bool virtio_net__tap_init(const struct virtio_net_parameters *params)
 	if (strcmp(params->script, "none")) {
 		pid = fork();
 		if (pid == 0) {
-			execl(params->script, params->script, ndev.tap_name, NULL);
+			execl(params->script, params->script, ndev->tap_name, NULL);
 			_exit(1);
 		} else {
 			waitpid(pid, &status, 0);
@@ -221,7 +216,7 @@ static bool virtio_net__tap_init(const struct virtio_net_parameters *params)
 		}
 	} else {
 		memset(&ifr, 0, sizeof(ifr));
-		strncpy(ifr.ifr_name, ndev.tap_name, sizeof(ndev.tap_name));
+		strncpy(ifr.ifr_name, ndev->tap_name, sizeof(ndev->tap_name));
 		sin.sin_addr.s_addr = inet_addr(params->host_ip);
 		memcpy(&(ifr.ifr_addr), &sin, sizeof(ifr.ifr_addr));
 		ifr.ifr_addr.sa_family = AF_INET;
@@ -232,7 +227,7 @@ static bool virtio_net__tap_init(const struct virtio_net_parameters *params)
 	}
 
 	memset(&ifr, 0, sizeof(ifr));
-	strncpy(ifr.ifr_name, ndev.tap_name, sizeof(ndev.tap_name));
+	strncpy(ifr.ifr_name, ndev->tap_name, sizeof(ndev->tap_name));
 	ioctl(sock, SIOCGIFFLAGS, &ifr);
 	ifr.ifr_flags |= IFF_UP | IFF_RUNNING;
 	if (ioctl(sock, SIOCSIFFLAGS, &ifr) < 0)
@@ -245,22 +240,22 @@ static bool virtio_net__tap_init(const struct virtio_net_parameters *params)
 fail:
 	if (sock >= 0)
 		close(sock);
-	if (ndev.tap_fd >= 0)
-		close(ndev.tap_fd);
+	if (ndev->tap_fd >= 0)
+		close(ndev->tap_fd);
 
 	return 0;
 }
 
-static void virtio_net__io_thread_init(struct kvm *kvm)
+static void virtio_net__io_thread_init(struct kvm *kvm, struct net_dev *ndev)
 {
-	pthread_mutex_init(&ndev.io_rx_lock, NULL);
-	pthread_cond_init(&ndev.io_tx_cond, NULL);
+	pthread_mutex_init(&ndev->io_rx_lock, NULL);
+	pthread_cond_init(&ndev->io_tx_cond, NULL);
 
-	pthread_mutex_init(&ndev.io_rx_lock, NULL);
-	pthread_cond_init(&ndev.io_tx_cond, NULL);
+	pthread_mutex_init(&ndev->io_rx_lock, NULL);
+	pthread_cond_init(&ndev->io_tx_cond, NULL);
 
-	pthread_create(&ndev.io_rx_thread, NULL, virtio_net_rx_thread, (void *)kvm);
-	pthread_create(&ndev.io_tx_thread, NULL, virtio_net_tx_thread, (void *)kvm);
+	pthread_create(&ndev->io_rx_thread, NULL, virtio_net_rx_thread, ndev);
+	pthread_create(&ndev->io_tx_thread, NULL, virtio_net_tx_thread, ndev);
 }
 
 static inline int tap_ops_tx(struct iovec *iov, u16 out, struct net_dev *ndev)
@@ -345,7 +340,9 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 pfn)
 
 static int notify_vq(struct kvm *kvm, void *dev, u32 vq)
 {
-	virtio_net_handle_callback(kvm, vq);
+	struct net_dev *ndev = dev;
+
+	virtio_net_handle_callback(kvm, ndev, vq);
 
 	return 0;
 }
@@ -362,30 +359,48 @@ static int get_size_vq(struct kvm *kvm, void *dev, u32 vq)
 	return VIRTIO_NET_QUEUE_SIZE;
 }
 
-void virtio_net__init(const struct virtio_net_parameters *params)
+void virtio_net__init(const struct virtio_net_params *params)
 {
 	int i;
+	struct net_dev *ndev;
+
+	if (!params)
+		return;
+
+	ndev = calloc(1, sizeof(struct net_dev));
+	if (ndev == NULL)
+		die("Failed allocating ndev");
+
+	list_add_tail(&ndev->list, &ndevs);
+
+	ndev->kvm = params->kvm;
+
+	mutex_init(&ndev->mutex);
+	ndev->config.status = VIRTIO_NET_S_LINK_UP;
 
 	for (i = 0 ; i < 6 ; i++) {
-		ndev.config.mac[i]		= params->guest_mac[i];
-		ndev.info.guest_mac.addr[i]	= params->guest_mac[i];
-		ndev.info.host_mac.addr[i]	= params->host_mac[i];
+		ndev->config.mac[i]		= params->guest_mac[i];
+		ndev->info.guest_mac.addr[i]	= params->guest_mac[i];
+		ndev->info.host_mac.addr[i]	= params->host_mac[i];
 	}
 
-	ndev.mode = params->mode;
-	if (ndev.mode == NET_MODE_TAP) {
-		virtio_net__tap_init(params);
-		ndev.ops = &tap_ops;
+	ndev->mode = params->mode;
+	if (ndev->mode == NET_MODE_TAP) {
+		if (!virtio_net__tap_init(params, ndev))
+			die_perror("You have requested a TAP device, but creation of one has"
+					"failed because:");
+		ndev->ops = &tap_ops;
 	} else {
-		ndev.info.host_ip		= ntohl(inet_addr(params->host_ip));
-		ndev.info.guest_ip		= ntohl(inet_addr(params->guest_ip));
-		ndev.info.guest_netmask		= ntohl(inet_addr("255.255.255.0"));
-		uip_init(&ndev.info);
-		ndev.ops = &uip_ops;
+		ndev->info.host_ip		= ntohl(inet_addr(params->host_ip));
+		ndev->info.guest_ip		= ntohl(inet_addr(params->guest_ip));
+		ndev->info.guest_netmask	= ntohl(inet_addr("255.255.255.0"));
+		ndev->info.buf_nr		= 20,
+		uip_init(&ndev->info);
+		ndev->ops = &uip_ops;
 	}
 
-	virtio_pci__init(kvm, &ndev.vpci, &ndev, PCI_DEVICE_ID_VIRTIO_NET, VIRTIO_ID_NET);
-	ndev.vpci.ops = (struct virtio_pci_ops) {
+	virtio_pci__init(kvm, &ndev->vpci, ndev, PCI_DEVICE_ID_VIRTIO_NET, VIRTIO_ID_NET);
+	ndev->vpci.ops = (struct virtio_pci_ops) {
 		.set_config		= set_config,
 		.get_config		= get_config,
 		.get_host_features	= get_host_features,
@@ -396,9 +411,9 @@ void virtio_net__init(const struct virtio_net_parameters *params)
 		.get_size_vq		= get_size_vq,
 	};
 
-	virtio_net__io_thread_init(params->kvm);
+	virtio_net__io_thread_init(params->kvm, ndev);
 
-	ndev.compat_id = compat__add_message("virtio-net device was not detected",
+	ndev->compat_id = compat__add_message("virtio-net device was not detected",
 						"While you have requested a virtio-net device, "
 						"the guest kernel didn't seem to detect it.\n"
 						"Please make sure that the kernel was compiled "

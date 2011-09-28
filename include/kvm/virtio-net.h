@@ -3,7 +3,7 @@
 
 struct kvm;
 
-struct virtio_net_parameters {
+struct virtio_net_params {
 	const char *guest_ip;
 	const char *host_ip;
 	const char *script;
@@ -13,7 +13,7 @@ struct virtio_net_parameters {
 	int mode;
 };
 
-void virtio_net__init(const struct virtio_net_parameters *params);
+void virtio_net__init(const struct virtio_net_params *params);
 
 #define NET_MODE_USER	0
 #define NET_MODE_TAP	1
