@@ -11,7 +11,7 @@
 static int run_process(char *filename)
 {
 	char *new_argv[] = { filename, NULL };
-	char *new_env[] = { "TERM=linux" };
+	char *new_env[] = { "TERM=linux", NULL };
 
 	return execve(filename, new_argv, new_env);
 }
