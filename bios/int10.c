@@ -2,6 +2,9 @@
 #include "kvm/bios.h"
 #include "kvm/util.h"
 #include "kvm/vesa.h"
+
+#include "bios/memcpy.h"
+
 #include <stdint.h>
 
 #define VESA_MAGIC ('V' + ('E' << 8) + ('S' << 16) + ('A' << 24))
@@ -99,18 +102,21 @@ static void vbe_get_mode(struct biosregs *args)
 
 static void vbe_get_info(struct biosregs *args)
 {
-	struct vesa_general_info *info = (struct vesa_general_info *) args->edi;
+	struct vesa_general_info *infop = (struct vesa_general_info *) args->edi;
+	struct vesa_general_info info;
 
-	*info = (struct vesa_general_info) {
+	info = (struct vesa_general_info) {
 		.signature		= VESA_MAGIC,
 		.version		= 0x102,
-		.vendor_string		= &info->oem_string,
+		.vendor_string		= &infop->oem_string,
 		.capabilities		= 0x10,
-		.video_mode_ptr		= &info->modes,
+		.video_mode_ptr		= &infop->modes,
 		.total_memory		= (4 * VESA_WIDTH * VESA_HEIGHT) / 0x10000,
 		.oem_string		= "KVM VESA",
 		.modes			= { 0x0112, 0xffff },
 	};
+
+	memcpy16(args->es, infop, args->ds, &info, sizeof(info));
 }
 
 #define VBE_STATUS_OK		0x004F

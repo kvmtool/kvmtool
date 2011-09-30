@@ -219,6 +219,8 @@ BIOS_CFLAGS += -mregparm=3
 bios.o: bios/bios.bin bios/bios-rom.h
 
 bios/bios.bin.elf: bios/entry.S bios/e820.c bios/int10.c bios/int15.c bios/rom.ld.S
+	$(E) "  CC       bios/memcpy.o"
+	$(Q) $(CC) -include code16gcc.h $(CFLAGS) $(BIOS_CFLAGS) -c -s bios/memcpy.c -o bios/memcpy.o
 	$(E) "  CC       bios/e820.o"
 	$(Q) $(CC) -include code16gcc.h $(CFLAGS) $(BIOS_CFLAGS) -c -s bios/e820.c -o bios/e820.o
 	$(E) "  CC       bios/int10.o"
@@ -228,7 +230,7 @@ bios/bios.bin.elf: bios/entry.S bios/e820.c bios/int10.c bios/int15.c bios/rom.l
 	$(E) "  CC       bios/entry.o"
 	$(Q) $(CC) $(CFLAGS) $(BIOS_CFLAGS) -c -s bios/entry.S -o bios/entry.o
 	$(E) "  LD      " $@
-	$(Q) ld -T bios/rom.ld.S -o bios/bios.bin.elf bios/entry.o bios/e820.o bios/int10.o bios/int15.o
+	$(Q) ld -T bios/rom.ld.S -o bios/bios.bin.elf bios/memcpy.o bios/entry.o bios/e820.o bios/int10.o bios/int15.o
 
 bios/bios.bin: bios/bios.bin.elf
 	$(E) "  OBJCOPY " $@

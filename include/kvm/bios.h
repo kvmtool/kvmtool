@@ -69,6 +69,7 @@ struct biosregs {
 	u32			ebp;
 	u32			esi;
 	u32			edi;
+	u32			ds;
 	u32			es;
 	u32			fs;
 	u32			eip;

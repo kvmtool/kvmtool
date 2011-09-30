@@ -16,6 +16,7 @@
 .macro SAVE_BIOSREGS
 	pushl	%fs
 	pushl	%es
+	pushl	%ds
 	pushl	%edi
 	pushl	%esi
 	pushl	%ebp
@@ -35,6 +36,7 @@
 	popl	%ebp
 	popl	%esi
 	popl	%edi
+	popl	%ds
 	popl	%es
 	popl	%fs
 .endm
