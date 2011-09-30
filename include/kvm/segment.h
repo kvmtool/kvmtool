@@ -3,6 +3,11 @@
 
 #include <linux/types.h>
 
+static inline u32 segment_to_flat(u16 selector, u16 offset)
+{
+	return ((u32)selector << 4) + (u32) offset;
+}
+
 static inline u16 flat_to_seg16(u32 address)
 {
 	return address >> 4;

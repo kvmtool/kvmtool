@@ -2,6 +2,7 @@
 #define KVM__KVM_H
 
 #include "kvm/interrupt.h"
+#include "kvm/segment.h"
 
 #include <stdbool.h>
 #include <linux/types.h>
@@ -90,11 +91,6 @@ extern const char *kvm_exit_reasons[];
 static inline bool host_ptr_in_ram(struct kvm *kvm, void *p)
 {
 	return kvm->ram_start <= p && p < (kvm->ram_start + kvm->ram_size);
-}
-
-static inline u32 segment_to_flat(u16 selector, u16 offset)
-{
-	return ((u32)selector << 4) + (u32) offset;
 }
 
 static inline void *guest_flat_to_host(struct kvm *kvm, unsigned long offset)
