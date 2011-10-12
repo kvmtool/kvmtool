@@ -13,12 +13,14 @@
 #define QCOW1_VERSION		1
 #define QCOW2_VERSION		2
 
-#define QCOW_OFLAG_COPIED	(1ULL << 63)
-#define QCOW_OFLAG_COMPRESSED	(1ULL << 62)
+#define QCOW1_OFLAG_COMPRESSED	(1ULL << 63)
 
-#define QCOW_OFLAGS_MASK	(QCOW_OFLAG_COPIED|QCOW_OFLAG_COMPRESSED)
+#define QCOW2_OFLAG_COPIED	(1ULL << 63)
+#define QCOW2_OFLAG_COMPRESSED	(1ULL << 62)
 
-#define QCOW_OFFSET_MASK	(~QCOW_OFLAGS_MASK)
+#define QCOW2_OFLAGS_MASK	(QCOW2_OFLAG_COPIED|QCOW2_OFLAG_COMPRESSED)
+
+#define QCOW2_OFFSET_MASK	(~QCOW2_OFLAGS_MASK)
 
 #define MAX_CACHE_NODES         32
 
@@ -61,14 +63,6 @@ struct qcow_refcount_table {
 	int				nr_cached;
 };
 
-struct qcow {
-	pthread_mutex_t			mutex;
-	void				*header;
-	struct qcow_l1_table		table;
-	struct qcow_refcount_table	refcount_table;
-	int				fd;
-};
-
 struct qcow_header {
 	u64				size;	/* in bytes */
 	u64				l1_table_offset;
@@ -77,6 +71,21 @@ struct qcow_header {
 	u8				l2_bits;
 	u64				refcount_table_offset;
 	u32				refcount_table_size;
+};
+
+struct qcow {
+	pthread_mutex_t			mutex;
+	struct qcow_header		*header;
+	struct qcow_l1_table		table;
+	struct qcow_refcount_table	refcount_table;
+	int				fd;
+	int				csize_shift;
+	int				csize_mask;
+	u32				version;
+	u64				cluster_size;
+	u64				cluster_offset_mask;
+	void				*cluster_cache;
+	void				*cluster_data;
 };
 
 struct qcow1_header_disk {

@@ -146,3 +146,13 @@ int main(void)
 	return 0;
 }
 endef
+
+define SOURCE_ZLIB
+#include <zlib.h>
+
+int main(void)
+{
+	inflateInit2(NULL, 0);
+	return 0;
+}
+endef

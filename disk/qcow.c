@@ -12,6 +12,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
+#ifdef CONFIG_HAS_ZLIB
+#include <zlib.h>
+#endif
 
 #include <linux/byteorder.h>
 #include <linux/kernel.h>
@@ -233,12 +236,45 @@ error:
 	return NULL;
 }
 
-static ssize_t qcow_read_cluster(struct qcow *q, u64 offset, void *dst, u32 dst_len)
+static int qcow_decompress_buffer(u8 *out_buf, int out_buf_size,
+	const u8 *buf, int buf_size)
+{
+#ifdef CONFIG_HAS_ZLIB
+	z_stream strm1, *strm = &strm1;
+	int ret, out_len;
+
+	memset(strm, 0, sizeof(*strm));
+
+	strm->next_in = (u8 *)buf;
+	strm->avail_in = buf_size;
+	strm->next_out = out_buf;
+	strm->avail_out = out_buf_size;
+
+	ret = inflateInit2(strm, -12);
+	if (ret != Z_OK)
+		return -1;
+
+	ret = inflate(strm, Z_FINISH);
+	out_len = strm->next_out - out_buf;
+	if ((ret != Z_STREAM_END && ret != Z_BUF_ERROR) ||
+		out_len != out_buf_size) {
+		inflateEnd(strm);
+		return -1;
+	}
+
+	inflateEnd(strm);
+	return 0;
+#else
+	return -1;
+#endif
+}
+
+static ssize_t qcow1_read_cluster(struct qcow *q, u64 offset,
+	void *dst, u32 dst_len)
 {
 	struct qcow_header *header = q->header;
 	struct qcow_l1_table *l1t = &q->table;
 	struct qcow_l2_table *l2t;
-	u64 cluster_size;
 	u64 clust_offset;
 	u64 clust_start;
 	u64 l2t_offset;
@@ -246,30 +282,24 @@ static ssize_t qcow_read_cluster(struct qcow *q, u64 offset, void *dst, u32 dst_
 	u64 l2t_size;
 	u64 l1_idx;
 	u64 l2_idx;
-
-	cluster_size = 1 << header->cluster_bits;
+	int coffset;
+	int csize;
 
 	l1_idx = get_l1_index(q, offset);
 	if (l1_idx >= l1t->table_size)
 		return -1;
 
 	clust_offset = get_cluster_offset(q, offset);
-	if (clust_offset >= cluster_size)
+	if (clust_offset >= q->cluster_size)
 		return -1;
 
-	length = cluster_size - clust_offset;
+	length = q->cluster_size - clust_offset;
 	if (length > dst_len)
 		length = dst_len;
 
 	mutex_lock(&q->mutex);
 
 	l2t_offset = be64_to_cpu(l1t->l1_table[l1_idx]);
-	if (l2t_offset & QCOW_OFLAG_COMPRESSED) {
-		pr_warning("compressed sectors are not supported");
-		goto out_error;
-	}
-
-	l2t_offset &= QCOW_OFFSET_MASK;
 	if (!l2t_offset)
 		goto zero_cluster;
 
@@ -285,19 +315,33 @@ static ssize_t qcow_read_cluster(struct qcow *q, u64 offset, void *dst, u32 dst_
 		goto out_error;
 
 	clust_start = be64_to_cpu(l2t->table[l2_idx]);
-	if (clust_start & QCOW_OFLAG_COMPRESSED) {
-		pr_warning("compressed sectors are not supported");
-		goto out_error;
+	if (clust_start & QCOW1_OFLAG_COMPRESSED) {
+		coffset = clust_start & q->cluster_offset_mask;
+		csize = clust_start >> (63 - q->header->cluster_bits);
+		csize &= (q->cluster_size - 1);
+
+		if (pread_in_full(q->fd, q->cluster_data, csize,
+				  coffset) < 0) {
+			goto out_error;
+		}
+
+		if (qcow_decompress_buffer(q->cluster_cache, q->cluster_size,
+					q->cluster_data, csize) < 0) {
+			goto out_error;
+		}
+
+		memcpy(dst, q->cluster_cache + clust_offset, length);
+		mutex_unlock(&q->mutex);
+	} else{
+		if (!clust_start)
+			goto zero_cluster;
+
+		mutex_unlock(&q->mutex);
+
+		if (pread_in_full(q->fd, dst, length,
+				  clust_start + clust_offset) < 0)
+			return -1;
 	}
-
-	clust_start &= QCOW_OFFSET_MASK;
-	if (!clust_start)
-		goto zero_cluster;
-
-	mutex_unlock(&q->mutex);
-
-	if (pread_in_full(q->fd, dst, length, clust_start + clust_offset) < 0)
-		return -1;
 
 	return length;
 
@@ -312,7 +356,104 @@ out_error:
 	return -1;
 }
 
-static ssize_t qcow_read_sector(struct disk_image *disk, u64 sector, void *dst, u32 dst_len)
+static ssize_t qcow2_read_cluster(struct qcow *q, u64 offset,
+	void *dst, u32 dst_len)
+{
+	struct qcow_header *header = q->header;
+	struct qcow_l1_table *l1t = &q->table;
+	struct qcow_l2_table *l2t;
+	u64 clust_offset;
+	u64 clust_start;
+	u64 l2t_offset;
+	size_t length;
+	u64 l2t_size;
+	u64 l1_idx;
+	u64 l2_idx;
+	int coffset;
+	int sector_offset;
+	int nb_csectors;
+	int csize;
+
+	l1_idx = get_l1_index(q, offset);
+	if (l1_idx >= l1t->table_size)
+		return -1;
+
+	clust_offset = get_cluster_offset(q, offset);
+	if (clust_offset >= q->cluster_size)
+		return -1;
+
+	length = q->cluster_size - clust_offset;
+	if (length > dst_len)
+		length = dst_len;
+
+	mutex_lock(&q->mutex);
+
+	l2t_offset = be64_to_cpu(l1t->l1_table[l1_idx]);
+
+	l2t_offset &= ~QCOW2_OFLAG_COPIED;
+	if (!l2t_offset)
+		goto zero_cluster;
+
+	l2t_size = 1 << header->l2_bits;
+
+	/* read and cache level 2 table */
+	l2t = qcow_read_l2_table(q, l2t_offset);
+	if (!l2t)
+		goto out_error;
+
+	l2_idx = get_l2_index(q, offset);
+	if (l2_idx >= l2t_size)
+		goto out_error;
+
+	clust_start = be64_to_cpu(l2t->table[l2_idx]);
+	if (clust_start & QCOW2_OFLAG_COMPRESSED) {
+		coffset = clust_start & q->cluster_offset_mask;
+		nb_csectors = ((clust_start >> q->csize_shift)
+			& q->csize_mask) + 1;
+		sector_offset = coffset & (SECTOR_SIZE - 1);
+		csize = nb_csectors * SECTOR_SIZE - sector_offset;
+
+		if (pread_in_full(q->fd, q->cluster_data,
+				  nb_csectors * SECTOR_SIZE,
+				  coffset & ~(SECTOR_SIZE - 1)) < 0) {
+			goto out_error;
+		}
+
+		if (qcow_decompress_buffer(q->cluster_cache, q->cluster_size,
+					q->cluster_data + sector_offset,
+					csize) < 0) {
+			goto out_error;
+		}
+
+		memcpy(dst, q->cluster_cache + clust_offset, length);
+		mutex_unlock(&q->mutex);
+	} else{
+		clust_start &= QCOW2_OFFSET_MASK;
+		if (!clust_start)
+			goto zero_cluster;
+
+		mutex_unlock(&q->mutex);
+
+		if (pread_in_full(q->fd, dst, length,
+				  clust_start + clust_offset) < 0)
+			return -1;
+	}
+
+	return length;
+
+zero_cluster:
+	mutex_unlock(&q->mutex);
+	memset(dst, 0, length);
+	return length;
+
+out_error:
+	mutex_unlock(&q->mutex);
+	length = -1;
+	return -1;
+}
+
+static ssize_t qcow_read_sector(struct disk_image *disk, u64 sector,
+	void *dst, u32 dst_len)
 {
 	struct qcow *q = disk->priv;
 	struct qcow_header *header = q->header;
@@ -329,7 +470,13 @@ static ssize_t qcow_read_sector(struct disk_image *disk, u64 sector, void *dst, 
 		if (offset >= header->size)
 			return -1;
 
-		nr = qcow_read_cluster(q, offset, buf, dst_len - nr_read);
+		if (q->version == QCOW1_VERSION)
+			nr = qcow1_read_cluster(q, offset, buf,
+				dst_len - nr_read);
+		else
+			nr = qcow2_read_cluster(q, offset, buf,
+				dst_len - nr_read);
+
 		if (nr <= 0)
 			return -1;
 
@@ -474,18 +621,14 @@ error:
 
 static struct qcow_refcount_block *new_refcount_block(struct qcow *q, u64 rfb_offset)
 {
-	struct qcow_header *header = q->header;
 	struct qcow_refcount_block *rfb;
-	u64 cluster_size;
 
-	cluster_size = 1 << header->cluster_bits;
-
-	rfb = malloc(sizeof *rfb + cluster_size);
+	rfb = malloc(sizeof *rfb + q->cluster_size);
 	if (!rfb)
 		return NULL;
 
 	rfb->offset = rfb_offset;
-	rfb->size = cluster_size / sizeof(u16);
+	rfb->size = q->cluster_size / sizeof(u16);
 	RB_CLEAR_NODE(&rfb->node);
 	INIT_LIST_HEAD(&rfb->list);
 
@@ -614,16 +757,16 @@ static ssize_t qcow_write_cluster(struct qcow *q, u64 offset, void *buf, u32 src
 	mutex_lock(&q->mutex);
 
 	l2t_offset = be64_to_cpu(l1t->l1_table[l1t_idx]);
-	if (l2t_offset & QCOW_OFLAG_COMPRESSED) {
+	if (l2t_offset & QCOW2_OFLAG_COMPRESSED) {
 		pr_warning("compressed clusters are not supported");
 		goto error;
 	}
-	if (!(l2t_offset & QCOW_OFLAG_COPIED)) {
+	if (!(l2t_offset & QCOW2_OFLAG_COPIED)) {
 		pr_warning("L2 copy-on-write clusters are not supported");
 		goto error;
 	}
 
-	l2t_offset &= QCOW_OFFSET_MASK;
+	l2t_offset &= QCOW2_OFFSET_MASK;
 	if (l2t_offset) {
 		/* read and cache l2 table */
 		l2t = qcow_read_l2_table(q, l2t_offset);
@@ -662,26 +805,27 @@ static ssize_t qcow_write_cluster(struct qcow *q, u64 offset, void *buf, u32 src
 
 	clust_start = be64_to_cpu(l2t->table[l2t_idx]);
 
-	clust_flags = clust_start & QCOW_OFLAGS_MASK;
-	if (clust_flags & QCOW_OFLAG_COMPRESSED) {
+	clust_flags = clust_start & QCOW2_OFLAGS_MASK;
+	if (clust_flags & QCOW2_OFLAG_COMPRESSED) {
 		pr_warning("compressed clusters are not supported");
 		goto error;
 	}
 
-	clust_start &= QCOW_OFFSET_MASK;
+	clust_start &= QCOW2_OFFSET_MASK;
 	if (!clust_start) {
 		clust_start		= ALIGN(f_sz, clust_sz);
-		l2t->table[l2t_idx]	= cpu_to_be64(clust_start | QCOW_OFLAG_COPIED);
+		l2t->table[l2t_idx]	= cpu_to_be64(clust_start | QCOW2_OFLAG_COPIED);
 		l2t->dirty		= 1;
 	}
 
-	if (!(clust_flags & QCOW_OFLAG_COPIED)) {
+	if (!(clust_flags & QCOW2_OFLAG_COPIED)) {
 		struct qcow_refcount_block *rfb = NULL;
 		u16 clust_refcount;
 		u64 clust_idx;
 		u64 rfb_idx;
 
-		clust_idx = (clust_start & QCOW_OFFSET_MASK) >> (header->cluster_bits);
+		clust_idx = (clust_start & QCOW2_OFFSET_MASK)
+			>> (header->cluster_bits);
 
 		rfb = qcow_read_refcount_block(q, clust_idx);
 		if (!rfb) {
@@ -816,6 +960,8 @@ static int qcow_disk_close(struct disk_image *disk)
 
 	refcount_table_free_cache(&q->refcount_table);
 	l1_table_free_cache(&q->table);
+	free(q->cluster_data);
+	free(q->cluster_cache);
 	free(q->refcount_table.rf_table);
 	free(q->table.l1_table);
 	free(q->header);
@@ -841,11 +987,9 @@ static int qcow_read_refcount_table(struct qcow *q)
 {
 	struct qcow_header *header = q->header;
 	struct qcow_refcount_table *rft = &q->refcount_table;
-	u64 cluster_size;
 
-	cluster_size = 1 << header->cluster_bits;
-
-	rft->rf_size = (header->refcount_table_size * cluster_size) / sizeof(u64);
+	rft->rf_size = (header->refcount_table_size * q->cluster_size)
+		/ sizeof(u64);
 
 	rft->rf_table = calloc(rft->rf_size, sizeof(u64));
 	if (!rft->rf_table)
@@ -921,7 +1065,7 @@ static struct disk_image *qcow2_probe(int fd, bool readonly)
 
 	q = calloc(1, sizeof(struct qcow));
 	if (!q)
-		goto error;
+		return NULL;
 
 	mutex_init(&q->mutex);
 	q->fd = fd;
@@ -933,13 +1077,31 @@ static struct disk_image *qcow2_probe(int fd, bool readonly)
 
 	h = q->header = qcow2_read_header(fd);
 	if (!h)
-		goto error;
+		goto free_qcow;
+
+	q->version = QCOW2_VERSION;
+	q->csize_shift = (62 - (q->header->cluster_bits - 8));
+	q->csize_mask = (1 << (q->header->cluster_bits - 8)) - 1;
+	q->cluster_offset_mask = (1LL << q->csize_shift) - 1;
+	q->cluster_size = 1 << q->header->cluster_bits;
+
+	q->cluster_data = malloc(q->cluster_size);
+	if (!q->cluster_data) {
+		pr_warning("cluster data malloc error!");
+		goto free_header;
+	}
+
+	q->cluster_cache = malloc(q->cluster_size);
+	if (!q->cluster_cache) {
+		pr_warning("cluster cache malloc error!");
+		goto free_cluster_data;
+	}
 
 	if (qcow_read_l1_table(q) < 0)
-		goto error;
+		goto free_cluster_cache;
 
 	if (qcow_read_refcount_table(q) < 0)
-		goto error;
+		goto free_l1_table;
 
 	/*
 	 * Do not use mmap use read/write instead
@@ -950,17 +1112,29 @@ static struct disk_image *qcow2_probe(int fd, bool readonly)
 		disk_image = disk_image__new(fd, h->size, &qcow_disk_ops, DISK_IMAGE_NOMMAP);
 
 	if (!disk_image)
-		goto error;
+		goto free_refcount_table;
 	disk_image->priv = q;
 
 	return disk_image;
-error:
-	if (!q)
-		return NULL;
 
-	free(q->table.l1_table);
-	free(q->header);
-	free(q);
+free_refcount_table:
+	if (q->refcount_table.rf_table)
+		free(q->refcount_table.rf_table);
+free_l1_table:
+	if (q->table.l1_table)
+		free(q->table.l1_table);
+free_cluster_cache:
+	if (q->cluster_cache)
+		free(q->cluster_cache);
+free_cluster_data:
+	if (q->cluster_data)
+		free(q->cluster_data);
+free_header:
+	if (q->header)
+		free(q->header);
+free_qcow:
+	if (q)
+		free(q);
 
 	return NULL;
 }
@@ -1027,7 +1201,7 @@ static struct disk_image *qcow1_probe(int fd, bool readonly)
 
 	q = calloc(1, sizeof(struct qcow));
 	if (!q)
-		goto error;
+		return NULL;
 
 	mutex_init(&q->mutex);
 	q->fd = fd;
@@ -1039,10 +1213,26 @@ static struct disk_image *qcow1_probe(int fd, bool readonly)
 
 	h = q->header = qcow1_read_header(fd);
 	if (!h)
-		goto error;
+		goto free_qcow;
+
+	q->version = QCOW1_VERSION;
+	q->cluster_size = 1 << q->header->cluster_bits;
+	q->cluster_offset_mask = (1LL << (63 - q->header->cluster_bits)) - 1;
+
+	q->cluster_data = malloc(q->cluster_size);
+	if (!q->cluster_data) {
+		pr_warning("cluster data malloc error!");
+		goto free_header;
+	}
+
+	q->cluster_cache = malloc(q->cluster_size);
+	if (!q->cluster_cache) {
+		pr_warning("cluster cache malloc error!");
+		goto free_cluster_data;
+	}
 
 	if (qcow_read_l1_table(q) < 0)
-		goto error;
+		goto free_cluster_cache;
 
 	/*
 	 * Do not use mmap use read/write instead
@@ -1053,17 +1243,26 @@ static struct disk_image *qcow1_probe(int fd, bool readonly)
 		disk_image = disk_image__new(fd, h->size, &qcow_disk_ops, DISK_IMAGE_NOMMAP);
 
 	if (!disk_image)
-		goto error;
+		goto free_l1_table;
 	disk_image->priv = q;
 
 	return disk_image;
-error:
-	if (!q)
-		return NULL;
 
-	free(q->table.l1_table);
-	free(q->header);
-	free(q);
+free_l1_table:
+	if (q->table.l1_table)
+		free(q->table.l1_table);
+free_cluster_cache:
+	if (q->cluster_cache)
+		free(q->cluster_cache);
+free_cluster_data:
+	if (q->cluster_data)
+		free(q->cluster_data);
+free_header:
+	if (q->header)
+		free(q->header);
+free_qcow:
+	if (q)
+		free(q);
 
 	return NULL;
 }

@@ -107,6 +107,13 @@ ifeq ($(has_SDL),y)
 	LIBS	+= -lSDL
 endif
 
+FLAGS_ZLIB := $(CFLAGS) -lz
+has_ZLIB := $(call try-cc,$(SOURCE_ZLIB),$(FLAGS_ZLIB))
+ifeq ($(has_ZLIB),y)
+	CFLAGS	+= -DCONFIG_HAS_ZLIB
+	LIBS	+= -lz
+endif
+
 DEPS	:= $(patsubst %.o,%.d,$(OBJS))
 
 # Exclude BIOS object files from header dependencies.
