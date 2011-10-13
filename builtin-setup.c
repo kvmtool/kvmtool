@@ -25,13 +25,11 @@
 static const char *instance_name;
 
 static const char * const setup_usage[] = {
-	"kvm setup [-n name]",
+	"kvm setup [name]",
 	NULL
 };
 
 static const struct option setup_options[] = {
-	OPT_GROUP("General options:"),
-	OPT_STRING('n', "name", &instance_name, "name", "Instance name"),
 	OPT_END()
 };
 
@@ -40,8 +38,12 @@ static void parse_setup_options(int argc, const char **argv)
 	while (argc != 0) {
 		argc = parse_options(argc, argv, setup_options, setup_usage,
 				PARSE_OPT_STOP_AT_NON_OPTION);
-		if (argc != 0)
+		if (argc != 0 && instance_name)
 			kvm_setup_help();
+		else
+			instance_name = argv[0];
+		argv++;
+		argc--;
 	}
 }
 
@@ -219,6 +221,8 @@ int kvm_cmd_setup(int argc, const char **argv, const char *prefix)
 		pr_info("Your new rootfs named %s has been created.\n"
 			"You can now start it by running 'kvm run -d %s'\n",
 			instance_name, instance_name);
+	else
+		perror("Error creating rootfs");
 
 	return r;
 }
