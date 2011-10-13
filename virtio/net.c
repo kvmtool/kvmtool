@@ -416,7 +416,8 @@ void virtio_net__init(const struct virtio_net_params *params)
 	if (compat_id != -1)
 		compat_id = compat__add_message("virtio-net device was not detected",
 						"While you have requested a virtio-net device, "
-						"the guest kernel didn't seem to detect it.\n"
-						"Please make sure that the kernel was compiled "
-						"with CONFIG_VIRTIO_NET.");
+						"the guest kernel did not initialize it.\n"
+						"Please make sure that the guest kernel was "
+						"compiled with CONFIG_VIRTIO_NET=y enabled "
+						"in its .config");
 }
