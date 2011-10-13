@@ -44,7 +44,6 @@ struct blk_dev {
 	struct virtio_pci		vpci;
 	struct virtio_blk_config	blk_config;
 	struct disk_image		*disk;
-	int				compat_id;
 	u32				features;
 
 	struct virt_queue		vqs[NUM_VIRT_QUEUES];
@@ -53,6 +52,7 @@ struct blk_dev {
 };
 
 static LIST_HEAD(bdevs);
+static int compat_id;
 
 static void virtio_blk_do_io_request(struct kvm *kvm, void *param)
 {
@@ -154,7 +154,7 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 pfn)
 	struct virt_queue *queue;
 	void *p;
 
-	compat__remove_message(bdev->compat_id);
+	compat__remove_message(compat_id);
 
 	queue			= &bdev->vqs[vq];
 	queue->pfn		= pfn;
@@ -220,7 +220,8 @@ void virtio_blk__init(struct kvm *kvm, struct disk_image *disk)
 
 	list_add_tail(&bdev->list, &bdevs);
 
-	bdev->compat_id = compat__add_message("virtio-blk device was not detected",
+	if (compat_id != -1)
+		compat_id = compat__add_message("virtio-blk device was not detected",
 						"While you have requested a virtio-blk device, "
 						"the guest kernel didn't seem to detect it.\n"
 						"Please make sure that the kernel was compiled "

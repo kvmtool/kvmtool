@@ -37,7 +37,6 @@ struct con_dev {
 	struct virt_queue		vqs[VIRTIO_CONSOLE_NUM_QUEUES];
 	struct virtio_console_config	config;
 	u32				features;
-	int				compat_id;
 
 	struct thread_pool__job		jobs[VIRTIO_CONSOLE_NUM_QUEUES];
 };
@@ -51,6 +50,8 @@ static struct con_dev cdev = {
 		.max_nr_ports		= 1,
 	},
 };
+
+static int compat_id = -1;
 
 /*
  * Interrupts are injected for hvc0 only.
@@ -137,7 +138,7 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 pfn)
 
 	assert(vq < VIRTIO_CONSOLE_NUM_QUEUES);
 
-	compat__remove_message(cdev.compat_id);
+	compat__remove_message(compat_id);
 
 	queue			= &cdev.vqs[vq];
 	queue->pfn		= pfn;
@@ -188,7 +189,8 @@ void virtio_console__init(struct kvm *kvm)
 		.get_size_vq		= get_size_vq,
 	};
 
-	cdev.compat_id = compat__add_message("virtio-console device was not detected",
+	if (compat_id != -1)
+		compat_id = compat__add_message("virtio-console device was not detected",
 						"While you have requested a virtio-console device, "
 						"the guest kernel didn't seem to detect it.\n"
 						"Please make sure that the kernel was compiled "

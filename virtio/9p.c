@@ -20,6 +20,7 @@
 #include <net/9p/9p.h>
 
 static LIST_HEAD(devs);
+static int compat_id = -1;
 
 /* Warning: Immediately use value returned from this function */
 static const char *rel_to_abs(struct p9_dev *p9dev,
@@ -1148,7 +1149,7 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 pfn)
 	struct virt_queue *queue;
 	void *p;
 
-	compat__remove_message(p9dev->compat_id);
+	compat__remove_message(compat_id);
 
 	queue			= &p9dev->vqs[vq];
 	queue->pfn		= pfn;
@@ -1247,7 +1248,8 @@ int virtio_9p__register(struct kvm *kvm, const char *root, const char *tag_name)
 
 	list_add(&p9dev->list, &devs);
 
-	p9dev->compat_id = compat__add_message("virtio-9p device was not detected",
+	if (compat_id != -1)
+		compat_id = compat__add_message("virtio-9p device was not detected",
 						"While you have requested a virtio-9p device, "
 						"the guest kernel didn't seem to detect it.\n"
 						"Please make sure that the kernel was compiled "

@@ -48,7 +48,6 @@ struct net_dev {
 	struct virt_queue		vqs[VIRTIO_NET_NUM_QUEUES];
 	struct virtio_net_config	config;
 	u32				features;
-	int				compat_id;
 
 	pthread_t			io_rx_thread;
 	pthread_mutex_t			io_rx_lock;
@@ -69,6 +68,7 @@ struct net_dev {
 };
 
 static LIST_HEAD(ndevs);
+static int compat_id = -1;
 
 static void *virtio_net_rx_thread(void *p)
 {
@@ -327,7 +327,7 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 pfn)
 	struct virt_queue *queue;
 	void *p;
 
-	compat__remove_message(ndev->compat_id);
+	compat__remove_message(compat_id);
 
 	queue			= &ndev->vqs[vq];
 	queue->pfn		= pfn;
@@ -413,7 +413,8 @@ void virtio_net__init(const struct virtio_net_params *params)
 
 	virtio_net__io_thread_init(params->kvm, ndev);
 
-	ndev->compat_id = compat__add_message("virtio-net device was not detected",
+	if (compat_id != -1)
+		compat_id = compat__add_message("virtio-net device was not detected",
 						"While you have requested a virtio-net device, "
 						"the guest kernel didn't seem to detect it.\n"
 						"Please make sure that the kernel was compiled "

@@ -33,7 +33,6 @@ struct rng_dev {
 	struct virtio_pci	vpci;
 
 	int			fd;
-	int			compat_id;
 
 	/* virtio queue */
 	struct virt_queue	vqs[NUM_VIRT_QUEUES];
@@ -41,6 +40,7 @@ struct rng_dev {
 };
 
 static LIST_HEAD(rdevs);
+static int compat_id = -1;
 
 static void set_config(struct kvm *kvm, void *dev, u8 data, u32 offset)
 {
@@ -97,7 +97,7 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 pfn)
 	struct rng_dev_job *job;
 	void *p;
 
-	compat__remove_message(rdev->compat_id);
+	compat__remove_message(compat_id);
 
 	queue			= &rdev->vqs[vq];
 	queue->pfn		= pfn;
@@ -164,7 +164,8 @@ void virtio_rng__init(struct kvm *kvm)
 
 	list_add_tail(&rdev->list, &rdevs);
 
-	rdev->compat_id = compat__add_message("virtio-rng device was not detected",
+	if (compat_id != -1)
+		compat_id = compat__add_message("virtio-rng device was not detected",
 						"While you have requested a virtio-rng device, "
 						"the guest kernel didn't seem to detect it.\n"
 						"Please make sure that the kernel was compiled "

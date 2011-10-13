@@ -44,12 +44,12 @@ struct bln_dev {
 	u16			stat_count;
 	int			stat_waitfd;
 
-	int			compat_id;
 	struct virtio_balloon_config config;
 };
 
 static struct bln_dev bdev;
 extern struct kvm *kvm;
+static int compat_id = -1;
 
 static bool virtio_bln_do_io_request(struct kvm *kvm, struct bln_dev *bdev, struct virt_queue *queue)
 {
@@ -226,7 +226,7 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 pfn)
 	struct virt_queue *queue;
 	void *p;
 
-	compat__remove_message(bdev->compat_id);
+	compat__remove_message(compat_id);
 
 	queue			= &bdev->vqs[vq];
 	queue->pfn		= pfn;
@@ -280,7 +280,8 @@ void virtio_bln__init(struct kvm *kvm)
 		.get_size_vq		= get_size_vq,
 	};
 
-	bdev.compat_id = compat__add_message("virtio-balloon device was not detected",
+	if (compat_id != -1)
+		compat_id = compat__add_message("virtio-balloon device was not detected",
 						"While you have requested a virtio-balloon device, "
 						"the guest kernel didn't seem to detect it.\n"
 						"Please make sure that the kernel was compiled "

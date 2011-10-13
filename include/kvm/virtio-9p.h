@@ -45,7 +45,6 @@ struct p9_dev {
 	struct virtio_pci	vpci;
 
 	struct virtio_9p_config	*config;
-	int			compat_id;
 	u32			features;
 
 	/* virtio queue */
