@@ -47,6 +47,8 @@ static void parse_setup_options(int argc, const char **argv)
 
 void kvm_setup_help(void)
 {
+	printf("\nkvm setup creates a new rootfs and stores it under ~/.kvm-tools/ .\n"
+		"This can be used later by the '-d' parameter of 'kvm run'.\n");
 	usage_with_options(setup_usage, setup_options);
 }
 
@@ -205,10 +207,18 @@ int kvm_setup_create_new(const char *guestfs_name)
 
 int kvm_cmd_setup(int argc, const char **argv, const char *prefix)
 {
+	int r;
+
 	parse_setup_options(argc, argv);
 
 	if (instance_name == NULL)
 		kvm_setup_help();
 
-	return do_setup(instance_name);
+	r = do_setup(instance_name);
+	if (r == 0)
+		pr_info("Your new rootfs named %s has been created.\n"
+			"You can now start it by running 'kvm run -d %s'\n",
+			instance_name, instance_name);
+
+	return r;
 }
