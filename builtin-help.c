@@ -34,7 +34,8 @@ static void list_common_cmds_help(void)
 
 static void kvm_help(void)
 {
-	printf("\n usage: %s\n\n", kvm_usage_string);
+	printf("\n To start a simple non-privileged shell run 'kvm run'\n\n"
+		"usage: %s\n\n", kvm_usage_string);
 	list_common_cmds_help();
 	printf("\n %s\n\n", kvm_more_info_string);
 }
