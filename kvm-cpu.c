@@ -142,6 +142,8 @@ static void kvm_cpu__setup_msrs(struct kvm_cpu *vcpu)
 	vcpu->msrs->entries[ndx++] = KVM_MSR_ENTRY(MSR_LSTAR,			0x0);
 #endif
 	vcpu->msrs->entries[ndx++] = KVM_MSR_ENTRY(MSR_IA32_TSC,		0x0);
+	vcpu->msrs->entries[ndx++] = KVM_MSR_ENTRY(MSR_IA32_MISC_ENABLE,
+						MSR_IA32_MISC_ENABLE_FAST_STRING);
 
 	vcpu->msrs->nmsrs	= ndx;
 
