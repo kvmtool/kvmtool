@@ -9,6 +9,7 @@
 #include "kvm/threadpool.h"
 #include "kvm/guest_compat.h"
 #include "kvm/virtio-pci.h"
+#include "kvm/kvm-ipc.h"
 
 #include <linux/virtio_ring.h>
 #include <linux/virtio_balloon.h>
@@ -139,12 +140,12 @@ static int virtio_bln__collect_stats(void)
 	return 0;
 }
 
-static int virtio_bln__print_stats(void)
+static void virtio_bln__print_stats(int fd, u32 type, u32 len, u8 *msg)
 {
 	u16 i;
 
 	if (virtio_bln__collect_stats() < 0)
-		return -EFAULT;
+		return;
 
 	printf("\n\n\t*** Guest memory statistics ***\n\n");
 	for (i = 0; i < bdev.stat_count; i++) {
@@ -171,23 +172,19 @@ static int virtio_bln__print_stats(void)
 		printf("%llu\n", bdev.stats[i].val);
 	}
 	printf("\n");
-
-	return 0;
 }
 
-static void handle_sigmem(int sig)
+static void handle_mem(int fd, u32 type, u32 len, u8 *msg)
 {
-	if (sig == SIGKVMADDMEM) {
-		bdev.config.num_pages += 256;
-	} else if (sig == SIGKVMDELMEM) {
-		if (bdev.config.num_pages < 256)
+	int mem = *(int *)msg;
+
+	if (mem > 0) {
+		bdev.config.num_pages += 256 * mem;
+	} else if (mem < 0) {
+		if (bdev.config.num_pages < (u32)(256 * (-mem)))
 			return;
 
-		bdev.config.num_pages -= 256;
-	} else if (sig == SIGKVMMEMSTAT) {
-		virtio_bln__print_stats();
-
-		return;
+		bdev.config.num_pages += 256 * mem;
 	}
 
 	/* Notify that the configuration space has changed */
@@ -261,9 +258,8 @@ static int get_size_vq(struct kvm *kvm, void *dev, u32 vq)
 
 void virtio_bln__init(struct kvm *kvm)
 {
-	signal(SIGKVMADDMEM, handle_sigmem);
-	signal(SIGKVMDELMEM, handle_sigmem);
-	signal(SIGKVMMEMSTAT, handle_sigmem);
+	kvm_ipc__register_handler(KVM_IPC_BALLOON, handle_mem);
+	kvm_ipc__register_handler(KVM_IPC_STAT, virtio_bln__print_stats);
 
 	bdev.stat_waitfd	= eventfd(0, 0);
 	memset(&bdev.config, 0, sizeof(struct virtio_balloon_config));

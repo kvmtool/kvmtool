@@ -3,17 +3,23 @@
 #include <kvm/builtin-pause.h>
 #include <kvm/kvm.h>
 #include <kvm/parse-options.h>
+#include <kvm/kvm-ipc.h>
 
 #include <stdio.h>
 #include <string.h>
 #include <signal.h>
 
+struct pause_cmd {
+	u32 type;
+	u32 len;
+};
+
 static bool all;
-static pid_t instance_pid;
+static int instance;
 static const char *instance_name;
 
 static const char * const pause_usage[] = {
-	"kvm pause [--all] [-n name] [-p pid]",
+	"kvm pause [--all] [-n name]",
 	NULL
 };
 
@@ -21,7 +27,6 @@ static const struct option pause_options[] = {
 	OPT_GROUP("General options:"),
 	OPT_BOOLEAN('a', "all", &all, "Pause all instances"),
 	OPT_STRING('n', "name", &instance_name, "name", "Instance name"),
-	OPT_INTEGER('p', "pid", &instance_pid, "Instance pid"),
 	OPT_END()
 };
 
@@ -40,9 +45,16 @@ void kvm_pause_help(void)
 	usage_with_options(pause_usage, pause_options);
 }
 
-static int do_pause(const char *name, int pid)
+static int do_pause(const char *name, int sock)
 {
-	return kill(pid, SIGUSR2);
+	struct pause_cmd cmd = {KVM_IPC_PAUSE, 0};
+	int r;
+
+	r = write(sock, &cmd, sizeof(cmd));
+	if (r < 0)
+		return r;
+
+	return 0;
 }
 
 int kvm_cmd_pause(int argc, const char **argv, const char *prefix)
@@ -53,14 +65,14 @@ int kvm_cmd_pause(int argc, const char **argv, const char *prefix)
 		return kvm__enumerate_instances(do_pause);
 
 	if (instance_name == NULL &&
-	    instance_pid == 0)
+	    instance == 0)
 		kvm_pause_help();
 
 	if (instance_name)
-		instance_pid = kvm__get_pid_by_instance(instance_name);
+		instance = kvm__get_sock_by_instance(instance_name);
 
-	if (instance_pid <= 0)
+	if (instance <= 0)
 		die("Failed locating instance");
 
-	return kill(instance_pid, SIGUSR2);
+	return do_pause(instance_name, instance);
 }

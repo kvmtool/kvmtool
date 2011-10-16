@@ -8,11 +8,15 @@
 #include "kvm/util.h"
 #include "kvm/mutex.h"
 #include "kvm/kvm-cpu.h"
+#include "kvm/kvm-ipc.h"
 
 #include <linux/kvm.h>
 
 #include <asm/bootparam.h>
 
+#include <sys/un.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -135,59 +139,73 @@ static struct kvm *kvm__new(void)
 	return kvm;
 }
 
-static void kvm__create_pidfile(struct kvm *kvm)
+static int kvm__create_socket(struct kvm *kvm)
 {
-	int fd;
-	char full_name[PATH_MAX], pid[10];
+	char full_name[PATH_MAX];
+	unsigned int s;
+	struct sockaddr_un local;
+	int len, r;
 
 	if (!kvm->name)
-		return;
+		return -1;
 
 	sprintf(full_name, "%s", kvm__get_dir());
 	mkdir(full_name, 0777);
-	sprintf(full_name, "%s/%s.pid", kvm__get_dir(), kvm->name);
-	fd = open(full_name, O_CREAT | O_WRONLY, 0666);
-	sprintf(pid, "%u\n", getpid());
-	if (write(fd, pid, strlen(pid)) <= 0)
-		die("Failed creating PID file");
-	close(fd);
+	sprintf(full_name, "%s/%s.sock", kvm__get_dir(), kvm->name);
+	s = socket(AF_UNIX, SOCK_STREAM, 0);
+	if (s < 0)
+		return s;
+	local.sun_family = AF_UNIX;
+	strcpy(local.sun_path, full_name);
+	unlink(local.sun_path);
+	len = strlen(local.sun_path) + sizeof(local.sun_family);
+	r = bind(s, (struct sockaddr *)&local, len);
+	if (r < 0)
+		goto fail;
+
+	r = listen(s, 5);
+	if (r < 0)
+		goto fail;
+
+	return s;
+
+fail:
+	close(s);
+	return -1;
 }
 
-void kvm__remove_pidfile(const char *name)
+void kvm__remove_socket(const char *name)
 {
 	char full_name[PATH_MAX];
 
-	sprintf(full_name, "%s/%s.pid", kvm__get_dir(), name);
+	sprintf(full_name, "%s/%s.sock", kvm__get_dir(), name);
 	unlink(full_name);
 }
 
-pid_t kvm__get_pid_by_instance(const char *name)
+int kvm__get_sock_by_instance(const char *name)
 {
-	int fd;
-	pid_t pid;
-	char pid_str[10], pid_file[PATH_MAX];
+	int s, len, r;
+	char sock_file[PATH_MAX];
+	struct sockaddr_un local;
 
-	sprintf(pid_file, "%s/%s.pid", kvm__get_dir(), name);
-	fd = open(pid_file, O_RDONLY);
-	if (fd < 0)
-		return -1;
+	sprintf(sock_file, "%s/%s.sock", kvm__get_dir(), name);
+	s = socket(AF_UNIX, SOCK_STREAM, 0);
 
-	if (read(fd, pid_str, 10) == 0)
-		return -1;
+	local.sun_family = AF_UNIX;
+	strcpy(local.sun_path, sock_file);
+	len = strlen(local.sun_path) + sizeof(local.sun_family);
 
-	pid = atoi(pid_str);
-	if (pid < 0)
-		return -1;
+	r = connect(s, &local, len);
+	if (r < 0)
+		die("Failed connecting to instance");
 
-	close(fd);
-
-	return pid;
+	return s;
 }
 
-int kvm__enumerate_instances(int (*callback)(const char *name, int pid))
+int kvm__enumerate_instances(int (*callback)(const char *name, int fd))
 {
 	char full_name[PATH_MAX];
-	int pid;
+	int sock;
 	DIR *dir;
 	struct dirent entry, *result;
 	int ret = 0;
@@ -199,10 +217,11 @@ int kvm__enumerate_instances(int (*callback)(const char *name, int pid))
 		readdir_r(dir, &entry, &result);
 		if (result == NULL)
 			break;
-		if (entry.d_type == DT_REG) {
-			entry.d_name[strlen(entry.d_name)-4] = 0;
-			pid = kvm__get_pid_by_instance(entry.d_name);
-			ret = callback(entry.d_name, pid);
+		if (entry.d_type == DT_SOCK) {
+			entry.d_name[strlen(entry.d_name)-5] = 0;
+			sock = kvm__get_sock_by_instance(entry.d_name);
+			ret = callback(entry.d_name, sock);
+			close(sock);
 			if (ret < 0)
 				break;
 		}
@@ -218,7 +237,7 @@ void kvm__delete(struct kvm *kvm)
 	kvm__stop_timer(kvm);
 
 	munmap(kvm->ram_start, kvm->ram_size);
-	kvm__remove_pidfile(kvm->name);
+	kvm__remove_socket(kvm->name);
 	free(kvm);
 }
 
@@ -338,6 +357,18 @@ int kvm__recommended_cpus(struct kvm *kvm)
 	return ret;
 }
 
+static void kvm__pid(int fd, u32 type, u32 len, u8 *msg)
+{
+	pid_t pid = getpid();
+	int r = 0;
+
+	if (type == KVM_IPC_PID)
+		r = write(fd, &pid, sizeof(pid));
+
+	if (r < 0)
+		pr_warning("Failed sending PID");
+}
+
 /*
  * The following hack should be removed once 'x86: Raise the hard
  * VCPU count limit' makes it's way into the mainline.
@@ -424,8 +455,8 @@ struct kvm *kvm__init(const char *kvm_dev, u64 ram_size, const char *name)
 
 	kvm->name = name;
 
-	kvm__create_pidfile(kvm);
-
+	kvm_ipc__start(kvm__create_socket(kvm));
+	kvm_ipc__register_handler(KVM_IPC_PID, kvm__pid);
 	return kvm;
 }
 

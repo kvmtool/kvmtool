@@ -3,6 +3,7 @@
 #include <kvm/builtin-list.h>
 #include <kvm/kvm.h>
 #include <kvm/parse-options.h>
+#include <kvm/kvm-ipc.h>
 
 #include <dirent.h>
 #include <stdio.h>
@@ -11,6 +12,11 @@
 #include <fcntl.h>
 
 #define PROCESS_NAME "kvm"
+
+struct pid_cmd {
+	u32 type;
+	u32 len;
+};
 
 static bool run;
 static bool rootfs;
@@ -32,11 +38,29 @@ void kvm_list_help(void)
 	usage_with_options(list_usage, list_options);
 }
 
-static int print_guest(const char *name, int pid)
+static pid_t get_pid(int sock)
+{
+	struct pid_cmd cmd = {KVM_IPC_PID, 0};
+	int r;
+	pid_t pid;
+
+	r = write(sock, &cmd, sizeof(cmd));
+	if (r < 0)
+		return r;
+
+	r = read(sock, &pid, sizeof(pid));
+	if (r < 0)
+		return r;
+
+	return pid;
+}
+
+static int print_guest(const char *name, int sock)
 {
 	char proc_name[PATH_MAX];
 	char *comm = NULL;
 	FILE *fd;
+	pid_t pid = get_pid(sock);
 
 	sprintf(proc_name, "/proc/%d/stat", pid);
 	fd = fopen(proc_name, "r");
@@ -61,7 +85,7 @@ cleanup:
 	if (comm)
 		free(comm);
 
-	kvm__remove_pidfile(name);
+	kvm__remove_socket(name);
 	return 0;
 }
 

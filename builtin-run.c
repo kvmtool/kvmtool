@@ -30,6 +30,7 @@
 #include "kvm/vnc.h"
 #include "kvm/guest_compat.h"
 #include "kvm/pci-shmem.h"
+#include "kvm/kvm-ipc.h"
 
 #include <linux/types.h>
 
@@ -471,11 +472,11 @@ static void handle_sigusr1(int sig)
 /* Pause/resume the guest using SIGUSR2 */
 static int is_paused;
 
-static void handle_sigusr2(int sig)
+static void handle_pause(int fd, u32 type, u32 len, u8 *msg)
 {
-	if (sig == SIGKVMRESUME && is_paused)
+	if (type == KVM_IPC_RESUME && is_paused)
 		kvm__continue();
-	else if (sig == SIGUSR2 && !is_paused)
+	else if (type == KVM_IPC_PAUSE && !is_paused)
 		kvm__pause();
 	else
 		return;
@@ -484,7 +485,7 @@ static void handle_sigusr2(int sig)
 	pr_info("Guest %s\n", is_paused ? "paused" : "resumed");
 }
 
-static void handle_sigquit(int sig)
+static void handle_debug(int fd, u32 type, u32 len, u8 *msg)
 {
 	int i;
 
@@ -514,7 +515,7 @@ static void handle_sigalrm(int sig)
 	virtio_console__inject_interrupt(kvm);
 }
 
-static void handle_sigstop(int sig)
+static void handle_stop(int fd, u32 type, u32 len, u8 *msg)
 {
 	kvm_cpu__reboot();
 }
@@ -702,14 +703,11 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	void *ret;
 
 	signal(SIGALRM, handle_sigalrm);
-	signal(SIGQUIT, handle_sigquit);
+	kvm_ipc__register_handler(KVM_IPC_DEBUG, handle_debug);
 	signal(SIGUSR1, handle_sigusr1);
-	signal(SIGUSR2, handle_sigusr2);
-	signal(SIGKVMSTOP, handle_sigstop);
-	signal(SIGKVMRESUME, handle_sigusr2);
-	/* ignore balloon signal by default if not enable balloon optiion */
-	signal(SIGKVMADDMEM, SIG_IGN);
-	signal(SIGKVMDELMEM, SIG_IGN);
+	kvm_ipc__register_handler(KVM_IPC_PAUSE, handle_pause);
+	kvm_ipc__register_handler(KVM_IPC_RESUME, handle_pause);
+	kvm_ipc__register_handler(KVM_IPC_STOP, handle_stop);
 
 	nr_online_cpus = sysconf(_SC_NPROCESSORS_ONLN);
 

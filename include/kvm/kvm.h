@@ -19,11 +19,8 @@
 
 #define SIGKVMEXIT		(SIGRTMIN + 0)
 #define SIGKVMPAUSE		(SIGRTMIN + 1)
-#define SIGKVMADDMEM		(SIGRTMIN + 2)
-#define SIGKVMDELMEM		(SIGRTMIN + 3)
 #define SIGKVMSTOP		(SIGRTMIN + 4)
 #define SIGKVMRESUME		(SIGRTMIN + 5)
-#define SIGKVMMEMSTAT		(SIGRTMIN + 6)
 
 #define KVM_PID_FILE_PATH	"/.kvm-tools/"
 #define HOME_DIR		getenv("HOME")
@@ -80,9 +77,9 @@ bool kvm__deregister_mmio(struct kvm *kvm, u64 phys_addr);
 void kvm__pause(void);
 void kvm__continue(void);
 void kvm__notify_paused(void);
-pid_t kvm__get_pid_by_instance(const char *name);
+int kvm__get_sock_by_instance(const char *name);
 int kvm__enumerate_instances(int (*callback)(const char *name, int pid));
-void kvm__remove_pidfile(const char *name);
+void kvm__remove_socket(const char *name);
 
 /*
  * Debugging
