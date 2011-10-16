@@ -78,6 +78,27 @@ extern struct kvm_cpu *kvm_cpus[KVM_NR_CPUS];
 static int pause_event;
 static DEFINE_MUTEX(pause_lock);
 
+static char kvm_dir[PATH_MAX];
+
+static void set_dir(const char *fmt, va_list args)
+{
+	vsnprintf(kvm_dir, sizeof(kvm_dir), fmt, args);
+}
+
+void kvm__set_dir(const char *fmt, ...)
+{
+	va_list args;
+
+	va_start(args, fmt);
+	set_dir(fmt, args);
+	va_end(args);
+}
+
+const char *kvm__get_dir(void)
+{
+	return kvm_dir;
+}
+
 static bool kvm__supports_extension(struct kvm *kvm, unsigned int extension)
 {
 	int ret;
@@ -122,9 +143,9 @@ static void kvm__create_pidfile(struct kvm *kvm)
 	if (!kvm->name)
 		return;
 
-	sprintf(full_name, "%s/%s", HOME_DIR, KVM_PID_FILE_PATH);
+	sprintf(full_name, "%s", kvm__get_dir());
 	mkdir(full_name, 0777);
-	sprintf(full_name, "%s/%s/%s.pid", HOME_DIR, KVM_PID_FILE_PATH, kvm->name);
+	sprintf(full_name, "%s/%s.pid", kvm__get_dir(), kvm->name);
 	fd = open(full_name, O_CREAT | O_WRONLY, 0666);
 	sprintf(pid, "%u\n", getpid());
 	if (write(fd, pid, strlen(pid)) <= 0)
@@ -136,7 +157,7 @@ void kvm__remove_pidfile(const char *name)
 {
 	char full_name[PATH_MAX];
 
-	sprintf(full_name, "%s/%s/%s.pid", HOME_DIR, KVM_PID_FILE_PATH, name);
+	sprintf(full_name, "%s/%s.pid", kvm__get_dir(), name);
 	unlink(full_name);
 }
 
@@ -146,7 +167,7 @@ pid_t kvm__get_pid_by_instance(const char *name)
 	pid_t pid;
 	char pid_str[10], pid_file[PATH_MAX];
 
-	sprintf(pid_file, "%s/%s/%s.pid", HOME_DIR, KVM_PID_FILE_PATH, name);
+	sprintf(pid_file, "%s/%s.pid", kvm__get_dir(), name);
 	fd = open(pid_file, O_RDONLY);
 	if (fd < 0)
 		return -1;
@@ -171,7 +192,7 @@ int kvm__enumerate_instances(int (*callback)(const char *name, int pid))
 	struct dirent entry, *result;
 	int ret = 0;
 
-	sprintf(full_name, "%s/%s", HOME_DIR, KVM_PID_FILE_PATH);
+	sprintf(full_name, "%s", kvm__get_dir());
 	dir = opendir(full_name);
 
 	while (dir != NULL) {

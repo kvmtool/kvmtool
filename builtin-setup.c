@@ -125,7 +125,7 @@ static int copy_init(const char *guestfs_name)
 {
 	char path[PATH_MAX];
 
-	snprintf(path, PATH_MAX, "%s%s%s/virt/init", HOME_DIR, KVM_PID_FILE_PATH, guestfs_name);
+	snprintf(path, PATH_MAX, "%s%s/virt/init", kvm__get_dir(), guestfs_name);
 
 	return copy_file("guest/init", path);
 }
@@ -135,7 +135,7 @@ static int make_guestfs_symlink(const char *guestfs_name, const char *path)
 	char target[PATH_MAX];
 	char name[PATH_MAX];
 
-	snprintf(name, PATH_MAX, "%s%s%s%s", HOME_DIR, KVM_PID_FILE_PATH, guestfs_name, path);
+	snprintf(name, PATH_MAX, "%s%s%s", kvm__get_dir(), guestfs_name, path);
 
 	snprintf(target, PATH_MAX, "/host%s", path);
 
@@ -146,7 +146,7 @@ static void make_root_dir(void)
 {
 	char name[PATH_MAX];
 
-	snprintf(name, PATH_MAX, "%s%s", HOME_DIR, KVM_PID_FILE_PATH);
+	snprintf(name, PATH_MAX, "%s", kvm__get_dir());
 
 	mkdir(name, 0777);
 }
@@ -155,7 +155,7 @@ static int make_dir(const char *dir)
 {
 	char name[PATH_MAX];
 
-	snprintf(name, PATH_MAX, "%s%s%s", HOME_DIR, KVM_PID_FILE_PATH, dir);
+	snprintf(name, PATH_MAX, "%s%s", kvm__get_dir(), dir);
 
 	return mkdir(name, 0777);
 }
@@ -173,7 +173,7 @@ void kvm_setup_resolv(const char *guestfs_name)
 {
 	char path[PATH_MAX];
 
-	snprintf(path, PATH_MAX, "%s%s%s/etc/resolv.conf", HOME_DIR, KVM_PID_FILE_PATH, guestfs_name);
+	snprintf(path, PATH_MAX, "%s%s/etc/resolv.conf", kvm__get_dir(), guestfs_name);
 
 	copy_file("/etc/resolv.conf", path);
 }

@@ -78,7 +78,7 @@ static int kvm_list_rootfs(void)
 	DIR *dir;
 	struct dirent *dirent;
 
-	snprintf(name, PATH_MAX, "%s%s", HOME_DIR, KVM_PID_FILE_PATH);
+	snprintf(name, PATH_MAX, "%s", kvm__get_dir());
 	dir = opendir(name);
 	if (dir == NULL)
 		return -1;

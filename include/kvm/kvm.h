@@ -57,6 +57,9 @@ struct kvm {
 	const char		*name;
 };
 
+void kvm__set_dir(const char *fmt, ...);
+const char *kvm__get_dir(void);
+
 struct kvm *kvm__init(const char *kvm_dev, u64 ram_size, const char *name);
 int kvm__recommended_cpus(struct kvm *kvm);
 int kvm__max_cpus(struct kvm *kvm);

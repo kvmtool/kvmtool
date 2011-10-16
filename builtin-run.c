@@ -121,7 +121,7 @@ static int img_name_parser(const struct option *opt, const char *arg, int unset)
 		return 0;
 	}
 
-	snprintf(path, PATH_MAX, "%s%s%s", HOME_DIR, KVM_PID_FILE_PATH, arg);
+	snprintf(path, PATH_MAX, "%s%s", kvm__get_dir(), arg);
 
 	if (stat(path, &st) == 0 &&
 	    S_ISDIR(st.st_mode)) {
@@ -842,7 +842,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 		kvm_setup_create_new("default");
 		kvm_setup_resolv("default");
 
-		snprintf(tmp, PATH_MAX, "%s%s%s", HOME_DIR, KVM_PID_FILE_PATH, "default");
+		snprintf(tmp, PATH_MAX, "%s%s", kvm__get_dir(), "default");
 		if (virtio_9p__register(kvm, tmp, "/dev/root") < 0)
 			die("Unable to initialize virtio 9p");
 		if (virtio_9p__register(kvm, "/", "hostfs") < 0)
