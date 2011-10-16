@@ -142,36 +142,14 @@ static int virtio_bln__collect_stats(void)
 
 static void virtio_bln__print_stats(int fd, u32 type, u32 len, u8 *msg)
 {
-	u16 i;
+	int r;
 
 	if (virtio_bln__collect_stats() < 0)
 		return;
 
-	printf("\n\n\t*** Guest memory statistics ***\n\n");
-	for (i = 0; i < bdev.stat_count; i++) {
-		switch (bdev.stats[i].tag) {
-		case VIRTIO_BALLOON_S_SWAP_IN:
-			printf("The amount of memory that has been swapped in (in bytes):");
-			break;
-		case VIRTIO_BALLOON_S_SWAP_OUT:
-			printf("The amount of memory that has been swapped out to disk (in bytes):");
-			break;
-		case VIRTIO_BALLOON_S_MAJFLT:
-			printf("The number of major page faults that have occurred:");
-			break;
-		case VIRTIO_BALLOON_S_MINFLT:
-			printf("The number of minor page faults that have occurred:");
-			break;
-		case VIRTIO_BALLOON_S_MEMFREE:
-			printf("The amount of memory not being used for any purpose (in bytes):");
-			break;
-		case VIRTIO_BALLOON_S_MEMTOT:
-			printf("The total amount of memory available (in bytes):");
-			break;
-		}
-		printf("%llu\n", bdev.stats[i].val);
-	}
-	printf("\n");
+	r = write(fd, bdev.stats, sizeof(bdev.stats));
+	if (r < 0)
+		pr_warning("Failed sending memory stats");
 }
 
 static void handle_mem(int fd, u32 type, u32 len, u8 *msg)

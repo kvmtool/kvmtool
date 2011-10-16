@@ -5,9 +5,12 @@
 #include <kvm/parse-options.h>
 #include <kvm/kvm-ipc.h>
 
+#include <sys/select.h>
 #include <stdio.h>
 #include <string.h>
 #include <signal.h>
+
+#include <linux/virtio_balloon.h>
 
 struct stat_cmd {
 	u32 type;
@@ -51,13 +54,52 @@ void kvm_stat_help(void)
 static int do_memstat(const char *name, int sock)
 {
 	struct stat_cmd cmd = {KVM_IPC_STAT, 0};
+	struct virtio_balloon_stat stats[VIRTIO_BALLOON_S_NR];
+	fd_set fdset;
+	struct timeval t = { .tv_sec = 1 };
 	int r;
+	u8 i;
 
-	printf("Sending memstat command to %s, output should be on the targets' terminal.\n", name);
-
+	FD_ZERO(&fdset);
+	FD_SET(sock, &fdset);
 	r = write(sock, &cmd, sizeof(cmd));
 	if (r < 0)
 		return r;
+
+	r = select(1, &fdset, NULL, NULL, &t);
+	if (r < 0) {
+		pr_error("Could not retrieve mem stats from %s", name);
+		return r;
+	}
+	r = read(sock, &stats, sizeof(stats));
+	if (r < 0)
+		return r;
+
+	printf("\n\n\t*** Guest memory statistics ***\n\n");
+	for (i = 0; i < VIRTIO_BALLOON_S_NR; i++) {
+		switch (stats[i].tag) {
+		case VIRTIO_BALLOON_S_SWAP_IN:
+			printf("The amount of memory that has been swapped in (in bytes):");
+			break;
+		case VIRTIO_BALLOON_S_SWAP_OUT:
+			printf("The amount of memory that has been swapped out to disk (in bytes):");
+			break;
+		case VIRTIO_BALLOON_S_MAJFLT:
+			printf("The number of major page faults that have occurred:");
+			break;
+		case VIRTIO_BALLOON_S_MINFLT:
+			printf("The number of minor page faults that have occurred:");
+			break;
+		case VIRTIO_BALLOON_S_MEMFREE:
+			printf("The amount of memory not being used for any purpose (in bytes):");
+			break;
+		case VIRTIO_BALLOON_S_MEMTOT:
+			printf("The total amount of memory available (in bytes):");
+			break;
+		}
+		printf("%llu\n", stats[i].val);
+	}
+	printf("\n");
 
 	return 0;
 }
