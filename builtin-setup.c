@@ -19,9 +19,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-#define KVM_PID_FILE_PATH	"/.kvm-tools/"
-#define HOME_DIR		getenv("HOME")
-
 static const char *instance_name;
 
 static const char * const setup_usage[] = {
