@@ -216,6 +216,8 @@ BIOS_CFLAGS += -m32
 BIOS_CFLAGS += -march=i386
 BIOS_CFLAGS += -mregparm=3
 
+BIOS_CFLAGS += -fno-stack-protector
+
 bios.o: bios/bios.bin bios/bios-rom.h
 
 bios/bios.bin.elf: bios/entry.S bios/e820.c bios/int10.c bios/int15.c bios/rom.ld.S
