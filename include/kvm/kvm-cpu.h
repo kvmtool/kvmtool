@@ -37,6 +37,8 @@ void kvm_cpu__run(struct kvm_cpu *vcpu);
 void kvm_cpu__reboot(void);
 int kvm_cpu__start(struct kvm_cpu *cpu);
 
+int kvm_cpu__get_debug_fd(void);
+void kvm_cpu__set_debug_fd(int fd);
 void kvm_cpu__show_code(struct kvm_cpu *vcpu);
 void kvm_cpu__show_registers(struct kvm_cpu *vcpu);
 void kvm_cpu__show_page_tables(struct kvm_cpu *vcpu);

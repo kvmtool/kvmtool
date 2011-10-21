@@ -456,11 +456,12 @@ static int printout_done;
 static void handle_sigusr1(int sig)
 {
 	struct kvm_cpu *cpu = current_kvm_cpu;
+	int fd = kvm_cpu__get_debug_fd();
 
 	if (!cpu)
 		return;
 
-	printf("\n #\n # vCPU #%ld's dump:\n #\n", cpu->cpu_id);
+	dprintf(fd, "\n #\n # vCPU #%ld's dump:\n #\n", cpu->cpu_id);
 	kvm_cpu__show_registers(cpu);
 	kvm_cpu__show_code(cpu);
 	kvm_cpu__show_page_tables(cpu);
@@ -496,6 +497,8 @@ static void handle_debug(int fd, u32 type, u32 len, u8 *msg)
 			continue;
 
 		printout_done = 0;
+
+		kvm_cpu__set_debug_fd(fd);
 		pthread_kill(cpu->thread, SIGUSR1);
 		/*
 		 * Wait for the vCPU to dump state before signalling
@@ -505,6 +508,8 @@ static void handle_debug(int fd, u32 type, u32 len, u8 *msg)
 		while (!printout_done)
 			mb();
 	}
+
+	close(fd);
 
 	serial8250__inject_sysrq(kvm);
 }
@@ -539,6 +544,7 @@ panic_kvm:
 		fprintf(stderr, "KVM exit code: 0x%Lu\n",
 			current_kvm_cpu->kvm_run->hw.hardware_exit_reason);
 
+	kvm_cpu__set_debug_fd(STDOUT_FILENO);
 	kvm_cpu__show_registers(current_kvm_cpu);
 	kvm_cpu__show_code(current_kvm_cpu);
 	kvm_cpu__show_page_tables(current_kvm_cpu);

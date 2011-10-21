@@ -19,6 +19,18 @@
 extern struct kvm_cpu *kvm_cpus[KVM_NR_CPUS];
 extern __thread struct kvm_cpu *current_kvm_cpu;
 
+static int debug_fd;
+
+void kvm_cpu__set_debug_fd(int fd)
+{
+	debug_fd = fd;
+}
+
+int kvm_cpu__get_debug_fd(void)
+{
+	return debug_fd;
+}
+
 static inline bool is_in_protected_mode(struct kvm_cpu *vcpu)
 {
 	return vcpu->sregs.cr0 & 0x01;
@@ -216,13 +228,13 @@ void kvm_cpu__reset_vcpu(struct kvm_cpu *vcpu)
 
 static void print_dtable(const char *name, struct kvm_dtable *dtable)
 {
-	printf(" %s                 %016llx  %08hx\n",
+	dprintf(debug_fd, " %s                 %016llx  %08hx\n",
 		name, (u64) dtable->base, (u16) dtable->limit);
 }
 
 static void print_segment(const char *name, struct kvm_segment *seg)
 {
-	printf(" %s       %04hx      %016llx  %08x  %02hhx    %x %x   %x  %x %x %x %x\n",
+	dprintf(debug_fd, " %s       %04hx      %016llx  %08x  %02hhx    %x %x   %x  %x %x %x %x\n",
 		name, (u16) seg->selector, (u64) seg->base, (u32) seg->limit,
 		(u8) seg->type, seg->present, seg->dpl, seg->db, seg->s, seg->l, seg->g, seg->avl);
 }
@@ -254,14 +266,14 @@ void kvm_cpu__show_registers(struct kvm_cpu *vcpu)
 	r10 = regs.r10; r11 = regs.r11; r12 = regs.r12;
 	r13 = regs.r13; r14 = regs.r14; r15 = regs.r15;
 
-	printf("\n Registers:\n");
-	printf(  " ----------\n");
-	printf(" rip: %016lx   rsp: %016lx flags: %016lx\n", rip, rsp, rflags);
-	printf(" rax: %016lx   rbx: %016lx   rcx: %016lx\n", rax, rbx, rcx);
-	printf(" rdx: %016lx   rsi: %016lx   rdi: %016lx\n", rdx, rsi, rdi);
-	printf(" rbp: %016lx    r8: %016lx    r9: %016lx\n", rbp, r8,  r9);
-	printf(" r10: %016lx   r11: %016lx   r12: %016lx\n", r10, r11, r12);
-	printf(" r13: %016lx   r14: %016lx   r15: %016lx\n", r13, r14, r15);
+	dprintf(debug_fd, "\n Registers:\n");
+	dprintf(debug_fd,   " ----------\n");
+	dprintf(debug_fd, " rip: %016lx   rsp: %016lx flags: %016lx\n", rip, rsp, rflags);
+	dprintf(debug_fd, " rax: %016lx   rbx: %016lx   rcx: %016lx\n", rax, rbx, rcx);
+	dprintf(debug_fd, " rdx: %016lx   rsi: %016lx   rdi: %016lx\n", rdx, rsi, rdi);
+	dprintf(debug_fd, " rbp: %016lx    r8: %016lx    r9: %016lx\n", rbp, r8,  r9);
+	dprintf(debug_fd, " r10: %016lx   r11: %016lx   r12: %016lx\n", r10, r11, r12);
+	dprintf(debug_fd, " r13: %016lx   r14: %016lx   r15: %016lx\n", r13, r14, r15);
 
 	if (ioctl(vcpu->vcpu_fd, KVM_GET_SREGS, &sregs) < 0)
 		die("KVM_GET_REGS failed");
@@ -269,11 +281,11 @@ void kvm_cpu__show_registers(struct kvm_cpu *vcpu)
 	cr0 = sregs.cr0; cr2 = sregs.cr2; cr3 = sregs.cr3;
 	cr4 = sregs.cr4; cr8 = sregs.cr8;
 
-	printf(" cr0: %016lx   cr2: %016lx   cr3: %016lx\n", cr0, cr2, cr3);
-	printf(" cr4: %016lx   cr8: %016lx\n", cr4, cr8);
-	printf("\n Segment registers:\n");
-	printf(  " ------------------\n");
-	printf(" register  selector  base              limit     type  p dpl db s l g avl\n");
+	dprintf(debug_fd, " cr0: %016lx   cr2: %016lx   cr3: %016lx\n", cr0, cr2, cr3);
+	dprintf(debug_fd, " cr4: %016lx   cr8: %016lx\n", cr4, cr8);
+	dprintf(debug_fd, "\n Segment registers:\n");
+	dprintf(debug_fd,   " ------------------\n");
+	dprintf(debug_fd, " register  selector  base              limit     type  p dpl db s l g avl\n");
 	print_segment("cs ", &sregs.cs);
 	print_segment("ss ", &sregs.ss);
 	print_segment("ds ", &sregs.ds);
@@ -285,17 +297,17 @@ void kvm_cpu__show_registers(struct kvm_cpu *vcpu)
 	print_dtable("gdt", &sregs.gdt);
 	print_dtable("idt", &sregs.idt);
 
-	printf("\n APIC:\n");
-	printf(  " -----\n");
-	printf(" efer: %016llx  apic base: %016llx  nmi: %s\n",
+	dprintf(debug_fd, "\n APIC:\n");
+	dprintf(debug_fd,   " -----\n");
+	dprintf(debug_fd, " efer: %016llx  apic base: %016llx  nmi: %s\n",
 		(u64) sregs.efer, (u64) sregs.apic_base,
 		(vcpu->kvm->nmi_disabled ? "disabled" : "enabled"));
 
-	printf("\n Interrupt bitmap:\n");
-	printf(  " -----------------\n");
+	dprintf(debug_fd, "\n Interrupt bitmap:\n");
+	dprintf(debug_fd,   " -----------------\n");
 	for (i = 0; i < (KVM_NR_INTERRUPTS + 63) / 64; i++)
-		printf(" %016llx", (u64) sregs.interrupt_bitmap[i]);
-	printf("\n");
+		dprintf(debug_fd, " %016llx", (u64) sregs.interrupt_bitmap[i]);
+	dprintf(debug_fd, "\n");
 }
 
 #define MAX_SYM_LEN		128
@@ -318,12 +330,12 @@ void kvm_cpu__show_code(struct kvm_cpu *vcpu)
 
 	ip = guest_flat_to_host(vcpu->kvm, ip_to_flat(vcpu, vcpu->regs.rip) - code_prologue);
 
-	printf("\n Code:\n");
-	printf(  " -----\n");
+	dprintf(debug_fd, "\n Code:\n");
+	dprintf(debug_fd,   " -----\n");
 
 	symbol__lookup(vcpu->kvm, vcpu->regs.rip, sym, MAX_SYM_LEN);
 
-	printf(" rip: [<%016lx>] %s\n\n", (unsigned long) vcpu->regs.rip, sym);
+	dprintf(debug_fd, " rip: [<%016lx>] %s\n\n", (unsigned long) vcpu->regs.rip, sym);
 
 	for (i = 0; i < code_len; i++, ip++) {
 		if (!host_ptr_in_ram(vcpu->kvm, ip))
@@ -332,15 +344,15 @@ void kvm_cpu__show_code(struct kvm_cpu *vcpu)
 		c = *ip;
 
 		if (ip == guest_flat_to_host(vcpu->kvm, ip_to_flat(vcpu, vcpu->regs.rip)))
-			printf(" <%02x>", c);
+			dprintf(debug_fd, " <%02x>", c);
 		else
-			printf(" %02x", c);
+			dprintf(debug_fd, " %02x", c);
 	}
 
-	printf("\n");
+	dprintf(debug_fd, "\n");
 
-	printf("\n Stack:\n");
-	printf(  " ------\n");
+	dprintf(debug_fd, "\n Stack:\n");
+	dprintf(debug_fd,   " ------\n");
 	kvm__dump_mem(vcpu->kvm, vcpu->regs.rsp, 32);
 }
 
@@ -373,13 +385,13 @@ void kvm_cpu__show_page_tables(struct kvm_cpu *vcpu)
 	if (!host_ptr_in_ram(vcpu->kvm, pte1))
 		return;
 
-	printf("Page Tables:\n");
+	dprintf(debug_fd, "Page Tables:\n");
 	if (*pte2 & (1 << 7))
-		printf(" pte4: %016llx   pte3: %016llx"
+		dprintf(debug_fd, " pte4: %016llx   pte3: %016llx"
 			"   pte2: %016llx\n",
 			*pte4, *pte3, *pte2);
 	else
-		printf(" pte4: %016llx  pte3: %016llx   pte2: %016"
+		dprintf(debug_fd, " pte4: %016llx  pte3: %016llx   pte2: %016"
 			"llx   pte1: %016llx\n",
 			*pte4, *pte3, *pte2, *pte1);
 }

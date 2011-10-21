@@ -4,10 +4,13 @@
 #include <kvm/kvm.h>
 #include <kvm/parse-options.h>
 #include <kvm/kvm-ipc.h>
+#include <kvm/read-write.h>
 
 #include <stdio.h>
 #include <string.h>
 #include <signal.h>
+
+#define BUFFER_SIZE 100
 
 static bool all;
 static int instance;
@@ -47,12 +50,20 @@ void kvm_debug_help(void)
 
 static int do_debug(const char *name, int sock)
 {
+	char buff[BUFFER_SIZE];
 	struct debug_cmd cmd = {KVM_IPC_DEBUG, 0};
 	int r;
 
-	r = write(sock, &cmd, sizeof(cmd));
+	r = xwrite(sock, &cmd, sizeof(cmd));
 	if (r < 0)
 		return r;
+
+	do {
+		r = xread(sock, buff, BUFFER_SIZE);
+		if (r < 0)
+			return 0;
+		printf("%.*s", r, buff);
+	} while (r > 0);
 
 	return 0;
 }
