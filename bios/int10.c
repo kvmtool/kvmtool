@@ -1,11 +1,8 @@
 #include "kvm/segment.h"
 #include "kvm/bios.h"
-#include "kvm/util.h"
 #include "kvm/vesa.h"
 
 #include "bios/memcpy.h"
-
-#include <stdint.h>
 
 #define VESA_MAGIC ('V' + ('E' << 8) + ('S' << 16) + ('A' << 24))
 

@@ -2,7 +2,6 @@
 
 #include "kvm/segment.h"
 #include "kvm/bios.h"
-#include "kvm/util.h"
 
 #include <asm/processor-flags.h>
 #include <asm/e820.h>
