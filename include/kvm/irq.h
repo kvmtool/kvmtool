@@ -4,6 +4,8 @@
 #include <linux/types.h>
 #include <linux/rbtree.h>
 #include <linux/list.h>
+#include <linux/kvm.h>
+#include <linux/msi.h>
 
 struct kvm;
 
@@ -24,6 +26,6 @@ int irq__register_device(u32 dev, u8 *num, u8 *pin, u8 *line);
 struct rb_node *irq__get_pci_tree(void);
 
 void irq__init(struct kvm *kvm);
-int irq__add_msix_route(struct kvm *kvm, u32 low, u32 high, u32 data);
+int irq__add_msix_route(struct kvm *kvm, struct msi_msg *msg);
 
 #endif

@@ -2,8 +2,9 @@
 #define KVM__PCI_H
 
 #include <linux/types.h>
-
+#include <linux/kvm.h>
 #include <linux/pci_regs.h>
+#include <linux/msi.h>
 
 /*
  * PCI Configuration Mechanism #1 I/O ports. See Section 3.7.4.1.
@@ -26,9 +27,7 @@ struct pci_config_address {
 };
 
 struct msix_table {
-	u32 low;
-	u32 high;
-	u32 data;
+	struct msi_msg msg;
 	u32 ctrl;
 };
 

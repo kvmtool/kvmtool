@@ -167,7 +167,7 @@ void irq__init(struct kvm *kvm)
 		die("Failed setting GSI routes");
 }
 
-int irq__add_msix_route(struct kvm *kvm, u32 low, u32 high, u32 data)
+int irq__add_msix_route(struct kvm *kvm, struct msi_msg *msg)
 {
 	int r;
 
@@ -175,9 +175,9 @@ int irq__add_msix_route(struct kvm *kvm, u32 low, u32 high, u32 data)
 		(struct kvm_irq_routing_entry) {
 			.gsi = gsi,
 			.type = KVM_IRQ_ROUTING_MSI,
-			.u.msi.address_lo = low,
-			.u.msi.address_hi = high,
-			.u.msi.data = data,
+			.u.msi.address_hi = msg->address_hi,
+			.u.msi.address_lo = msg->address_lo,
+			.u.msi.data = msg->data,
 		};
 
 	r = ioctl(kvm->vm_fd, KVM_SET_GSI_ROUTING, irq_routing);

@@ -126,20 +126,14 @@ static bool virtio_pci__specific_io_out(struct kvm *kvm, struct virtio_pci *vpci
 		case VIRTIO_MSI_CONFIG_VECTOR:
 			vec = vpci->config_vector = ioport__read16(data);
 
-			gsi = irq__add_msix_route(kvm,
-						  vpci->msix_table[vec].low,
-						  vpci->msix_table[vec].high,
-						  vpci->msix_table[vec].data);
+			gsi = irq__add_msix_route(kvm, &vpci->msix_table[vec].msg);
 
 			vpci->config_gsi = gsi;
 			break;
 		case VIRTIO_MSI_QUEUE_VECTOR: {
 			vec = vpci->vq_vector[vpci->queue_selector] = ioport__read16(data);
 
-			gsi = irq__add_msix_route(kvm,
-						  vpci->msix_table[vec].low,
-						  vpci->msix_table[vec].high,
-						  vpci->msix_table[vec].data);
+			gsi = irq__add_msix_route(kvm, &vpci->msix_table[vec].msg);
 			vpci->gsis[vpci->queue_selector] = gsi;
 			break;
 		}
