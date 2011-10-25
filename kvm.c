@@ -90,6 +90,8 @@ static void set_dir(const char *fmt, va_list args)
 
 	vsnprintf(tmp, sizeof(tmp), fmt, args);
 
+	mkdir(tmp, 0777);
+
 	if (!realpath(tmp, kvm_dir))
 		die("Unable to set KVM tool directory");
 }
