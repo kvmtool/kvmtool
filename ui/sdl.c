@@ -4,6 +4,7 @@
 #include "kvm/i8042.h"
 #include "kvm/util.h"
 #include "kvm/kvm.h"
+#include "kvm/kvm-cpu.h"
 
 #include <SDL/SDL.h>
 #include <pthread.h>
@@ -254,7 +255,7 @@ static void *sdl__thread(void *p)
 		SDL_Delay(1000 / FRAME_RATE);
 	}
 exit:
-	kill(0, SIGKVMSTOP);
+	kvm_cpu__reboot();
 
 	return NULL;
 }
