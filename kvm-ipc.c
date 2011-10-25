@@ -7,12 +7,14 @@
 #include <sys/un.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/eventfd.h>
 
 #define KVM_IPC_MAX_MSGS 16
 
 static void (*msgs[KVM_IPC_MAX_MSGS])(int fd, u32 type, u32 len, u8 *msg);
 static DECLARE_RWSEM(msgs_rwlock);
-static int epoll_fd, server_fd;
+static int epoll_fd, server_fd, stop_fd;
+static pthread_t thread;
 
 int kvm_ipc__register_handler(u32 type, void (*cb)(int fd, u32 type, u32 len, u8 *msg))
 {
@@ -110,7 +112,9 @@ static void *kvm_ipc__thread(void *param)
 		if (nfds > 0) {
 			int fd = event.data.fd;
 
-			if (fd == server_fd) {
+			if (fd == stop_fd) {
+				break;
+			} else if (fd == server_fd) {
 				int client;
 
 				client = kvm_ipc__new_conn(fd);
@@ -128,7 +132,6 @@ static void *kvm_ipc__thread(void *param)
 
 int kvm_ipc__start(int sock)
 {
-	pthread_t thread;
 	struct epoll_event ev;
 
 	server_fd = sock;
@@ -140,8 +143,29 @@ int kvm_ipc__start(int sock)
 	if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, sock, &ev) < 0)
 		die("Failed starting IPC thread");
 
+	stop_fd = eventfd(0, 0);
+	ev.events = EPOLLIN | EPOLLOUT | EPOLLRDHUP | EPOLLET;
+	ev.data.fd = stop_fd;
+	if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, stop_fd, &ev) < 0)
+		die("Failed adding stop event to epoll");
+
 	if (pthread_create(&thread, NULL, kvm_ipc__thread, NULL) != 0)
 		die("Failed starting IPC thread");
 
 	return 0;
+}
+
+int kvm_ipc__stop(void)
+{
+	u64 val = 1;
+	int ret;
+
+	ret = write(stop_fd, &val, sizeof(val));
+	if (ret < 0)
+		return ret;
+
+	close(server_fd);
+	close(epoll_fd);
+
+	return ret;
 }
