@@ -91,8 +91,6 @@ cleanup:
 
 static int kvm_list_running_instances(void)
 {
-	printf("  PID GUEST\n");
-
 	return kvm__enumerate_instances(print_guest);
 }
 
@@ -107,13 +105,11 @@ static int kvm_list_rootfs(void)
 	if (dir == NULL)
 		return -1;
 
-	printf("  ROOTFS\n");
-
 	while ((dirent = readdir(dir))) {
 		if (dirent->d_type == DT_DIR &&
 			strcmp(dirent->d_name, ".") &&
 			strcmp(dirent->d_name, ".."))
-			printf("%s\n", dirent->d_name);
+			printf("      %s (not running)\n", dirent->d_name);
 	}
 
 	return 0;
@@ -136,7 +132,9 @@ int kvm_cmd_list(int argc, const char **argv, const char *prefix)
 	parse_setup_options(argc, argv);
 
 	if (!run && !rootfs)
-		kvm_list_help();
+		run = rootfs = true;
+
+	printf("  PID GUEST\n");
 
 	if (run) {
 		r = kvm_list_running_instances();
