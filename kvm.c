@@ -86,7 +86,12 @@ static char kvm_dir[PATH_MAX];
 
 static void set_dir(const char *fmt, va_list args)
 {
-	vsnprintf(kvm_dir, sizeof(kvm_dir), fmt, args);
+	char tmp[PATH_MAX];
+
+	vsnprintf(tmp, sizeof(tmp), fmt, args);
+
+	if (!realpath(tmp, kvm_dir))
+		die("Unable to set KVM tool directory");
 }
 
 void kvm__set_dir(const char *fmt, ...)
