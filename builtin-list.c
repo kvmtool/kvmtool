@@ -33,6 +33,9 @@ static const struct option list_options[] = {
 	OPT_END()
 };
 
+#define KVM_INSTANCE_RUNNING	"running"
+#define KVM_INSTANCE_SHUTOFF	"shut off"
+
 void kvm_list_help(void)
 {
 	usage_with_options(list_usage, list_options);
@@ -71,7 +74,7 @@ static int print_guest(const char *name, int sock)
 	if (strncmp(comm, PROCESS_NAME, strlen(PROCESS_NAME)))
 		goto cleanup;
 
-	printf("%5d %s\n", pid, name);
+	printf("%5d %-20s %s\n", pid, name, KVM_INSTANCE_RUNNING);
 
 	free(comm);
 
@@ -109,7 +112,7 @@ static int kvm_list_rootfs(void)
 		if (dirent->d_type == DT_DIR &&
 			strcmp(dirent->d_name, ".") &&
 			strcmp(dirent->d_name, ".."))
-			printf("      %s (not running)\n", dirent->d_name);
+			printf("%5s %-20s %s\n", "", dirent->d_name, KVM_INSTANCE_SHUTOFF);
 	}
 
 	return 0;
@@ -134,7 +137,8 @@ int kvm_cmd_list(int argc, const char **argv, const char *prefix)
 	if (!run && !rootfs)
 		run = rootfs = true;
 
-	printf("  PID GUEST\n");
+	printf("%6s %-20s %s\n", "PID", "NAME", "STATE");
+	printf("------------------------------------\n");
 
 	if (run) {
 		r = kvm_list_running_instances();
