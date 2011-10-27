@@ -130,9 +130,9 @@ static void serial8250__receive(struct kvm *kvm, struct serial8250_device *dev)
 
 void serial8250__inject_interrupt(struct kvm *kvm)
 {
-	int i;
+	unsigned int i;
 
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < ARRAY_SIZE(devices); i++) {
 		struct serial8250_device *dev = &devices[i];
 
 		mutex_lock(&dev->mutex);
