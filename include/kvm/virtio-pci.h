@@ -5,7 +5,8 @@
 
 #include <linux/types.h>
 
-#define VIRTIO_PCI_MAX_VQ 3
+#define VIRTIO_PCI_MAX_VQ	3
+#define VIRTIO_PCI_MAX_CONFIG	1
 
 struct kvm;
 
@@ -44,7 +45,7 @@ struct virtio_pci {
 	u32			msix_io_block;
 	u32			msix_pba_block;
 	u64			msix_pba;
-	struct msix_table	msix_table[VIRTIO_PCI_MAX_VQ + 1];
+	struct msix_table	msix_table[VIRTIO_PCI_MAX_VQ + VIRTIO_PCI_MAX_CONFIG];
 
 	/* virtio queue */
 	u16			queue_selector;

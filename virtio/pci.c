@@ -287,7 +287,18 @@ int virtio_pci__init(struct kvm *kvm, struct virtio_pci *vpci, void *dev,
 
 	vpci->pci_hdr.msix.cap = PCI_CAP_ID_MSIX;
 	vpci->pci_hdr.msix.next = 0;
-	vpci->pci_hdr.msix.ctrl = (VIRTIO_PCI_MAX_VQ + 1);
+	/*
+	 * We at most have VIRTIO_PCI_MAX_VQ entries for virt queue,
+	 * VIRTIO_PCI_MAX_CONFIG entries for config.
+	 *
+	 * To quote the PCI spec:
+	 *
+	 * System software reads this field to determine the
+	 * MSI-X Table Size N, which is encoded as N-1.
+	 * For example, a returned value of "00000000011"
+	 * indicates a table size of 4.
+	 */
+	vpci->pci_hdr.msix.ctrl = (VIRTIO_PCI_MAX_VQ + VIRTIO_PCI_MAX_CONFIG - 1);
 
 	/*
 	 * Both table and PBA could be mapped on the same BAR, but for now
