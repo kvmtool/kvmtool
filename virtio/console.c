@@ -177,7 +177,7 @@ static int get_size_vq(struct kvm *kvm, void *dev, u32 vq)
 
 void virtio_console__init(struct kvm *kvm)
 {
-	virtio_pci__init(kvm, &cdev.vpci, &cdev, PCI_DEVICE_ID_VIRTIO_CONSOLE, VIRTIO_ID_CONSOLE);
+	virtio_pci__init(kvm, &cdev.vpci, &cdev, PCI_DEVICE_ID_VIRTIO_CONSOLE, VIRTIO_ID_CONSOLE, PCI_CLASS_CONSOLE);
 	cdev.vpci.ops = (struct virtio_pci_ops) {
 		.set_config		= set_config,
 		.get_config		= get_config,

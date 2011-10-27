@@ -242,7 +242,7 @@ void virtio_bln__init(struct kvm *kvm)
 	bdev.stat_waitfd	= eventfd(0, 0);
 	memset(&bdev.config, 0, sizeof(struct virtio_balloon_config));
 
-	virtio_pci__init(kvm, &bdev.vpci, &bdev, PCI_DEVICE_ID_VIRTIO_BLN, VIRTIO_ID_BALLOON);
+	virtio_pci__init(kvm, &bdev.vpci, &bdev, PCI_DEVICE_ID_VIRTIO_BLN, VIRTIO_ID_BALLOON, PCI_CLASS_BLN);
 	bdev.vpci.ops = (struct virtio_pci_ops) {
 		.set_config		= set_config,
 		.get_config		= get_config,

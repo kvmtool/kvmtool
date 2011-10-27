@@ -399,7 +399,7 @@ void virtio_net__init(const struct virtio_net_params *params)
 		ndev->ops = &uip_ops;
 	}
 
-	virtio_pci__init(kvm, &ndev->vpci, ndev, PCI_DEVICE_ID_VIRTIO_NET, VIRTIO_ID_NET);
+	virtio_pci__init(kvm, &ndev->vpci, ndev, PCI_DEVICE_ID_VIRTIO_NET, VIRTIO_ID_NET, PCI_CLASS_NET);
 	ndev->vpci.ops = (struct virtio_pci_ops) {
 		.set_config		= set_config,
 		.get_config		= get_config,

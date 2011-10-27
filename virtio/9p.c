@@ -1193,7 +1193,7 @@ int virtio_9p__init(struct kvm *kvm)
 	struct p9_dev *p9dev;
 
 	list_for_each_entry(p9dev, &devs, list) {
-		virtio_pci__init(kvm, &p9dev->vpci, p9dev, PCI_DEVICE_ID_VIRTIO_P9, VIRTIO_ID_9P);
+		virtio_pci__init(kvm, &p9dev->vpci, p9dev, PCI_DEVICE_ID_VIRTIO_P9, VIRTIO_ID_9P, PCI_CLASS_P9);
 		p9dev->vpci.ops = (struct virtio_pci_ops) {
 			.set_config		= set_config,
 			.get_config		= get_config,

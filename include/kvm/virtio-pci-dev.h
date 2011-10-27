@@ -24,4 +24,14 @@
 #define PCI_SUBSYSTEM_ID_VESA			0x0004
 #define PCI_SUBSYSTEM_ID_PCI_SHMEM		0x0001
 
+#define PCI_CLASS_BLK				0x018000
+#define PCI_CLASS_NET				0x020000
+#define PCI_CLASS_CONSOLE			0x078000
+/*
+ * 0xFF Device does not fit in any defined classes
+ */
+#define PCI_CLASS_RNG				0xff0000
+#define PCI_CLASS_BLN				0xff0000
+#define PCI_CLASS_P9				0xff0000
+
 #endif /* VIRTIO_PCI_DEV_H_ */

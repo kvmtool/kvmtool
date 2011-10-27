@@ -206,7 +206,7 @@ void virtio_blk__init(struct kvm *kvm, struct disk_image *disk)
 		},
 	};
 
-	virtio_pci__init(kvm, &bdev->vpci, bdev, PCI_DEVICE_ID_VIRTIO_BLK, VIRTIO_ID_BLOCK);
+	virtio_pci__init(kvm, &bdev->vpci, bdev, PCI_DEVICE_ID_VIRTIO_BLK, VIRTIO_ID_BLOCK, PCI_CLASS_BLK);
 	bdev->vpci.ops = (struct virtio_pci_ops) {
 		.set_config		= set_config,
 		.get_config		= get_config,

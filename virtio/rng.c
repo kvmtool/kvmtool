@@ -150,7 +150,7 @@ void virtio_rng__init(struct kvm *kvm)
 	if (rdev->fd < 0)
 		die("Failed initializing RNG");
 
-	virtio_pci__init(kvm, &rdev->vpci, rdev, PCI_DEVICE_ID_VIRTIO_RNG, VIRTIO_ID_RNG);
+	virtio_pci__init(kvm, &rdev->vpci, rdev, PCI_DEVICE_ID_VIRTIO_RNG, VIRTIO_ID_RNG, PCI_CLASS_RNG);
 	rdev->vpci.ops = (struct virtio_pci_ops) {
 		.set_config		= set_config,
 		.get_config		= get_config,

@@ -256,7 +256,7 @@ int virtio_pci__signal_config(struct kvm *kvm, struct virtio_pci *vpci)
 }
 
 int virtio_pci__init(struct kvm *kvm, struct virtio_pci *vpci, void *dev,
-			int device_id, int subsys_id)
+			int device_id, int subsys_id, int class)
 {
 	u8 pin, line, ndev;
 
@@ -273,7 +273,7 @@ int virtio_pci__init(struct kvm *kvm, struct virtio_pci *vpci, void *dev,
 		.device_id		= device_id,
 		.header_type		= PCI_HEADER_TYPE_NORMAL,
 		.revision_id		= 0,
-		.class			= 0x010000,
+		.class			= class,
 		.subsys_vendor_id	= PCI_SUBSYSTEM_VENDOR_ID_REDHAT_QUMRANET,
 		.subsys_id		= subsys_id,
 		.bar[0]			= vpci->base_addr | PCI_BASE_ADDRESS_SPACE_IO,
