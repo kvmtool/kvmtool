@@ -112,7 +112,7 @@ static void *kvm_ipc__thread(void *param)
 		if (nfds > 0) {
 			int fd = event.data.fd;
 
-			if (fd == stop_fd) {
+			if (fd == stop_fd && event.events & EPOLLIN) {
 				break;
 			} else if (fd == server_fd) {
 				int client;
@@ -138,13 +138,13 @@ int kvm_ipc__start(int sock)
 
 	epoll_fd = epoll_create(KVM_IPC_MAX_MSGS);
 
-	ev.events = EPOLLIN | EPOLLOUT | EPOLLPRI;
+	ev.events = EPOLLIN | EPOLLET;
 	ev.data.fd = sock;
 	if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, sock, &ev) < 0)
 		die("Failed starting IPC thread");
 
 	stop_fd = eventfd(0, 0);
-	ev.events = EPOLLIN | EPOLLOUT | EPOLLRDHUP | EPOLLET;
+	ev.events = EPOLLIN | EPOLLET;
 	ev.data.fd = stop_fd;
 	if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, stop_fd, &ev) < 0)
 		die("Failed adding stop event to epoll");
