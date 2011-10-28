@@ -208,8 +208,13 @@ int kvm__get_sock_by_instance(const char *name)
 	len = strlen(local.sun_path) + sizeof(local.sun_family);
 
 	r = connect(s, &local, len);
-	if (r < 0)
+	if (r < 0 && errno == ECONNREFUSED) {
+		/* Clean ghost socket file */
+		unlink(sock_file);
+		return -1;
+	} else if (r < 0) {
 		die("Failed connecting to instance");
+	}
 
 	return s;
 }
@@ -232,6 +237,8 @@ int kvm__enumerate_instances(int (*callback)(const char *name, int fd))
 		if (entry.d_type == DT_SOCK) {
 			entry.d_name[strlen(entry.d_name)-5] = 0;
 			sock = kvm__get_sock_by_instance(entry.d_name);
+			if (sock < 0)
+				continue;
 			ret = callback(entry.d_name, sock);
 			close(sock);
 			if (ret < 0)
