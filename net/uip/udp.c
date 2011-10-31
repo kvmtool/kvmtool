@@ -182,7 +182,7 @@ static void *uip_udp_socket_thread(void *p)
 			/*
 			 * Get free buffer to send data to guest
 			 */
-			buf		= uip_buf_get_free(info);
+			buf = uip_buf_get_free(info);
 
 			uip_udp_make_pkg(info, sk, buf, payload, payload_len);
 
