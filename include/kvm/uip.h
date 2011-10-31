@@ -19,6 +19,7 @@
 #define UIP_IP_TTL		0X40
 #define UIP_IP_P_UDP		0X11
 #define UIP_IP_P_TCP		0X06
+#define UIP_IP_P_ICMP		0X01
 
 #define UIP_TCP_HDR_LEN		0x50
 #define UIP_TCP_WIN_SIZE	14600

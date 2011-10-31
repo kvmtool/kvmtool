@@ -12,13 +12,13 @@ int uip_tx_do_ipv4(struct uip_tx_arg *arg)
 	}
 
 	switch (ip->proto) {
-	case 0x01: /* ICMP */
+	case UIP_IP_P_ICMP:
 		uip_tx_do_ipv4_icmp(arg);
 		break;
-	case 0x06: /* TCP */
+	case UIP_IP_P_TCP:
 		uip_tx_do_ipv4_tcp(arg);
 		break;
-	case 0x11: /* UDP */
+	case UIP_IP_P_UDP:
 		uip_tx_do_ipv4_udp(arg);
 		break;
 	default:
