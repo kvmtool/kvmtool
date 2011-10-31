@@ -248,14 +248,14 @@ fail:
 
 static void virtio_net__io_thread_init(struct kvm *kvm, struct net_dev *ndev)
 {
+	pthread_mutex_init(&ndev->io_tx_lock, NULL);
 	pthread_mutex_init(&ndev->io_rx_lock, NULL);
-	pthread_cond_init(&ndev->io_tx_cond, NULL);
 
-	pthread_mutex_init(&ndev->io_rx_lock, NULL);
 	pthread_cond_init(&ndev->io_tx_cond, NULL);
+	pthread_cond_init(&ndev->io_rx_cond, NULL);
 
-	pthread_create(&ndev->io_rx_thread, NULL, virtio_net_rx_thread, ndev);
 	pthread_create(&ndev->io_tx_thread, NULL, virtio_net_tx_thread, ndev);
+	pthread_create(&ndev->io_rx_thread, NULL, virtio_net_rx_thread, ndev);
 }
 
 static inline int tap_ops_tx(struct iovec *iov, u16 out, struct net_dev *ndev)
