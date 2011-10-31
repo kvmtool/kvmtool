@@ -209,7 +209,6 @@ struct uip_info {
 struct uip_buf {
 	struct list_head list;
 	struct uip_info *info;
-	u32 payload;
 	int vnet_len;
 	int eth_len;
 	int status;
