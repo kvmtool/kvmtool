@@ -89,18 +89,6 @@ u16 virt_queue__get_inout_iov(struct kvm *kvm, struct virt_queue *queue,
 	return head;
 }
 
-
-void virt_queue__trigger_irq(struct virt_queue *vq, int irq, u8 *isr, struct kvm *kvm)
-{
-	if (vq->vring.avail->flags & VRING_AVAIL_F_NO_INTERRUPT)
-		return;
-
-	if (*isr == VIRTIO_IRQ_LOW) {
-		*isr = VIRTIO_IRQ_HIGH;
-		kvm__irq_line(kvm, irq, VIRTIO_IRQ_HIGH);
-	}
-}
-
 int virtio__get_dev_specific_field(int offset, bool msix, bool features_hi, u32 *config_off)
 {
 	if (msix) {

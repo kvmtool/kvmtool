@@ -57,9 +57,6 @@ u16 virt_queue__get_iov(struct virt_queue *queue, struct iovec iov[], u16 *out, 
 u16 virt_queue__get_inout_iov(struct kvm *kvm, struct virt_queue *queue,
 			      struct iovec in_iov[], struct iovec out_iov[],
 			      u16 *in, u16 *out);
-
-void virt_queue__trigger_irq(struct virt_queue *vq, int irq, u8 *isr, struct kvm *kvm);
-
 int virtio__get_dev_specific_field(int offset, bool msix, bool features_hi, u32 *config_off);
 
 #endif /* KVM__VIRTIO_H */
