@@ -936,14 +936,6 @@ static ssize_t qcow_write_sector(struct disk_image *disk, u64 sector,
 	return total;
 }
 
-static ssize_t qcow_nowrite_sector(struct disk_image *disk, u64 sector,
-				const struct iovec *iov, int iovcount, void *param)
-{
-	/* I/O error */
-	pr_info("%s: no write support\n", __func__);
-	return -1;
-}
-
 static int qcow_disk_flush(struct disk_image *disk)
 {
 	struct qcow *q = disk->priv;
@@ -1013,7 +1005,6 @@ static int qcow_disk_close(struct disk_image *disk)
 
 static struct disk_image_operations qcow_disk_readonly_ops = {
 	.read_sector		= qcow_read_sector,
-	.write_sector		= qcow_nowrite_sector,
 	.close			= qcow_disk_close,
 };
 
