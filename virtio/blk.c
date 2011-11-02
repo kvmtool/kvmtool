@@ -119,26 +119,26 @@ static void virtio_blk_do_io_request(struct kvm *kvm, struct blk_dev_req *req)
 	switch (req_hdr->type) {
 	case VIRTIO_BLK_T_IN:
 		block_cnt	= disk_image__read(bdev->disk, req_hdr->sector, iov + 1,
-					in + out - 2, NULL);
+					in + out - 2, req);
 		break;
 	case VIRTIO_BLK_T_OUT:
 		block_cnt	= disk_image__write(bdev->disk, req_hdr->sector, iov + 1,
-					in + out - 2, NULL);
+					in + out - 2, req);
 		break;
 	case VIRTIO_BLK_T_FLUSH:
 		block_cnt       = disk_image__flush(bdev->disk);
+		virtio_blk_complete(req, block_cnt);
 		break;
 	case VIRTIO_BLK_T_GET_ID:
 		block_cnt	= VIRTIO_BLK_ID_BYTES;
 		disk_image__get_serial(bdev->disk, (iov + 1)->iov_base, &block_cnt);
+		virtio_blk_complete(req, block_cnt);
 		break;
 	default:
 		pr_warning("request type %d", req_hdr->type);
 		block_cnt	= -1;
 		break;
 	}
-
-	virtio_blk_complete(req, block_cnt);
 }
 
 static void virtio_blk_do_io(struct kvm *kvm, struct virt_queue *vq, struct blk_dev *bdev)
@@ -260,6 +260,8 @@ void virtio_blk__init(struct kvm *kvm, struct disk_image *disk)
 	INIT_LIST_HEAD(&bdev->req_list);
 	for (i = 0; i < ARRAY_SIZE(bdev->reqs); i++)
 		list_add(&bdev->reqs[i].list, &bdev->req_list);
+
+	disk_image__set_callback(bdev->disk, virtio_blk_complete);
 
 	if (compat_id != -1)
 		compat_id = compat__add_message("virtio-blk device was not detected",
