@@ -133,7 +133,8 @@ void disk_image__close_all(struct disk_image **disks, int count)
  * Fill iov with disk data, starting from sector 'sector'.
  * Return amount of bytes read.
  */
-ssize_t disk_image__read(struct disk_image *disk, u64 sector, const struct iovec *iov, int iovcount)
+ssize_t disk_image__read(struct disk_image *disk, u64 sector, const struct iovec *iov,
+				int iovcount, void *param)
 {
 	ssize_t total = 0;
 
@@ -141,7 +142,7 @@ ssize_t disk_image__read(struct disk_image *disk, u64 sector, const struct iovec
 		msleep(debug_iodelay);
 
 	if (disk->ops->read_sector) {
-		total = disk->ops->read_sector(disk, sector, iov, iovcount);
+		total = disk->ops->read_sector(disk, sector, iov, iovcount, param);
 		if (total < 0) {
 			pr_info("disk_image__read error: total=%ld\n", (long)total);
 			return -1;
@@ -150,6 +151,9 @@ ssize_t disk_image__read(struct disk_image *disk, u64 sector, const struct iovec
 		/* Do nothing */
 	}
 
+	if (disk->disk_req_cb)
+		disk->disk_req_cb(param);
+
 	return total;
 }
 
@@ -157,7 +161,8 @@ ssize_t disk_image__read(struct disk_image *disk, u64 sector, const struct iovec
  * Write iov to disk, starting from sector 'sector'.
  * Return amount of bytes written.
  */
-ssize_t disk_image__write(struct disk_image *disk, u64 sector, const struct iovec *iov, int iovcount)
+ssize_t disk_image__write(struct disk_image *disk, u64 sector, const struct iovec *iov,
+				int iovcount, void *param)
 {
 	ssize_t total = 0;
 
@@ -168,7 +173,8 @@ ssize_t disk_image__write(struct disk_image *disk, u64 sector, const struct iove
 		/*
 		 * Try writev based operation first
 		 */
-		total = disk->ops->write_sector(disk, sector, iov, iovcount);
+
+		total = disk->ops->write_sector(disk, sector, iov, iovcount, param);
 		if (total < 0) {
 			pr_info("disk_image__write error: total=%ld\n", (long)total);
 			return -1;
@@ -176,6 +182,9 @@ ssize_t disk_image__write(struct disk_image *disk, u64 sector, const struct iove
 	} else {
 		/* Do nothing */
 	}
+
+	if (disk->disk_req_cb)
+		disk->disk_req_cb(param);
 
 	return total;
 }
@@ -189,4 +198,9 @@ ssize_t disk_image__get_serial(struct disk_image *disk, void *buffer, ssize_t *l
 
 	*len = snprintf(buffer, *len, "%llu%llu%llu", (u64)st.st_dev, (u64)st.st_rdev, (u64)st.st_ino);
 	return *len;
+}
+
+void disk_image__set_callback(struct disk_image *disk, void (*disk_req_cb)(void *param))
+{
+	disk->disk_req_cb = disk_req_cb;
 }

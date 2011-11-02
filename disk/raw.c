@@ -1,20 +1,23 @@
 #include "kvm/disk-image.h"
 
-ssize_t raw_image__read_sector(struct disk_image *disk, u64 sector, const struct iovec *iov, int iovcount)
+ssize_t raw_image__read_sector(struct disk_image *disk, u64 sector, const struct iovec *iov,
+				int iovcount, void *param)
 {
 	u64 offset = sector << SECTOR_SHIFT;
 
 	return preadv_in_full(disk->fd, iov, iovcount, offset);
 }
 
-ssize_t raw_image__write_sector(struct disk_image *disk, u64 sector, const struct iovec *iov, int iovcount)
+ssize_t raw_image__write_sector(struct disk_image *disk, u64 sector, const struct iovec *iov,
+				int iovcount, void *param)
 {
 	u64 offset = sector << SECTOR_SHIFT;
 
 	return pwritev_in_full(disk->fd, iov, iovcount, offset);
 }
 
-ssize_t raw_image__read_sector_mmap(struct disk_image *disk, u64 sector, const struct iovec *iov, int iovcount)
+ssize_t raw_image__read_sector_mmap(struct disk_image *disk, u64 sector, const struct iovec *iov,
+				int iovcount, void *param)
 {
 	u64 offset = sector << SECTOR_SHIFT;
 	ssize_t total = 0;
@@ -31,7 +34,8 @@ ssize_t raw_image__read_sector_mmap(struct disk_image *disk, u64 sector, const s
 	return total;
 }
 
-ssize_t raw_image__write_sector_mmap(struct disk_image *disk, u64 sector, const struct iovec *iov, int iovcount)
+ssize_t raw_image__write_sector_mmap(struct disk_image *disk, u64 sector, const struct iovec *iov,
+				int iovcount, void *param)
 {
 	u64 offset = sector << SECTOR_SHIFT;
 	ssize_t total = 0;

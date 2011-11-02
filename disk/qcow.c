@@ -489,7 +489,7 @@ static ssize_t qcow_read_sector_single(struct disk_image *disk, u64 sector,
 }
 
 static ssize_t qcow_read_sector(struct disk_image *disk, u64 sector,
-				const struct iovec *iov, int iovcount)
+				const struct iovec *iov, int iovcount, void *param)
 {
 	ssize_t nr, total = 0;
 
@@ -917,7 +917,7 @@ static ssize_t qcow_write_sector_single(struct disk_image *disk, u64 sector, voi
 }
 
 static ssize_t qcow_write_sector(struct disk_image *disk, u64 sector,
-				const struct iovec *iov, int iovcount)
+				const struct iovec *iov, int iovcount, void *param)
 {
 	ssize_t nr, total = 0;
 
@@ -937,7 +937,7 @@ static ssize_t qcow_write_sector(struct disk_image *disk, u64 sector,
 }
 
 static ssize_t qcow_nowrite_sector(struct disk_image *disk, u64 sector,
-				const struct iovec *iov, int iovcount)
+				const struct iovec *iov, int iovcount, void *param)
 {
 	/* I/O error */
 	pr_info("%s: no write support\n", __func__);
