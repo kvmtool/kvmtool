@@ -147,7 +147,7 @@ ssize_t disk_image__read(struct disk_image *disk, u64 sector, const struct iovec
 			return -1;
 		}
 	} else {
-		die("No disk image operation for read\n");
+		/* Do nothing */
 	}
 
 	return total;
@@ -174,7 +174,7 @@ ssize_t disk_image__write(struct disk_image *disk, u64 sector, const struct iove
 			return -1;
 		}
 	} else {
-		die("No disk image operation for read\n");
+		/* Do nothing */
 	}
 
 	return total;
