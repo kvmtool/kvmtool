@@ -1,7 +1,31 @@
 #include "kvm/disk-image.h"
 #include "kvm/qcow.h"
+#include "kvm/virtio-blk.h"
+
+#include <sys/eventfd.h>
+#include <sys/poll.h>
+
+#define AIO_MAX 32
 
 int debug_iodelay;
+
+#ifdef CONFIG_HAS_AIO
+static void *disk_image__thread(void *param)
+{
+	struct disk_image *disk = param;
+	u64 dummy;
+
+	while (read(disk->evt, &dummy, sizeof(dummy)) > 0) {
+		struct io_event event;
+		struct timespec notime = {0};
+
+		while (io_getevents(disk->ctx, 1, 1, &event, &notime) > 0)
+			disk->disk_req_cb(event.data, event.res);
+	}
+
+	return NULL;
+}
+#endif
 
 struct disk_image *disk_image__new(int fd, u64 size, struct disk_image_operations *ops, int use_mmap)
 {
@@ -26,6 +50,16 @@ struct disk_image *disk_image__new(int fd, u64 size, struct disk_image_operation
 		}
 	}
 
+#ifdef CONFIG_HAS_AIO
+	if (disk) {
+		pthread_t thread;
+
+		disk->evt = eventfd(0, 0);
+		io_setup(AIO_MAX, &disk->ctx);
+		if (pthread_create(&thread, NULL, disk_image__thread, disk) != 0)
+			die("Failed starting IO thread");
+	}
+#endif
 	return disk;
 }
 
@@ -87,6 +121,7 @@ struct disk_image **disk_image__open_all(const char **filenames, bool *readonly,
 			goto error;
 		}
 	}
+
 	return disks;
 error:
 	for (i = 0; i < count; i++)
@@ -151,7 +186,7 @@ ssize_t disk_image__read(struct disk_image *disk, u64 sector, const struct iovec
 		/* Do nothing */
 	}
 
-	if (disk->disk_req_cb)
+	if (!disk->async && disk->disk_req_cb)
 		disk->disk_req_cb(param, total);
 
 	return total;
@@ -183,7 +218,7 @@ ssize_t disk_image__write(struct disk_image *disk, u64 sector, const struct iove
 		/* Do nothing */
 	}
 
-	if (disk->disk_req_cb)
+	if (!disk->async && disk->disk_req_cb)
 		disk->disk_req_cb(param, total);
 
 	return total;

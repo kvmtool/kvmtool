@@ -1,11 +1,22 @@
 #include "kvm/disk-image.h"
 
+#ifdef CONFIG_HAS_AIO
+#include <libaio.h>
+#endif
+
 ssize_t raw_image__read_sector(struct disk_image *disk, u64 sector, const struct iovec *iov,
 				int iovcount, void *param)
 {
 	u64 offset = sector << SECTOR_SHIFT;
 
+#ifdef CONFIG_HAS_AIO
+	struct iocb iocb;
+
+	return aio_preadv(disk->ctx, &iocb, disk->fd, iov, iovcount, offset,
+				disk->evt, param);
+#else
 	return preadv_in_full(disk->fd, iov, iovcount, offset);
+#endif
 }
 
 ssize_t raw_image__write_sector(struct disk_image *disk, u64 sector, const struct iovec *iov,
@@ -13,7 +24,14 @@ ssize_t raw_image__write_sector(struct disk_image *disk, u64 sector, const struc
 {
 	u64 offset = sector << SECTOR_SHIFT;
 
+#ifdef CONFIG_HAS_AIO
+	struct iocb iocb;
+
+	return aio_pwritev(disk->ctx, &iocb, disk->fd, iov, iovcount, offset,
+				disk->evt, param);
+#else
 	return pwritev_in_full(disk->fd, iov, iovcount, offset);
+#endif
 }
 
 ssize_t raw_image__read_sector_mmap(struct disk_image *disk, u64 sector, const struct iovec *iov,
@@ -59,6 +77,12 @@ int raw_image__close(struct disk_image *disk)
 	if (disk->priv != MAP_FAILED)
 		ret = munmap(disk->priv, disk->size);
 
+	close(disk->evt);
+
+#ifdef CONFIG_HAS_VIRTIO
+	io_destroy(disk->ctx);
+#endif
+
 	return ret;
 }
 
@@ -83,6 +107,7 @@ struct disk_image_operations ro_ops_nowrite = {
 
 struct disk_image *raw_image__probe(int fd, struct stat *st, bool readonly)
 {
+	struct disk_image *disk;
 
 	if (readonly) {
 		/*
@@ -94,8 +119,12 @@ struct disk_image *raw_image__probe(int fd, struct stat *st, bool readonly)
 		disk = disk_image__new(fd, st->st_size, &ro_ops, DISK_IMAGE_MMAP);
 		if (disk == NULL) {
 			ro_ops = raw_image_regular_ops;
-			ro_ops.write_sector = NULL;
+
 			disk = disk_image__new(fd, st->st_size, &ro_ops_nowrite, DISK_IMAGE_REGULAR);
+#ifdef CONFIG_HAS_VIRTIO
+			if (disk)
+				disk->async = 1;
+#endif
 		}
 
 		return disk;
@@ -103,6 +132,11 @@ struct disk_image *raw_image__probe(int fd, struct stat *st, bool readonly)
 		/*
 		 * Use read/write instead of mmap
 		 */
-		return disk_image__new(fd, st->st_size, &raw_image_regular_ops, DISK_IMAGE_REGULAR);
+		disk = disk_image__new(fd, st->st_size, &raw_image_regular_ops, DISK_IMAGE_REGULAR);
+#ifdef CONFIG_HAS_VIRTIO
+		if (disk)
+			disk->async = 1;
+#endif
+		return disk;
 	}
 }
