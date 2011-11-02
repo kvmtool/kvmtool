@@ -20,8 +20,10 @@ struct disk_image *disk_image__new(int fd, u64 size, struct disk_image_operation
 		 * The write to disk image will be discarded
 		 */
 		disk->priv = mmap(NULL, size, PROT_RW, MAP_PRIVATE | MAP_NORESERVE, fd, 0);
-		if (disk->priv == MAP_FAILED)
-			die("mmap() failed");
+		if (disk->priv == MAP_FAILED) {
+			free(disk);
+			disk = NULL;
+		}
 	}
 
 	return disk;
