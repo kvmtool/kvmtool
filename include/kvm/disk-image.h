@@ -31,18 +31,8 @@ enum {
 struct disk_image;
 
 struct disk_image_operations {
-	/*
-	 * The following two are used for reading or writing with a single buffer.
-	 * The implentation can use readv/writev or memcpy.
-	 */
-	ssize_t (*read_sector)(struct disk_image *disk, u64 sector, void *dst, u32 dst_len);
-	ssize_t (*write_sector)(struct disk_image *disk, u64 sector, void *src, u32 src_len);
-	/*
-	 * The following two are used for reading or writing with multiple buffers.
-	 * The implentation can use readv/writev or memcpy.
-	 */
-	ssize_t (*read_sector_iov)(struct disk_image *disk, u64 sector, const struct iovec *iov, int iovcount);
-	ssize_t (*write_sector_iov)(struct disk_image *disk, u64 sector, const struct iovec *iov, int iovcount);
+	ssize_t (*read_sector)(struct disk_image *disk, u64 sector, const struct iovec *iov, int iovcount);
+	ssize_t (*write_sector)(struct disk_image *disk, u64 sector, const struct iovec *iov, int iovcount);
 	int (*flush)(struct disk_image *disk);
 	int (*close)(struct disk_image *disk);
 };
@@ -67,10 +57,14 @@ ssize_t disk_image__get_serial(struct disk_image *disk, void *buffer, ssize_t *l
 struct disk_image *raw_image__probe(int fd, struct stat *st, bool readonly);
 struct disk_image *blkdev__probe(const char *filename, struct stat *st);
 
-ssize_t raw_image__read_sector_iov(struct disk_image *disk, u64 sector, const struct iovec *iov, int iovcount);
-ssize_t raw_image__write_sector_iov(struct disk_image *disk, u64 sector, const struct iovec *iov, int iovcount);
-ssize_t raw_image__read_sector(struct disk_image *disk, u64 sector, void *dst, u32 dst_len);
-ssize_t raw_image__write_sector(struct disk_image *disk, u64 sector, void *src, u32 src_len);
+ssize_t raw_image__read_sector(struct disk_image *disk, u64 sector,
+				const struct iovec *iov, int iovcount);
+ssize_t raw_image__write_sector(struct disk_image *disk, u64 sector,
+				const struct iovec *iov, int iovcount);
+ssize_t raw_image__read_sector_mmap(struct disk_image *disk, u64 sector,
+				const struct iovec *iov, int iovcount);
+ssize_t raw_image__write_sector_mmap(struct disk_image *disk, u64 sector,
+				const struct iovec *iov, int iovcount);
 int raw_image__close(struct disk_image *disk);
 
 #endif /* KVM__DISK_IMAGE_H */

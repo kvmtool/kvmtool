@@ -452,7 +452,7 @@ out_error:
 	return -1;
 }
 
-static ssize_t qcow_read_sector(struct disk_image *disk, u64 sector,
+static ssize_t qcow_read_sector_single(struct disk_image *disk, u64 sector,
 	void *dst, u32 dst_len)
 {
 	struct qcow *q = disk->priv;
@@ -486,6 +486,26 @@ static ssize_t qcow_read_sector(struct disk_image *disk, u64 sector,
 	}
 
 	return dst_len;
+}
+
+static ssize_t qcow_read_sector(struct disk_image *disk, u64 sector,
+				const struct iovec *iov, int iovcount)
+{
+	ssize_t nr, total = 0;
+
+	while (iovcount--) {
+		nr = qcow_read_sector_single(disk, sector, iov->iov_base, iov->iov_len);
+		if (nr != (ssize_t)iov->iov_len) {
+			pr_info("qcow_read_sector error: nr=%ld iov_len=%ld\n", (long)nr, (long)iov->iov_len);
+			return -1;
+		}
+
+		sector	+= iov->iov_len >> SECTOR_SHIFT;
+		iov++;
+		total	+= nr;
+	}
+
+	return total;
 }
 
 static inline u64 file_size(int fd)
@@ -867,7 +887,7 @@ error:
 	return -1;
 }
 
-static ssize_t qcow_write_sector(struct disk_image *disk, u64 sector, void *src, u32 src_len)
+static ssize_t qcow_write_sector_single(struct disk_image *disk, u64 sector, void *src, u32 src_len)
 {
 	struct qcow *q = disk->priv;
 	struct qcow_header *header = q->header;
@@ -896,7 +916,28 @@ static ssize_t qcow_write_sector(struct disk_image *disk, u64 sector, void *src,
 	return nr_written;
 }
 
-static ssize_t qcow_nowrite_sector(struct disk_image *disk, u64 sector, void *src, u32 src_len)
+static ssize_t qcow_write_sector(struct disk_image *disk, u64 sector,
+				const struct iovec *iov, int iovcount)
+{
+	ssize_t nr, total = 0;
+
+	while (iovcount--) {
+		nr = qcow_write_sector_single(disk, sector, iov->iov_base, iov->iov_len);
+		if (nr != (ssize_t)iov->iov_len) {
+			pr_info("qcow_write_sector error: nr=%ld iov_len=%ld\n", (long)nr, (long)iov->iov_len);
+			return -1;
+		}
+
+		sector	+= iov->iov_len >> SECTOR_SHIFT;
+		iov++;
+		total	+= nr;
+	}
+
+	return total;
+}
+
+static ssize_t qcow_nowrite_sector(struct disk_image *disk, u64 sector,
+				const struct iovec *iov, int iovcount)
 {
 	/* I/O error */
 	pr_info("%s: no write support\n", __func__);
