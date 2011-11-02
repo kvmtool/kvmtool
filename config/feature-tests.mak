@@ -156,3 +156,13 @@ int main(void)
 	return 0;
 }
 endef
+
+define SOURCE_AIO
+#include <libaio.h>
+
+int main(void)
+{
+	io_setup(0, NULL);
+	return 0;
+}
+endef

@@ -316,3 +316,29 @@ ssize_t pwritev_in_full(int fd, const struct iovec *iov, int iovcnt, off_t offse
 
 	return total;
 }
+
+#ifdef CONFIG_HAS_AIO
+int aio_pwritev(io_context_t ctx, struct iocb *iocb, int fd, const struct iovec *iov, int iovcnt,
+		off_t offset, int ev, void *param)
+{
+	struct iocb *ios[1] = { iocb };
+
+	io_prep_pwritev(iocb, fd, iov, iovcnt, offset);
+	io_set_eventfd(iocb, ev);
+	iocb->data = param;
+
+	return io_submit(ctx, 1, ios);
+}
+
+int aio_preadv(io_context_t ctx, struct iocb *iocb, int fd, const struct iovec *iov, int iovcnt,
+		off_t offset, int ev, void *param)
+{
+	struct iocb *ios[1] = { iocb };
+
+	io_prep_preadv(iocb, fd, iov, iovcnt, offset);
+	io_set_eventfd(iocb, ev);
+	iocb->data = param;
+
+	return io_submit(ctx, 1, ios);
+}
+#endif

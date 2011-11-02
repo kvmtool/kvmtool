@@ -115,6 +115,13 @@ ifeq ($(has_ZLIB),y)
 	LIBS	+= -lz
 endif
 
+FLAGS_AIO := $(CFLAGS) -laio
+has_AIO := $(call try-cc,$(SOURCE_AIO),$(FLAGS_AIO))
+ifeq ($(has_AIO),y)
+	CFLAGS	+= -DCONFIG_HAS_AIO
+	LIBS	+= -laio
+endif
+
 DEPS	:= $(patsubst %.o,%.d,$(OBJS))
 
 # Exclude BIOS object files from header dependencies.
