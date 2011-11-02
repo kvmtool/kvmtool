@@ -21,8 +21,11 @@
 #define SECTOR_SHIFT		9
 #define SECTOR_SIZE		(1UL << SECTOR_SHIFT)
 
-#define DISK_IMAGE_MMAP		0
-#define DISK_IMAGE_NOMMAP	1
+enum {
+	DISK_IMAGE_REGULAR,
+	DISK_IMAGE_MMAP,
+};
+
 #define MAX_DISK_IMAGES         4
 
 struct disk_image;

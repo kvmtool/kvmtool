@@ -78,5 +78,5 @@ struct disk_image *raw_image__probe(int fd, struct stat *st, bool readonly)
 		/*
 		 * Use read/write instead of mmap
 		 */
-		return disk_image__new(fd, st->st_size, &raw_image_iov_ops, DISK_IMAGE_NOMMAP);
+		return disk_image__new(fd, st->st_size, &raw_image_iov_ops, DISK_IMAGE_REGULAR);
 }

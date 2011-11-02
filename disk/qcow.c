@@ -1107,9 +1107,9 @@ static struct disk_image *qcow2_probe(int fd, bool readonly)
 	 * Do not use mmap use read/write instead
 	 */
 	if (readonly)
-		disk_image = disk_image__new(fd, h->size, &qcow_disk_readonly_ops, DISK_IMAGE_NOMMAP);
+		disk_image = disk_image__new(fd, h->size, &qcow_disk_readonly_ops, DISK_IMAGE_REGULAR);
 	else
-		disk_image = disk_image__new(fd, h->size, &qcow_disk_ops, DISK_IMAGE_NOMMAP);
+		disk_image = disk_image__new(fd, h->size, &qcow_disk_ops, DISK_IMAGE_REGULAR);
 
 	if (!disk_image)
 		goto free_refcount_table;
@@ -1238,9 +1238,9 @@ static struct disk_image *qcow1_probe(int fd, bool readonly)
 	 * Do not use mmap use read/write instead
 	 */
 	if (readonly)
-		disk_image = disk_image__new(fd, h->size, &qcow_disk_readonly_ops, DISK_IMAGE_NOMMAP);
+		disk_image = disk_image__new(fd, h->size, &qcow_disk_readonly_ops, DISK_IMAGE_REGULAR);
 	else
-		disk_image = disk_image__new(fd, h->size, &qcow_disk_ops, DISK_IMAGE_NOMMAP);
+		disk_image = disk_image__new(fd, h->size, &qcow_disk_ops, DISK_IMAGE_REGULAR);
 
 	if (!disk_image)
 		goto free_l1_table;
