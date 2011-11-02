@@ -45,7 +45,7 @@ struct disk_image {
 	struct disk_image_operations	*ops;
 	void				*priv;
 	void				*disk_req_cb_param;
-	void				(*disk_req_cb)(void *param);
+	void				(*disk_req_cb)(void *param, long len);
 };
 
 struct disk_image *disk_image__open(const char *filename, bool readonly);
@@ -72,5 +72,5 @@ ssize_t raw_image__read_sector_mmap(struct disk_image *disk, u64 sector,
 ssize_t raw_image__write_sector_mmap(struct disk_image *disk, u64 sector,
 				const struct iovec *iov, int iovcount, void *param);
 int raw_image__close(struct disk_image *disk);
-void disk_image__set_callback(struct disk_image *disk, void (*disk_req_cb)(void *param));
+void disk_image__set_callback(struct disk_image *disk, void (*disk_req_cb)(void *param, long len));
 #endif /* KVM__DISK_IMAGE_H */

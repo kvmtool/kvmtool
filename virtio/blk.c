@@ -29,17 +29,21 @@
  */
 #define DISK_SEG_MAX			(VIRTIO_BLK_QUEUE_SIZE - 2)
 
-struct blk_dev_job {
+struct blk_dev_req {
+	struct list_head		list;
 	struct virt_queue		*vq;
 	struct blk_dev			*bdev;
 	struct iovec			iov[VIRTIO_BLK_QUEUE_SIZE];
 	u16				out, in, head;
-	struct thread_pool__job		job_id;
+	struct kvm			*kvm;
 };
 
 struct blk_dev {
 	pthread_mutex_t			mutex;
+	pthread_mutex_t			req_mutex;
+
 	struct list_head		list;
+	struct list_head		req_list;
 
 	struct virtio_pci		vpci;
 	struct virtio_blk_config	blk_config;
@@ -47,41 +51,78 @@ struct blk_dev {
 	u32				features;
 
 	struct virt_queue		vqs[NUM_VIRT_QUEUES];
-	struct blk_dev_job		jobs[VIRTIO_BLK_QUEUE_SIZE];
-	u16				job_idx;
+	struct blk_dev_req		reqs[VIRTIO_BLK_QUEUE_SIZE];
 };
 
 static LIST_HEAD(bdevs);
 static int compat_id;
 
-static void virtio_blk_do_io_request(struct kvm *kvm, void *param)
+static struct blk_dev_req *virtio_blk_req_pop(struct blk_dev *bdev)
 {
-	struct virtio_blk_outhdr *req;
+	struct blk_dev_req *req = NULL;
+
+	mutex_lock(&bdev->req_mutex);
+	if (!list_empty(&bdev->req_list)) {
+		req = list_first_entry(&bdev->req_list, struct blk_dev_req, list);
+		list_del_init(&req->list);
+	}
+	mutex_unlock(&bdev->req_mutex);
+
+	return req;
+}
+
+static void virtio_blk_req_push(struct blk_dev *bdev, struct blk_dev_req *req)
+{
+	mutex_lock(&bdev->req_mutex);
+	list_add(&req->list, &bdev->req_list);
+	mutex_unlock(&bdev->req_mutex);
+}
+
+void virtio_blk_complete(void *param, long len)
+{
+	struct blk_dev_req *req = param;
+	struct blk_dev *bdev = req->bdev;
+	int queueid = req->vq - bdev->vqs;
 	u8 *status;
+
+	/* status */
+	status			= req->iov[req->out + req->in - 1].iov_base;
+	*status			= (len < 0) ? VIRTIO_BLK_S_IOERR : VIRTIO_BLK_S_OK;
+
+	mutex_lock(&bdev->mutex);
+	virt_queue__set_used_elem(req->vq, req->head, len);
+	mutex_unlock(&bdev->mutex);
+
+	virtio_pci__signal_vq(req->kvm, &bdev->vpci, queueid);
+
+	virtio_blk_req_push(req->bdev, req);
+}
+
+static void virtio_blk_do_io_request(struct kvm *kvm, struct blk_dev_req *req)
+{
+	struct virtio_blk_outhdr *req_hdr;
 	ssize_t block_cnt;
-	struct blk_dev_job *job;
 	struct blk_dev *bdev;
 	struct virt_queue *queue;
 	struct iovec *iov;
 	u16 out, in, head;
 
 	block_cnt	= -1;
-	job		= param;
-	bdev		= job->bdev;
-	queue		= job->vq;
-	iov		= job->iov;
-	out		= job->out;
-	in		= job->in;
-	head		= job->head;
-	req		= iov[0].iov_base;
+	bdev		= req->bdev;
+	queue		= req->vq;
+	iov		= req->iov;
+	out		= req->out;
+	in		= req->in;
+	head		= req->head;
+	req_hdr		= iov[0].iov_base;
 
-	switch (req->type) {
+	switch (req_hdr->type) {
 	case VIRTIO_BLK_T_IN:
-		block_cnt	= disk_image__read(bdev->disk, req->sector, iov + 1,
+		block_cnt	= disk_image__read(bdev->disk, req_hdr->sector, iov + 1,
 					in + out - 2, NULL);
 		break;
 	case VIRTIO_BLK_T_OUT:
-		block_cnt	= disk_image__write(bdev->disk, req->sector, iov + 1,
+		block_cnt	= disk_image__write(bdev->disk, req_hdr->sector, iov + 1,
 					in + out - 2, NULL);
 		break;
 	case VIRTIO_BLK_T_FLUSH:
@@ -92,35 +133,27 @@ static void virtio_blk_do_io_request(struct kvm *kvm, void *param)
 		disk_image__get_serial(bdev->disk, (iov + 1)->iov_base, &block_cnt);
 		break;
 	default:
-		pr_warning("request type %d", req->type);
+		pr_warning("request type %d", req_hdr->type);
 		block_cnt	= -1;
 		break;
 	}
 
-	/* status */
-	status			= iov[out + in - 1].iov_base;
-	*status			= (block_cnt < 0) ? VIRTIO_BLK_S_IOERR : VIRTIO_BLK_S_OK;
-
-	mutex_lock(&bdev->mutex);
-	virt_queue__set_used_elem(queue, head, block_cnt);
-	mutex_unlock(&bdev->mutex);
-
-	virtio_pci__signal_vq(kvm, &bdev->vpci, queue - bdev->vqs);
+	virtio_blk_complete(req, block_cnt);
 }
 
 static void virtio_blk_do_io(struct kvm *kvm, struct virt_queue *vq, struct blk_dev *bdev)
 {
 	while (virt_queue__available(vq)) {
-		struct blk_dev_job *job = &bdev->jobs[bdev->job_idx++ % VIRTIO_BLK_QUEUE_SIZE];
+		struct blk_dev_req *req = virtio_blk_req_pop(bdev);
 
-		*job			= (struct blk_dev_job) {
-			.vq			= vq,
-			.bdev			= bdev,
+		*req		= (struct blk_dev_req) {
+			.vq	= vq,
+			.bdev	= bdev,
+			.kvm	= kvm,
 		};
-		job->head = virt_queue__get_iov(vq, job->iov, &job->out, &job->in, kvm);
+		req->head = virt_queue__get_iov(vq, req->iov, &req->out, &req->in, kvm);
 
-		thread_pool__init_job(&job->job_id, kvm, virtio_blk_do_io_request, job);
-		thread_pool__do_job(&job->job_id);
+		virtio_blk_do_io_request(kvm, req);
 	}
 }
 
@@ -191,6 +224,7 @@ static int get_size_vq(struct kvm *kvm, void *dev, u32 vq)
 void virtio_blk__init(struct kvm *kvm, struct disk_image *disk)
 {
 	struct blk_dev *bdev;
+	size_t i;
 
 	if (!disk)
 		return;
@@ -201,6 +235,7 @@ void virtio_blk__init(struct kvm *kvm, struct disk_image *disk)
 
 	*bdev = (struct blk_dev) {
 		.mutex			= PTHREAD_MUTEX_INITIALIZER,
+		.req_mutex		= PTHREAD_MUTEX_INITIALIZER,
 		.disk			= disk,
 		.blk_config		= (struct virtio_blk_config) {
 			.capacity	= disk->size / SECTOR_SIZE,
@@ -221,6 +256,10 @@ void virtio_blk__init(struct kvm *kvm, struct disk_image *disk)
 	};
 
 	list_add_tail(&bdev->list, &bdevs);
+
+	INIT_LIST_HEAD(&bdev->req_list);
+	for (i = 0; i < ARRAY_SIZE(bdev->reqs); i++)
+		list_add(&bdev->reqs[i].list, &bdev->req_list);
 
 	if (compat_id != -1)
 		compat_id = compat__add_message("virtio-blk device was not detected",

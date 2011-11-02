@@ -152,7 +152,7 @@ ssize_t disk_image__read(struct disk_image *disk, u64 sector, const struct iovec
 	}
 
 	if (disk->disk_req_cb)
-		disk->disk_req_cb(param);
+		disk->disk_req_cb(param, total);
 
 	return total;
 }
@@ -184,7 +184,7 @@ ssize_t disk_image__write(struct disk_image *disk, u64 sector, const struct iove
 	}
 
 	if (disk->disk_req_cb)
-		disk->disk_req_cb(param);
+		disk->disk_req_cb(param, total);
 
 	return total;
 }
@@ -200,7 +200,7 @@ ssize_t disk_image__get_serial(struct disk_image *disk, void *buffer, ssize_t *l
 	return *len;
 }
 
-void disk_image__set_callback(struct disk_image *disk, void (*disk_req_cb)(void *param))
+void disk_image__set_callback(struct disk_image *disk, void (*disk_req_cb)(void *param, long len))
 {
 	disk->disk_req_cb = disk_req_cb;
 }
