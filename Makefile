@@ -225,6 +225,7 @@ BIOS_CFLAGS += -march=i386
 BIOS_CFLAGS += -mregparm=3
 
 BIOS_CFLAGS += -fno-stack-protector
+BIOS_CFLAGS += -I../../arch/$(ARCH)
 
 bios.o: bios/bios.bin bios/bios-rom.h
 

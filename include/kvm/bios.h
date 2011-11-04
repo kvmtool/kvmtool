@@ -33,6 +33,10 @@
 #define VGA_RAM_END			0x000bffff
 
 #define VGA_ROM_BEGIN			0x000c0000
+#define VGA_ROM_OEM_STRING		VGA_ROM_BEGIN
+#define VGA_ROM_OEM_STRING_SIZE		16
+#define VGA_ROM_MODES			(VGA_ROM_OEM_STRING + VGA_ROM_OEM_STRING_SIZE)
+#define VGA_ROM_MODES_SIZE		32
 #define VGA_ROM_END			0x000c7fff
 
 /* we handle one page only */

@@ -103,6 +103,20 @@ static void e820_setup(struct kvm *kvm)
 	e820->nr_map			= i;
 }
 
+static void setup_vga_rom(struct kvm *kvm)
+{
+	u16 *mode;
+	void *p;
+
+	p = guest_flat_to_host(kvm, VGA_ROM_OEM_STRING);
+	memset(p, 0, VGA_ROM_OEM_STRING_SIZE);
+	strncpy(p, "KVM VESA", VGA_ROM_OEM_STRING_SIZE);
+
+	mode = guest_flat_to_host(kvm, VGA_ROM_MODES);
+	mode[0]	= 0x0112;
+	mode[1] = 0xffff;
+}
+
 /**
  * setup_bios - inject BIOS into guest memory
  * @kvm - guest system descriptor
@@ -136,6 +150,9 @@ void setup_bios(struct kvm *kvm)
 
 	/* E820 memory map must be present */
 	e820_setup(kvm);
+
+	/* VESA needs own tricks */
+	setup_vga_rom(kvm);
 
 	/*
 	 * Setup a *fake* real mode vector table, it has only
