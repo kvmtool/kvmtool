@@ -131,6 +131,15 @@ static int copy_init(const char *guestfs_name)
 	return copy_file("guest/init", path);
 }
 
+static int copy_passwd(const char *guestfs_name)
+{
+	char path[PATH_MAX];
+
+	snprintf(path, PATH_MAX, "%s%s/etc/passwd", kvm__get_dir(), guestfs_name);
+
+	return copy_file("guest/passwd", path);
+}
+
 static int make_guestfs_symlink(const char *guestfs_name, const char *path)
 {
 	char target[PATH_MAX];
@@ -197,7 +206,11 @@ static int do_setup(const char *guestfs_name)
 		make_guestfs_symlink(guestfs_name, guestfs_symlinks[i]);
 	}
 
-	return copy_init(guestfs_name);
+	ret = copy_init(guestfs_name);
+	if (ret < 0)
+		return ret;
+
+	return copy_passwd(guestfs_name);
 }
 
 int kvm_setup_create_new(const char *guestfs_name)
