@@ -700,6 +700,32 @@ err_out:
 	virtio_p9_error_reply(p9dev, pdu, errno, outlen);
 	return;	
 }
+
+static void virtio_p9_rename(struct p9_dev *p9dev,
+			       struct p9_pdu *pdu, u32 *outlen)
+{
+	int ret;
+	u32 fid_val, new_fid_val;
+	struct p9_fid *fid, *new_fid;
+	char full_path[PATH_MAX], *new_name;
+
+	virtio_p9_pdu_readf(pdu, "dds", &fid_val, &new_fid_val, &new_name);
+	fid = &p9dev->fids[fid_val];
+	new_fid = &p9dev->fids[new_fid_val];
+
+	sprintf(full_path, "%s/%s", new_fid->abs_path, new_name);
+	ret = rename(fid->abs_path, full_path);
+	if (ret < 0)
+		goto err_out;
+	close_fid(p9dev, fid_val);
+	*outlen = pdu->write_offset;
+	virtio_p9_set_reply_header(pdu, *outlen);
+	return;
+
+err_out:
+	virtio_p9_error_reply(p9dev, pdu, errno, outlen);
+	return;	
+}
 			       
 static void virtio_p9_readlink(struct p9_dev *p9dev,
 			       struct p9_pdu *pdu, u32 *outlen)
@@ -1073,6 +1099,7 @@ static p9_handler *virtio_9p_dotl_handler [] = {
 	[P9_TLCREATE]     = virtio_p9_create,
 	[P9_TWRITE]       = virtio_p9_write,
 	[P9_TREMOVE]      = virtio_p9_remove,
+	[P9_TRENAME]      = virtio_p9_rename,
 };
 
 static struct p9_pdu *virtio_p9_pdu_init(struct kvm *kvm, struct virt_queue *vq)
