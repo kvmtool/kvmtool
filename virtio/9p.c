@@ -683,13 +683,11 @@ static void virtio_p9_remove(struct p9_dev *p9dev,
 	int ret;
 	u32 fid_val;
 	struct p9_fid *fid;
-	char full_path[PATH_MAX];
 
 	virtio_p9_pdu_readf(pdu, "d", &fid_val);
 	fid = &p9dev->fids[fid_val];
 
-	sprintf(full_path, "%s", fid->abs_path);
-	ret = remove(full_path);
+	ret = remove(fid->abs_path);
 	if (ret < 0)
 		goto err_out;
 	*outlen = pdu->write_offset;
@@ -698,7 +696,7 @@ static void virtio_p9_remove(struct p9_dev *p9dev,
 
 err_out:
 	virtio_p9_error_reply(p9dev, pdu, errno, outlen);
-	return;	
+	return;
 }
 
 static void virtio_p9_rename(struct p9_dev *p9dev,
@@ -724,9 +722,9 @@ static void virtio_p9_rename(struct p9_dev *p9dev,
 
 err_out:
 	virtio_p9_error_reply(p9dev, pdu, errno, outlen);
-	return;	
+	return;
 }
-			       
+
 static void virtio_p9_readlink(struct p9_dev *p9dev,
 			       struct p9_pdu *pdu, u32 *outlen)
 {
