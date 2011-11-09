@@ -7,7 +7,7 @@
 #include "kvm/kvm.h"
 #include "kvm/threadpool.h"
 #include "kvm/guest_compat.h"
-#include "kvm/virtio-pci.h"
+#include "kvm/virtio-trans.h"
 
 #include <linux/virtio_ring.h>
 #include <linux/virtio_rng.h>
@@ -30,7 +30,7 @@ struct rng_dev_job {
 
 struct rng_dev {
 	struct list_head	list;
-	struct virtio_pci	vpci;
+	struct virtio_trans	vtrans;
 
 	int			fd;
 
@@ -87,7 +87,7 @@ static void virtio_rng_do_io(struct kvm *kvm, void *param)
 	while (virt_queue__available(vq))
 		virtio_rng_do_io_request(kvm, rdev, vq);
 
-	virtio_pci__signal_vq(kvm, &rdev->vpci, vq - rdev->vqs);
+	rdev->vtrans.trans_ops->signal_vq(kvm, &rdev->vtrans, vq - rdev->vqs);
 }
 
 static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 pfn)
@@ -138,6 +138,17 @@ static int get_size_vq(struct kvm *kvm, void *dev, u32 vq)
 	return VIRTIO_RNG_QUEUE_SIZE;
 }
 
+static struct virtio_ops rng_dev_virtio_ops = (struct virtio_ops) {
+	.set_config		= set_config,
+	.get_config		= get_config,
+	.get_host_features	= get_host_features,
+	.set_guest_features	= set_guest_features,
+	.init_vq		= init_vq,
+	.notify_vq		= notify_vq,
+	.get_pfn_vq		= get_pfn_vq,
+	.get_size_vq		= get_size_vq,
+};
+
 void virtio_rng__init(struct kvm *kvm)
 {
 	struct rng_dev *rdev;
@@ -150,17 +161,10 @@ void virtio_rng__init(struct kvm *kvm)
 	if (rdev->fd < 0)
 		die("Failed initializing RNG");
 
-	virtio_pci__init(kvm, &rdev->vpci, rdev, PCI_DEVICE_ID_VIRTIO_RNG, VIRTIO_ID_RNG, PCI_CLASS_RNG);
-	rdev->vpci.ops = (struct virtio_pci_ops) {
-		.set_config		= set_config,
-		.get_config		= get_config,
-		.get_host_features	= get_host_features,
-		.set_guest_features	= set_guest_features,
-		.init_vq		= init_vq,
-		.notify_vq		= notify_vq,
-		.get_pfn_vq		= get_pfn_vq,
-		.get_size_vq		= get_size_vq,
-	};
+	virtio_trans_init(&rdev->vtrans, VIRTIO_PCI);
+	rdev->vtrans.trans_ops->init(kvm, &rdev->vtrans, rdev, PCI_DEVICE_ID_VIRTIO_RNG,
+					VIRTIO_ID_RNG, PCI_CLASS_RNG);
+	rdev->vtrans.virtio_ops = &rng_dev_virtio_ops;
 
 	list_add_tail(&rdev->list, &rdevs);
 

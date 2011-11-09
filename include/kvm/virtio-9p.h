@@ -3,7 +3,7 @@
 #include "kvm/virtio.h"
 #include "kvm/pci.h"
 #include "kvm/threadpool.h"
-#include "kvm/virtio-pci.h"
+#include "kvm/virtio-trans.h"
 
 #include <sys/types.h>
 #include <dirent.h>
@@ -42,7 +42,7 @@ struct p9_dev_job {
 
 struct p9_dev {
 	struct list_head	list;
-	struct virtio_pci	vpci;
+	struct virtio_trans	vtrans;
 
 	struct virtio_9p_config	*config;
 	u32			features;

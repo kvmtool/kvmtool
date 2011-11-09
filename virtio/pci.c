@@ -6,23 +6,36 @@
 #include "kvm/irq.h"
 #include "kvm/virtio.h"
 #include "kvm/ioeventfd.h"
+#include "kvm/virtio-trans.h"
 
 #include <linux/virtio_pci.h>
 #include <string.h>
 
+struct virtio_trans_ops *virtio_pci__get_trans_ops(void)
+{
+	static struct virtio_trans_ops virtio_pci_trans = (struct virtio_trans_ops) {
+		.signal_vq	= virtio_pci__signal_vq,
+		.signal_config	= virtio_pci__signal_config,
+		.init		= virtio_pci__init,
+	};
+	return &virtio_pci_trans;
+};
+
 static void virtio_pci__ioevent_callback(struct kvm *kvm, void *param)
 {
 	struct virtio_pci_ioevent_param *ioeventfd = param;
+	struct virtio_pci *vpci = ioeventfd->vtrans->virtio;
 
-	ioeventfd->vpci->ops.notify_vq(kvm, ioeventfd->vpci->dev, ioeventfd->vq);
+	ioeventfd->vtrans->virtio_ops->notify_vq(kvm, vpci->dev, ioeventfd->vq);
 }
 
-static int virtio_pci__init_ioeventfd(struct kvm *kvm, struct virtio_pci *vpci, u32 vq)
+static int virtio_pci__init_ioeventfd(struct kvm *kvm, struct virtio_trans *vtrans, u32 vq)
 {
 	struct ioevent ioevent;
+	struct virtio_pci *vpci = vtrans->virtio;
 
 	vpci->ioeventfds[vq] = (struct virtio_pci_ioevent_param) {
-		.vpci		= vpci,
+		.vtrans		= vtrans,
 		.vq		= vq,
 	};
 
@@ -46,10 +59,11 @@ static inline bool virtio_pci__msix_enabled(struct virtio_pci *vpci)
 	return vpci->pci_hdr.msix.ctrl & PCI_MSIX_FLAGS_ENABLE;
 }
 
-static bool virtio_pci__specific_io_in(struct kvm *kvm, struct virtio_pci *vpci, u16 port,
+static bool virtio_pci__specific_io_in(struct kvm *kvm, struct virtio_trans *vtrans, u16 port,
 					void *data, int size, int offset)
 {
 	u32 config_offset;
+	struct virtio_pci *vpci = vtrans->virtio;
 	int type = virtio__get_dev_specific_field(offset - 20,
 							virtio_pci__msix_enabled(vpci),
 							0, &config_offset);
@@ -67,7 +81,7 @@ static bool virtio_pci__specific_io_in(struct kvm *kvm, struct virtio_pci *vpci,
 	} else if (type == VIRTIO_PCI_O_CONFIG) {
 		u8 cfg;
 
-		cfg = vpci->ops.get_config(kvm, vpci->dev, config_offset);
+		cfg = vtrans->virtio_ops->get_config(kvm, vpci->dev, config_offset);
 		ioport__write8(data, cfg);
 		return true;
 	}
@@ -79,23 +93,25 @@ static bool virtio_pci__io_in(struct ioport *ioport, struct kvm *kvm, u16 port, 
 {
 	unsigned long offset;
 	bool ret = true;
+	struct virtio_trans *vtrans;
 	struct virtio_pci *vpci;
 	u32 val;
 
-	vpci = ioport->priv;
+	vtrans = ioport->priv;
+	vpci = vtrans->virtio;
 	offset = port - vpci->base_addr;
 
 	switch (offset) {
 	case VIRTIO_PCI_HOST_FEATURES:
-		val = vpci->ops.get_host_features(kvm, vpci->dev);
+		val = vtrans->virtio_ops->get_host_features(kvm, vpci->dev);
 		ioport__write32(data, val);
 		break;
 	case VIRTIO_PCI_QUEUE_PFN:
-		val = vpci->ops.get_pfn_vq(kvm, vpci->dev, vpci->queue_selector);
+		val = vtrans->virtio_ops->get_pfn_vq(kvm, vpci->dev, vpci->queue_selector);
 		ioport__write32(data, val);
 		break;
 	case VIRTIO_PCI_QUEUE_NUM:
-		val = vpci->ops.get_size_vq(kvm, vpci->dev, vpci->queue_selector);
+		val = vtrans->virtio_ops->get_size_vq(kvm, vpci->dev, vpci->queue_selector);
 		ioport__write32(data, val);
 		break;
 		break;
@@ -108,16 +124,17 @@ static bool virtio_pci__io_in(struct ioport *ioport, struct kvm *kvm, u16 port, 
 		vpci->isr = VIRTIO_IRQ_LOW;
 		break;
 	default:
-		ret = virtio_pci__specific_io_in(kvm, vpci, port, data, size, offset);
+		ret = virtio_pci__specific_io_in(kvm, vtrans, port, data, size, offset);
 		break;
 	};
 
 	return ret;
 }
 
-static bool virtio_pci__specific_io_out(struct kvm *kvm, struct virtio_pci *vpci, u16 port,
+static bool virtio_pci__specific_io_out(struct kvm *kvm, struct virtio_trans *vtrans, u16 port,
 					void *data, int size, int offset)
 {
+	struct virtio_pci *vpci = vtrans->virtio;
 	u32 config_offset, gsi, vec;
 	int type = virtio__get_dev_specific_field(offset - 20, virtio_pci__msix_enabled(vpci),
 							0, &config_offset);
@@ -141,7 +158,7 @@ static bool virtio_pci__specific_io_out(struct kvm *kvm, struct virtio_pci *vpci
 
 		return true;
 	} else if (type == VIRTIO_PCI_O_CONFIG) {
-		vpci->ops.set_config(kvm, vpci->dev, *(u8 *)data, config_offset);
+		vtrans->virtio_ops->set_config(kvm, vpci->dev, *(u8 *)data, config_offset);
 
 		return true;
 	}
@@ -153,34 +170,36 @@ static bool virtio_pci__io_out(struct ioport *ioport, struct kvm *kvm, u16 port,
 {
 	unsigned long offset;
 	bool ret = true;
+	struct virtio_trans *vtrans;
 	struct virtio_pci *vpci;
 	u32 val;
 
-	vpci = ioport->priv;
+	vtrans = ioport->priv;
+	vpci = vtrans->virtio;
 	offset = port - vpci->base_addr;
 
 	switch (offset) {
 	case VIRTIO_PCI_GUEST_FEATURES:
 		val = ioport__read32(data);
-		vpci->ops.set_guest_features(kvm, vpci, val);
+		vtrans->virtio_ops->set_guest_features(kvm, vpci, val);
 		break;
 	case VIRTIO_PCI_QUEUE_PFN:
 		val = ioport__read32(data);
-		virtio_pci__init_ioeventfd(kvm, vpci, vpci->queue_selector);
-		vpci->ops.init_vq(kvm, vpci->dev, vpci->queue_selector, val);
+		virtio_pci__init_ioeventfd(kvm, vtrans, vpci->queue_selector);
+		vtrans->virtio_ops->init_vq(kvm, vpci->dev, vpci->queue_selector, val);
 		break;
 	case VIRTIO_PCI_QUEUE_SEL:
 		vpci->queue_selector	= ioport__read16(data);
 		break;
 	case VIRTIO_PCI_QUEUE_NOTIFY:
 		val			= ioport__read16(data);
-		vpci->ops.notify_vq(kvm, vpci->dev, val);
+		vtrans->virtio_ops->notify_vq(kvm, vpci->dev, val);
 		break;
 	case VIRTIO_PCI_STATUS:
 		vpci->status		= ioport__read8(data);
 		break;
 	default:
-		ret = virtio_pci__specific_io_out(kvm, vpci, port, data, size, offset);
+		ret = virtio_pci__specific_io_out(kvm, vtrans, port, data, size, offset);
 		break;
 	};
 
@@ -214,8 +233,9 @@ static void callback_mmio_pba(u64 addr, u8 *data, u32 len, u8 is_write, void *pt
 		memcpy(data, pba + addr - vpci->msix_pba_block, len);
 }
 
-int virtio_pci__signal_vq(struct kvm *kvm, struct virtio_pci *vpci, u32 vq)
+int virtio_pci__signal_vq(struct kvm *kvm, struct virtio_trans *vtrans, u32 vq)
 {
+	struct virtio_pci *vpci = vtrans->virtio;
 	int tbl = vpci->vq_vector[vq];
 
 	if (virtio_pci__msix_enabled(vpci)) {
@@ -234,8 +254,9 @@ int virtio_pci__signal_vq(struct kvm *kvm, struct virtio_pci *vpci, u32 vq)
 	return 0;
 }
 
-int virtio_pci__signal_config(struct kvm *kvm, struct virtio_pci *vpci)
+int virtio_pci__signal_config(struct kvm *kvm, struct virtio_trans *vtrans)
 {
+	struct virtio_pci *vpci = vtrans->virtio;
 	int tbl = vpci->config_vector;
 
 	if (virtio_pci__msix_enabled(vpci)) {
@@ -255,16 +276,17 @@ int virtio_pci__signal_config(struct kvm *kvm, struct virtio_pci *vpci)
 	return 0;
 }
 
-int virtio_pci__init(struct kvm *kvm, struct virtio_pci *vpci, void *dev,
+int virtio_pci__init(struct kvm *kvm, struct virtio_trans *vtrans, void *dev,
 			int device_id, int subsys_id, int class)
 {
+	struct virtio_pci *vpci = vtrans->virtio;
 	u8 pin, line, ndev;
 
 	vpci->dev = dev;
 	vpci->msix_io_block = pci_get_io_space_block(PCI_IO_SIZE);
 	vpci->msix_pba_block = pci_get_io_space_block(PCI_IO_SIZE);
 
-	vpci->base_addr = ioport__register(IOPORT_EMPTY, &virtio_pci__io_ops, IOPORT_SIZE, vpci);
+	vpci->base_addr = ioport__register(IOPORT_EMPTY, &virtio_pci__io_ops, IOPORT_SIZE, vtrans);
 	kvm__register_mmio(kvm, vpci->msix_io_block, 0x100, callback_mmio_table, vpci);
 	kvm__register_mmio(kvm, vpci->msix_pba_block, 0x100, callback_mmio_pba, vpci);
 

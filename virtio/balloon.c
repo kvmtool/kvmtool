@@ -8,7 +8,7 @@
 #include "kvm/pci.h"
 #include "kvm/threadpool.h"
 #include "kvm/guest_compat.h"
-#include "kvm/virtio-pci.h"
+#include "kvm/virtio-trans.h"
 #include "kvm/kvm-ipc.h"
 
 #include <linux/virtio_ring.h>
@@ -31,7 +31,7 @@
 
 struct bln_dev {
 	struct list_head	list;
-	struct virtio_pci	vpci;
+	struct virtio_trans	vtrans;
 
 	u32			features;
 
@@ -116,13 +116,13 @@ static void virtio_bln_do_io(struct kvm *kvm, void *param)
 
 	if (vq == &bdev.vqs[VIRTIO_BLN_STATS]) {
 		virtio_bln_do_stat_request(kvm, &bdev, vq);
-		virtio_pci__signal_vq(kvm, &bdev.vpci, VIRTIO_BLN_STATS);
+		bdev.vtrans.trans_ops->signal_vq(kvm, &bdev.vtrans, VIRTIO_BLN_STATS);
 		return;
 	}
 
 	while (virt_queue__available(vq)) {
 		virtio_bln_do_io_request(kvm, &bdev, vq);
-		virtio_pci__signal_vq(kvm, &bdev.vpci, vq - bdev.vqs);
+		bdev.vtrans.trans_ops->signal_vq(kvm, &bdev.vtrans, vq - bdev.vqs);
 	}
 }
 
@@ -132,7 +132,7 @@ static int virtio_bln__collect_stats(void)
 
 	virt_queue__set_used_elem(&bdev.vqs[VIRTIO_BLN_STATS], bdev.cur_stat_head,
 				  sizeof(struct virtio_balloon_stat));
-	virtio_pci__signal_vq(kvm, &bdev.vpci, VIRTIO_BLN_STATS);
+	bdev.vtrans.trans_ops->signal_vq(kvm, &bdev.vtrans, VIRTIO_BLN_STATS);
 
 	if (read(bdev.stat_waitfd, &tmp, sizeof(tmp)) <= 0)
 		return -EFAULT;
@@ -166,7 +166,7 @@ static void handle_mem(int fd, u32 type, u32 len, u8 *msg)
 	}
 
 	/* Notify that the configuration space has changed */
-	virtio_pci__signal_config(kvm, &bdev.vpci);
+	bdev.vtrans.trans_ops->signal_config(kvm, &bdev.vtrans);
 }
 
 static void set_config(struct kvm *kvm, void *dev, u8 data, u32 offset)
@@ -234,6 +234,17 @@ static int get_size_vq(struct kvm *kvm, void *dev, u32 vq)
 	return VIRTIO_BLN_QUEUE_SIZE;
 }
 
+struct virtio_ops bln_dev_virtio_ops = (struct virtio_ops) {
+	.set_config		= set_config,
+	.get_config		= get_config,
+	.get_host_features	= get_host_features,
+	.set_guest_features	= set_guest_features,
+	.init_vq		= init_vq,
+	.notify_vq		= notify_vq,
+	.get_pfn_vq		= get_pfn_vq,
+	.get_size_vq		= get_size_vq,
+};
+
 void virtio_bln__init(struct kvm *kvm)
 {
 	kvm_ipc__register_handler(KVM_IPC_BALLOON, handle_mem);
@@ -242,17 +253,10 @@ void virtio_bln__init(struct kvm *kvm)
 	bdev.stat_waitfd	= eventfd(0, 0);
 	memset(&bdev.config, 0, sizeof(struct virtio_balloon_config));
 
-	virtio_pci__init(kvm, &bdev.vpci, &bdev, PCI_DEVICE_ID_VIRTIO_BLN, VIRTIO_ID_BALLOON, PCI_CLASS_BLN);
-	bdev.vpci.ops = (struct virtio_pci_ops) {
-		.set_config		= set_config,
-		.get_config		= get_config,
-		.get_host_features	= get_host_features,
-		.set_guest_features	= set_guest_features,
-		.init_vq		= init_vq,
-		.notify_vq		= notify_vq,
-		.get_pfn_vq		= get_pfn_vq,
-		.get_size_vq		= get_size_vq,
-	};
+	virtio_trans_init(&bdev.vtrans, VIRTIO_PCI);
+	bdev.vtrans.trans_ops->init(kvm, &bdev.vtrans, &bdev, PCI_DEVICE_ID_VIRTIO_BLN,
+					VIRTIO_ID_BALLOON, PCI_CLASS_BLN);
+	bdev.vtrans.virtio_ops = &bln_dev_virtio_ops;
 
 	if (compat_id != -1)
 		compat_id = compat__add_message("virtio-balloon device was not detected",

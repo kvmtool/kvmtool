@@ -1162,7 +1162,7 @@ static void virtio_p9_do_io(struct kvm *kvm, void *param)
 
 	while (virt_queue__available(vq)) {
 		virtio_p9_do_io_request(kvm, job);
-		virtio_pci__signal_vq(kvm, &p9dev->vpci, vq - p9dev->vqs);
+		p9dev->vtrans.trans_ops->signal_vq(kvm, &p9dev->vtrans, vq - p9dev->vqs);
 	}
 }
 
@@ -1238,22 +1238,26 @@ static int get_size_vq(struct kvm *kvm, void *dev, u32 vq)
 	return VIRTQUEUE_NUM;
 }
 
+struct virtio_ops p9_dev_virtio_ops = (struct virtio_ops) {
+	.set_config		= set_config,
+	.get_config		= get_config,
+	.get_host_features	= get_host_features,
+	.set_guest_features	= set_guest_features,
+	.init_vq		= init_vq,
+	.notify_vq		= notify_vq,
+	.get_pfn_vq		= get_pfn_vq,
+	.get_size_vq		= get_size_vq,
+};
+
 int virtio_9p__init(struct kvm *kvm)
 {
 	struct p9_dev *p9dev;
 
 	list_for_each_entry(p9dev, &devs, list) {
-		virtio_pci__init(kvm, &p9dev->vpci, p9dev, PCI_DEVICE_ID_VIRTIO_P9, VIRTIO_ID_9P, PCI_CLASS_P9);
-		p9dev->vpci.ops = (struct virtio_pci_ops) {
-			.set_config		= set_config,
-			.get_config		= get_config,
-			.get_host_features	= get_host_features,
-			.set_guest_features	= set_guest_features,
-			.init_vq		= init_vq,
-			.notify_vq		= notify_vq,
-			.get_pfn_vq		= get_pfn_vq,
-			.get_size_vq		= get_size_vq,
-		};
+		virtio_trans_init(&p9dev->vtrans, VIRTIO_PCI);
+		p9dev->vtrans.trans_ops->init(kvm, &p9dev->vtrans, p9dev,
+					PCI_DEVICE_ID_VIRTIO_P9, VIRTIO_ID_9P, PCI_CLASS_P9);
+		p9dev->vtrans.virtio_ops = &p9_dev_virtio_ops;
 	}
 
 	return 0;

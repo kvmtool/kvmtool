@@ -11,6 +11,7 @@
 #include "kvm/guest_compat.h"
 #include "kvm/virtio-pci.h"
 #include "kvm/virtio.h"
+#include "kvm/virtio-trans.h"
 
 #include <linux/virtio_ring.h>
 #include <linux/virtio_blk.h>
@@ -44,7 +45,7 @@ struct blk_dev {
 	struct list_head		list;
 	struct list_head		req_list;
 
-	struct virtio_pci		vpci;
+	struct virtio_trans		vtrans;
 	struct virtio_blk_config	blk_config;
 	struct disk_image		*disk;
 	u32				features;
@@ -92,7 +93,7 @@ void virtio_blk_complete(void *param, long len)
 	virt_queue__set_used_elem(req->vq, req->head, len);
 	mutex_unlock(&bdev->mutex);
 
-	virtio_pci__signal_vq(req->kvm, &bdev->vpci, queueid);
+	bdev->vtrans.trans_ops->signal_vq(req->kvm, &bdev->vtrans, queueid);
 
 	virtio_blk_req_push(req->bdev, req);
 }
@@ -217,6 +218,17 @@ static int get_size_vq(struct kvm *kvm, void *dev, u32 vq)
 	return VIRTIO_BLK_QUEUE_SIZE;
 }
 
+static struct virtio_ops blk_dev_virtio_ops = (struct virtio_ops) {
+	.set_config		= set_config,
+	.get_config		= get_config,
+	.get_host_features	= get_host_features,
+	.set_guest_features	= set_guest_features,
+	.init_vq		= init_vq,
+	.notify_vq		= notify_vq,
+	.get_pfn_vq		= get_pfn_vq,
+	.get_size_vq		= get_size_vq,
+};
+
 void virtio_blk__init(struct kvm *kvm, struct disk_image *disk)
 {
 	struct blk_dev *bdev;
@@ -239,17 +251,10 @@ void virtio_blk__init(struct kvm *kvm, struct disk_image *disk)
 		},
 	};
 
-	virtio_pci__init(kvm, &bdev->vpci, bdev, PCI_DEVICE_ID_VIRTIO_BLK, VIRTIO_ID_BLOCK, PCI_CLASS_BLK);
-	bdev->vpci.ops = (struct virtio_pci_ops) {
-		.set_config		= set_config,
-		.get_config		= get_config,
-		.get_host_features	= get_host_features,
-		.set_guest_features	= set_guest_features,
-		.init_vq		= init_vq,
-		.notify_vq		= notify_vq,
-		.get_pfn_vq		= get_pfn_vq,
-		.get_size_vq		= get_size_vq,
-	};
+	virtio_trans_init(&bdev->vtrans, VIRTIO_PCI);
+	bdev->vtrans.trans_ops->init(kvm, &bdev->vtrans, bdev, PCI_DEVICE_ID_VIRTIO_BLK,
+					VIRTIO_ID_BLOCK, PCI_CLASS_BLK);
+	bdev->vtrans.virtio_ops = &blk_dev_virtio_ops;
 
 	list_add_tail(&bdev->list, &bdevs);
 
