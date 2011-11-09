@@ -121,7 +121,7 @@ struct disk_image *raw_image__probe(int fd, struct stat *st, bool readonly)
 			ro_ops = raw_image_regular_ops;
 
 			disk = disk_image__new(fd, st->st_size, &ro_ops_nowrite, DISK_IMAGE_REGULAR);
-#ifdef CONFIG_HAS_VIRTIO
+#ifdef CONFIG_HAS_AIO
 			if (disk)
 				disk->async = 1;
 #endif
@@ -133,7 +133,7 @@ struct disk_image *raw_image__probe(int fd, struct stat *st, bool readonly)
 		 * Use read/write instead of mmap
 		 */
 		disk = disk_image__new(fd, st->st_size, &raw_image_regular_ops, DISK_IMAGE_REGULAR);
-#ifdef CONFIG_HAS_VIRTIO
+#ifdef CONFIG_HAS_AIO
 		if (disk)
 			disk->async = 1;
 #endif
