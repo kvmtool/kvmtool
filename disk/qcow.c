@@ -1146,7 +1146,7 @@ static struct disk_image *qcow2_probe(int fd, bool readonly)
 	if (!disk_image)
 		goto free_refcount_table;
 
-	disk_image->async = 1;
+	disk_image->async = 0;
 	disk_image->priv = q;
 
 	return disk_image;
