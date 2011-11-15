@@ -16,7 +16,7 @@
 #define IRQCHIP_SLAVE			1
 #define IRQCHIP_IOAPIC			2
 
-static u8		next_line	= 3;
+static u8		next_line	= 5;
 static u8		next_dev	= 1;
 static struct rb_root	pci_tree	= RB_ROOT;
 
