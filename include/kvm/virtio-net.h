@@ -11,6 +11,7 @@ struct virtio_net_params {
 	char host_mac[6];
 	struct kvm *kvm;
 	int mode;
+	int vhost;
 };
 
 void virtio_net__init(const struct virtio_net_params *params);

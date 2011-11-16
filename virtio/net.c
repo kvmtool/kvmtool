@@ -10,6 +10,7 @@
 #include "kvm/guest_compat.h"
 #include "kvm/virtio-trans.h"
 
+#include <linux/vhost.h>
 #include <linux/virtio_net.h>
 #include <linux/if_tun.h>
 #include <linux/types.h>
@@ -25,6 +26,7 @@
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/eventfd.h>
 
 #define VIRTIO_NET_QUEUE_SIZE		128
 #define VIRTIO_NET_NUM_QUEUES		2
@@ -57,6 +59,7 @@ struct net_dev {
 	pthread_mutex_t			io_tx_lock;
 	pthread_cond_t			io_tx_cond;
 
+	int				vhost_fd;
 	int				tap_fd;
 	char				tap_name[IFNAMSIZ];
 
@@ -323,9 +326,12 @@ static void set_guest_features(struct kvm *kvm, void *dev, u32 features)
 
 static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 pfn)
 {
+	struct vhost_vring_state state = { .index = vq };
+	struct vhost_vring_addr addr;
 	struct net_dev *ndev = dev;
 	struct virt_queue *queue;
 	void *p;
+	int r;
 
 	compat__remove_message(compat_id);
 
@@ -335,7 +341,80 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 pfn)
 
 	vring_init(&queue->vring, VIRTIO_NET_QUEUE_SIZE, p, VIRTIO_PCI_VRING_ALIGN);
 
+	if (ndev->vhost_fd == 0)
+		return 0;
+
+	state.num = queue->vring.num;
+	r = ioctl(ndev->vhost_fd, VHOST_SET_VRING_NUM, &state);
+	if (r < 0)
+		die_perror("VHOST_SET_VRING_NUM failed");
+	state.num = 0;
+	r = ioctl(ndev->vhost_fd, VHOST_SET_VRING_BASE, &state);
+	if (r < 0)
+		die_perror("VHOST_SET_VRING_BASE failed");
+
+	addr = (struct vhost_vring_addr) {
+		.index = vq,
+		.desc_user_addr = (u64)(unsigned long)queue->vring.desc,
+		.avail_user_addr = (u64)(unsigned long)queue->vring.avail,
+		.used_user_addr = (u64)(unsigned long)queue->vring.used,
+	};
+
+	r = ioctl(ndev->vhost_fd, VHOST_SET_VRING_ADDR, &addr);
+	if (r < 0)
+		die_perror("VHOST_SET_VRING_ADDR failed");
+
 	return 0;
+}
+
+static void notify_vq_gsi(struct kvm *kvm, void *dev, u32 vq, u32 gsi)
+{
+	struct net_dev *ndev = dev;
+	struct kvm_irqfd irq;
+	struct vhost_vring_file file;
+	int r;
+
+	if (ndev->vhost_fd == 0)
+		return;
+
+	irq = (struct kvm_irqfd) {
+		.gsi	= gsi,
+		.fd	= eventfd(0, 0),
+	};
+	file = (struct vhost_vring_file) {
+		.index	= vq,
+		.fd	= irq.fd,
+	};
+
+	r = ioctl(kvm->vm_fd, KVM_IRQFD, &irq);
+	if (r < 0)
+		die_perror("KVM_IRQFD failed");
+
+	r = ioctl(ndev->vhost_fd, VHOST_SET_VRING_CALL, &file);
+	if (r < 0)
+		die_perror("VHOST_SET_VRING_CALL failed");
+	file.fd = ndev->tap_fd;
+	r = ioctl(ndev->vhost_fd, VHOST_NET_SET_BACKEND, &file);
+	if (r != 0)
+		die("VHOST_NET_SET_BACKEND failed %d", errno);
+
+}
+
+static void notify_vq_eventfd(struct kvm *kvm, void *dev, u32 vq, u32 efd)
+{
+	struct net_dev *ndev = dev;
+	struct vhost_vring_file file = {
+		.index	= vq,
+		.fd	= efd,
+	};
+	int r;
+
+	if (ndev->vhost_fd == 0)
+		return;
+
+	r = ioctl(ndev->vhost_fd, VHOST_SET_VRING_KICK, &file);
+	if (r < 0)
+		die_perror("VHOST_SET_VRING_KICK failed");
 }
 
 static int notify_vq(struct kvm *kvm, void *dev, u32 vq)
@@ -368,7 +447,43 @@ static struct virtio_ops net_dev_virtio_ops = (struct virtio_ops) {
 	.notify_vq		= notify_vq,
 	.get_pfn_vq		= get_pfn_vq,
 	.get_size_vq		= get_size_vq,
+	.notify_vq_gsi		= notify_vq_gsi,
+	.notify_vq_eventfd	= notify_vq_eventfd,
 };
+
+static void virtio_net__vhost_init(struct kvm *kvm, struct net_dev *ndev)
+{
+	u64 features = 0;
+	struct vhost_memory *mem;
+	int r;
+
+	ndev->vhost_fd = open("/dev/vhost-net", O_RDWR);
+	if (ndev->vhost_fd < 0)
+		die_perror("Failed openning vhost-net device");
+
+	mem = malloc(sizeof(*mem) + sizeof(struct vhost_memory_region));
+	if (mem == NULL)
+		die("Failed allocating memory for vhost memory map");
+
+	mem->nregions = 1;
+	mem->regions[0] = (struct vhost_memory_region) {
+		.guest_phys_addr	= 0,
+		.memory_size		= kvm->ram_size,
+		.userspace_addr		= (u64)kvm->ram_start,
+	};
+
+	r = ioctl(ndev->vhost_fd, VHOST_SET_OWNER);
+	if (r != 0)
+		die_perror("VHOST_SET_OWNER failed");
+
+	r = ioctl(ndev->vhost_fd, VHOST_SET_FEATURES, &features);
+	if (r != 0)
+		die_perror("VHOST_SET_FEATURES failed");
+	r = ioctl(ndev->vhost_fd, VHOST_SET_MEM_TABLE, mem);
+	if (r != 0)
+		die_perror("VHOST_SET_MEM_TABLE failed");
+	free(mem);
+}
 
 void virtio_net__init(const struct virtio_net_params *params)
 {
@@ -415,7 +530,10 @@ void virtio_net__init(const struct virtio_net_params *params)
 					VIRTIO_ID_NET, PCI_CLASS_NET);
 	ndev->vtrans.virtio_ops = &net_dev_virtio_ops;
 
-	virtio_net__io_thread_init(params->kvm, ndev);
+	if (params->vhost)
+		virtio_net__vhost_init(params->kvm, ndev);
+	else
+		virtio_net__io_thread_init(params->kvm, ndev);
 
 	if (compat_id != -1)
 		compat_id = compat__add_message("virtio-net device was not detected",
