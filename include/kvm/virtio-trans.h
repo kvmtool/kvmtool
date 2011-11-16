@@ -20,6 +20,8 @@ struct virtio_ops {
 	int (*notify_vq)(struct kvm *kvm, void *dev, u32 vq);
 	int (*get_pfn_vq)(struct kvm *kvm, void *dev, u32 vq);
 	int (*get_size_vq)(struct kvm *kvm, void *dev, u32 vq);
+	void (*notify_vq_gsi)(struct kvm *kvm, void *dev, u32 vq, u32 gsi);
+	void (*notify_vq_eventfd)(struct kvm *kvm, void *dev, u32 vq, u32 efd);
 };
 
 struct virtio_trans_ops {

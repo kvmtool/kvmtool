@@ -51,6 +51,9 @@ static int virtio_pci__init_ioeventfd(struct kvm *kvm, struct virtio_trans *vtra
 
 	ioeventfd__add_event(&ioevent);
 
+	if (vtrans->virtio_ops->notify_vq_eventfd)
+		vtrans->virtio_ops->notify_vq_eventfd(kvm, vpci->dev, vq, ioevent.fd);
+
 	return 0;
 }
 
@@ -152,6 +155,9 @@ static bool virtio_pci__specific_io_out(struct kvm *kvm, struct virtio_trans *vt
 
 			gsi = irq__add_msix_route(kvm, &vpci->msix_table[vec].msg);
 			vpci->gsis[vpci->queue_selector] = gsi;
+			if (vtrans->virtio_ops->notify_vq_gsi)
+				vtrans->virtio_ops->notify_vq_gsi(kvm, vpci->dev,
+							vpci->queue_selector, gsi);
 			break;
 		}
 		};
