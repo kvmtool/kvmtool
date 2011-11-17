@@ -91,6 +91,7 @@ static bool balloon;
 static bool using_rootfs;
 static bool custom_rootfs;
 static bool no_net;
+static bool no_dhcp;
 extern bool ioport_debug;
 extern int  active_console;
 extern int  debug_iodelay;
@@ -432,6 +433,7 @@ static const struct option options[] = {
 	OPT_CALLBACK_DEFAULT('n', "network", NULL, "network params",
 		     "Create a new guest NIC",
 		     netdev_parser, NULL),
+	OPT_BOOLEAN('\0', "no-dhcp", &no_dhcp, "Disable kernel DHCP in rootfs mode"),
 
 	OPT_GROUP("BIOS options:"),
 	OPT_INTEGER('\0', "vidmode", &vidmode,
@@ -861,8 +863,11 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	if (using_rootfs) {
 		strcat(real_cmdline, " root=/dev/root rw rootflags=rw,trans=virtio,version=9p2000.L rootfstype=9p");
-		if (custom_rootfs)
-			strcat(real_cmdline, " init=/virt/init ip=dhcp");
+		if (custom_rootfs) {
+			strcat(real_cmdline, " init=/virt/init");
+			if (!no_dhcp)
+				strcat(real_cmdline, "  ip=dhcp");
+		}
 	} else if (!strstr(real_cmdline, "root=")) {
 		strlcat(real_cmdline, " root=/dev/vda rw ", sizeof(real_cmdline));
 	}
