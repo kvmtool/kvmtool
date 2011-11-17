@@ -93,7 +93,8 @@ void virtio_blk_complete(void *param, long len)
 	virt_queue__set_used_elem(req->vq, req->head, len);
 	mutex_unlock(&bdev->mutex);
 
-	bdev->vtrans.trans_ops->signal_vq(req->kvm, &bdev->vtrans, queueid);
+	if (virtio_queue__should_signal(&bdev->vqs[queueid]))
+		bdev->vtrans.trans_ops->signal_vq(req->kvm, &bdev->vtrans, queueid);
 
 	virtio_blk_req_push(req->bdev, req);
 }
@@ -170,7 +171,9 @@ static u8 get_config(struct kvm *kvm, void *dev, u32 offset)
 
 static u32 get_host_features(struct kvm *kvm, void *dev)
 {
-	return 1UL << VIRTIO_BLK_F_SEG_MAX | 1UL << VIRTIO_BLK_F_FLUSH;
+	return	1UL << VIRTIO_BLK_F_SEG_MAX
+		| 1UL << VIRTIO_BLK_F_FLUSH
+		| 1UL << VIRTIO_RING_F_EVENT_IDX;
 }
 
 static void set_guest_features(struct kvm *kvm, void *dev, u32 features)
