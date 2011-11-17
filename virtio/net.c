@@ -102,7 +102,9 @@ static void *virtio_net_rx_thread(void *p)
 			virt_queue__set_used_elem(vq, head, len);
 
 			/* We should interrupt guest right now, otherwise latency is huge. */
-			ndev->vtrans.trans_ops->signal_vq(kvm, &ndev->vtrans, VIRTIO_NET_RX_QUEUE);
+			if (virtio_queue__should_signal(&ndev->vqs[VIRTIO_NET_RX_QUEUE]))
+				ndev->vtrans.trans_ops->signal_vq(kvm, &ndev->vtrans,
+								VIRTIO_NET_RX_QUEUE);
 		}
 
 	}
@@ -140,7 +142,8 @@ static void *virtio_net_tx_thread(void *p)
 			virt_queue__set_used_elem(vq, head, len);
 		}
 
-		ndev->vtrans.trans_ops->signal_vq(kvm, &ndev->vtrans, VIRTIO_NET_TX_QUEUE);
+		if (virtio_queue__should_signal(&ndev->vqs[VIRTIO_NET_TX_QUEUE]))
+			ndev->vtrans.trans_ops->signal_vq(kvm, &ndev->vtrans, VIRTIO_NET_TX_QUEUE);
 	}
 
 	pthread_exit(NULL);
@@ -314,7 +317,8 @@ static u32 get_host_features(struct kvm *kvm, void *dev)
 		| 1UL << VIRTIO_NET_F_HOST_TSO6
 		| 1UL << VIRTIO_NET_F_GUEST_UFO
 		| 1UL << VIRTIO_NET_F_GUEST_TSO4
-		| 1UL << VIRTIO_NET_F_GUEST_TSO6;
+		| 1UL << VIRTIO_NET_F_GUEST_TSO6
+		| 1UL << VIRTIO_RING_F_EVENT_IDX;
 }
 
 static void set_guest_features(struct kvm *kvm, void *dev, u32 features)
@@ -453,7 +457,7 @@ static struct virtio_ops net_dev_virtio_ops = (struct virtio_ops) {
 
 static void virtio_net__vhost_init(struct kvm *kvm, struct net_dev *ndev)
 {
-	u64 features = 0;
+	u64 features = 1UL << VIRTIO_RING_F_EVENT_IDX;
 	struct vhost_memory *mem;
 	int r;
 
