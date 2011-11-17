@@ -38,6 +38,8 @@ static inline bool virt_queue__available(struct virt_queue *vq)
 {
 	if (!vq->vring.avail)
 		return 0;
+
+	vring_avail_event(&vq->vring) = vq->last_avail_idx;
 	return vq->vring.avail->idx !=  vq->last_avail_idx;
 }
 
@@ -49,6 +51,11 @@ static inline bool virt_queue__available(struct virt_queue *vq)
 static inline void *guest_pfn_to_host(struct kvm *kvm, u32 pfn)
 {
 	return guest_flat_to_host(kvm, (unsigned long)pfn << VIRTIO_PCI_QUEUE_ADDR_SHIFT);
+}
+
+static inline int virtio_queue__should_signal(struct virt_queue *vq)
+{
+	return vring_used_event(&vq->vring) <= vq->vring.used->idx;
 }
 
 struct vring_used_elem *virt_queue__set_used_elem(struct virt_queue *queue, u32 head, u32 len);
