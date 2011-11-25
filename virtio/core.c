@@ -109,3 +109,19 @@ int virtio__get_dev_specific_field(int offset, bool msix, bool features_hi, u32 
 
 	return VIRTIO_PCI_O_CONFIG;
 }
+
+bool virtio_queue__should_signal(struct virt_queue *vq)
+{
+	u16 old_idx, new_idx, event_idx;
+
+	old_idx		= vq->last_used_signalled;
+	new_idx		= vq->vring.used->idx;
+	event_idx	= vring_used_event(&vq->vring);
+
+	if (vring_need_event(event_idx, new_idx, old_idx)) {
+		vq->last_used_signalled = new_idx;
+		return true;
+	}
+
+	return false;
+}

@@ -22,6 +22,7 @@ struct virt_queue {
 	/* The last_avail_idx field is an index to ->ring of struct vring_avail.
 	   It's where we assume the next request index is at.  */
 	u16		last_avail_idx;
+	u16		last_used_signalled;
 };
 
 static inline u16 virt_queue__pop(struct virt_queue *queue)
@@ -53,13 +54,10 @@ static inline void *guest_pfn_to_host(struct kvm *kvm, u32 pfn)
 	return guest_flat_to_host(kvm, (unsigned long)pfn << VIRTIO_PCI_QUEUE_ADDR_SHIFT);
 }
 
-static inline int virtio_queue__should_signal(struct virt_queue *vq)
-{
-	return vring_used_event(&vq->vring) <= vq->vring.used->idx;
-}
 
 struct vring_used_elem *virt_queue__set_used_elem(struct virt_queue *queue, u32 head, u32 len);
 
+bool virtio_queue__should_signal(struct virt_queue *vq);
 u16 virt_queue__get_iov(struct virt_queue *queue, struct iovec iov[], u16 *out, u16 *in, struct kvm *kvm);
 u16 virt_queue__get_inout_iov(struct kvm *kvm, struct virt_queue *queue,
 			      struct iovec in_iov[], struct iovec out_iov[],
