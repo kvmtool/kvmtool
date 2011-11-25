@@ -473,7 +473,7 @@ static void virtio_net__vhost_init(struct kvm *kvm, struct net_dev *ndev)
 	mem->regions[0] = (struct vhost_memory_region) {
 		.guest_phys_addr	= 0,
 		.memory_size		= kvm->ram_size,
-		.userspace_addr		= (u64)kvm->ram_start,
+		.userspace_addr		= (unsigned long)kvm->ram_start,
 	};
 
 	r = ioctl(ndev->vhost_fd, VHOST_SET_OWNER);
