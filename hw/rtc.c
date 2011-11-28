@@ -54,6 +54,9 @@ static bool cmos_ram_data_in(struct ioport *ioport, struct kvm *kvm, u16 port, v
 	case RTC_HOURS:
 		ioport__write8(data, bin2bcd(tm->tm_hour));
 		break;
+	case RTC_DAY_OF_WEEK:
+		ioport__write8(data, bin2bcd(tm->tm_wday + 1));
+		break;
 	case RTC_DAY_OF_MONTH:
 		ioport__write8(data, bin2bcd(tm->tm_mday));
 		break;
