@@ -318,7 +318,8 @@ static u32 get_host_features(struct kvm *kvm, void *dev)
 		| 1UL << VIRTIO_NET_F_GUEST_UFO
 		| 1UL << VIRTIO_NET_F_GUEST_TSO4
 		| 1UL << VIRTIO_NET_F_GUEST_TSO6
-		| 1UL << VIRTIO_RING_F_EVENT_IDX;
+		| 1UL << VIRTIO_RING_F_EVENT_IDX
+		| 1UL << VIRTIO_RING_F_INDIRECT_DESC;
 }
 
 static void set_guest_features(struct kvm *kvm, void *dev, u32 features)

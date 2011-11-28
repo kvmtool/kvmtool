@@ -33,27 +33,56 @@ struct vring_used_elem *virt_queue__set_used_elem(struct virt_queue *queue, u32 
 	return used_elem;
 }
 
+/*
+ * Each buffer in the virtqueues is actually a chain of descriptors.  This
+ * function returns the next descriptor in the chain, or vq->vring.num if we're
+ * at the end.
+ */
+static unsigned next_desc(struct vring_desc *desc,
+			  unsigned int i, unsigned int max)
+{
+	unsigned int next;
+
+	/* If this descriptor says it doesn't chain, we're done. */
+	if (!(desc[i].flags & VRING_DESC_F_NEXT))
+		return max;
+
+	/* Check they're not leading us off end of descriptors. */
+	next = desc[i].next;
+	/* Make sure compiler knows to grab that: we don't want it changing! */
+	wmb();
+
+	return next;
+}
+
 u16 virt_queue__get_head_iov(struct virt_queue *vq, struct iovec iov[], u16 *out, u16 *in, u16 head, struct kvm *kvm)
 {
 	struct vring_desc *desc;
 	u16 idx;
+	u16 max;
 
 	idx = head;
 	*out = *in = 0;
+	max = vq->vring.num;
+	desc = vq->vring.desc;
+
+	if (desc[idx].flags & VRING_DESC_F_INDIRECT) {
+
+		max = desc[idx].len / sizeof(struct vring_desc);
+		desc = guest_flat_to_host(kvm, desc[idx].addr);
+		idx = 0;
+	}
 
 	do {
-		desc			 = virt_queue__get_desc(vq, idx);
-		iov[*out + *in].iov_base = guest_flat_to_host(kvm, desc->addr);
-		iov[*out + *in].iov_len	 = desc->len;
-		if (desc->flags & VRING_DESC_F_WRITE)
+		/* Grab the first descriptor, and check it's OK. */
+		iov[*out + *in].iov_len = desc[idx].len;
+		iov[*out + *in].iov_base = guest_flat_to_host(kvm, desc[idx].addr);
+		/* If this is an input descriptor, increment that count. */
+		if (desc[idx].flags & VRING_DESC_F_WRITE)
 			(*in)++;
 		else
 			(*out)++;
-		if (desc->flags & VRING_DESC_F_NEXT)
-			idx = desc->next;
-		else
-			break;
-	} while (1);
+	} while ((idx = next_desc(desc, idx, max)) != max);
 
 	return head;
 }

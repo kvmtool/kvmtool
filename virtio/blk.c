@@ -148,7 +148,8 @@ static u32 get_host_features(struct kvm *kvm, void *dev)
 {
 	return	1UL << VIRTIO_BLK_F_SEG_MAX
 		| 1UL << VIRTIO_BLK_F_FLUSH
-		| 1UL << VIRTIO_RING_F_EVENT_IDX;
+		| 1UL << VIRTIO_RING_F_EVENT_IDX
+		| 1UL << VIRTIO_RING_F_INDIRECT_DESC;
 }
 
 static void set_guest_features(struct kvm *kvm, void *dev, u32 features)
