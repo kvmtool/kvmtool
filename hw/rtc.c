@@ -26,6 +26,7 @@
 
 struct rtc_device {
 	u8			cmos_idx;
+	u8			cmos_data[128];
 };
 
 static struct rtc_device	rtc;
@@ -66,6 +67,9 @@ static bool cmos_ram_data_in(struct ioport *ioport, struct kvm *kvm, u16 port, v
 	case RTC_YEAR:
 		ioport__write8(data, bin2bcd(tm->tm_year));
 		break;
+	default:
+		ioport__write8(data, rtc.cmos_data[rtc.cmos_idx]);
+		break;
 	}
 
 	return true;
@@ -73,6 +77,16 @@ static bool cmos_ram_data_in(struct ioport *ioport, struct kvm *kvm, u16 port, v
 
 static bool cmos_ram_data_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
 {
+	switch (rtc.cmos_idx) {
+	case RTC_REG_C:
+	case RTC_REG_D:
+		/* Read-only */
+		break;
+	default:
+		rtc.cmos_data[rtc.cmos_idx] = ioport__read8(data);
+		break;
+	}
+
 	return true;
 }
 
