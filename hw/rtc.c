@@ -5,14 +5,18 @@
 
 #include <time.h>
 
-static u8 cmos_index;
-
 #define CMOS_RTC_SECONDS		0x00
 #define CMOS_RTC_MINUTES		0x02
 #define CMOS_RTC_HOURS			0x04
 #define CMOS_RTC_DATE_OF_MONTH		0x07
 #define CMOS_RTC_MONTH			0x08
 #define CMOS_RTC_YEAR			0x09
+
+struct rtc_device {
+	u8			cmos_idx;
+};
+
+static struct rtc_device	rtc;
 
 static inline unsigned char bin2bcd(unsigned val)
 {
@@ -28,7 +32,7 @@ static bool cmos_ram_data_in(struct ioport *ioport, struct kvm *kvm, u16 port, v
 
 	tm = gmtime(&ti);
 
-	switch (cmos_index) {
+	switch (rtc.cmos_idx) {
 	case CMOS_RTC_SECONDS:
 		ioport__write8(data, bin2bcd(tm->tm_sec));
 		break;
@@ -64,13 +68,11 @@ static struct ioport_operations cmos_ram_data_ioport_ops = {
 
 static bool cmos_ram_index_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
 {
-	u8 value;
-
-	value	= ioport__read8(data);
+	u8 value = ioport__read8(data);
 
 	kvm->nmi_disabled	= value & (1UL << 7);
 
-	cmos_index		= value & ~(1UL << 7);
+	rtc.cmos_idx		= value & ~(1UL << 7);
 
 	return true;
 }
