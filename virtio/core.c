@@ -33,18 +33,18 @@ struct vring_used_elem *virt_queue__set_used_elem(struct virt_queue *queue, u32 
 	return used_elem;
 }
 
-u16 virt_queue__get_iov(struct virt_queue *queue, struct iovec iov[], u16 *out, u16 *in, struct kvm *kvm)
+u16 virt_queue__get_head_iov(struct virt_queue *vq, struct iovec iov[], u16 *out, u16 *in, u16 head, struct kvm *kvm)
 {
 	struct vring_desc *desc;
-	u16 head, idx;
+	u16 idx;
 
-	idx = head = virt_queue__pop(queue);
+	idx = head;
 	*out = *in = 0;
 
 	do {
-		desc				= virt_queue__get_desc(queue, idx);
-		iov[*out + *in].iov_base	= guest_flat_to_host(kvm, desc->addr);
-		iov[*out + *in].iov_len		= desc->len;
+		desc			 = virt_queue__get_desc(vq, idx);
+		iov[*out + *in].iov_base = guest_flat_to_host(kvm, desc->addr);
+		iov[*out + *in].iov_len	 = desc->len;
 		if (desc->flags & VRING_DESC_F_WRITE)
 			(*in)++;
 		else
@@ -58,13 +58,22 @@ u16 virt_queue__get_iov(struct virt_queue *queue, struct iovec iov[], u16 *out, 
 	return head;
 }
 
+u16 virt_queue__get_iov(struct virt_queue *vq, struct iovec iov[], u16 *out, u16 *in, struct kvm *kvm)
+{
+	u16 head;
+
+	head = virt_queue__pop(vq);
+
+	return virt_queue__get_head_iov(vq, iov, out, in, head, kvm);
+}
+
 /* in and out are relative to guest */
 u16 virt_queue__get_inout_iov(struct kvm *kvm, struct virt_queue *queue,
 			      struct iovec in_iov[], struct iovec out_iov[],
 			      u16 *in, u16 *out)
 {
-	u16 head, idx;
 	struct vring_desc *desc;
+	u16 head, idx;
 
 	idx = head = virt_queue__pop(queue);
 	*out = *in = 0;
@@ -86,6 +95,7 @@ u16 virt_queue__get_inout_iov(struct kvm *kvm, struct virt_queue *queue,
 		else
 			break;
 	} while (1);
+
 	return head;
 }
 

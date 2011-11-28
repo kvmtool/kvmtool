@@ -30,7 +30,6 @@
 #define NUM_VIRT_QUEUES			1
 
 struct blk_dev_req {
-	struct list_head		list;
 	struct virt_queue		*vq;
 	struct blk_dev			*bdev;
 	struct iovec			iov[VIRTIO_BLK_QUEUE_SIZE];
@@ -57,27 +56,6 @@ struct blk_dev {
 static LIST_HEAD(bdevs);
 static int compat_id;
 
-static struct blk_dev_req *virtio_blk_req_pop(struct blk_dev *bdev)
-{
-	struct blk_dev_req *req = NULL;
-
-	mutex_lock(&bdev->req_mutex);
-	if (!list_empty(&bdev->req_list)) {
-		req = list_first_entry(&bdev->req_list, struct blk_dev_req, list);
-		list_del_init(&req->list);
-	}
-	mutex_unlock(&bdev->req_mutex);
-
-	return req;
-}
-
-static void virtio_blk_req_push(struct blk_dev *bdev, struct blk_dev_req *req)
-{
-	mutex_lock(&bdev->req_mutex);
-	list_add(&req->list, &bdev->req_list);
-	mutex_unlock(&bdev->req_mutex);
-}
-
 void virtio_blk_complete(void *param, long len)
 {
 	struct blk_dev_req *req = param;
@@ -95,8 +73,6 @@ void virtio_blk_complete(void *param, long len)
 
 	if (virtio_queue__should_signal(&bdev->vqs[queueid]))
 		bdev->vtrans.trans_ops->signal_vq(req->kvm, &bdev->vtrans, queueid);
-
-	virtio_blk_req_push(req->bdev, req);
 }
 
 static void virtio_blk_do_io_request(struct kvm *kvm, struct blk_dev_req *req)
@@ -141,15 +117,14 @@ static void virtio_blk_do_io_request(struct kvm *kvm, struct blk_dev_req *req)
 
 static void virtio_blk_do_io(struct kvm *kvm, struct virt_queue *vq, struct blk_dev *bdev)
 {
-	while (virt_queue__available(vq)) {
-		struct blk_dev_req *req = virtio_blk_req_pop(bdev);
+	struct blk_dev_req *req;
+	u16 head;
 
-		*req		= (struct blk_dev_req) {
-			.vq	= vq,
-			.bdev	= bdev,
-			.kvm	= kvm,
-		};
-		req->head = virt_queue__get_iov(vq, req->iov, &req->out, &req->in, kvm);
+	while (virt_queue__available(vq)) {
+		head		= virt_queue__pop(vq);
+		req		= &bdev->reqs[head];
+		req->head	= virt_queue__get_head_iov(vq, req->iov, &req->out, &req->in, head, kvm);
+		req->vq		= vq;
 
 		virtio_blk_do_io_request(kvm, req);
 	}
@@ -235,7 +210,7 @@ static struct virtio_ops blk_dev_virtio_ops = (struct virtio_ops) {
 void virtio_blk__init(struct kvm *kvm, struct disk_image *disk)
 {
 	struct blk_dev *bdev;
-	size_t i;
+	unsigned int i;
 
 	if (!disk)
 		return;
@@ -261,9 +236,10 @@ void virtio_blk__init(struct kvm *kvm, struct disk_image *disk)
 
 	list_add_tail(&bdev->list, &bdevs);
 
-	INIT_LIST_HEAD(&bdev->req_list);
-	for (i = 0; i < ARRAY_SIZE(bdev->reqs); i++)
-		list_add(&bdev->reqs[i].list, &bdev->req_list);
+	for (i = 0; i < ARRAY_SIZE(bdev->reqs); i++) {
+		bdev->reqs[i].bdev	= bdev;
+		bdev->reqs[i].kvm	= kvm;
+	}
 
 	disk_image__set_callback(bdev->disk, virtio_blk_complete);
 
