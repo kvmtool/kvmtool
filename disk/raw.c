@@ -102,7 +102,6 @@ struct disk_image_operations ro_ops = {
 
 struct disk_image_operations ro_ops_nowrite = {
 	.read_sector	= raw_image__read_sector,
-	.write_sector	= raw_image__write_sector,
 };
 
 struct disk_image *raw_image__probe(int fd, struct stat *st, bool readonly)
