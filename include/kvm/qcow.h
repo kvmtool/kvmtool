@@ -84,8 +84,10 @@ struct qcow {
 	u32				version;
 	u64				cluster_size;
 	u64				cluster_offset_mask;
+	u64				free_clust_idx;
 	void				*cluster_cache;
 	void				*cluster_data;
+	void				*copy_buff;
 };
 
 struct qcow1_header_disk {
