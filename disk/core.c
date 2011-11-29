@@ -13,14 +13,15 @@ int debug_iodelay;
 static void *disk_image__thread(void *param)
 {
 	struct disk_image *disk = param;
+	struct io_event event[AIO_MAX];
+	struct timespec notime = {0};
+	int nr, i;
 	u64 dummy;
 
 	while (read(disk->evt, &dummy, sizeof(dummy)) > 0) {
-		struct io_event event;
-		struct timespec notime = {0};
-
-		while (io_getevents(disk->ctx, 1, 1, &event, &notime) > 0)
-			disk->disk_req_cb(event.data, event.res);
+		nr = io_getevents(disk->ctx, 1, ARRAY_SIZE(event), event, &notime);
+		for (i = 0; i < nr; i++)
+			disk->disk_req_cb(event[i].data, event[i].res);
 	}
 
 	return NULL;
