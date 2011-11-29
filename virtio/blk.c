@@ -49,6 +49,11 @@ struct blk_dev {
 
 	struct virt_queue		vqs[NUM_VIRT_QUEUES];
 	struct blk_dev_req		reqs[VIRTIO_BLK_QUEUE_SIZE];
+
+	pthread_t			io_thread;
+	int				io_efd;
+
+	struct kvm			*kvm;
 };
 
 static LIST_HEAD(bdevs);
@@ -176,11 +181,26 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 pfn)
 	return 0;
 }
 
+static void *virtio_blk_thread(void *dev)
+{
+	struct blk_dev *bdev = dev;
+	u64 data;
+
+	while (1) {
+		read(bdev->io_efd, &data, sizeof(u64));
+		virtio_blk_do_io(bdev->kvm, &bdev->vqs[0], bdev);
+	}
+
+	pthread_exit(NULL);
+	return NULL;
+}
+
 static int notify_vq(struct kvm *kvm, void *dev, u32 vq)
 {
 	struct blk_dev *bdev = dev;
+	u64 data = 1;
 
-	virtio_blk_do_io(kvm, &bdev->vqs[vq], bdev);
+	write(bdev->io_efd, &data, sizeof(data));
 
 	return 0;
 }
@@ -235,6 +255,8 @@ static int virtio_blk__init_one(struct kvm *kvm, struct disk_image *disk)
 			.capacity	= disk->size / SECTOR_SIZE,
 			.seg_max	= DISK_SEG_MAX,
 		},
+		.io_efd			= eventfd(0, 0),
+		.kvm			= kvm,
 	};
 
 	virtio_init(kvm, bdev, &bdev->vdev, &blk_dev_virtio_ops,
@@ -249,8 +271,10 @@ static int virtio_blk__init_one(struct kvm *kvm, struct disk_image *disk)
 
 	disk_image__set_callback(bdev->disk, virtio_blk_complete);
 
+	pthread_create(&bdev->io_thread, NULL, virtio_blk_thread, bdev);
 	if (compat_id == -1)
 		compat_id = virtio_compat_add_message("virtio-blk", "CONFIG_VIRTIO_BLK");
+
 	return 0;
 }
 
