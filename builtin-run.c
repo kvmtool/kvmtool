@@ -856,9 +856,6 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 		if (virtio_9p__register(kvm, "/", "hostfs") < 0)
 			die("Unable to initialize virtio 9p");
 		using_rootfs = custom_rootfs = 1;
-
-		if (!strstr(real_cmdline, "init="))
-			strlcat(real_cmdline, " init=/bin/sh ", sizeof(real_cmdline));
 	}
 
 	if (using_rootfs) {
