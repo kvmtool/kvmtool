@@ -1,6 +1,6 @@
 /*
- * This is a simple init for shared rootfs guests. It brings up critical
- * mountpoints and then launches /bin/sh.
+ * This is a simple init for shared rootfs guests. This part should be limited
+ * to doing mounts and running stage 2 of the init process.
  */
 #include <sys/mount.h>
 #include <string.h>
@@ -30,15 +30,7 @@ int main(int argc, char *argv[])
 
 	do_mounts();
 
-        /* get session leader */
-        setsid();
-
-        /* set controlling terminal */
-        ioctl (0, TIOCSCTTY, 1);
-
-	puts("Starting '/bin/sh'...");
-
-	run_process("/bin/sh");
+	run_process("/virt/init_stage2");
 
 	printf("Init failed: %s\n", strerror(errno));
 

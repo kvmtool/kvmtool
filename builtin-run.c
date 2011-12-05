@@ -703,6 +703,31 @@ void kvm_run_help(void)
 	usage_with_options(run_usage, options);
 }
 
+static int kvm_custom_stage2(void)
+{
+	char tmp[PATH_MAX], dst[PATH_MAX], *src;
+	const char *rootfs;
+	int r;
+
+	src = realpath("guest/init_stage2", NULL);
+	if (src == NULL)
+		return -ENOMEM;
+
+	if (image_filename[0] == NULL)
+		rootfs = "default";
+	else
+		rootfs = image_filename[0];
+
+	snprintf(tmp, PATH_MAX, "%s%s/virt/init_stage2", kvm__get_dir(), rootfs);
+	remove(tmp);
+
+	snprintf(dst, PATH_MAX, "/host/%s", src);
+	r = symlink(dst, tmp);
+	free(src);
+
+	return r;
+}
+
 int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 {
 	static char real_cmdline[2048], default_name[20];
@@ -869,6 +894,8 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 			strcat(real_cmdline, " init=/virt/init");
 			if (!no_dhcp)
 				strcat(real_cmdline, "  ip=dhcp");
+			if (kvm_custom_stage2())
+				die("Failed linking stage 2 of init.");
 		}
 	} else if (!strstr(real_cmdline, "root=")) {
 		strlcat(real_cmdline, " root=/dev/vda rw ", sizeof(real_cmdline));
