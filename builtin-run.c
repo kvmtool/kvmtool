@@ -777,8 +777,13 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	while (argc != 0) {
 		argc = parse_options(argc, argv, options, run_usage,
-				PARSE_OPT_STOP_AT_NON_OPTION);
+				PARSE_OPT_STOP_AT_NON_OPTION |
+				PARSE_OPT_KEEP_DASHDASH);
 		if (argc != 0) {
+			/* Cusrom options, should have been handled elsewhere */
+			if (strcmp(argv[0], "--") == 0)
+				break;
+
 			if (kernel_filename) {
 				fprintf(stderr, "Cannot handle parameter: "
 						"%s\n", argv[0]);
