@@ -53,6 +53,7 @@
 #define DEFAULT_GUEST_MAC	"02:15:15:15:15:15"
 #define DEFAULT_HOST_MAC	"02:01:01:01:01:01"
 #define DEFAULT_SCRIPT		"none"
+const char *DEFAULT_SANDBOX_FILENAME = "guest/sandbox.sh";
 
 #define MB_SHIFT		(20)
 #define KB_SHIFT		(10)
@@ -94,6 +95,7 @@ static bool custom_rootfs;
 static bool no_net;
 static bool no_dhcp;
 extern bool ioport_debug;
+static int  kvm_run_wrapper;
 extern int  active_console;
 extern int  debug_iodelay;
 
@@ -106,6 +108,15 @@ static const char * const run_usage[] = {
 	"kvm run [<options>] [<kernel image>]",
 	NULL
 };
+
+enum {
+	KVM_RUN_SANDBOX,
+};
+
+void kvm_run_set_wrapper_sandbox(void)
+{
+	kvm_run_wrapper = KVM_RUN_SANDBOX;
+}
 
 static int img_name_parser(const struct option *opt, const char *arg, int unset)
 {
@@ -756,6 +767,35 @@ static int kvm_run_set_sandbox(void)
 	return symlink(script, path);
 }
 
+static void kvm_run_write_sandbox_cmd(const char **argv, int argc)
+{
+	const char script_hdr[] = "#! /bin/bash\n\n";
+	int fd;
+
+	remove(sandbox);
+
+	fd = open(sandbox, O_RDWR | O_CREAT, 0777);
+	if (fd < 0)
+		die("Failed creating sandbox script");
+
+	if (write(fd, script_hdr, sizeof(script_hdr) - 1) <= 0)
+		die("Failed writing sandbox script");
+
+	while (argc) {
+		if (write(fd, argv[0], strlen(argv[0])) <= 0)
+			die("Failed writing sandbox script");
+		if (argc - 1)
+			if (write(fd, " ", 1) <= 0)
+				die("Failed writing sandbox script");
+		argv++;
+		argc--;
+	}
+	if (write(fd, "\n", 1) <= 0)
+		die("Failed writing sandbox script");
+
+	close(fd);
+}
+
 int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 {
 	static char real_cmdline[2048], default_name[20];
@@ -781,8 +821,13 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 				PARSE_OPT_KEEP_DASHDASH);
 		if (argc != 0) {
 			/* Cusrom options, should have been handled elsewhere */
-			if (strcmp(argv[0], "--") == 0)
-				break;
+			if (strcmp(argv[0], "--") == 0) {
+				if (kvm_run_wrapper == KVM_RUN_SANDBOX) {
+					sandbox = DEFAULT_SANDBOX_FILENAME;
+					kvm_run_write_sandbox_cmd(argv+1, argc-1);
+					break;
+				}
+			}
 
 			if (kernel_filename) {
 				fprintf(stderr, "Cannot handle parameter: "

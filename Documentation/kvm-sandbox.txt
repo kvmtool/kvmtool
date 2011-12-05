@@ -1,0 +1,16 @@
+kvm-sandbox(1)
+================
+
+NAME
+----
+kvm-sandbox - Run a command in a sandboxed guest
+
+SYNOPSIS
+--------
+[verse]
+'kvm sandbox ['kvm run' arguments] -- [sandboxed command]'
+
+DESCRIPTION
+-----------
+The sandboxed command will run in a guest as part of it's init
+command.
