@@ -82,6 +82,7 @@ static const char *guest_mac;
 static const char *host_mac;
 static const char *script;
 static const char *guest_name;
+static const char *sandbox;
 static struct virtio_net_params *net_params;
 static bool single_step;
 static bool readonly_image[MAX_DISK_IMAGES];
@@ -422,6 +423,8 @@ static const struct option options[] = {
 	OPT_CALLBACK('\0', "tty", NULL, "tty id",
 		     "Remap guest TTY into a pty on the host",
 		     tty_parser),
+	OPT_STRING('\0', "sandbox", &sandbox, "script",
+			"Run this script when booting into custom rootfs"),
 
 	OPT_GROUP("Kernel options:"),
 	OPT_STRING('k', "kernel", &kernel_filename, "kernel",
@@ -728,6 +731,31 @@ static int kvm_custom_stage2(void)
 	return r;
 }
 
+static int kvm_run_set_sandbox(void)
+{
+	const char *guestfs_name = "default";
+	char path[PATH_MAX], script[PATH_MAX], *tmp;
+
+	if (image_filename[0])
+		guestfs_name = image_filename[0];
+
+	snprintf(path, PATH_MAX, "%s%s/virt/sandbox.sh", kvm__get_dir(), guestfs_name);
+
+	remove(path);
+
+	if (sandbox == NULL)
+		return 0;
+
+	tmp = realpath(sandbox, NULL);
+	if (tmp == NULL)
+		return -ENOMEM;
+
+	snprintf(script, PATH_MAX, "/host/%s", tmp);
+	free(tmp);
+
+	return symlink(script, path);
+}
+
 int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 {
 	static char real_cmdline[2048], default_name[20];
@@ -891,7 +919,10 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	if (using_rootfs) {
 		strcat(real_cmdline, " root=/dev/root rw rootflags=rw,trans=virtio,version=9p2000.L rootfstype=9p");
 		if (custom_rootfs) {
+			kvm_run_set_sandbox();
+
 			strcat(real_cmdline, " init=/virt/init");
+
 			if (!no_dhcp)
 				strcat(real_cmdline, "  ip=dhcp");
 			if (kvm_custom_stage2())
