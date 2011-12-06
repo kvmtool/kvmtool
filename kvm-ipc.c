@@ -132,7 +132,7 @@ static void *kvm_ipc__thread(void *param)
 
 int kvm_ipc__start(int sock)
 {
-	struct epoll_event ev;
+	struct epoll_event ev = {0};
 
 	server_fd = sock;
 
