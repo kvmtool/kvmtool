@@ -120,6 +120,7 @@ static const char *guestfs_symlinks[] = {
 	"/lib64",
 	"/sbin",
 	"/usr",
+	"/etc/ld.so.conf",
 };
 
 static int copy_init(const char *guestfs_name)
