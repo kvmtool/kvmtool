@@ -128,18 +128,11 @@ u16 virt_queue__get_inout_iov(struct kvm *kvm, struct virt_queue *queue,
 	return head;
 }
 
-int virtio__get_dev_specific_field(int offset, bool msix, bool features_hi, u32 *config_off)
+int virtio__get_dev_specific_field(int offset, bool msix, u32 *config_off)
 {
 	if (msix) {
 		if (offset < 4)
 			return VIRTIO_PCI_O_MSIX;
-		else
-			offset -= 4;
-	}
-
-	if (features_hi) {
-		if (offset < 4)
-			return VIRTIO_PCI_O_FEATURES;
 		else
 			offset -= 4;
 	}
