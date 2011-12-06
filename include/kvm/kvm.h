@@ -1,21 +1,12 @@
 #ifndef KVM__KVM_H
 #define KVM__KVM_H
 
-#include "kvm/interrupt.h"
-#include "kvm/segment.h"
+#include "kvm/kvm-arch.h"
 
 #include <stdbool.h>
 #include <linux/types.h>
 #include <time.h>
 #include <signal.h>
-
-#define KVM_NR_CPUS		(255)
-
-/*
- * The hole includes VESA framebuffer and PCI memory.
- */
-#define KVM_32BIT_GAP_SIZE	(768 << 20)
-#define KVM_32BIT_GAP_START	((1ULL << 32) - KVM_32BIT_GAP_SIZE)
 
 #define SIGKVMEXIT		(SIGRTMIN + 0)
 #define SIGKVMPAUSE		(SIGRTMIN + 1)
@@ -25,33 +16,15 @@
 #define KVM_PID_FILE_PATH	"/.kvm-tools/"
 #define HOME_DIR		getenv("HOME")
 
-struct kvm {
-	int			sys_fd;		/* For system ioctls(), i.e. /dev/kvm */
-	int			vm_fd;		/* For VM ioctls() */
-	timer_t			timerid;	/* Posix timer for interrupts */
+#define PAGE_SIZE (sysconf(_SC_PAGE_SIZE))
 
-	int			nrcpus;		/* Number of cpus to run */
+#define DEFINE_KVM_EXT(ext)		\
+	.name = #ext,			\
+	.code = ext
 
-	u32			mem_slots;	/* for KVM_SET_USER_MEMORY_REGION */
-
-	u64			ram_size;
-	void			*ram_start;
-
-	bool			nmi_disabled;
-
-	bool			single_step;
-
-	u16			boot_selector;
-	u16			boot_ip;
-	u16			boot_sp;
-
-	struct interrupt_table	interrupt_table;
-
-	const char		*vmlinux;
-	struct disk_image       **disks;
-	int                     nr_disks;
-
-	const char		*name;
+struct kvm_ext {
+	const char *name;
+	int code;
 };
 
 void kvm__set_dir(const char *fmt, ...);
@@ -64,7 +37,6 @@ void kvm__init_ram(struct kvm *kvm);
 void kvm__delete(struct kvm *kvm);
 bool kvm__load_kernel(struct kvm *kvm, const char *kernel_filename,
 			const char *initrd_filename, const char *kernel_cmdline, u16 vidmode);
-void kvm__setup_bios(struct kvm *kvm);
 void kvm__start_timer(struct kvm *kvm);
 void kvm__stop_timer(struct kvm *kvm);
 void kvm__irq_line(struct kvm *kvm, int irq, int level);
@@ -81,6 +53,13 @@ int kvm__get_sock_by_instance(const char *name);
 int kvm__enumerate_instances(int (*callback)(const char *name, int pid));
 void kvm__remove_socket(const char *name);
 
+void kvm__arch_init(struct kvm *kvm, const char *kvm_dev, u64 ram_size, const char *name);
+void kvm__arch_setup_firmware(struct kvm *kvm);
+bool kvm__arch_cpu_supports_vm(void);
+
+int load_flat_binary(struct kvm *kvm, int fd);
+bool load_bzimage(struct kvm *kvm, int fd_kernel, int fd_initrd, const char *kernel_cmdline, u16 vidmode);
+
 /*
  * Debugging
  */
@@ -96,13 +75,6 @@ static inline bool host_ptr_in_ram(struct kvm *kvm, void *p)
 static inline void *guest_flat_to_host(struct kvm *kvm, unsigned long offset)
 {
 	return kvm->ram_start + offset;
-}
-
-static inline void *guest_real_to_host(struct kvm *kvm, u16 selector, u16 offset)
-{
-	unsigned long flat = segment_to_flat(selector, offset);
-
-	return guest_flat_to_host(kvm, flat);
 }
 
 #endif /* KVM__KVM_H */

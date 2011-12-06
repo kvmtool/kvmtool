@@ -8,5 +8,5 @@
 #endif
 
 GLOBAL(bios_rom)
-	.incbin "bios/bios.bin"
+	.incbin "x86/bios/bios.bin"
 END(bios_rom)

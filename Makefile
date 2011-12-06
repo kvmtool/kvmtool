@@ -33,13 +33,11 @@ OBJS	+= builtin-run.o
 OBJS	+= builtin-setup.o
 OBJS	+= builtin-stop.o
 OBJS	+= builtin-version.o
-OBJS	+= cpuid.o
 OBJS	+= disk/core.o
 OBJS	+= framebuffer.o
 OBJS	+= guest_compat.o
 OBJS	+= hw/rtc.o
 OBJS	+= hw/serial.o
-OBJS	+= interrupt.o
 OBJS	+= ioport.o
 OBJS	+= kvm-cpu.o
 OBJS	+= kvm.o
@@ -61,7 +59,6 @@ OBJS	+= disk/blk.o
 OBJS	+= disk/qcow.o
 OBJS	+= disk/raw.o
 OBJS	+= ioeventfd.o
-OBJS	+= irq.o
 OBJS	+= net/uip/core.o
 OBJS	+= net/uip/arp.o
 OBJS	+= net/uip/icmp.o
@@ -72,7 +69,6 @@ OBJS	+= net/uip/buf.o
 OBJS	+= net/uip/csum.o
 OBJS	+= net/uip/dhcp.o
 OBJS	+= kvm-cmd.o
-OBJS	+= mptable.o
 OBJS	+= rbtree.o
 OBJS	+= threadpool.o
 OBJS	+= util/parse-options.o
@@ -123,12 +119,6 @@ ifeq ($(has_AIO),y)
 	LIBS	+= -laio
 endif
 
-DEPS	:= $(patsubst %.o,%.d,$(OBJS))
-
-# Exclude BIOS object files from header dependencies.
-OBJS	+= bios.o
-OBJS	+= bios/bios-rom.o
-
 LIBS	+= -lrt
 LIBS	+= -lpthread
 LIBS	+= -lutil
@@ -150,12 +140,43 @@ ifeq ($(uname_M),x86_64)
 	DEFINES      += -DCONFIG_X86_64
 endif
 
+
+### Arch-specific stuff
+
+#x86
+ifeq ($(ARCH),x86)
+	DEFINES += -DCONFIG_X86
+	OBJS	+= x86/cpuid.o
+	OBJS	+= x86/interrupt.o
+	OBJS	+= x86/ioport.o
+	OBJS	+= x86/irq.o
+	OBJS	+= x86/kvm.o
+	OBJS	+= x86/kvm-cpu.o
+	OBJS	+= x86/mptable.o
+# Exclude BIOS object files from header dependencies.
+	OTHEROBJS	+= x86/bios.o
+	OTHEROBJS	+= x86/bios/bios-rom.o
+	ARCH_INCLUDE := x86/include
+endif
+
+###
+
+ifeq (,$(ARCH_INCLUDE))
+	UNSUPP_ERR = @echo "This architecture is not supported in kvmtool." && exit 1
+else
+	UNSUPP_ERR =
+endif
+
+DEPS	:= $(patsubst %.o,%.d,$(OBJS))
+OBJS	+= $(OTHEROBJS)
+
 DEFINES	+= -D_FILE_OFFSET_BITS=64
 DEFINES	+= -D_GNU_SOURCE
 DEFINES	+= -DKVMTOOLS_VERSION='"$(KVMTOOLS_VERSION)"'
+DEFINES	+= -DBUILD_ARCH='"$(ARCH)"'
 
 KVM_INCLUDE := include
-CFLAGS	+= $(CPPFLAGS) $(DEFINES) -I$(KVM_INCLUDE) -I../../include -I../../arch/$(ARCH)/include/ -Os -g
+CFLAGS	+= $(CPPFLAGS) $(DEFINES) -I$(KVM_INCLUDE) -I$(ARCH_INCLUDE) -I../../include -I../../arch/$(ARCH)/include/ -Os -g
 
 ifneq ($(WERROR),0)
 	WARNINGS += -Werror
@@ -179,7 +200,10 @@ WARNINGS += -Wwrite-strings
 
 CFLAGS	+= $(WARNINGS)
 
-all: $(PROGRAM) $(GUEST_INIT)
+all: arch_support_check $(PROGRAM) $(GUEST_INIT)
+
+arch_support_check:
+	$(UNSUPP_ERR)
 
 KVMTOOLS-VERSION-FILE:
 	@$(SHELL_PATH) util/KVMTOOLS-VERSION-GEN $(OUTPUT)
@@ -227,33 +251,33 @@ BIOS_CFLAGS += -mregparm=3
 BIOS_CFLAGS += -fno-stack-protector
 BIOS_CFLAGS += -I../../arch/$(ARCH)
 
-bios.o: bios/bios.bin bios/bios-rom.h
+x86/bios.o: x86/bios/bios.bin x86/bios/bios-rom.h
 
-bios/bios.bin.elf: bios/entry.S bios/e820.c bios/int10.c bios/int15.c bios/rom.ld.S
-	$(E) "  CC       bios/memcpy.o"
-	$(Q) $(CC) -include code16gcc.h $(CFLAGS) $(BIOS_CFLAGS) -c -s bios/memcpy.c -o bios/memcpy.o
-	$(E) "  CC       bios/e820.o"
-	$(Q) $(CC) -include code16gcc.h $(CFLAGS) $(BIOS_CFLAGS) -c -s bios/e820.c -o bios/e820.o
-	$(E) "  CC       bios/int10.o"
-	$(Q) $(CC) -include code16gcc.h $(CFLAGS) $(BIOS_CFLAGS) -c -s bios/int10.c -o bios/int10.o
-	$(E) "  CC       bios/int15.o"
-	$(Q) $(CC) -include code16gcc.h $(CFLAGS) $(BIOS_CFLAGS) -c -s bios/int15.c -o bios/int15.o
-	$(E) "  CC       bios/entry.o"
-	$(Q) $(CC) $(CFLAGS) $(BIOS_CFLAGS) -c -s bios/entry.S -o bios/entry.o
+x86/bios/bios.bin.elf: x86/bios/entry.S x86/bios/e820.c x86/bios/int10.c x86/bios/int15.c x86/bios/rom.ld.S
+	$(E) "  CC       x86/bios/memcpy.o"
+	$(Q) $(CC) -include code16gcc.h $(CFLAGS) $(BIOS_CFLAGS) -c -s x86/bios/memcpy.c -o x86/bios/memcpy.o
+	$(E) "  CC       x86/bios/e820.o"
+	$(Q) $(CC) -include code16gcc.h $(CFLAGS) $(BIOS_CFLAGS) -c -s x86/bios/e820.c -o x86/bios/e820.o
+	$(E) "  CC       x86/bios/int10.o"
+	$(Q) $(CC) -include code16gcc.h $(CFLAGS) $(BIOS_CFLAGS) -c -s x86/bios/int10.c -o x86/bios/int10.o
+	$(E) "  CC       x86/bios/int15.o"
+	$(Q) $(CC) -include code16gcc.h $(CFLAGS) $(BIOS_CFLAGS) -c -s x86/bios/int15.c -o x86/bios/int15.o
+	$(E) "  CC       x86/bios/entry.o"
+	$(Q) $(CC) $(CFLAGS) $(BIOS_CFLAGS) -c -s x86/bios/entry.S -o x86/bios/entry.o
 	$(E) "  LD      " $@
-	$(Q) ld -T bios/rom.ld.S -o bios/bios.bin.elf bios/memcpy.o bios/entry.o bios/e820.o bios/int10.o bios/int15.o
+	$(Q) ld -T x86/bios/rom.ld.S -o x86/bios/bios.bin.elf x86/bios/memcpy.o x86/bios/entry.o x86/bios/e820.o x86/bios/int10.o x86/bios/int15.o
 
-bios/bios.bin: bios/bios.bin.elf
+x86/bios/bios.bin: x86/bios/bios.bin.elf
 	$(E) "  OBJCOPY " $@
-	$(Q) objcopy -O binary -j .text bios/bios.bin.elf bios/bios.bin
+	$(Q) objcopy -O binary -j .text x86/bios/bios.bin.elf x86/bios/bios.bin
 
-bios/bios-rom.o: bios/bios-rom.S bios/bios.bin bios/bios-rom.h
+x86/bios/bios-rom.o: x86/bios/bios-rom.S x86/bios/bios.bin x86/bios/bios-rom.h
 	$(E) "  CC      " $@
-	$(Q) $(CC) -c $(CFLAGS) bios/bios-rom.S -o bios/bios-rom.o
+	$(Q) $(CC) -c $(CFLAGS) x86/bios/bios-rom.S -o x86/bios/bios-rom.o
 
-bios/bios-rom.h: bios/bios.bin.elf
+x86/bios/bios-rom.h: x86/bios/bios.bin.elf
 	$(E) "  NM      " $@
-	$(Q) cd bios && sh gen-offsets.sh > bios-rom.h && cd ..
+	$(Q) cd x86/bios && sh gen-offsets.sh > bios-rom.h && cd ..
 
 check: $(PROGRAM)
 	$(MAKE) -C tests
@@ -263,10 +287,10 @@ check: $(PROGRAM)
 
 clean:
 	$(E) "  CLEAN"
-	$(Q) rm -f bios/*.bin
-	$(Q) rm -f bios/*.elf
-	$(Q) rm -f bios/*.o
-	$(Q) rm -f bios/bios-rom.h
+	$(Q) rm -f x86/bios/*.bin
+	$(Q) rm -f x86/bios/*.elf
+	$(Q) rm -f x86/bios/*.o
+	$(Q) rm -f x86/bios/bios-rom.h
 	$(Q) rm -f tests/boot/boot_test.iso
 	$(Q) rm -rf tests/boot/rootfs/
 	$(Q) rm -f $(DEPS) $(OBJS) $(PROGRAM) $(GUEST_INIT)

@@ -28,7 +28,7 @@ struct ioport_operations {
 	bool (*io_out)(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size);
 };
 
-void ioport__setup_legacy(void);
+void ioport__setup_arch(void);
 
 u16 ioport__register(u16 port, struct ioport_operations *ops, int count, void *param);
 
