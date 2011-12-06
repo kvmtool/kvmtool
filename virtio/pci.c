@@ -115,8 +115,7 @@ static bool virtio_pci__io_in(struct ioport *ioport, struct kvm *kvm, u16 port, 
 		break;
 	case VIRTIO_PCI_QUEUE_NUM:
 		val = vtrans->virtio_ops->get_size_vq(kvm, vpci->dev, vpci->queue_selector);
-		ioport__write32(data, val);
-		break;
+		ioport__write16(data, val);
 		break;
 	case VIRTIO_PCI_STATUS:
 		ioport__write8(data, vpci->status);
