@@ -2,6 +2,7 @@
 #define KVM__TERM_H
 
 #include <sys/uio.h>
+#include <stdbool.h>
 
 #define CONSOLE_8250	1
 #define CONSOLE_VIRTIO	2
