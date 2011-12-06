@@ -7,6 +7,7 @@
  * Provide the dependencies here - we can drop these wrappers once
  * the header is fixed upstream:
  */
+#include <stdbool.h>
 #include <linux/stringify.h>
 #include <linux/bitops.h>
 #include <asm/alternative.h>
