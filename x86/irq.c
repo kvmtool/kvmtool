@@ -140,8 +140,8 @@ void irq__init(struct kvm *kvm)
 {
 	int i, r;
 
-	irq_routing = malloc(sizeof(struct kvm_irq_routing) +
-			IRQ_MAX_GSI * sizeof(struct kvm_irq_routing_entry));
+	irq_routing = calloc(sizeof(struct kvm_irq_routing) +
+			IRQ_MAX_GSI * sizeof(struct kvm_irq_routing_entry), 1);
 	if (irq_routing == NULL)
 		die("Failed allocating space for GSI table");
 
