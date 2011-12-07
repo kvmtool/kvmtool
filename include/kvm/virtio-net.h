@@ -12,6 +12,7 @@ struct virtio_net_params {
 	struct kvm *kvm;
 	int mode;
 	int vhost;
+	int fd;
 };
 
 void virtio_net__init(const struct virtio_net_params *params);

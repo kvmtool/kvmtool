@@ -220,6 +220,8 @@ static int set_net_param(struct virtio_net_params *p, const char *param,
 		p->host_ip = strdup(val);
 	} else if (strcmp(param, "vhost") == 0) {
 		p->vhost = atoi(val);
+	} else if (strcmp(param, "fd") == 0) {
+		p->fd = atoi(val);
 	}
 
 	return 0;

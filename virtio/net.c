@@ -178,6 +178,12 @@ static bool virtio_net__tap_init(const struct virtio_net_params *params,
 	struct sockaddr_in sin = {0};
 	struct ifreq ifr;
 
+	/* Did the user already gave us the FD? */
+	if (params->fd) {
+		ndev->tap_fd = params->fd;
+		return 1;
+	}
+
 	ndev->tap_fd = open("/dev/net/tun", O_RDWR);
 	if (ndev->tap_fd < 0) {
 		pr_warning("Unable to open /dev/net/tun");
