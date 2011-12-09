@@ -7,6 +7,8 @@
 #include <linux/msi.h>
 #include <endian.h>
 
+#include "kvm/kvm.h"
+
 #define PCI_MAX_DEVICES			256
 /*
  * PCI Configuration Mechanism #1 I/O ports. See Section 3.7.4.1.
@@ -21,7 +23,7 @@
 union pci_config_address {
 	struct {
 #if __BYTE_ORDER == __LITTLE_ENDIAN
-		unsigned	zeros		: 2;		/* 1  .. 0  */
+		unsigned	reg_offset	: 2;		/* 1  .. 0  */
 		unsigned	register_number	: 6;		/* 7  .. 2  */
 		unsigned	function_number	: 3;		/* 10 .. 8  */
 		unsigned	device_number	: 5;		/* 15 .. 11 */
@@ -35,7 +37,7 @@ union pci_config_address {
 		unsigned	device_number	: 5;		/* 15 .. 11 */
 		unsigned	function_number	: 3;		/* 10 .. 8  */
 		unsigned	register_number	: 6;		/* 7  .. 2  */
-		unsigned	zeros		: 2;		/* 1  .. 0  */
+		unsigned	reg_offset	: 2;		/* 1  .. 0  */
 #endif
 	};
 	u32 w;
@@ -84,6 +86,9 @@ struct pci_device_header {
 
 void pci__init(void);
 void pci__register(struct pci_device_header *dev, u8 dev_num);
+struct pci_device_header *pci__find_dev(u8 dev_num);
 u32 pci_get_io_space_block(u32 size);
+void pci__config_wr(struct kvm *kvm, union pci_config_address addr, void *data, int size);
+void pci__config_rd(struct kvm *kvm, union pci_config_address addr, void *data, int size);
 
 #endif /* KVM__PCI_H */

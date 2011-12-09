@@ -76,21 +76,45 @@ static bool pci_device_exists(u8 bus_number, u8 device_number, u8 function_numbe
 
 static bool pci_config_data_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
 {
-	unsigned long start;
-	u8 dev_num;
-
 	/*
 	 * If someone accesses PCI configuration space offsets that are not
 	 * aligned to 4 bytes, it uses ioports to signify that.
 	 */
-	start = port - PCI_CONFIG_DATA;
+	pci_config_address.reg_offset = port - PCI_CONFIG_DATA;
 
-	dev_num		= pci_config_address.device_number;
+	pci__config_wr(kvm, pci_config_address, data, size);
+
+	return true;
+}
+
+static bool pci_config_data_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
+{
+	/*
+	 * If someone accesses PCI configuration space offsets that are not
+	 * aligned to 4 bytes, it uses ioports to signify that.
+	 */
+	pci_config_address.reg_offset = port - PCI_CONFIG_DATA;
+
+	pci__config_rd(kvm, pci_config_address, data, size);
+
+	return true;
+}
+
+static struct ioport_operations pci_config_data_ops = {
+	.io_in		= pci_config_data_in,
+	.io_out		= pci_config_data_out,
+};
+
+void pci__config_wr(struct kvm *kvm, union pci_config_address addr, void *data, int size)
+{
+	u8 dev_num;
+
+	dev_num		= addr.device_number;
 
 	if (pci_device_exists(0, dev_num, 0)) {
 		unsigned long offset;
 
-		offset = start + (pci_config_address.register_number << 2);
+		offset = addr.w & 0xff;
 		if (offset < sizeof(struct pci_device_header)) {
 			void *p = pci_devices[dev_num];
 			u8 bar = (offset - PCI_BAR_OFFSET(0)) / (sizeof(u32));
@@ -116,27 +140,18 @@ static bool pci_config_data_out(struct ioport *ioport, struct kvm *kvm, u16 port
 			}
 		}
 	}
-
-	return true;
 }
 
-static bool pci_config_data_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
+void pci__config_rd(struct kvm *kvm, union pci_config_address addr, void *data, int size)
 {
-	unsigned long start;
 	u8 dev_num;
 
-	/*
-	 * If someone accesses PCI configuration space offsets that are not
-	 * aligned to 4 bytes, it uses ioports to signify that.
-	 */
-	start = port - PCI_CONFIG_DATA;
-
-	dev_num		= pci_config_address.device_number;
+	dev_num		= addr.device_number;
 
 	if (pci_device_exists(0, dev_num, 0)) {
 		unsigned long offset;
 
-		offset = start + (pci_config_address.register_number << 2);
+		offset = addr.w & 0xff;
 		if (offset < sizeof(struct pci_device_header)) {
 			void *p = pci_devices[dev_num];
 
@@ -145,20 +160,18 @@ static bool pci_config_data_in(struct ioport *ioport, struct kvm *kvm, u16 port,
 			memset(data, 0x00, size);
 	} else
 		memset(data, 0xff, size);
-
-	return true;
 }
-
-static struct ioport_operations pci_config_data_ops = {
-	.io_in		= pci_config_data_in,
-	.io_out		= pci_config_data_out,
-};
 
 void pci__register(struct pci_device_header *dev, u8 dev_num)
 {
 	assert(dev_num < PCI_MAX_DEVICES);
-
 	pci_devices[dev_num]	= dev;
+}
+
+struct pci_device_header *pci__find_dev(u8 dev_num)
+{
+	assert(dev_num < PCI_MAX_DEVICES);
+	return pci_devices[dev_num];
 }
 
 void pci__init(void)
