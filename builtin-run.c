@@ -809,8 +809,6 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	kvm = kvm__init(dev, ram_size, guest_name);
 
-	irq__init(kvm);
-
 	kvm->single_step = single_step;
 
 	ioeventfd__init();
@@ -827,6 +825,8 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	}
 
 	kvm->nrcpus = nrcpus;
+
+	irq__init(kvm);
 
 	pci__init();
 
