@@ -266,7 +266,11 @@ int kvm__recommended_cpus(struct kvm *kvm)
 
 	ret = ioctl(kvm->sys_fd, KVM_CHECK_EXTENSION, KVM_CAP_NR_VCPUS);
 	if (ret <= 0)
-		die_perror("KVM_CAP_NR_VCPUS");
+		/*
+		 * api.txt states that if KVM_CAP_NR_VCPUS does not exist,
+		 * assume 4.
+		 */
+		return 4;
 
 	return ret;
 }
