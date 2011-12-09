@@ -137,8 +137,14 @@ int kvm_cpu__start(struct kvm_cpu *cpu)
 			goto exit_kvm;
 		case KVM_EXIT_SHUTDOWN:
 			goto exit_kvm;
-		default:
-			goto panic_kvm;
+		default: {
+			bool ret;
+
+			ret = kvm_cpu__handle_exit(cpu);
+			if (!ret)
+				goto panic_kvm;
+			break;
+		}
 		}
 		kvm_cpu__handle_coalesced_mmio(cpu);
 	}

@@ -2,6 +2,7 @@
 #define KVM__KVM_CPU_H
 
 #include "kvm/kvm-cpu-arch.h"
+#include <stdbool.h>
 
 struct kvm_cpu *kvm_cpu__init(struct kvm *kvm, unsigned long cpu_id);
 void kvm_cpu__delete(struct kvm_cpu *vcpu);
@@ -11,6 +12,7 @@ void kvm_cpu__enable_singlestep(struct kvm_cpu *vcpu);
 void kvm_cpu__run(struct kvm_cpu *vcpu);
 void kvm_cpu__reboot(void);
 int kvm_cpu__start(struct kvm_cpu *cpu);
+bool kvm_cpu__handle_exit(struct kvm_cpu *vcpu);
 
 int kvm_cpu__get_debug_fd(void);
 void kvm_cpu__set_debug_fd(int fd);

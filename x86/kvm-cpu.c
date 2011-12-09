@@ -212,6 +212,11 @@ void kvm_cpu__reset_vcpu(struct kvm_cpu *vcpu)
 	kvm_cpu__setup_msrs(vcpu);
 }
 
+bool kvm_cpu__handle_exit(struct kvm_cpu *vcpu)
+{
+	return false;
+}
+
 static void print_dtable(const char *name, struct kvm_dtable *dtable)
 {
 	dprintf(debug_fd, " %s                 %016llx  %08hx\n",
