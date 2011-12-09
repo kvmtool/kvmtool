@@ -9,7 +9,12 @@ else
 	E = @\#
 	Q =
 endif
-export E Q
+ifneq ($(I), )
+	KINCL_PATH=$(I)
+else
+	KINCL_PATH=../..
+endif
+export E Q KINCL_PATH
 
 include config/utilities.mak
 include config/feature-tests.mak
@@ -176,7 +181,7 @@ DEFINES	+= -DKVMTOOLS_VERSION='"$(KVMTOOLS_VERSION)"'
 DEFINES	+= -DBUILD_ARCH='"$(ARCH)"'
 
 KVM_INCLUDE := include
-CFLAGS	+= $(CPPFLAGS) $(DEFINES) -I$(KVM_INCLUDE) -I$(ARCH_INCLUDE) -I../../include -I../../arch/$(ARCH)/include/ -Os -g
+CFLAGS	+= $(CPPFLAGS) $(DEFINES) -I$(KVM_INCLUDE) -I$(ARCH_INCLUDE) -I$(KINCL_PATH)/include -I$(KINCL_PATH)/arch/$(ARCH)/include/ -Os -g
 
 ifneq ($(WERROR),0)
 	WARNINGS += -Werror
