@@ -30,15 +30,12 @@ int term_fds[4][2];
 
 int term_getc(int who, int term)
 {
-	int c;
+	unsigned char c;
 
 	if (who != active_console)
 		return -1;
-
 	if (read_in_full(term_fds[term][TERM_FD_IN], &c, 1) < 0)
 		return -1;
-
-	c &= 0xff;
 
 	if (term_got_escape) {
 		term_got_escape = false;
@@ -84,7 +81,7 @@ int term_getc_iov(int who, struct iovec *iov, int iovcnt, int term)
 	if (c < 0)
 		return 0;
 
-	*((int *)iov[TERM_FD_IN].iov_base)	= c;
+	*((char *)iov[TERM_FD_IN].iov_base)	= (char)c;
 
 	return sizeof(char);
 }
