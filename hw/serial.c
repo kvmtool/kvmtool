@@ -233,6 +233,7 @@ static bool serial8250_out(struct ioport *ioport, struct kvm *kvm, u16 port, voi
 			break;
 		case UART_IER:
 			dev->ier	= ioport__read8(data) & 0x3f;
+			kvm__irq_line(kvm, dev->irq, dev->ier ? 1 : 0);
 			break;
 		case UART_LCR:
 			dev->lcr	= ioport__read8(data);
