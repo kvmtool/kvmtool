@@ -932,16 +932,6 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 		virtio_net__init(&net_params);
 	}
 
-	kvm__start_timer(kvm);
-
-	kvm__arch_setup_firmware(kvm);
-
-	for (i = 0; i < nrcpus; i++) {
-		kvm_cpus[i] = kvm_cpu__init(kvm, i);
-		if (!kvm_cpus[i])
-			die("unable to initialize KVM VCPU");
-	}
-
 	kvm__init_ram(kvm);
 
 #ifdef CONFIG_X86
@@ -964,6 +954,20 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	}
 
 	fb__start();
+
+	/* Device init all done; firmware init must
+	 * come after this (it may set up device trees etc.)
+	 */
+
+	kvm__start_timer(kvm);
+
+	kvm__arch_setup_firmware(kvm);
+
+	for (i = 0; i < nrcpus; i++) {
+		kvm_cpus[i] = kvm_cpu__init(kvm, i);
+		if (!kvm_cpus[i])
+			die("unable to initialize KVM VCPU");
+	}
 
 	thread_pool__init(nr_online_cpus);
 	ioeventfd__start();
