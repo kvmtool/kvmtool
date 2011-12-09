@@ -943,7 +943,9 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	kvm__init_ram(kvm);
 
+#ifdef CONFIG_X86
 	kbd__init(kvm);
+#endif
 
 	pci_shmem__init(kvm);
 

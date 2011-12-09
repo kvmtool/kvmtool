@@ -77,7 +77,6 @@ OBJS	+= util/strbuf.o
 OBJS	+= virtio/9p.o
 OBJS	+= virtio/9p-pdu.o
 OBJS	+= hw/vesa.o
-OBJS	+= hw/i8042.o
 OBJS	+= hw/pci-shmem.o
 OBJS	+= kvm-ipc.o
 
@@ -153,6 +152,7 @@ ifeq ($(ARCH),x86)
 	OBJS	+= x86/kvm.o
 	OBJS	+= x86/kvm-cpu.o
 	OBJS	+= x86/mptable.o
+	OBJS	+= hw/i8042.o
 # Exclude BIOS object files from header dependencies.
 	OTHEROBJS	+= x86/bios.o
 	OTHEROBJS	+= x86/bios/bios-rom.o
