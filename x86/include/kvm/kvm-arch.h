@@ -18,6 +18,11 @@
 
 #define KVM_MMIO_START		KVM_32BIT_GAP_START
 
+/* This is the address that pci_get_io_space_block() starts allocating
+ * from.  Note that this is a PCI bus address (though same on x86).
+ */
+#define KVM_PCI_MMIO_AREA	(KVM_MMIO_START + 0x1000000)
+
 struct kvm {
 	int			sys_fd;		/* For system ioctls(), i.e. /dev/kvm */
 	int			vm_fd;		/* For VM ioctls() */

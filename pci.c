@@ -11,8 +11,12 @@ static struct pci_device_header		*pci_devices[PCI_MAX_DEVICES];
 
 static union pci_config_address		pci_config_address;
 
-/* This is within our PCI gap - in an unused area */
-static u32 io_space_blocks		= KVM_32BIT_GAP_START + 0x1000000;
+/* This is within our PCI gap - in an unused area.
+ * Note this is a PCI *bus address*, is used to assign BARs etc.!
+ * (That's why it can still 32bit even with 64bit guests-- 64bit
+ * PCI isn't currently supported.)
+ */
+static u32 io_space_blocks		= KVM_PCI_MMIO_AREA;
 
 u32 pci_get_io_space_block(u32 size)
 {
