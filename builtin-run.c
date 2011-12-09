@@ -828,6 +828,8 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	kvm->nrcpus = nrcpus;
 
+	pci__init();
+
 	/*
 	 * vidmode should be either specified
 	 * either set by default
@@ -894,8 +896,6 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	rtc__init();
 
 	serial8250__init(kvm);
-
-	pci__init();
 
 	if (active_console == CONSOLE_VIRTIO)
 		virtio_console__init(kvm);
