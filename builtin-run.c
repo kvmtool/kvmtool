@@ -522,8 +522,7 @@ static void handle_debug(int fd, u32 type, u32 len, u8 *msg)
 
 static void handle_sigalrm(int sig)
 {
-	serial8250__inject_interrupt(kvm);
-	virtio_console__inject_interrupt(kvm);
+	kvm__arch_periodic_poll(kvm);
 }
 
 static void handle_stop(int fd, u32 type, u32 len, u8 *msg)

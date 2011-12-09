@@ -56,6 +56,7 @@ void kvm__remove_socket(const char *name);
 void kvm__arch_init(struct kvm *kvm, const char *kvm_dev, u64 ram_size, const char *name);
 void kvm__arch_setup_firmware(struct kvm *kvm);
 bool kvm__arch_cpu_supports_vm(void);
+void kvm__arch_periodic_poll(struct kvm *kvm);
 
 int load_flat_binary(struct kvm *kvm, int fd);
 bool load_bzimage(struct kvm *kvm, int fd_kernel, int fd_initrd, const char *kernel_cmdline, u16 vidmode);

@@ -4,6 +4,8 @@
 #include "kvm/interrupt.h"
 #include "kvm/mptable.h"
 #include "kvm/util.h"
+#include "kvm/8250-serial.h"
+#include "kvm/virtio-console.h"
 
 #include <asm/bootparam.h>
 #include <linux/kvm.h>
@@ -327,4 +329,10 @@ void kvm__arch_setup_firmware(struct kvm *kvm)
 
 	/* MP table */
 	mptable_setup(kvm, kvm->nrcpus);
+}
+
+void kvm__arch_periodic_poll(struct kvm *kvm)
+{
+	serial8250__inject_interrupt(kvm);
+	virtio_console__inject_interrupt(kvm);
 }
