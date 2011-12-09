@@ -231,7 +231,7 @@ KVMTOOLS-VERSION-FILE:
 
 $(PROGRAM): $(DEPS) $(OBJS)
 	$(E) "  LINK    " $@
-	$(Q) $(CC) $(OBJS) $(LIBS) -o $@
+	$(Q) $(CC) $(CFLAGS) $(OBJS) $(LIBS) -o $@
 
 $(PROGRAM_ALIAS): $(PROGRAM)
 	$(E) "  LN      " $@
