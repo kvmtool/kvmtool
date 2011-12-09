@@ -416,7 +416,7 @@ static const struct option options[] = {
 	OPT_BOOLEAN('\0', "rng", &virtio_rng, "Enable virtio Random Number Generator"),
 	OPT_CALLBACK('\0', "9p", NULL, "dir_to_share,tag_name",
 		     "Enable virtio 9p to share files between host and guest", virtio_9p_rootdir_parser),
-	OPT_STRING('\0', "console", &console, "serial or virtio",
+	OPT_STRING('\0', "console", &console, "serial, virtio or hv",
 			"Console to use"),
 	OPT_STRING('\0', "dev", &dev, "device_file", "KVM device file"),
 	OPT_CALLBACK('\0', "tty", NULL, "tty id",
@@ -776,8 +776,12 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	if (!strncmp(console, "virtio", 6))
 		active_console  = CONSOLE_VIRTIO;
-	else
+	else if (!strncmp(console, "serial", 6))
 		active_console  = CONSOLE_8250;
+	else if (!strncmp(console, "hv", 2))
+		active_console = CONSOLE_HV;
+	else
+		pr_warning("No console!");
 
 	if (!host_ip)
 		host_ip = DEFAULT_HOST_ADDR;

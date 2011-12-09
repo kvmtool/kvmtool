@@ -6,6 +6,7 @@
 
 #define CONSOLE_8250	1
 #define CONSOLE_VIRTIO	2
+#define CONSOLE_HV	3
 
 int term_putc_iov(int who, struct iovec *iov, int iovcnt, int term);
 int term_getc_iov(int who, struct iovec *iov, int iovcnt, int term);
