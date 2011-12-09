@@ -30,7 +30,7 @@ void kvm_cpu__run(struct kvm_cpu *vcpu)
 	int err;
 
 	err = ioctl(vcpu->vcpu_fd, KVM_RUN, 0);
-	if (err && (errno != EINTR && errno != EAGAIN))
+	if (err < 0 && (errno != EINTR && errno != EAGAIN))
 		die_perror("KVM_RUN failed");
 }
 
