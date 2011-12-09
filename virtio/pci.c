@@ -293,8 +293,8 @@ int virtio_pci__init(struct kvm *kvm, struct virtio_trans *vtrans, void *dev,
 	vpci->msix_pba_block = pci_get_io_space_block(PCI_IO_SIZE);
 
 	vpci->base_addr = ioport__register(IOPORT_EMPTY, &virtio_pci__io_ops, IOPORT_SIZE, vtrans);
-	kvm__register_mmio(kvm, vpci->msix_io_block, 0x100, callback_mmio_table, vpci);
-	kvm__register_mmio(kvm, vpci->msix_pba_block, 0x100, callback_mmio_pba, vpci);
+	kvm__register_mmio(kvm, vpci->msix_io_block, PCI_IO_SIZE, callback_mmio_table, vpci);
+	kvm__register_mmio(kvm, vpci->msix_pba_block, PCI_IO_SIZE, callback_mmio_pba, vpci);
 
 	vpci->pci_hdr = (struct pci_device_header) {
 		.vendor_id		= cpu_to_le16(PCI_VENDOR_ID_REDHAT_QUMRANET),
@@ -313,6 +313,9 @@ int virtio_pci__init(struct kvm *kvm, struct virtio_trans *vtrans, void *dev,
 						      | PCI_BASE_ADDRESS_MEM_TYPE_64),
 		.status			= cpu_to_le16(PCI_STATUS_CAP_LIST),
 		.capabilities		= (void *)&vpci->pci_hdr.msix - (void *)&vpci->pci_hdr,
+		.bar_size[0]		= IOPORT_SIZE,
+		.bar_size[1]		= PCI_IO_SIZE,
+		.bar_size[3]		= PCI_IO_SIZE,
 	};
 
 	vpci->pci_hdr.msix.cap = PCI_CAP_ID_MSIX;
