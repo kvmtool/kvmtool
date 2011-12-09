@@ -85,48 +85,6 @@ OBJS	+= hw/vesa.o
 OBJS	+= hw/pci-shmem.o
 OBJS	+= kvm-ipc.o
 
-FLAGS_BFD := $(CFLAGS) -lbfd
-has_bfd := $(call try-cc,$(SOURCE_BFD),$(FLAGS_BFD))
-ifeq ($(has_bfd),y)
-	CFLAGS	+= -DCONFIG_HAS_BFD
-	OBJS	+= symbol.o
-	LIBS	+= -lbfd
-endif
-
-FLAGS_VNCSERVER := $(CFLAGS) -lvncserver
-has_vncserver := $(call try-cc,$(SOURCE_VNCSERVER),$(FLAGS_VNCSERVER))
-ifeq ($(has_vncserver),y)
-	OBJS	+= ui/vnc.o
-	CFLAGS	+= -DCONFIG_HAS_VNCSERVER
-	LIBS	+= -lvncserver
-endif
-
-FLAGS_SDL := $(CFLAGS) -lSDL
-has_SDL := $(call try-cc,$(SOURCE_SDL),$(FLAGS_SDL))
-ifeq ($(has_SDL),y)
-	OBJS	+= ui/sdl.o
-	CFLAGS	+= -DCONFIG_HAS_SDL
-	LIBS	+= -lSDL
-endif
-
-FLAGS_ZLIB := $(CFLAGS) -lz
-has_ZLIB := $(call try-cc,$(SOURCE_ZLIB),$(FLAGS_ZLIB))
-ifeq ($(has_ZLIB),y)
-	CFLAGS	+= -DCONFIG_HAS_ZLIB
-	LIBS	+= -lz
-endif
-
-FLAGS_AIO := $(CFLAGS) -laio
-has_AIO := $(call try-cc,$(SOURCE_AIO),$(FLAGS_AIO))
-ifeq ($(has_AIO),y)
-	CFLAGS	+= -DCONFIG_HAS_AIO
-	LIBS	+= -laio
-endif
-
-LIBS	+= -lrt
-LIBS	+= -lpthread
-LIBS	+= -lutil
-
 # Additional ARCH settings for x86
 ARCH ?= $(shell echo $(uname_M) | sed -e s/i.86/i386/ -e s/sun4u/sparc64/ \
                   -e s/arm.*/arm/ -e s/sa110/arm/ \
@@ -171,6 +129,50 @@ ifeq (,$(ARCH_INCLUDE))
 else
 	UNSUPP_ERR =
 endif
+
+
+FLAGS_BFD := $(CFLAGS) -lbfd
+has_bfd := $(call try-cc,$(SOURCE_BFD),$(FLAGS_BFD))
+ifeq ($(has_bfd),y)
+	CFLAGS	+= -DCONFIG_HAS_BFD
+	OBJS	+= symbol.o
+	LIBS	+= -lbfd
+endif
+
+FLAGS_VNCSERVER := $(CFLAGS) -lvncserver
+has_vncserver := $(call try-cc,$(SOURCE_VNCSERVER),$(FLAGS_VNCSERVER))
+ifeq ($(has_vncserver),y)
+	OBJS	+= ui/vnc.o
+	CFLAGS	+= -DCONFIG_HAS_VNCSERVER
+	LIBS	+= -lvncserver
+endif
+
+FLAGS_SDL := $(CFLAGS) -lSDL
+has_SDL := $(call try-cc,$(SOURCE_SDL),$(FLAGS_SDL))
+ifeq ($(has_SDL),y)
+	OBJS	+= ui/sdl.o
+	CFLAGS	+= -DCONFIG_HAS_SDL
+	LIBS	+= -lSDL
+endif
+
+FLAGS_ZLIB := $(CFLAGS) -lz
+has_ZLIB := $(call try-cc,$(SOURCE_ZLIB),$(FLAGS_ZLIB))
+ifeq ($(has_ZLIB),y)
+	CFLAGS	+= -DCONFIG_HAS_ZLIB
+	LIBS	+= -lz
+endif
+
+FLAGS_AIO := $(CFLAGS) -laio
+has_AIO := $(call try-cc,$(SOURCE_AIO),$(FLAGS_AIO))
+ifeq ($(has_AIO),y)
+	CFLAGS	+= -DCONFIG_HAS_AIO
+	LIBS	+= -laio
+endif
+
+LIBS	+= -lrt
+LIBS	+= -lpthread
+LIBS	+= -lutil
+
 
 DEPS	:= $(patsubst %.o,%.d,$(OBJS))
 OBJS	+= $(OTHEROBJS)
