@@ -5,7 +5,6 @@
 
 #include <assert.h>
 
-#define PCI_MAX_DEVICES			256
 #define PCI_BAR_OFFSET(b)		(offsetof(struct pci_device_header, bar[b]))
 
 static struct pci_device_header		*pci_devices[PCI_MAX_DEVICES];

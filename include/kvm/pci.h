@@ -6,6 +6,7 @@
 #include <linux/pci_regs.h>
 #include <linux/msi.h>
 
+#define PCI_MAX_DEVICES			256
 /*
  * PCI Configuration Mechanism #1 I/O ports. See Section 3.7.4.1.
  * ("Configuration Mechanism #1") of the PCI Local Bus Specification 2.1 for
