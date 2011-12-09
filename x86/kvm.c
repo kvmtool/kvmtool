@@ -197,17 +197,24 @@ void kvm__irq_trigger(struct kvm *kvm, int irq)
 #define BOOT_PROTOCOL_REQUIRED	0x206
 #define LOAD_HIGH		0x01
 
-int load_flat_binary(struct kvm *kvm, int fd)
+int load_flat_binary(struct kvm *kvm, int fd_kernel, int fd_initrd, const char *kernel_cmdline)
 {
 	void *p;
 	int nr;
 
-	if (lseek(fd, 0, SEEK_SET) < 0)
+	/*
+	 * Some architectures may support loading an initrd alongside the flat kernel,
+	 * but we do not.
+	 */
+	if (fd_initrd != -1)
+		pr_warning("Loading initrd with flat binary not supported.");
+
+	if (lseek(fd_kernel, 0, SEEK_SET) < 0)
 		die_perror("lseek");
 
 	p = guest_real_to_host(kvm, BOOT_LOADER_SELECTOR, BOOT_LOADER_IP);
 
-	while ((nr = read(fd, p, 65536)) > 0)
+	while ((nr = read(fd_kernel, p, 65536)) > 0)
 		p += nr;
 
 	kvm->boot_selector	= BOOT_LOADER_SELECTOR;
