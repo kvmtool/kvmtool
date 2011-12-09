@@ -119,6 +119,17 @@ void kvm__init_ram(struct kvm *kvm)
 	}
 }
 
+/* Arch-specific commandline setup */
+void kvm__arch_set_cmdline(char *cmdline, bool video)
+{
+	strcpy(cmdline, "noapic noacpi pci=conf1 reboot=k panic=1 i8042.direct=1 "
+				"i8042.dumbkbd=1 i8042.nopnp=1");
+	if (video) {
+		strcat(cmdline, " video=vesafb console=tty0");
+	} else
+		strcat(cmdline, " console=ttyS0 earlyprintk=serial i8042.noaux=1");
+}
+
 /* Architecture-specific KVM init */
 void kvm__arch_init(struct kvm *kvm, const char *kvm_dev, u64 ram_size, const char *name)
 {

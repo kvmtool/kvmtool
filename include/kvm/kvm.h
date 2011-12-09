@@ -53,6 +53,7 @@ int kvm__get_sock_by_instance(const char *name);
 int kvm__enumerate_instances(int (*callback)(const char *name, int pid));
 void kvm__remove_socket(const char *name);
 
+void kvm__arch_set_cmdline(char *cmdline, bool video);
 void kvm__arch_init(struct kvm *kvm, const char *kvm_dev, u64 ram_size, const char *name);
 void kvm__arch_setup_firmware(struct kvm *kvm);
 bool kvm__arch_cpu_supports_vm(void);
