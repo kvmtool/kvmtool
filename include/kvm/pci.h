@@ -5,6 +5,7 @@
 #include <linux/kvm.h>
 #include <linux/pci_regs.h>
 #include <linux/msi.h>
+#include <endian.h>
 
 #define PCI_MAX_DEVICES			256
 /*
@@ -17,14 +18,27 @@
 #define PCI_CONFIG_BUS_FORWARD	0xcfa
 #define PCI_IO_SIZE		0x100
 
-struct pci_config_address {
-	unsigned	zeros		: 2;		/* 1  .. 0  */
-	unsigned	register_number	: 6;		/* 7  .. 2  */
-	unsigned	function_number	: 3;		/* 10 .. 8  */
-	unsigned	device_number	: 5;		/* 15 .. 11 */
-	unsigned	bus_number	: 8;		/* 23 .. 16 */
-	unsigned	reserved	: 7;		/* 30 .. 24 */
-	unsigned	enable_bit	: 1;		/* 31       */
+union pci_config_address {
+	struct {
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+		unsigned	zeros		: 2;		/* 1  .. 0  */
+		unsigned	register_number	: 6;		/* 7  .. 2  */
+		unsigned	function_number	: 3;		/* 10 .. 8  */
+		unsigned	device_number	: 5;		/* 15 .. 11 */
+		unsigned	bus_number	: 8;		/* 23 .. 16 */
+		unsigned	reserved	: 7;		/* 30 .. 24 */
+		unsigned	enable_bit	: 1;		/* 31       */
+#else
+		unsigned	enable_bit	: 1;		/* 31       */
+		unsigned	reserved	: 7;		/* 30 .. 24 */
+		unsigned	bus_number	: 8;		/* 23 .. 16 */
+		unsigned	device_number	: 5;		/* 15 .. 11 */
+		unsigned	function_number	: 3;		/* 10 .. 8  */
+		unsigned	register_number	: 6;		/* 7  .. 2  */
+		unsigned	zeros		: 2;		/* 1  .. 0  */
+#endif
+	};
+	u32 w;
 };
 
 struct msix_table {
@@ -45,8 +59,8 @@ struct pci_device_header {
 	u16		device_id;
 	u16		command;
 	u16		status;
-	u16		revision_id		:  8;
-	u32		class			: 24;
+	u8		revision_id;
+	u8		class[3];
 	u8		cacheline_size;
 	u8		latency_timer;
 	u8		header_type;
@@ -56,8 +70,8 @@ struct pci_device_header {
 	u16		subsys_vendor_id;
 	u16		subsys_id;
 	u32		exp_rom_bar;
-	u32		capabilities		:  8;
-	u32		reserved1		: 24;
+	u8		capabilities;
+	u8		reserved1[3];
 	u32		reserved2;
 	u8		irq_line;
 	u8		irq_pin;
@@ -66,7 +80,7 @@ struct pci_device_header {
 	struct msix_cap msix;
 	u8		empty[136]; /* Rest of PCI config space */
 	u32		bar_size[6];
-};
+} __attribute__((packed));
 
 void pci__init(void);
 void pci__register(struct pci_device_header *dev, u8 dev_num);

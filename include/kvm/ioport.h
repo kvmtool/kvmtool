@@ -7,6 +7,7 @@
 #include <limits.h>
 #include <asm/types.h>
 #include <linux/types.h>
+#include <linux/byteorder.h>
 
 /* some ports we reserve for own use */
 #define IOPORT_DBG			0xe0
@@ -36,15 +37,15 @@ static inline u8 ioport__read8(u8 *data)
 {
 	return *data;
 }
-
+/* On BE platforms, PCI I/O is byteswapped, i.e. LE, so swap back. */
 static inline u16 ioport__read16(u16 *data)
 {
-	return *data;
+	return le16_to_cpu(*data);
 }
 
 static inline u32 ioport__read32(u32 *data)
 {
-	return *data;
+	return le32_to_cpu(*data);
 }
 
 static inline void ioport__write8(u8 *data, u8 value)
@@ -54,12 +55,12 @@ static inline void ioport__write8(u8 *data, u8 value)
 
 static inline void ioport__write16(u16 *data, u16 value)
 {
-	*data		 = value;
+	*data		 = cpu_to_le16(value);
 }
 
 static inline void ioport__write32(u32 *data, u32 value)
 {
-	*data		 = value;
+	*data		 = cpu_to_le32(value);
 }
 
 #endif /* KVM__IOPORT_H */

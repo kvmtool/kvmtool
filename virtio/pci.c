@@ -9,6 +9,7 @@
 #include "kvm/virtio-trans.h"
 
 #include <linux/virtio_pci.h>
+#include <linux/byteorder.h>
 #include <string.h>
 
 struct virtio_trans_ops *virtio_pci__get_trans_ops(void)
@@ -59,7 +60,7 @@ static int virtio_pci__init_ioeventfd(struct kvm *kvm, struct virtio_trans *vtra
 
 static inline bool virtio_pci__msix_enabled(struct virtio_pci *vpci)
 {
-	return vpci->pci_hdr.msix.ctrl & PCI_MSIX_FLAGS_ENABLE;
+	return vpci->pci_hdr.msix.ctrl & cpu_to_le16(PCI_MSIX_FLAGS_ENABLE);
 }
 
 static bool virtio_pci__specific_io_in(struct kvm *kvm, struct virtio_trans *vtrans, u16 port,
@@ -244,8 +245,8 @@ int virtio_pci__signal_vq(struct kvm *kvm, struct virtio_trans *vtrans, u32 vq)
 	int tbl = vpci->vq_vector[vq];
 
 	if (virtio_pci__msix_enabled(vpci)) {
-		if (vpci->pci_hdr.msix.ctrl & PCI_MSIX_FLAGS_MASKALL ||
-			vpci->msix_table[tbl].ctrl & PCI_MSIX_ENTRY_CTRL_MASKBIT) {
+		if (vpci->pci_hdr.msix.ctrl & cpu_to_le16(PCI_MSIX_FLAGS_MASKALL) ||
+		    vpci->msix_table[tbl].ctrl & cpu_to_le16(PCI_MSIX_ENTRY_CTRL_MASKBIT)) {
 
 			vpci->msix_pba |= 1 << tbl;
 			return 0;
@@ -265,8 +266,8 @@ int virtio_pci__signal_config(struct kvm *kvm, struct virtio_trans *vtrans)
 	int tbl = vpci->config_vector;
 
 	if (virtio_pci__msix_enabled(vpci)) {
-		if (vpci->pci_hdr.msix.ctrl & PCI_MSIX_FLAGS_MASKALL ||
-			vpci->msix_table[tbl].ctrl & PCI_MSIX_ENTRY_CTRL_MASKBIT) {
+		if (vpci->pci_hdr.msix.ctrl & cpu_to_le16(PCI_MSIX_FLAGS_MASKALL) ||
+		    vpci->msix_table[tbl].ctrl & cpu_to_le16(PCI_MSIX_ENTRY_CTRL_MASKBIT)) {
 
 			vpci->msix_pba |= 1 << tbl;
 			return 0;
@@ -296,19 +297,21 @@ int virtio_pci__init(struct kvm *kvm, struct virtio_trans *vtrans, void *dev,
 	kvm__register_mmio(kvm, vpci->msix_pba_block, 0x100, callback_mmio_pba, vpci);
 
 	vpci->pci_hdr = (struct pci_device_header) {
-		.vendor_id		= PCI_VENDOR_ID_REDHAT_QUMRANET,
-		.device_id		= device_id,
+		.vendor_id		= cpu_to_le16(PCI_VENDOR_ID_REDHAT_QUMRANET),
+		.device_id		= cpu_to_le16(device_id),
 		.header_type		= PCI_HEADER_TYPE_NORMAL,
 		.revision_id		= 0,
-		.class			= class,
-		.subsys_vendor_id	= PCI_SUBSYSTEM_VENDOR_ID_REDHAT_QUMRANET,
-		.subsys_id		= subsys_id,
-		.bar[0]			= vpci->base_addr | PCI_BASE_ADDRESS_SPACE_IO,
-		.bar[1]			= vpci->msix_io_block | PCI_BASE_ADDRESS_SPACE_MEMORY
-					| PCI_BASE_ADDRESS_MEM_TYPE_64,
-		.bar[3]			= vpci->msix_pba_block | PCI_BASE_ADDRESS_SPACE_MEMORY
-					| PCI_BASE_ADDRESS_MEM_TYPE_64,
-		.status			= PCI_STATUS_CAP_LIST,
+		.class[0]		= class & 0xff,
+		.class[1]		= (class >> 8) & 0xff,
+		.class[2]		= (class >> 16) & 0xff,
+		.subsys_vendor_id	= cpu_to_le16(PCI_SUBSYSTEM_VENDOR_ID_REDHAT_QUMRANET),
+		.subsys_id		= cpu_to_le16(subsys_id),
+		.bar[0]			= cpu_to_le32(vpci->base_addr | PCI_BASE_ADDRESS_SPACE_IO),
+		.bar[1]			= cpu_to_le32(vpci->msix_io_block | PCI_BASE_ADDRESS_SPACE_MEMORY
+						      | PCI_BASE_ADDRESS_MEM_TYPE_64),
+		.bar[3]			= cpu_to_le32(vpci->msix_pba_block | PCI_BASE_ADDRESS_SPACE_MEMORY
+						      | PCI_BASE_ADDRESS_MEM_TYPE_64),
+		.status			= cpu_to_le16(PCI_STATUS_CAP_LIST),
 		.capabilities		= (void *)&vpci->pci_hdr.msix - (void *)&vpci->pci_hdr,
 	};
 
@@ -325,14 +328,14 @@ int virtio_pci__init(struct kvm *kvm, struct virtio_trans *vtrans, void *dev,
 	 * For example, a returned value of "00000000011"
 	 * indicates a table size of 4.
 	 */
-	vpci->pci_hdr.msix.ctrl = (VIRTIO_PCI_MAX_VQ + VIRTIO_PCI_MAX_CONFIG - 1);
+	vpci->pci_hdr.msix.ctrl = cpu_to_le16(VIRTIO_PCI_MAX_VQ + VIRTIO_PCI_MAX_CONFIG - 1);
 
 	/*
 	 * Both table and PBA could be mapped on the same BAR, but for now
 	 * we're not in short of BARs
 	 */
-	vpci->pci_hdr.msix.table_offset = 1; /* Use BAR 1 */
-	vpci->pci_hdr.msix.pba_offset = 3; /* Use BAR 3 */
+	vpci->pci_hdr.msix.table_offset = cpu_to_le32(1); /* Use BAR 1 */
+	vpci->pci_hdr.msix.pba_offset = cpu_to_le32(3); /* Use BAR 3 */
 	vpci->config_vector = 0;
 
 	if (irq__register_device(subsys_id, &ndev, &pin, &line) < 0)

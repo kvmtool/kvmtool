@@ -9,7 +9,7 @@
 
 static struct pci_device_header		*pci_devices[PCI_MAX_DEVICES];
 
-static struct pci_config_address	pci_config_address;
+static union pci_config_address		pci_config_address;
 
 /* This is within our PCI gap - in an unused area */
 static u32 io_space_blocks		= KVM_32BIT_GAP_START + 0x1000000;
@@ -105,7 +105,7 @@ static bool pci_config_data_out(struct ioport *ioport, struct kvm *kvm, u16 port
 			 * When the kernel got the size it would write the address
 			 * back.
 			 */
-			if (ioport__read32(p + offset)) {
+			if (*(u32 *)(p + offset)) {
 				/* See if kernel tries to mask one of the BARs */
 				if ((offset >= PCI_BAR_OFFSET(0)) &&
 				    (offset <= PCI_BAR_OFFSET(6)) &&

@@ -8,6 +8,7 @@
 #include "kvm/irq.h"
 #include "kvm/kvm.h"
 #include "kvm/pci.h"
+#include <linux/byteorder.h>
 #include <sys/mman.h>
 
 #include <sys/types.h>
@@ -31,14 +32,14 @@ static struct ioport_operations vesa_io_ops = {
 };
 
 static struct pci_device_header vesa_pci_device = {
-	.vendor_id		= PCI_VENDOR_ID_REDHAT_QUMRANET,
-	.device_id		= PCI_DEVICE_ID_VESA,
+	.vendor_id		= cpu_to_le16(PCI_VENDOR_ID_REDHAT_QUMRANET),
+	.device_id		= cpu_to_le16(PCI_DEVICE_ID_VESA),
 	.header_type		= PCI_HEADER_TYPE_NORMAL,
 	.revision_id		= 0,
-	.class			= 0x030000,
-	.subsys_vendor_id	= PCI_SUBSYSTEM_VENDOR_ID_REDHAT_QUMRANET,
-	.subsys_id		= PCI_SUBSYSTEM_ID_VESA,
-	.bar[1]			= VESA_MEM_ADDR | PCI_BASE_ADDRESS_SPACE_MEMORY,
+	.class[2]		= 0x03,
+	.subsys_vendor_id	= cpu_to_le16(PCI_SUBSYSTEM_VENDOR_ID_REDHAT_QUMRANET),
+	.subsys_id		= cpu_to_le16(PCI_SUBSYSTEM_ID_VESA),
+	.bar[1]			= cpu_to_le32(VESA_MEM_ADDR | PCI_BASE_ADDRESS_SPACE_MEMORY),
 	.bar_size[1]		= VESA_MEM_SIZE,
 };
 
@@ -56,7 +57,7 @@ struct framebuffer *vesa__init(struct kvm *kvm)
 	vesa_pci_device.irq_pin		= pin;
 	vesa_pci_device.irq_line	= line;
 	vesa_base_addr			= ioport__register(IOPORT_EMPTY, &vesa_io_ops, IOPORT_SIZE, NULL);
-	vesa_pci_device.bar[0]		= vesa_base_addr | PCI_BASE_ADDRESS_SPACE_IO;
+	vesa_pci_device.bar[0]		= cpu_to_le32(vesa_base_addr | PCI_BASE_ADDRESS_SPACE_IO);
 	pci__register(&vesa_pci_device, dev);
 
 	mem = mmap(NULL, VESA_MEM_SIZE, PROT_RW, MAP_ANON_NORESERVE, -1, 0);

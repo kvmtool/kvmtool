@@ -8,21 +8,22 @@
 #include "kvm/ioeventfd.h"
 
 #include <linux/kvm.h>
+#include <linux/byteorder.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 
 static struct pci_device_header pci_shmem_pci_device = {
-	.vendor_id	= PCI_VENDOR_ID_REDHAT_QUMRANET,
-	.device_id	= 0x1110,
+	.vendor_id	= cpu_to_le16(PCI_VENDOR_ID_REDHAT_QUMRANET),
+	.device_id	= cpu_to_le16(0x1110),
 	.header_type	= PCI_HEADER_TYPE_NORMAL,
-	.class		= 0xFF0000,	/* misc pci device */
-	.status		= PCI_STATUS_CAP_LIST,
+	.class[2]	= 0xFF,	/* misc pci device */
+	.status		= cpu_to_le16(PCI_STATUS_CAP_LIST),
 	.capabilities	= (void *)&pci_shmem_pci_device.msix - (void *)&pci_shmem_pci_device,
 	.msix.cap	= PCI_CAP_ID_MSIX,
-	.msix.ctrl	= 1,
-	.msix.table_offset = 1,		/* Use BAR 1 */
-	.msix.pba_offset = 0x1001,	/* Use BAR 1 */
+	.msix.ctrl	= cpu_to_le16(1),
+	.msix.table_offset = cpu_to_le32(1),		/* Use BAR 1 */
+	.msix.pba_offset = cpu_to_le32(0x1001),		/* Use BAR 1 */
 };
 
 /* registers for the Inter-VM shared memory device */
@@ -123,7 +124,7 @@ int pci_shmem__get_local_irqfd(struct kvm *kvm)
 		if (fd < 0)
 			return fd;
 
-		if (pci_shmem_pci_device.msix.ctrl & PCI_MSIX_FLAGS_ENABLE) {
+		if (pci_shmem_pci_device.msix.ctrl & cpu_to_le16(PCI_MSIX_FLAGS_ENABLE)) {
 			gsi = irq__add_msix_route(kvm, &msix_table[0].msg);
 		} else {
 			gsi = pci_shmem_pci_device.irq_line;
@@ -241,11 +242,11 @@ int pci_shmem__init(struct kvm *kvm)
 	 * 1 - MSI-X MMIO space
 	 * 2 - Shared memory block
 	 */
-	pci_shmem_pci_device.bar[0] = ivshmem_registers | PCI_BASE_ADDRESS_SPACE_IO;
+	pci_shmem_pci_device.bar[0] = cpu_to_le32(ivshmem_registers | PCI_BASE_ADDRESS_SPACE_IO);
 	pci_shmem_pci_device.bar_size[0] = shmem_region->size;
-	pci_shmem_pci_device.bar[1] = msix_block | PCI_BASE_ADDRESS_SPACE_MEMORY;
+	pci_shmem_pci_device.bar[1] = cpu_to_le32(msix_block | PCI_BASE_ADDRESS_SPACE_MEMORY);
 	pci_shmem_pci_device.bar_size[1] = 0x1010;
-	pci_shmem_pci_device.bar[2] = shmem_region->phys_addr | PCI_BASE_ADDRESS_SPACE_MEMORY;
+	pci_shmem_pci_device.bar[2] = cpu_to_le32(shmem_region->phys_addr | PCI_BASE_ADDRESS_SPACE_MEMORY);
 	pci_shmem_pci_device.bar_size[2] = shmem_region->size;
 
 	pci__register(&pci_shmem_pci_device, dev);
