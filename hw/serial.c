@@ -19,6 +19,7 @@ struct serial8250_device {
 	u16			iobase;
 	u8			irq;
 	u8			irq_state;
+	int			txcnt;
 
 	u8			rbr;		/* receive buffer */
 	u8			dll;
@@ -105,6 +106,16 @@ static void serial8250_update_irq(struct kvm *kvm, struct serial8250_device *dev
 			kvm__irq_line(kvm, dev->irq, 1);
 	}
 	dev->irq_state = iir;
+
+	/*
+	 * If the kernel disabled the tx interrupt, we know that there
+	 * is nothing more to transmit, so we can reset our tx logic
+	 * here.
+	 */
+	if (!(dev->ier & UART_IER_THRI)) {
+		dev->lsr |= UART_LSR_TEMT | UART_LSR_THRE;
+		dev->txcnt = 0;
+	}
 }
 
 #define SYSRQ_PENDING_NONE		0
@@ -133,6 +144,15 @@ static void serial8250__sysrq(struct kvm *kvm, struct serial8250_device *dev)
 static void serial8250__receive(struct kvm *kvm, struct serial8250_device *dev)
 {
 	int c;
+
+	/*
+	 * If the guest transmitted 16 chars in a row, we clear the
+	 * TEMT/THRE bits to let the kernel escape from the 8250
+	 * interrupt handler. We come here only once a ms, so that
+	 * should give the kernel the desired pause.
+	 */
+	dev->lsr |= UART_LSR_TEMT | UART_LSR_THRE;
+	dev->txcnt = 0;
 
 	if (dev->lsr & UART_LSR_DR)
 		return;
@@ -212,14 +232,8 @@ static bool serial8250_out(struct ioport *ioport, struct kvm *kvm, u16 port, voi
 				term_putc(CONSOLE_8250, addr, size, dev->id);
 			/* else FIXME: Inject data into rcv path for LOOP */
 
-			/*
-			 * Set transmitter and transmit hold register
-			 * empty.  We have no FIFO at the moment and
-			 * on the TX side it's only interesting, when
-			 * we could coalesce port io on the kernel
-			 * kernel.
-			 */
-			dev->lsr |= UART_LSR_TEMT | UART_LSR_THRE;
+			if (++dev->txcnt == 16)
+				dev->lsr &= ~(UART_LSR_TEMT | UART_LSR_THRE);
 			break;
 		} else {
 			dev->dll = ioport__read8(data);
