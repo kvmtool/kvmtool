@@ -30,7 +30,6 @@ struct virtio_pci {
 	u32			vq_vector[VIRTIO_PCI_MAX_VQ];
 	u32			gsis[VIRTIO_PCI_MAX_VQ];
 	u32			msix_io_block;
-	u32			msix_pba_block;
 	u64			msix_pba;
 	struct msix_table	msix_table[VIRTIO_PCI_MAX_VQ + VIRTIO_PCI_MAX_CONFIG];
 

@@ -220,23 +220,21 @@ static struct ioport_operations virtio_pci__io_ops = {
 static void callback_mmio_table(u64 addr, u8 *data, u32 len, u8 is_write, void *ptr)
 {
 	struct virtio_pci *vpci = ptr;
-	void *table = &vpci->msix_table;
+	void *table;
+	u32 offset;
+
+	if (addr > vpci->msix_io_block + PCI_IO_SIZE) {
+		table	= &vpci->msix_pba;
+		offset	= vpci->msix_io_block + PCI_IO_SIZE;
+	} else {
+		table	= &vpci->msix_table;
+		offset	= vpci->msix_io_block;
+	}
 
 	if (is_write)
-		memcpy(table + addr - vpci->msix_io_block, data, len);
+		memcpy(table + addr - offset, data, len);
 	else
-		memcpy(data, table + addr - vpci->msix_io_block, len);
-}
-
-static void callback_mmio_pba(u64 addr, u8 *data, u32 len, u8 is_write, void *ptr)
-{
-	struct virtio_pci *vpci = ptr;
-	void *pba = &vpci->msix_pba;
-
-	if (is_write)
-		memcpy(pba + addr - vpci->msix_pba_block, data, len);
-	else
-		memcpy(data, pba + addr - vpci->msix_pba_block, len);
+		memcpy(data, table + addr - offset, len);
 }
 
 int virtio_pci__signal_vq(struct kvm *kvm, struct virtio_trans *vtrans, u32 vq)
@@ -289,12 +287,10 @@ int virtio_pci__init(struct kvm *kvm, struct virtio_trans *vtrans, void *dev,
 	u8 pin, line, ndev;
 
 	vpci->dev = dev;
-	vpci->msix_io_block = pci_get_io_space_block(PCI_IO_SIZE);
-	vpci->msix_pba_block = pci_get_io_space_block(PCI_IO_SIZE);
+	vpci->msix_io_block = pci_get_io_space_block(PCI_IO_SIZE * 2);
 
 	vpci->base_addr = ioport__register(IOPORT_EMPTY, &virtio_pci__io_ops, IOPORT_SIZE, vtrans);
 	kvm__register_mmio(kvm, vpci->msix_io_block, PCI_IO_SIZE, callback_mmio_table, vpci);
-	kvm__register_mmio(kvm, vpci->msix_pba_block, PCI_IO_SIZE, callback_mmio_pba, vpci);
 
 	vpci->pci_hdr = (struct pci_device_header) {
 		.vendor_id		= cpu_to_le16(PCI_VENDOR_ID_REDHAT_QUMRANET),
@@ -306,10 +302,9 @@ int virtio_pci__init(struct kvm *kvm, struct virtio_trans *vtrans, void *dev,
 		.class[2]		= (class >> 16) & 0xff,
 		.subsys_vendor_id	= cpu_to_le16(PCI_SUBSYSTEM_VENDOR_ID_REDHAT_QUMRANET),
 		.subsys_id		= cpu_to_le16(subsys_id),
-		.bar[0]			= cpu_to_le32(vpci->base_addr | PCI_BASE_ADDRESS_SPACE_IO),
+		.bar[0]			= cpu_to_le32(vpci->base_addr
+							| PCI_BASE_ADDRESS_SPACE_IO),
 		.bar[1]			= cpu_to_le32(vpci->msix_io_block
-							| PCI_BASE_ADDRESS_SPACE_MEMORY),
-		.bar[3]			= cpu_to_le32(vpci->msix_pba_block
 							| PCI_BASE_ADDRESS_SPACE_MEMORY),
 		.status			= cpu_to_le16(PCI_STATUS_CAP_LIST),
 		.capabilities		= (void *)&vpci->pci_hdr.msix - (void *)&vpci->pci_hdr,
@@ -338,7 +333,7 @@ int virtio_pci__init(struct kvm *kvm, struct virtio_trans *vtrans, void *dev,
 	 * we're not in short of BARs
 	 */
 	vpci->pci_hdr.msix.table_offset = cpu_to_le32(1); /* Use BAR 1 */
-	vpci->pci_hdr.msix.pba_offset = cpu_to_le32(3); /* Use BAR 3 */
+	vpci->pci_hdr.msix.pba_offset = cpu_to_le32(1 | PCI_IO_SIZE); /* Use BAR 3 */
 	vpci->config_vector = 0;
 
 	if (irq__register_device(subsys_id, &ndev, &pin, &line) < 0)
