@@ -307,10 +307,10 @@ int virtio_pci__init(struct kvm *kvm, struct virtio_trans *vtrans, void *dev,
 		.subsys_vendor_id	= cpu_to_le16(PCI_SUBSYSTEM_VENDOR_ID_REDHAT_QUMRANET),
 		.subsys_id		= cpu_to_le16(subsys_id),
 		.bar[0]			= cpu_to_le32(vpci->base_addr | PCI_BASE_ADDRESS_SPACE_IO),
-		.bar[1]			= cpu_to_le32(vpci->msix_io_block | PCI_BASE_ADDRESS_SPACE_MEMORY
-						      | PCI_BASE_ADDRESS_MEM_TYPE_64),
-		.bar[3]			= cpu_to_le32(vpci->msix_pba_block | PCI_BASE_ADDRESS_SPACE_MEMORY
-						      | PCI_BASE_ADDRESS_MEM_TYPE_64),
+		.bar[1]			= cpu_to_le32(vpci->msix_io_block
+							| PCI_BASE_ADDRESS_SPACE_MEMORY),
+		.bar[3]			= cpu_to_le32(vpci->msix_pba_block
+							| PCI_BASE_ADDRESS_SPACE_MEMORY),
 		.status			= cpu_to_le16(PCI_STATUS_CAP_LIST),
 		.capabilities		= (void *)&vpci->pci_hdr.msix - (void *)&vpci->pci_hdr,
 		.bar_size[0]		= IOPORT_SIZE,
