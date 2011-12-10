@@ -351,6 +351,6 @@ void kvm__arch_setup_firmware(struct kvm *kvm)
 
 void kvm__arch_periodic_poll(struct kvm *kvm)
 {
-	serial8250__inject_interrupt(kvm);
+	serial8250__update_consoles(kvm);
 	virtio_console__inject_interrupt(kvm);
 }

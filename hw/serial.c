@@ -18,6 +18,7 @@ struct serial8250_device {
 
 	u16			iobase;
 	u8			irq;
+	u8			irq_state;
 
 	u8			rbr;		/* receive buffer */
 	u8			dll;
@@ -81,6 +82,31 @@ static struct serial8250_device devices[] = {
 	},
 };
 
+static void serial8250_update_irq(struct kvm *kvm, struct serial8250_device *dev)
+{
+	u8 iir = 0;
+
+	/* Data ready and rcv interrupt enabled ? */
+	if ((dev->ier & UART_IER_RDI) && (dev->lsr & UART_LSR_DR))
+		iir |= UART_IIR_RDI;
+
+	/* Transmitter empty and interrupt enabled ? */
+	if ((dev->ier & UART_IER_THRI) && (dev->lsr & UART_LSR_TEMT))
+		iir |= UART_IIR_THRI;
+
+	/* Now update the irq line, if necessary */
+	if (!iir) {
+		dev->iir = UART_IIR_NO_INT;
+		if (dev->irq_state)
+			kvm__irq_line(kvm, dev->irq, 0);
+	} else {
+		dev->iir = iir;
+		if (!dev->irq_state)
+			kvm__irq_line(kvm, dev->irq, 1);
+	}
+	dev->irq_state = iir;
+}
+
 #define SYSRQ_PENDING_NONE		0
 #define SYSRQ_PENDING_BREAK		1
 #define SYSRQ_PENDING_CMD		2
@@ -128,7 +154,7 @@ static void serial8250__receive(struct kvm *kvm, struct serial8250_device *dev)
 	dev->lsr |= UART_LSR_DR;
 }
 
-void serial8250__inject_interrupt(struct kvm *kvm)
+void serial8250__update_consoles(struct kvm *kvm)
 {
 	unsigned int i;
 
@@ -139,17 +165,7 @@ void serial8250__inject_interrupt(struct kvm *kvm)
 
 		serial8250__receive(kvm, dev);
 
-		if (dev->ier & UART_IER_RDI && dev->lsr & UART_LSR_DR)
-			dev->iir = UART_IIR_RDI;
-		else if (dev->ier & UART_IER_THRI)
-			dev->iir = UART_IIR_THRI;
-		else
-			dev->iir = UART_IIR_NO_INT;
-
-		if (dev->iir != UART_IIR_NO_INT) {
-			kvm__irq_line(kvm, dev->irq, 0);
-			kvm__irq_line(kvm, dev->irq, 1);
-		}
+		serial8250_update_irq(kvm, dev);
 
 		mutex_unlock(&dev->mutex);
 	}
@@ -194,19 +210,26 @@ static bool serial8250_out(struct ioport *ioport, struct kvm *kvm, u16 port, voi
 
 			if (!(dev->mcr & UART_MCR_LOOP))
 				term_putc(CONSOLE_8250, addr, size, dev->id);
+			/* else FIXME: Inject data into rcv path for LOOP */
 
-			dev->iir = UART_IIR_NO_INT;
+			/*
+			 * Set transmitter and transmit hold register
+			 * empty.  We have no FIFO at the moment and
+			 * on the TX side it's only interesting, when
+			 * we could coalesce port io on the kernel
+			 * kernel.
+			 */
+			dev->lsr |= UART_LSR_TEMT | UART_LSR_THRE;
+			break;
 		} else {
 			dev->dll = ioport__read8(data);
 		}
 		break;
 	case UART_IER:
-		if (!(dev->lcr & UART_LCR_DLAB)) {
+		if (!(dev->lcr & UART_LCR_DLAB))
 			dev->ier = ioport__read8(data) & 0x3f;
-			kvm__irq_line(kvm, dev->irq, dev->ier ? 1 : 0);
-		} else {
+		else
 			dev->dlm = ioport__read8(data);
-		}
 		break;
 	case UART_FCR:
 		dev->fcr = ioport__read8(data);
@@ -230,6 +253,8 @@ static bool serial8250_out(struct ioport *ioport, struct kvm *kvm, u16 port, voi
 		ret = false;
 		break;
 	}
+
+	serial8250_update_irq(kvm, dev);
 
 	mutex_unlock(&dev->mutex);
 
@@ -257,7 +282,6 @@ static bool serial8250_in(struct ioport *ioport, struct kvm *kvm, u16 port, void
 		} else {
 			ioport__write8(data, dev->rbr);
 			dev->lsr &= ~UART_LSR_DR;
-			dev->iir = UART_IIR_NO_INT;
 		}
 		break;
 	case UART_IER:
@@ -266,15 +290,9 @@ static bool serial8250_in(struct ioport *ioport, struct kvm *kvm, u16 port, void
 		else
 			ioport__write8(data, dev->ier);
 		break;
-	case UART_IIR: {
-		u8 iir = dev->iir;
-
-		if (dev->fcr & UART_FCR_ENABLE_FIFO)
-			iir |= 0xc0;
-
-		ioport__write8(data, iir);
+	case UART_IIR:
+		ioport__write8(data, dev->iir);
 		break;
-	}
 	case UART_LCR:
 		ioport__write8(data, dev->lcr);
 		break;
@@ -283,7 +301,6 @@ static bool serial8250_in(struct ioport *ioport, struct kvm *kvm, u16 port, void
 		break;
 	case UART_LSR:
 		ioport__write8(data, dev->lsr);
-		dev->lsr &= ~(UART_LSR_OE|UART_LSR_PE|UART_LSR_FE|UART_LSR_BI);
 		break;
 	case UART_MSR:
 		ioport__write8(data, dev->msr);
@@ -295,6 +312,9 @@ static bool serial8250_in(struct ioport *ioport, struct kvm *kvm, u16 port, void
 		ret = false;
 		break;
 	}
+
+	serial8250_update_irq(kvm, dev);
+
 	mutex_unlock(&dev->mutex);
 
 	return ret;
