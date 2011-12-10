@@ -187,73 +187,48 @@ static bool serial8250_out(struct ioport *ioport, struct kvm *kvm, u16 port, voi
 
 	offset = port - dev->iobase;
 
-	if (dev->lcr & UART_LCR_DLAB) {
-		switch (offset) {
-		case UART_DLL:
-			dev->dll = ioport__read8(data);
-			break;
-		case UART_DLM:
-			dev->dlm = ioport__read8(data);
-			break;
-		case UART_FCR:
-			dev->fcr = ioport__read8(data);
-			break;
-		case UART_LCR:
-			dev->lcr = ioport__read8(data);
-			break;
-		case UART_MCR:
-			dev->mcr = ioport__read8(data);
-			break;
-		case UART_LSR:
-			/* Factory test */
-			break;
-		case UART_MSR:
-			/* Not used */
-			break;
-		case UART_SCR:
-			dev->scr = ioport__read8(data);
-			break;
-		default:
-			ret = false;
-			break;
-		}
-	} else {
-		switch (offset) {
-		case UART_TX: {
+	switch (offset) {
+	case UART_TX:
+		if (!(dev->lcr & UART_LCR_DLAB)) {
 			char *addr = data;
 
 			if (!(dev->mcr & UART_MCR_LOOP))
 				term_putc(CONSOLE_8250, addr, size, dev->id);
 
 			dev->iir = UART_IIR_NO_INT;
-			break;
+		} else {
+			dev->dll = ioport__read8(data);
 		}
-		case UART_FCR:
-			dev->fcr = ioport__read8(data);
-			break;
-		case UART_IER:
+		break;
+	case UART_IER:
+		if (!(dev->lcr & UART_LCR_DLAB)) {
 			dev->ier = ioport__read8(data) & 0x3f;
 			kvm__irq_line(kvm, dev->irq, dev->ier ? 1 : 0);
-			break;
-		case UART_LCR:
-			dev->lcr = ioport__read8(data);
-			break;
-		case UART_MCR:
-			dev->mcr = ioport__read8(data);
-			break;
-		case UART_LSR:
-			/* Factory test */
-			break;
-		case UART_MSR:
-			/* Not used */
-			break;
-		case UART_SCR:
-			dev->scr = ioport__read8(data);
-			break;
-		default:
-			ret = false;
-			break;
+		} else {
+			dev->dlm = ioport__read8(data);
 		}
+		break;
+	case UART_FCR:
+		dev->fcr = ioport__read8(data);
+		break;
+	case UART_LCR:
+		dev->lcr = ioport__read8(data);
+		break;
+	case UART_MCR:
+		dev->mcr = ioport__read8(data);
+		break;
+	case UART_LSR:
+		/* Factory test */
+		break;
+	case UART_MSR:
+		/* Not used */
+		break;
+	case UART_SCR:
+		dev->scr = ioport__read8(data);
+		break;
+	default:
+		ret = false;
+		break;
 	}
 
 	mutex_unlock(&dev->mutex);
@@ -275,37 +250,22 @@ static bool serial8250_in(struct ioport *ioport, struct kvm *kvm, u16 port, void
 
 	offset = port - dev->iobase;
 
-	if (dev->lcr & UART_LCR_DLAB) {
-		switch (offset) {
-		case UART_DLL:
+	switch (offset) {
+	case UART_RX:
+		if (dev->lcr & UART_LCR_DLAB) {
 			ioport__write8(data, dev->dll);
-			goto out_unlock;
-
-		case UART_DLM:
-			ioport__write8(data, dev->dlm);
-			goto out_unlock;
-
-		default:
-			break;
-		}
-	} else {
-		switch (offset) {
-		case UART_RX:
+		} else {
 			ioport__write8(data, dev->rbr);
 			dev->lsr &= ~UART_LSR_DR;
 			dev->iir = UART_IIR_NO_INT;
-			goto out_unlock;
-
-		case UART_IER:
-			ioport__write8(data, dev->ier);
-			goto out_unlock;
-
-		default:
-			break;
 		}
-	}
-
-	switch (offset) {
+		break;
+	case UART_IER:
+		if (dev->lcr & UART_LCR_DLAB)
+			ioport__write8(data, dev->dlm);
+		else
+			ioport__write8(data, dev->ier);
+		break;
 	case UART_IIR: {
 		u8 iir = dev->iir;
 
@@ -333,9 +293,8 @@ static bool serial8250_in(struct ioport *ioport, struct kvm *kvm, u16 port, void
 		break;
 	default:
 		ret = false;
-		goto out_unlock;
+		break;
 	}
-out_unlock:
 	mutex_unlock(&dev->mutex);
 
 	return ret;
