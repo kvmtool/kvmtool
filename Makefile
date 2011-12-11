@@ -23,7 +23,8 @@ FIND	:= find
 CSCOPE	:= cscope
 TAGS	:= ctags
 
-PROGRAM	:= kvm
+PROGRAM	:= lkvm
+PROGRAM_ALIAS := vm
 
 GUEST_INIT := guest/init
 GUEST_INIT_S2 := guest/init_stage2
@@ -209,7 +210,7 @@ WARNINGS += -Wwrite-strings
 
 CFLAGS	+= $(WARNINGS)
 
-all: arch_support_check $(PROGRAM) $(GUEST_INIT) $(GUEST_INIT_S2)
+all: arch_support_check $(PROGRAM) $(PROGRAM_ALIAS) $(GUEST_INIT) $(GUEST_INIT_S2)
 
 arch_support_check:
 	$(UNSUPP_ERR)
@@ -221,6 +222,10 @@ KVMTOOLS-VERSION-FILE:
 $(PROGRAM): $(DEPS) $(OBJS)
 	$(E) "  LINK    " $@
 	$(Q) $(CC) $(OBJS) $(LIBS) -o $@
+
+$(PROGRAM_ALIAS): $(PROGRAM)
+	$(E) "  LN      " $@
+	$(Q) ln -f $(PROGRAM) $@
 
 $(GUEST_INIT): guest/init.c
 	$(E) "  LINK    " $@

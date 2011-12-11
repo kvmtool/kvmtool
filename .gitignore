@@ -1,4 +1,5 @@
-/kvm
+/lkvm
+/vm
 *.o
 *.d
 .cscope
