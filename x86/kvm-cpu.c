@@ -81,18 +81,12 @@ static int kvm_cpu__set_lint(struct kvm_cpu *vcpu)
 {
 	struct kvm_lapic_state klapic;
 	struct local_apic *lapic = (void *)&klapic;
-	u32 lvt;
 
 	if (ioctl(vcpu->vcpu_fd, KVM_GET_LAPIC, &klapic))
 		return -1;
 
-	lvt = *(u32 *)&lapic->lvt_lint0;
-	lvt = SET_APIC_DELIVERY_MODE(lvt, APIC_MODE_EXTINT);
-	*(u32 *)&lapic->lvt_lint0 = lvt;
-
-	lvt = *(u32 *)&lapic->lvt_lint1;
-	lvt = SET_APIC_DELIVERY_MODE(lvt, APIC_MODE_NMI);
-	*(u32 *)&lapic->lvt_lint1 = lvt;
+	lapic->lvt_lint0.delivery_mode = APIC_MODE_EXTINT;
+	lapic->lvt_lint1.delivery_mode = APIC_MODE_NMI;
 
 	return ioctl(vcpu->vcpu_fd, KVM_SET_LAPIC, &klapic);
 }
