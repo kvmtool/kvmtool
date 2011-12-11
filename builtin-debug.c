@@ -14,12 +14,9 @@
 
 static bool all;
 static int instance;
+static int nmi = -1;
+static bool dump;
 static const char *instance_name;
-
-struct debug_cmd {
-	u32 type;
-	u32 len;
-};
 
 static const char * const debug_usage[] = {
 	"kvm debug [--all] [-n name]",
@@ -30,6 +27,8 @@ static const struct option debug_options[] = {
 	OPT_GROUP("General options:"),
 	OPT_BOOLEAN('a', "all", &all, "Debug all instances"),
 	OPT_STRING('n', "name", &instance_name, "name", "Instance name"),
+	OPT_BOOLEAN('d', "dump", &dump, "Generate a debug dump from guest"),
+	OPT_INTEGER('m', "nmi", &nmi, "Generate NMI on VCPU"),
 	OPT_END()
 };
 
@@ -51,12 +50,23 @@ void kvm_debug_help(void)
 static int do_debug(const char *name, int sock)
 {
 	char buff[BUFFER_SIZE];
-	struct debug_cmd cmd = {KVM_IPC_DEBUG, 0};
+	struct debug_cmd cmd = {KVM_IPC_DEBUG, 2 * sizeof(u32)};
 	int r;
+
+	if (dump)
+		cmd.dbg_type |= KVM_DEBUG_CMD_TYPE_DUMP;
+
+	if (nmi != -1) {
+		cmd.dbg_type |= KVM_DEBUG_CMD_TYPE_NMI;
+		cmd.cpu = nmi;
+	}
 
 	r = xwrite(sock, &cmd, sizeof(cmd));
 	if (r < 0)
 		return r;
+
+	if (!dump)
+		return 0;
 
 	do {
 		r = xread(sock, buff, BUFFER_SIZE);

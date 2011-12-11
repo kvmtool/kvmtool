@@ -5,6 +5,7 @@
 #include "kvm/kvm.h"
 
 #include <asm/msr-index.h>
+#include <asm/apicdef.h>
 
 #include <sys/ioctl.h>
 #include <sys/mman.h>
@@ -76,6 +77,26 @@ void kvm_cpu__delete(struct kvm_cpu *vcpu)
 	free(vcpu);
 }
 
+static int kvm_cpu__set_lint(struct kvm_cpu *vcpu)
+{
+	struct kvm_lapic_state klapic;
+	struct local_apic *lapic = (void *)&klapic;
+	u32 lvt;
+
+	if (ioctl(vcpu->vcpu_fd, KVM_GET_LAPIC, &klapic))
+		return -1;
+
+	lvt = *(u32 *)&lapic->lvt_lint0;
+	lvt = SET_APIC_DELIVERY_MODE(lvt, APIC_MODE_EXTINT);
+	*(u32 *)&lapic->lvt_lint0 = lvt;
+
+	lvt = *(u32 *)&lapic->lvt_lint1;
+	lvt = SET_APIC_DELIVERY_MODE(lvt, APIC_MODE_NMI);
+	*(u32 *)&lapic->lvt_lint1 = lvt;
+
+	return ioctl(vcpu->vcpu_fd, KVM_SET_LAPIC, &klapic);
+}
+
 struct kvm_cpu *kvm_cpu__init(struct kvm *kvm, unsigned long cpu_id)
 {
 	struct kvm_cpu *vcpu;
@@ -103,6 +124,9 @@ struct kvm_cpu *kvm_cpu__init(struct kvm *kvm, unsigned long cpu_id)
 	coalesced_offset = ioctl(kvm->sys_fd, KVM_CHECK_EXTENSION, KVM_CAP_COALESCED_MMIO);
 	if (coalesced_offset)
 		vcpu->ring = (void *)vcpu->kvm_run + (coalesced_offset * PAGE_SIZE);
+
+	if (kvm_cpu__set_lint(vcpu))
+		die_perror("KVM_SET_LAPIC failed");
 
 	vcpu->is_running = true;
 
@@ -385,4 +409,21 @@ void kvm_cpu__show_page_tables(struct kvm_cpu *vcpu)
 		dprintf(debug_fd, " pte4: %016llx  pte3: %016llx   pte2: %016"
 			"llx   pte1: %016llx\n",
 			*pte4, *pte3, *pte2, *pte1);
+}
+
+void kvm_cpu__arch_nmi(struct kvm_cpu *cpu)
+{
+	struct kvm_lapic_state klapic;
+	struct local_apic *lapic = (void *)&klapic;
+
+	if (ioctl(cpu->vcpu_fd, KVM_GET_LAPIC, &klapic) != 0)
+		return;
+
+	if (lapic->lvt_lint1.mask)
+		return;
+
+	if (lapic->lvt_lint1.delivery_mode != APIC_MODE_NMI)
+		return;
+
+	ioctl(cpu->vcpu_fd, KVM_NMI);
 }

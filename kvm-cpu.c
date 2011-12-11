@@ -94,6 +94,11 @@ int kvm_cpu__start(struct kvm_cpu *cpu)
 			cpu->paused = 0;
 		}
 
+		if (cpu->needs_nmi) {
+			kvm_cpu__arch_nmi(cpu);
+			cpu->needs_nmi = 0;
+		}
+
 		kvm_cpu__run(cpu);
 
 		switch (cpu->kvm_run->exit_reason) {

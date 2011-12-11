@@ -26,6 +26,7 @@ struct kvm_cpu {
 
 	u8			is_running;
 	u8			paused;
+	u8			needs_nmi;
 
 	struct kvm_coalesced_mmio_ring	*ring;
 };
