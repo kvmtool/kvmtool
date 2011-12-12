@@ -21,6 +21,7 @@
 #include "kvm/mutex.h"
 #include "kvm/term.h"
 #include "kvm/util.h"
+#include "kvm/strbuf.h"
 #include "kvm/vesa.h"
 #include "kvm/irq.h"
 #include "kvm/kvm.h"
