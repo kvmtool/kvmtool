@@ -76,7 +76,7 @@ OBJS	+= net/uip/buf.o
 OBJS	+= net/uip/csum.o
 OBJS	+= net/uip/dhcp.o
 OBJS	+= kvm-cmd.o
-OBJS	+= rbtree.o
+OBJS	+= util/rbtree.o
 OBJS	+= util/threadpool.o
 OBJS	+= util/parse-options.o
 OBJS	+= util/rbtree-interval.o
@@ -245,7 +245,7 @@ builtin-help.d: $(KVM_INCLUDE)/common-cmds.h
 
 $(OBJS):
 
-rbtree.o: ../../lib/rbtree.c
+util/rbtree.o: ../../lib/rbtree.c
 	$(Q) $(CC) -c $(CFLAGS) $< -o $@
 
 %.o: %.c
