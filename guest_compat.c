@@ -17,6 +17,13 @@ static int id;
 static DEFINE_MUTEX(compat_mtx);
 static LIST_HEAD(messages);
 
+static void compat__free(struct compat_message *msg)
+{
+	free(msg->title);
+	free(msg->desc);
+	free(msg);
+}
+
 int compat__add_message(const char *title, const char *desc)
 {
 	struct compat_message *msg;
@@ -42,20 +49,10 @@ int compat__add_message(const char *title, const char *desc)
 	return msg_id;
 
 cleanup:
-	if (msg) {
-		free(msg->title);
-		free(msg->desc);
-		free(msg);
-	}
+	if (msg)
+		compat__free(msg);
 
 	return -ENOMEM;
-}
-
-static void compat__free(struct compat_message *msg)
-{
-	free(msg->title);
-	free(msg->desc);
-	free(msg);
 }
 
 int compat__remove_message(int id)
