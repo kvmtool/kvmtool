@@ -80,12 +80,11 @@ static void *thread_pool__threadfunc(void *param)
 		struct thread_pool__job *curjob;
 
 		mutex_lock(&job_mutex);
-		pthread_cond_wait(&job_cond, &job_mutex);
-		curjob = thread_pool__job_pop();
+		while ((curjob = thread_pool__job_pop()) == NULL)
+			pthread_cond_wait(&job_cond, &job_mutex);
 		mutex_unlock(&job_mutex);
 
-		if (curjob)
-			thread_pool__handle_job(curjob);
+		thread_pool__handle_job(curjob);
 	}
 
 	pthread_cleanup_pop(0);
