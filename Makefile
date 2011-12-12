@@ -246,6 +246,7 @@ builtin-help.d: $(KVM_INCLUDE)/common-cmds.h
 $(OBJS):
 
 util/rbtree.o: ../../lib/rbtree.c
+	$(E) "  CC      " $@
 	$(Q) $(CC) -c $(CFLAGS) $< -o $@
 
 %.o: %.c
