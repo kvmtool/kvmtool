@@ -19,16 +19,17 @@ static bool dump;
 static const char *instance_name;
 
 static const char * const debug_usage[] = {
-	"kvm debug [--all] [-n name]",
+	"kvm debug [--all] [-n name] [-d] [-m vcpu]",
 	NULL
 };
 
 static const struct option debug_options[] = {
 	OPT_GROUP("General options:"),
-	OPT_BOOLEAN('a', "all", &all, "Debug all instances"),
-	OPT_STRING('n', "name", &instance_name, "name", "Instance name"),
 	OPT_BOOLEAN('d', "dump", &dump, "Generate a debug dump from guest"),
 	OPT_INTEGER('m', "nmi", &nmi, "Generate NMI on VCPU"),
+	OPT_GROUP("Instance options:"),
+	OPT_BOOLEAN('a', "all", &all, "Debug all instances"),
+	OPT_STRING('n', "name", &instance_name, "name", "Instance name"),
 	OPT_END()
 };
 
@@ -54,11 +55,11 @@ static int do_debug(const char *name, int sock)
 	int r;
 
 	if (dump)
-		cmd.dbg_type |= KVM_DEBUG_CMD_TYPE_DUMP;
+		cmd.params.dbg_type |= KVM_DEBUG_CMD_TYPE_DUMP;
 
 	if (nmi != -1) {
-		cmd.dbg_type |= KVM_DEBUG_CMD_TYPE_NMI;
-		cmd.cpu = nmi;
+		cmd.params.dbg_type |= KVM_DEBUG_CMD_TYPE_NMI;
+		cmd.params.cpu = nmi;
 	}
 
 	r = xwrite(sock, &cmd, sizeof(cmd));
