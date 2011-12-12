@@ -20,6 +20,7 @@ static LIST_HEAD(messages);
 int compat__add_message(const char *title, const char *desc)
 {
 	struct compat_message *msg;
+	int msg_id;
 
 	msg = malloc(sizeof(*msg));
 	if (msg == NULL)
@@ -33,12 +34,12 @@ int compat__add_message(const char *title, const char *desc)
 
 	mutex_lock(&compat_mtx);
 
-	msg->id = id;
+	msg->id = msg_id = id++;
 	list_add_tail(&msg->list, &messages);
 
 	mutex_unlock(&compat_mtx);
 
-	return id++;
+	return msg_id;
 
 cleanup:
 	if (msg) {
