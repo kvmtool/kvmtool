@@ -15,7 +15,7 @@ static LIST_HEAD(head);
 static pthread_t	*threads;
 static long		threadcount;
 
-static struct thread_pool__job *thread_pool__job_pop(void)
+static struct thread_pool__job *thread_pool__job_pop_locked(void)
 {
 	struct thread_pool__job *job;
 
@@ -28,25 +28,25 @@ static struct thread_pool__job *thread_pool__job_pop(void)
 	return job;
 }
 
-static void thread_pool__job_push(struct thread_pool__job *job)
+static void thread_pool__job_push_locked(struct thread_pool__job *job)
 {
 	list_add_tail(&job->queue, &head);
 }
 
-static struct thread_pool__job *thread_pool__job_pop_locked(void)
+static struct thread_pool__job *thread_pool__job_pop(void)
 {
 	struct thread_pool__job *job;
 
 	mutex_lock(&job_mutex);
-	job = thread_pool__job_pop();
+	job = thread_pool__job_pop_locked();
 	mutex_unlock(&job_mutex);
 	return job;
 }
 
-static void thread_pool__job_push_locked(struct thread_pool__job *job)
+static void thread_pool__job_push(struct thread_pool__job *job)
 {
 	mutex_lock(&job_mutex);
-	thread_pool__job_push(job);
+	thread_pool__job_push_locked(job);
 	mutex_unlock(&job_mutex);
 }
 
@@ -59,11 +59,11 @@ static void thread_pool__handle_job(struct thread_pool__job *job)
 
 		if (--job->signalcount > 0)
 			/* If the job was signaled again while we were working */
-			thread_pool__job_push_locked(job);
+			thread_pool__job_push(job);
 
 		mutex_unlock(&job->mutex);
 
-		job = thread_pool__job_pop_locked();
+		job = thread_pool__job_pop();
 	}
 }
 
@@ -80,7 +80,7 @@ static void *thread_pool__threadfunc(void *param)
 		struct thread_pool__job *curjob;
 
 		mutex_lock(&job_mutex);
-		while ((curjob = thread_pool__job_pop()) == NULL)
+		while ((curjob = thread_pool__job_pop_locked()) == NULL)
 			pthread_cond_wait(&job_cond, &job_mutex);
 		mutex_unlock(&job_mutex);
 
@@ -136,7 +136,7 @@ void thread_pool__do_job(struct thread_pool__job *job)
 
 	mutex_lock(&jobinfo->mutex);
 	if (jobinfo->signalcount++ == 0)
-		thread_pool__job_push_locked(job);
+		thread_pool__job_push(job);
 	mutex_unlock(&jobinfo->mutex);
 
 	mutex_lock(&job_mutex);
