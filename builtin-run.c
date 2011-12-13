@@ -86,6 +86,7 @@ static const char *host_mac;
 static const char *script;
 static const char *guest_name;
 static const char *sandbox;
+static const char *hugetlbfs_path;
 static struct virtio_net_params *net_params;
 static bool single_step;
 static bool readonly_image[MAX_DISK_IMAGES];
@@ -438,6 +439,7 @@ static const struct option options[] = {
 		     tty_parser),
 	OPT_STRING('\0', "sandbox", &sandbox, "script",
 			"Run this script when booting into custom rootfs"),
+	OPT_STRING('\0', "hugetlbfs", &hugetlbfs_path, "path", "Hugetlbfs path"),
 
 	OPT_GROUP("Kernel options:"),
 	OPT_STRING('k', "kernel", &kernel_filename, "kernel",
@@ -926,7 +928,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 		guest_name = default_name;
 	}
 
-	kvm = kvm__init(dev, ram_size, guest_name);
+	kvm = kvm__init(dev, hugetlbfs_path, ram_size, guest_name);
 
 	kvm->single_step = single_step;
 

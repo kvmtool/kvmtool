@@ -30,7 +30,7 @@ struct kvm_ext {
 void kvm__set_dir(const char *fmt, ...);
 const char *kvm__get_dir(void);
 
-struct kvm *kvm__init(const char *kvm_dev, u64 ram_size, const char *name);
+struct kvm *kvm__init(const char *kvm_dev, const char *hugetlbfs_path, u64 ram_size, const char *name);
 int kvm__recommended_cpus(struct kvm *kvm);
 int kvm__max_cpus(struct kvm *kvm);
 void kvm__init_ram(struct kvm *kvm);
@@ -54,7 +54,7 @@ int kvm__enumerate_instances(int (*callback)(const char *name, int pid));
 void kvm__remove_socket(const char *name);
 
 void kvm__arch_set_cmdline(char *cmdline, bool video);
-void kvm__arch_init(struct kvm *kvm, const char *kvm_dev, u64 ram_size, const char *name);
+void kvm__arch_init(struct kvm *kvm, const char *kvm_dev, const char *hugetlbfs_path, u64 ram_size, const char *name);
 void kvm__arch_setup_firmware(struct kvm *kvm);
 bool kvm__arch_cpu_supports_vm(void);
 void kvm__arch_periodic_poll(struct kvm *kvm);

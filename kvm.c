@@ -306,7 +306,7 @@ int kvm__max_cpus(struct kvm *kvm)
 	return ret;
 }
 
-struct kvm *kvm__init(const char *kvm_dev, u64 ram_size, const char *name)
+struct kvm *kvm__init(const char *kvm_dev, const char *hugetlbfs_path, u64 ram_size, const char *name)
 {
 	struct kvm *kvm;
 	int ret;
@@ -339,7 +339,7 @@ struct kvm *kvm__init(const char *kvm_dev, u64 ram_size, const char *name)
 	if (kvm__check_extensions(kvm))
 		die("A required KVM extention is not supported by OS");
 
-	kvm__arch_init(kvm, kvm_dev, ram_size, name);
+	kvm__arch_init(kvm, kvm_dev, hugetlbfs_path, ram_size, name);
 
 	kvm->name = name;
 
