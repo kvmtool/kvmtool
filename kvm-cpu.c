@@ -52,11 +52,11 @@ static void kvm_cpu__handle_coalesced_mmio(struct kvm_cpu *cpu)
 		while (cpu->ring->first != cpu->ring->last) {
 			struct kvm_coalesced_mmio *m;
 			m = &cpu->ring->coalesced_mmio[cpu->ring->first];
-			kvm__emulate_mmio(cpu->kvm,
-					m->phys_addr,
-					m->data,
-					m->len,
-					1);
+			kvm_cpu__emulate_mmio(cpu->kvm,
+					      m->phys_addr,
+					      m->data,
+					      m->len,
+					      1);
 			cpu->ring->first = (cpu->ring->first + 1) % KVM_COALESCED_MMIO_MAX;
 		}
 	}
@@ -111,13 +111,13 @@ int kvm_cpu__start(struct kvm_cpu *cpu)
 		case KVM_EXIT_IO: {
 			bool ret;
 
-			ret = kvm__emulate_io(cpu->kvm,
-					cpu->kvm_run->io.port,
-					(u8 *)cpu->kvm_run +
-					cpu->kvm_run->io.data_offset,
-					cpu->kvm_run->io.direction,
-					cpu->kvm_run->io.size,
-					cpu->kvm_run->io.count);
+			ret = kvm_cpu__emulate_io(cpu->kvm,
+						  cpu->kvm_run->io.port,
+						  (u8 *)cpu->kvm_run +
+						  cpu->kvm_run->io.data_offset,
+						  cpu->kvm_run->io.direction,
+						  cpu->kvm_run->io.size,
+						  cpu->kvm_run->io.count);
 
 			if (!ret)
 				goto panic_kvm;
@@ -126,11 +126,11 @@ int kvm_cpu__start(struct kvm_cpu *cpu)
 		case KVM_EXIT_MMIO: {
 			bool ret;
 
-			ret = kvm__emulate_mmio(cpu->kvm,
-					cpu->kvm_run->mmio.phys_addr,
-					cpu->kvm_run->mmio.data,
-					cpu->kvm_run->mmio.len,
-					cpu->kvm_run->mmio.is_write);
+			ret = kvm_cpu__emulate_mmio(cpu->kvm,
+						    cpu->kvm_run->mmio.phys_addr,
+						    cpu->kvm_run->mmio.data,
+						    cpu->kvm_run->mmio.len,
+						    cpu->kvm_run->mmio.is_write);
 
 			if (!ret)
 				goto panic_kvm;
