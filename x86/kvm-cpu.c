@@ -79,16 +79,15 @@ void kvm_cpu__delete(struct kvm_cpu *vcpu)
 
 static int kvm_cpu__set_lint(struct kvm_cpu *vcpu)
 {
-	struct kvm_lapic_state klapic;
-	struct local_apic *lapic = (void *)&klapic;
+	struct local_apic lapic;
 
-	if (ioctl(vcpu->vcpu_fd, KVM_GET_LAPIC, &klapic))
+	if (ioctl(vcpu->vcpu_fd, KVM_GET_LAPIC, &lapic))
 		return -1;
 
-	lapic->lvt_lint0.delivery_mode = APIC_MODE_EXTINT;
-	lapic->lvt_lint1.delivery_mode = APIC_MODE_NMI;
+	lapic.lvt_lint0.delivery_mode = APIC_MODE_EXTINT;
+	lapic.lvt_lint1.delivery_mode = APIC_MODE_NMI;
 
-	return ioctl(vcpu->vcpu_fd, KVM_SET_LAPIC, &klapic);
+	return ioctl(vcpu->vcpu_fd, KVM_SET_LAPIC, &lapic);
 }
 
 struct kvm_cpu *kvm_cpu__init(struct kvm *kvm, unsigned long cpu_id)
