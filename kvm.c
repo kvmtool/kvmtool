@@ -520,3 +520,8 @@ void kvm__notify_paused(void)
 	mutex_lock(&pause_lock);
 	mutex_unlock(&pause_lock);
 }
+
+bool kvm__has_cap(struct kvm *kvm, u32 cap)
+{
+	return ioctl(kvm->sys_fd, KVM_CHECK_EXTENSION, cap) == 0;
+}
