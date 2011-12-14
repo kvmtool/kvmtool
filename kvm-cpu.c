@@ -126,6 +126,12 @@ int kvm_cpu__start(struct kvm_cpu *cpu)
 		case KVM_EXIT_MMIO: {
 			bool ret;
 
+			/*
+			 * If we had MMIO exit, coalesced ring should be processed
+			 * *before* processing the exit itself
+			 */
+			kvm_cpu__handle_coalesced_mmio(cpu);
+
 			ret = kvm_cpu__emulate_mmio(cpu->kvm,
 						    cpu->kvm_run->mmio.phys_addr,
 						    cpu->kvm_run->mmio.data,
