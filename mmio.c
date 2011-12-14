@@ -56,7 +56,9 @@ static const char *to_direction(u8 is_write)
 	return "read";
 }
 
-bool kvm__register_mmio(struct kvm *kvm, u64 phys_addr, u64 phys_addr_len, void (*mmio_fn)(u64 addr, u8 *data, u32 len, u8 is_write, void *ptr), void *ptr)
+bool kvm__register_mmio(struct kvm *kvm, u64 phys_addr, u64 phys_addr_len, bool coalesce,
+			void (*mmio_fn)(u64 addr, u8 *data, u32 len, u8 is_write, void *ptr),
+			void *ptr)
 {
 	struct mmio_mapping *mmio;
 	struct kvm_coalesced_mmio_zone zone;
@@ -72,16 +74,17 @@ bool kvm__register_mmio(struct kvm *kvm, u64 phys_addr, u64 phys_addr_len, void 
 		.ptr	= ptr,
 	};
 
-	zone = (struct kvm_coalesced_mmio_zone) {
-		.addr	= phys_addr,
-		.size	= phys_addr_len,
-	};
-	ret = ioctl(kvm->vm_fd, KVM_REGISTER_COALESCED_MMIO, &zone);
-	if (ret < 0) {
-		free(mmio);
-		return false;
+	if (coalesce) {
+		zone = (struct kvm_coalesced_mmio_zone) {
+			.addr	= phys_addr,
+			.size	= phys_addr_len,
+		};
+		ret = ioctl(kvm->vm_fd, KVM_REGISTER_COALESCED_MMIO, &zone);
+		if (ret < 0) {
+			free(mmio);
+			return false;
+		}
 	}
-
 	br_write_lock();
 	ret = mmio_insert(&mmio_tree, mmio);
 	br_write_unlock();

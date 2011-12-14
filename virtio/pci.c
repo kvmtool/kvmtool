@@ -290,7 +290,7 @@ int virtio_pci__init(struct kvm *kvm, struct virtio_trans *vtrans, void *dev,
 	vpci->msix_io_block = pci_get_io_space_block(PCI_IO_SIZE * 2);
 
 	vpci->base_addr = ioport__register(IOPORT_EMPTY, &virtio_pci__io_ops, IOPORT_SIZE, vtrans);
-	kvm__register_mmio(kvm, vpci->msix_io_block, PCI_IO_SIZE, callback_mmio_table, vpci);
+	kvm__register_mmio(kvm, vpci->msix_io_block, PCI_IO_SIZE, false, callback_mmio_table, vpci);
 
 	vpci->pci_hdr = (struct pci_device_header) {
 		.vendor_id		= cpu_to_le16(PCI_VENDOR_ID_REDHAT_QUMRANET),

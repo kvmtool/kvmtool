@@ -233,7 +233,7 @@ int pci_shmem__init(struct kvm *kvm)
 	/* Register MMIO space for MSI-X */
 	ivshmem_registers = ioport__register(IOPORT_EMPTY, &shmem_pci__io_ops, IOPORT_SIZE, NULL);
 	msix_block = pci_get_io_space_block(0x1010);
-	kvm__register_mmio(kvm, msix_block, 0x1010, callback_mmio_msix, NULL);
+	kvm__register_mmio(kvm, msix_block, 0x1010, false, callback_mmio_msix, NULL);
 
 	/*
 	 * This registers 3 BARs:
