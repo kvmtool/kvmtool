@@ -18,9 +18,14 @@
 static struct	epoll_event events[IOEVENTFD_MAX_EVENTS];
 static int	epoll_fd;
 static LIST_HEAD(used_ioevents);
+static bool	ioeventfd_avail;
 
-void ioeventfd__init(void)
+void ioeventfd__init(struct kvm *kvm)
 {
+	ioeventfd_avail = kvm__has_cap(kvm, KVM_CAP_IOEVENTFD);
+	if (!ioeventfd_avail)
+		return;
+
 	epoll_fd = epoll_create(IOEVENTFD_MAX_EVENTS);
 	if (epoll_fd < 0)
 		die("Failed creating epoll fd");
@@ -32,6 +37,9 @@ void ioeventfd__add_event(struct ioevent *ioevent)
 	struct epoll_event epoll_event;
 	struct ioevent *new_ioevent;
 	int event;
+
+	if (!ioeventfd_avail)
+		return;
 
 	new_ioevent = malloc(sizeof(*new_ioevent));
 	if (new_ioevent == NULL)
@@ -67,6 +75,9 @@ void ioeventfd__del_event(u64 addr, u64 datamatch)
 	struct kvm_ioeventfd kvm_ioevent;
 	struct ioevent *ioevent;
 	u8 found = 0;
+
+	if (!ioeventfd_avail)
+		return;
 
 	list_for_each_entry(ioevent, &used_ioevents, list) {
 		if (ioevent->io_addr == addr) {
@@ -122,6 +133,9 @@ static void *ioeventfd__thread(void *param)
 void ioeventfd__start(void)
 {
 	pthread_t thread;
+
+	if (!ioeventfd_avail)
+		return;
 
 	if (pthread_create(&thread, NULL, ioeventfd__thread, NULL) != 0)
 		die("Failed starting ioeventfd thread");

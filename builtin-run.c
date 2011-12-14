@@ -932,7 +932,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	kvm->single_step = single_step;
 
-	ioeventfd__init();
+	ioeventfd__init(kvm);
 
 	max_cpus = kvm__max_cpus(kvm);
 	recommended_cpus = kvm__recommended_cpus(kvm);
