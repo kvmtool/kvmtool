@@ -87,6 +87,7 @@ static const char *script;
 static const char *guest_name;
 static const char *sandbox;
 static const char *hugetlbfs_path;
+static const char *custom_rootfs_name = "default";
 static struct virtio_net_params *net_params;
 static bool single_step;
 static bool readonly_image[MAX_DISK_IMAGES];
@@ -151,6 +152,7 @@ static int img_name_parser(const struct option *opt, const char *arg, int unset)
 			die("Unable to initialize virtio 9p");
 		kvm_setup_resolv(arg);
 		using_rootfs = custom_rootfs = 1;
+		custom_rootfs_name = arg;
 		return 0;
 	}
 
@@ -738,17 +740,12 @@ void kvm_run_help(void)
 static int kvm_custom_stage2(void)
 {
 	char tmp[PATH_MAX], dst[PATH_MAX], *src;
-	const char *rootfs;
+	const char *rootfs = custom_rootfs_name;
 	int r;
 
 	src = realpath("guest/init_stage2", NULL);
 	if (src == NULL)
 		return -ENOMEM;
-
-	if (image_filename[0] == NULL)
-		rootfs = "default";
-	else
-		rootfs = image_filename[0];
 
 	snprintf(tmp, PATH_MAX, "%s%s/virt/init_stage2", kvm__get_dir(), rootfs);
 	remove(tmp);
@@ -762,11 +759,8 @@ static int kvm_custom_stage2(void)
 
 static int kvm_run_set_sandbox(void)
 {
-	const char *guestfs_name = "default";
+	const char *guestfs_name = custom_rootfs_name;
 	char path[PATH_MAX], script[PATH_MAX], *tmp;
-
-	if (image_filename[0])
-		guestfs_name = image_filename[0];
 
 	snprintf(path, PATH_MAX, "%s%s/virt/sandbox.sh", kvm__get_dir(), guestfs_name);
 
@@ -976,8 +970,8 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	if (!using_rootfs && !image_filename[0] && !initrd_filename) {
 		char tmp[PATH_MAX];
 
-		kvm_setup_create_new("default");
-		kvm_setup_resolv("default");
+		kvm_setup_create_new(custom_rootfs_name);
+		kvm_setup_resolv(custom_rootfs_name);
 
 		snprintf(tmp, PATH_MAX, "%s%s", kvm__get_dir(), "default");
 		if (virtio_9p__register(kvm, tmp, "/dev/root") < 0)
