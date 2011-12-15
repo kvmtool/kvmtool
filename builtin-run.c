@@ -973,7 +973,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	if (kernel_cmdline)
 		strlcat(real_cmdline, kernel_cmdline, sizeof(real_cmdline));
 
-	if (!using_rootfs && !image_filename[0]) {
+	if (!using_rootfs && !image_filename[0] && !initrd_filename) {
 		char tmp[PATH_MAX];
 
 		kvm_setup_create_new("default");
