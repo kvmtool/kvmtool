@@ -82,5 +82,6 @@ static inline void *guest_flat_to_host(struct kvm *kvm, unsigned long offset)
 }
 
 bool kvm__has_cap(struct kvm *kvm, u32 cap);
+bool kvm__supports_extension(struct kvm *kvm, unsigned int extension);
 
 #endif /* KVM__KVM_H */

@@ -22,7 +22,7 @@ static bool	ioeventfd_avail;
 
 void ioeventfd__init(struct kvm *kvm)
 {
-	ioeventfd_avail = kvm__has_cap(kvm, KVM_CAP_IOEVENTFD);
+	ioeventfd_avail = kvm__supports_extension(kvm, KVM_CAP_IOEVENTFD);
 	if (!ioeventfd_avail)
 		return;
 

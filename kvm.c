@@ -90,7 +90,7 @@ const char *kvm__get_dir(void)
 	return kvm_dir;
 }
 
-static bool kvm__supports_extension(struct kvm *kvm, unsigned int extension)
+bool kvm__supports_extension(struct kvm *kvm, unsigned int extension)
 {
 	int ret;
 
