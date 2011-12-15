@@ -12,14 +12,20 @@
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <errno.h>
 #ifdef CONFIG_HAS_ZLIB
 #include <zlib.h>
 #endif
 
+#include <linux/err.h>
 #include <linux/byteorder.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 
+static int update_cluster_refcount(struct qcow *q, u64 clust_idx, u16 append);
+static int qcow_write_refcount_table(struct qcow *q);
+static u64 qcow_alloc_clusters(struct qcow *q, u64 size, int update_ref);
+static void  qcow_free_clusters(struct qcow *q, u64 clust_start, u64 size);
 
 static inline int qcow_pwrite_sync(int fd,
 	void *buf, size_t count, off_t offset)
@@ -657,6 +663,58 @@ static struct qcow_refcount_block *refcount_block_search(struct qcow *q, u64 off
 	return rfb;
 }
 
+static struct qcow_refcount_block *qcow_grow_refcount_block(struct qcow *q,
+	u64 clust_idx)
+{
+	struct qcow_header *header = q->header;
+	struct qcow_refcount_table *rft = &q->refcount_table;
+	struct qcow_refcount_block *rfb;
+	u64 new_block_offset;
+	u64 rft_idx;
+
+	rft_idx = clust_idx >> (header->cluster_bits -
+		QCOW_REFCOUNT_BLOCK_SHIFT);
+
+	if (rft_idx >= rft->rf_size) {
+		pr_warning("Don't support grow refcount block table");
+		return NULL;
+	}
+
+	new_block_offset = qcow_alloc_clusters(q, q->cluster_size, 0);
+	if (new_block_offset < 0)
+		return NULL;
+
+	rfb = new_refcount_block(q, new_block_offset);
+	if (!rfb)
+		return NULL;
+
+	memset(rfb->entries, 0x00, q->cluster_size);
+	rfb->dirty = 1;
+
+	/* write refcount block */
+	if (write_refcount_block(q, rfb) < 0)
+		goto free_rfb;
+
+	if (cache_refcount_block(q, rfb) < 0)
+		goto free_rfb;
+
+	rft->rf_table[rft_idx] = cpu_to_be64(new_block_offset);
+	if (update_cluster_refcount(q, new_block_offset >>
+		    header->cluster_bits, 1) < 0)
+		goto recover_rft;
+
+	if (qcow_write_refcount_table(q) < 0)
+		goto recover_rft;
+
+	return rfb;
+
+recover_rft:
+	rft->rf_table[rft_idx] = 0;
+free_rfb:
+	free(rfb);
+	return NULL;
+}
+
 static struct qcow_refcount_block *qcow_read_refcount_block(struct qcow *q, u64 clust_idx)
 {
 	struct qcow_header *header = q->header;
@@ -667,14 +725,11 @@ static struct qcow_refcount_block *qcow_read_refcount_block(struct qcow *q, u64 
 
 	rft_idx = clust_idx >> (header->cluster_bits - QCOW_REFCOUNT_BLOCK_SHIFT);
 	if (rft_idx >= rft->rf_size)
-		return NULL;
+		return ERR_PTR(-ENOSPC);
 
 	rfb_offset = be64_to_cpu(rft->rf_table[rft_idx]);
-
-	if (!rfb_offset) {
-		pr_warning("Don't support to grow refcount table");
-		return NULL;
-	}
+	if (!rfb_offset)
+		return ERR_PTR(-ENOSPC);
 
 	rfb = refcount_block_search(q, rfb_offset);
 	if (rfb)
@@ -705,7 +760,9 @@ static u16 qcow_get_refcount(struct qcow *q, u64 clust_idx)
 	u64 rfb_idx;
 
 	rfb = qcow_read_refcount_block(q, clust_idx);
-	if (!rfb) {
+	if (PTR_ERR(rfb) == -ENOSPC)
+		return 0;
+	else if (IS_ERR_OR_NULL(rfb)) {
 		pr_warning("Error while reading refcount table");
 		return -1;
 	}
@@ -729,7 +786,13 @@ static int update_cluster_refcount(struct qcow *q, u64 clust_idx, u16 append)
 	u64 rfb_idx;
 
 	rfb = qcow_read_refcount_block(q, clust_idx);
-	if (!rfb) {
+	if (PTR_ERR(rfb) == -ENOSPC) {
+		rfb = qcow_grow_refcount_block(q, clust_idx);
+		if (!rfb) {
+			pr_warning("error while growing refcount table");
+			return -1;
+		}
+	} else if (IS_ERR_OR_NULL(rfb)) {
 		pr_warning("error while reading refcount table");
 		return -1;
 	}
@@ -774,11 +837,11 @@ static void  qcow_free_clusters(struct qcow *q, u64 clust_start, u64 size)
  * can satisfy the size. free_clust_idx is initialized to zero and
  * Record last position.
  */
-static u64 qcow_alloc_clusters(struct qcow *q, u64 size)
+static u64 qcow_alloc_clusters(struct qcow *q, u64 size, int update_ref)
 {
 	struct qcow_header *header = q->header;
 	u16 clust_refcount;
-	u32 clust_idx, i;
+	u32 clust_idx = 0, i;
 	u64 clust_num;
 
 	clust_num = (size + (q->cluster_size - 1)) >> header->cluster_bits;
@@ -793,12 +856,15 @@ again:
 			goto again;
 	}
 
-	for (i = 0; i < clust_num; i++)
-		if (update_cluster_refcount(q,
-			q->free_clust_idx - clust_num + i, 1))
-			return -1;
+	clust_idx++;
 
-	return (q->free_clust_idx - clust_num) << header->cluster_bits;
+	if (update_ref)
+		for (i = 0; i < clust_num; i++)
+			if (update_cluster_refcount(q,
+				clust_idx - clust_num + i, 1))
+				return -1;
+
+	return (clust_idx - clust_num) << header->cluster_bits;
 }
 
 static int qcow_write_l1_table(struct qcow *q)
@@ -848,7 +914,9 @@ static int get_cluster_table(struct qcow *q, u64 offset,
 		if (!l2t)
 			goto error;
 	} else {
-		l2t_new_offset = qcow_alloc_clusters(q, l2t_size*sizeof(u64));
+		l2t_new_offset = qcow_alloc_clusters(q,
+			l2t_size*sizeof(u64), 1);
+
 		if (l2t_new_offset < 0)
 			goto error;
 
@@ -937,7 +1005,7 @@ static ssize_t qcow_write_cluster(struct qcow *q, u64 offset,
 
 	clust_start &= QCOW2_OFFSET_MASK;
 	if (!(clust_flags & QCOW2_OFLAG_COPIED)) {
-		clust_new_start	= qcow_alloc_clusters(q, q->cluster_size);
+		clust_new_start	= qcow_alloc_clusters(q, q->cluster_size, 1);
 		if (clust_new_start < 0) {
 			pr_warning("Cluster alloc error");
 			goto error;
@@ -1141,6 +1209,15 @@ static int qcow_read_refcount_table(struct qcow *q)
 	INIT_LIST_HEAD(&rft->lru_list);
 
 	return pread_in_full(q->fd, rft->rf_table, sizeof(u64) * rft->rf_size, header->refcount_table_offset);
+}
+
+static int qcow_write_refcount_table(struct qcow *q)
+{
+	struct qcow_header *header = q->header;
+	struct qcow_refcount_table *rft = &q->refcount_table;
+
+	return qcow_pwrite_sync(q->fd, rft->rf_table,
+		rft->rf_size * sizeof(u64), header->refcount_table_offset);
 }
 
 static int qcow_read_l1_table(struct qcow *q)
