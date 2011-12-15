@@ -12,7 +12,7 @@
 #include <errno.h>
 #include <stdio.h>
 
-extern struct kvm_cpu *kvm_cpus[KVM_NR_CPUS];
+extern struct kvm_cpu **kvm_cpus;
 extern __thread struct kvm_cpu *current_kvm_cpu;
 
 void kvm_cpu__enable_singlestep(struct kvm_cpu *vcpu)
@@ -66,9 +66,13 @@ void kvm_cpu__reboot(void)
 {
 	int i;
 
-	for (i = 0; i < KVM_NR_CPUS; i++)
+	/* The kvm_cpus array contains a null pointer in the last location */
+	for (i = 0; ; i++) {
 		if (kvm_cpus[i])
 			pthread_kill(kvm_cpus[i]->thread, SIGKVMEXIT);
+		else
+			break;
+	}
 }
 
 int kvm_cpu__start(struct kvm_cpu *cpu)

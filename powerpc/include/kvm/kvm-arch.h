@@ -15,8 +15,6 @@
 #include <linux/types.h>
 #include <time.h>
 
-#define KVM_NR_CPUS			(255)
-
 /*
  * MMIO lives after RAM, but it'd be nice if it didn't constantly move.
  * Choose a suitably high address, e.g. 63T...  This limits RAM size.

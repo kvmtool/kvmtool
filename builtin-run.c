@@ -64,7 +64,7 @@ const char *DEFAULT_SANDBOX_FILENAME = "guest/sandbox.sh";
 #define MIN_RAM_SIZE_BYTE	(MIN_RAM_SIZE_MB << MB_SHIFT)
 
 struct kvm *kvm;
-struct kvm_cpu *kvm_cpus[KVM_NR_CPUS];
+struct kvm_cpu **kvm_cpus;
 __thread struct kvm_cpu *current_kvm_cpu;
 
 static u64 ram_size;
@@ -875,8 +875,6 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	if (nrcpus == 0)
 		nrcpus = nr_online_cpus;
-	else if (nrcpus < 1 || nrcpus > KVM_NR_CPUS)
-		die("Number of CPUs %d is out of [1;%d] range", nrcpus, KVM_NR_CPUS);
 
 	if (!ram_size)
 		ram_size	= get_ram_size(nrcpus);
@@ -946,6 +944,11 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	}
 
 	kvm->nrcpus = nrcpus;
+
+	/* Alloc one pointer too many, so array ends up 0-terminated */
+	kvm_cpus = calloc(nrcpus + 1, sizeof(void *));
+	if (!kvm_cpus)
+		die("Couldn't allocate array for %d CPUs", nrcpus);
 
 	irq__init(kvm);
 

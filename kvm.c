@@ -55,7 +55,7 @@ const char *kvm_exit_reasons[] = {
 };
 
 extern struct kvm *kvm;
-extern struct kvm_cpu *kvm_cpus[KVM_NR_CPUS];
+extern struct kvm_cpu **kvm_cpus;
 static int pause_event;
 static DEFINE_MUTEX(pause_lock);
 extern struct kvm_ext kvm_req_ext[];

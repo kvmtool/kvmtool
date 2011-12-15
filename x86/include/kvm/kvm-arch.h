@@ -8,8 +8,6 @@
 #include <linux/types.h>
 #include <time.h>
 
-#define KVM_NR_CPUS		(255)
-
 /*
  * The hole includes VESA framebuffer and PCI memory.
  */
