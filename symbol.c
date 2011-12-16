@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <bfd.h>
 
-static bfd		*abfd;
+static bfd *abfd;
 
 void symbol__init(const char *vmlinux)
 {
@@ -16,7 +16,7 @@ void symbol__init(const char *vmlinux)
 
 	bfd_init();
 
-	abfd		= bfd_openr(vmlinux, NULL);
+	abfd = bfd_openr(vmlinux, NULL);
 }
 
 static asymbol *lookup(asymbol **symbols, int nr_symbols, const char *symbol_name)
@@ -53,17 +53,17 @@ char *symbol__lookup(struct kvm *kvm, unsigned long addr, char *sym, size_t size
 	if (!bfd_check_format(abfd, bfd_object))
 		goto not_found;
 
-	symtab_size	= bfd_get_symtab_upper_bound(abfd);
+	symtab_size = bfd_get_symtab_upper_bound(abfd);
 	if (!symtab_size)
 		goto not_found;
 
-	syms		= malloc(symtab_size);
+	syms = malloc(symtab_size);
 	if (!syms)
 		goto not_found;
 
-	nr_syms		= bfd_canonicalize_symtab(abfd, syms);
+	nr_syms = bfd_canonicalize_symtab(abfd, syms);
 
-	section		= bfd_get_section_by_name(abfd, ".debug_aranges");
+	section = bfd_get_section_by_name(abfd, ".debug_aranges");
 	if (!section)
 		goto not_found;
 
@@ -73,13 +73,13 @@ char *symbol__lookup(struct kvm *kvm, unsigned long addr, char *sym, size_t size
 	if (!func)
 		goto not_found;
 
-	symbol		= lookup(syms, nr_syms, func);
+	symbol = lookup(syms, nr_syms, func);
 	if (!symbol)
 		goto not_found;
 
-	sym_start	= bfd_asymbol_value(symbol);
+	sym_start = bfd_asymbol_value(symbol);
 
-	sym_offset	= addr - sym_start;
+	sym_offset = addr - sym_start;
 
 	snprintf(sym, size, "%s+%llx (%s:%i)", func, (long long) sym_offset, filename, line);
 

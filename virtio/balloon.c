@@ -59,9 +59,9 @@ static bool virtio_bln_do_io_request(struct kvm *kvm, struct bln_dev *bdev, stru
 	u16 out, in, head;
 	u32 *ptrs, i;
 
-	head		= virt_queue__get_iov(queue, iov, &out, &in, kvm);
-	ptrs		= iov[0].iov_base;
-	len		= iov[0].iov_len / sizeof(u32);
+	head	= virt_queue__get_iov(queue, iov, &out, &in, kvm);
+	ptrs	= iov[0].iov_base;
+	len	= iov[0].iov_len / sizeof(u32);
 
 	for (i = 0 ; i < len ; i++) {
 		void *guest_ptr;

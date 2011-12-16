@@ -111,13 +111,10 @@ bool kvm__emulate_io(struct kvm *kvm, u16 port, void *data, int direction, int s
 	ops	= entry->ops;
 
 	while (count--) {
-		if (direction == KVM_EXIT_IO_IN) {
-			if (ops->io_in)
+		if (direction == KVM_EXIT_IO_IN && ops->io_in)
 				ret = ops->io_in(entry, kvm, port, ptr, size);
-		} else {
-			if (ops->io_out)
+		else if (ops->io_out)
 				ret = ops->io_out(entry, kvm, port, ptr, size);
-		}
 
 		ptr += size;
 	}

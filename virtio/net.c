@@ -87,18 +87,14 @@ static void *virtio_net_rx_thread(void *p)
 	vq	= &ndev->vqs[VIRTIO_NET_RX_QUEUE];
 
 	while (1) {
-
 		mutex_lock(&ndev->io_rx_lock);
 		if (!virt_queue__available(vq))
 			pthread_cond_wait(&ndev->io_rx_cond, &ndev->io_rx_lock);
 		mutex_unlock(&ndev->io_rx_lock);
 
 		while (virt_queue__available(vq)) {
-
 			head = virt_queue__get_iov(vq, iov, &out, &in, kvm);
-
 			len = ndev->ops->rx(iov, in, ndev);
-
 			virt_queue__set_used_elem(vq, head, len);
 
 			/* We should interrupt guest right now, otherwise latency is huge. */
@@ -106,7 +102,6 @@ static void *virtio_net_rx_thread(void *p)
 				ndev->vtrans.trans_ops->signal_vq(kvm, &ndev->vtrans,
 								VIRTIO_NET_RX_QUEUE);
 		}
-
 	}
 
 	pthread_exit(NULL);
@@ -134,11 +129,8 @@ static void *virtio_net_tx_thread(void *p)
 		mutex_unlock(&ndev->io_tx_lock);
 
 		while (virt_queue__available(vq)) {
-
 			head = virt_queue__get_iov(vq, iov, &out, &in, kvm);
-
 			len = ndev->ops->tx(iov, out, ndev);
-
 			virt_queue__set_used_elem(vq, head, len);
 		}
 
@@ -346,9 +338,9 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 pfn)
 
 	compat__remove_message(compat_id);
 
-	queue			= &ndev->vqs[vq];
-	queue->pfn		= pfn;
-	p			= guest_pfn_to_host(kvm, queue->pfn);
+	queue		= &ndev->vqs[vq];
+	queue->pfn	= pfn;
+	p		= guest_pfn_to_host(kvm, queue->pfn);
 
 	vring_init(&queue->vring, VIRTIO_NET_QUEUE_SIZE, p, VIRTIO_PCI_VRING_ALIGN);
 

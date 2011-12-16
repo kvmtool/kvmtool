@@ -14,7 +14,6 @@
 #include "kvm/kvm.h"
 #include "kvm/kvm-cpu.h"
 
-
 #define TERM_FD_IN      0
 #define TERM_FD_OUT     1
 

@@ -38,7 +38,7 @@ static void setup_irq_handler(struct kvm *kvm, struct irq_handler *handler)
 	struct real_intr_desc intr_desc;
 	void *p;
 
-	p	= guest_flat_to_host(kvm, handler->address);
+	p = guest_flat_to_host(kvm, handler->address);
 	memcpy(p, handler->handler, handler->size);
 
 	intr_desc = (struct real_intr_desc) {
@@ -46,7 +46,7 @@ static void setup_irq_handler(struct kvm *kvm, struct irq_handler *handler)
 		.offset		= handler->address - MB_BIOS_BEGIN,
 	};
 
-	DIE_IF((handler->address - MB_BIOS_BEGIN) > (unsigned long)0xffff);
+	DIE_IF((handler->address - MB_BIOS_BEGIN) > 0xffffUL);
 
 	interrupt_table__set(&kvm->interrupt_table, &intr_desc, handler->irq);
 }
@@ -100,7 +100,7 @@ static void e820_setup(struct kvm *kvm)
 
 	BUILD_BUG_ON(i > E820_X_MAX);
 
-	e820->nr_map			= i;
+	e820->nr_map = i;
 }
 
 static void setup_vga_rom(struct kvm *kvm)

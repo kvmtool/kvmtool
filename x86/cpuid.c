@@ -24,10 +24,10 @@ static void filter_cpuid(struct kvm_cpuid2 *kvm_cpuid)
 		switch (entry->function) {
 		case 6:
 			/* Clear presence of IA32_ENERGY_PERF_BIAS */
-			entry->ecx	= entry->ecx & ~(1 << 3);
+			entry->ecx = entry->ecx & ~(1 << 3);
 			break;
 		case CPUID_FUNC_PERFMON:
-			entry->eax	= 0x00;	/* disable it */
+			entry->eax = 0x00; /* disable it */
 			break;
 		default:
 			/* Keep the CPUID function as -is */
@@ -40,7 +40,8 @@ void kvm_cpu__setup_cpuid(struct kvm_cpu *vcpu)
 {
 	struct kvm_cpuid2 *kvm_cpuid;
 
-	kvm_cpuid = calloc(1, sizeof(*kvm_cpuid) + MAX_KVM_CPUID_ENTRIES * sizeof(*kvm_cpuid->entries));
+	kvm_cpuid = calloc(1, sizeof(*kvm_cpuid) +
+				MAX_KVM_CPUID_ENTRIES * sizeof(*kvm_cpuid->entries));
 
 	kvm_cpuid->nent = MAX_KVM_CPUID_ENTRIES;
 	if (ioctl(vcpu->kvm->sys_fd, KVM_GET_SUPPORTED_CPUID, kvm_cpuid) < 0)

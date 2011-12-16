@@ -53,18 +53,18 @@ static inline u32 selector_to_base(u16 selector)
 	/*
 	 * KVM on Intel requires 'base' to be 'selector * 16' in real mode.
 	 */
-	return (u32)selector * 16;
+	return (u32)selector << 4;
 }
 
 static struct kvm_cpu *kvm_cpu__new(struct kvm *kvm)
 {
 	struct kvm_cpu *vcpu;
 
-	vcpu		= calloc(1, sizeof *vcpu);
+	vcpu = calloc(1, sizeof(*vcpu));
 	if (!vcpu)
 		return NULL;
 
-	vcpu->kvm	= kvm;
+	vcpu->kvm = kvm;
 
 	return vcpu;
 }
@@ -96,11 +96,11 @@ struct kvm_cpu *kvm_cpu__init(struct kvm *kvm, unsigned long cpu_id)
 	int mmap_size;
 	int coalesced_offset;
 
-	vcpu		= kvm_cpu__new(kvm);
+	vcpu = kvm_cpu__new(kvm);
 	if (!vcpu)
 		return NULL;
 
-	vcpu->cpu_id	= cpu_id;
+	vcpu->cpu_id = cpu_id;
 
 	vcpu->vcpu_fd = ioctl(vcpu->kvm->vm_fd, KVM_CREATE_VCPU, cpu_id);
 	if (vcpu->vcpu_fd < 0)
@@ -159,7 +159,7 @@ static void kvm_cpu__setup_msrs(struct kvm_cpu *vcpu)
 	vcpu->msrs->entries[ndx++] = KVM_MSR_ENTRY(MSR_IA32_MISC_ENABLE,
 						MSR_IA32_MISC_ENABLE_FAST_STRING);
 
-	vcpu->msrs->nmsrs	= ndx;
+	vcpu->msrs->nmsrs = ndx;
 
 	if (ioctl(vcpu->vcpu_fd, KVM_SET_MSRS, vcpu->msrs) < 0)
 		die_perror("KVM_SET_MSRS failed");
@@ -168,8 +168,8 @@ static void kvm_cpu__setup_msrs(struct kvm_cpu *vcpu)
 static void kvm_cpu__setup_fpu(struct kvm_cpu *vcpu)
 {
 	vcpu->fpu = (struct kvm_fpu) {
-		.fcw		= 0x37f,
-		.mxcsr		= 0x1f80,
+		.fcw	= 0x37f,
+		.mxcsr	= 0x1f80,
 	};
 
 	if (ioctl(vcpu->vcpu_fd, KVM_SET_FPU, &vcpu->fpu) < 0)
@@ -180,15 +180,15 @@ static void kvm_cpu__setup_regs(struct kvm_cpu *vcpu)
 {
 	vcpu->regs = (struct kvm_regs) {
 		/* We start the guest in 16-bit real mode  */
-		.rflags		= 0x0000000000000002ULL,
+		.rflags	= 0x0000000000000002ULL,
 
-		.rip		= vcpu->kvm->boot_ip,
-		.rsp		= vcpu->kvm->boot_sp,
-		.rbp		= vcpu->kvm->boot_sp,
+		.rip	= vcpu->kvm->boot_ip,
+		.rsp	= vcpu->kvm->boot_sp,
+		.rbp	= vcpu->kvm->boot_sp,
 	};
 
 	if (vcpu->regs.rip > USHRT_MAX)
-		die("ip 0x%llx is too high for real mode", (u64) vcpu->regs.rip);
+		die("ip 0x%llx is too high for real mode", (u64)vcpu->regs.rip);
 
 	if (ioctl(vcpu->vcpu_fd, KVM_SET_REGS, &vcpu->regs) < 0)
 		die_perror("KVM_SET_REGS failed");
@@ -196,7 +196,6 @@ static void kvm_cpu__setup_regs(struct kvm_cpu *vcpu)
 
 static void kvm_cpu__setup_sregs(struct kvm_cpu *vcpu)
 {
-
 	if (ioctl(vcpu->vcpu_fd, KVM_GET_SREGS, &vcpu->sregs) < 0)
 		die_perror("KVM_GET_SREGS failed");
 
@@ -318,12 +317,12 @@ void kvm_cpu__show_registers(struct kvm_cpu *vcpu)
 	dprintf(debug_fd, "\n");
 }
 
-#define MAX_SYM_LEN		128
+#define MAX_SYM_LEN 128
 
 void kvm_cpu__show_code(struct kvm_cpu *vcpu)
 {
 	unsigned int code_bytes = 64;
-	unsigned int code_prologue = code_bytes * 43 / 64;
+	unsigned int code_prologue = 43;
 	unsigned int code_len = code_bytes;
 	char sym[MAX_SYM_LEN];
 	unsigned char c;
@@ -377,19 +376,19 @@ void kvm_cpu__show_page_tables(struct kvm_cpu *vcpu)
 	if (ioctl(vcpu->vcpu_fd, KVM_GET_SREGS, &vcpu->sregs) < 0)
 		die("KVM_GET_SREGS failed");
 
-	pte4	= guest_flat_to_host(vcpu->kvm, vcpu->sregs.cr3);
+	pte4 = guest_flat_to_host(vcpu->kvm, vcpu->sregs.cr3);
 	if (!host_ptr_in_ram(vcpu->kvm, pte4))
 		return;
 
-	pte3	= guest_flat_to_host(vcpu->kvm, (*pte4 & ~0xfff));
+	pte3 = guest_flat_to_host(vcpu->kvm, (*pte4 & ~0xfff));
 	if (!host_ptr_in_ram(vcpu->kvm, pte3))
 		return;
 
-	pte2	= guest_flat_to_host(vcpu->kvm, (*pte3 & ~0xfff));
+	pte2 = guest_flat_to_host(vcpu->kvm, (*pte3 & ~0xfff));
 	if (!host_ptr_in_ram(vcpu->kvm, pte2))
 		return;
 
-	pte1	= guest_flat_to_host(vcpu->kvm, (*pte2 & ~0xfff));
+	pte1 = guest_flat_to_host(vcpu->kvm, (*pte2 & ~0xfff));
 	if (!host_ptr_in_ram(vcpu->kvm, pte1))
 		return;
 

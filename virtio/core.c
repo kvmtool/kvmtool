@@ -67,7 +67,6 @@ u16 virt_queue__get_head_iov(struct virt_queue *vq, struct iovec iov[], u16 *out
 	desc = vq->vring.desc;
 
 	if (desc[idx].flags & VRING_DESC_F_INDIRECT) {
-
 		max = desc[idx].len / sizeof(struct vring_desc);
 		desc = guest_flat_to_host(kvm, desc[idx].addr);
 		idx = 0;

@@ -70,8 +70,8 @@ static bool virtio_rng_do_io_request(struct kvm *kvm, struct rng_dev *rdev, stru
 	unsigned int len = 0;
 	u16 out, in, head;
 
-	head		= virt_queue__get_iov(queue, iov, &out, &in, kvm);
-	len		= readv(rdev->fd, iov, in);
+	head	= virt_queue__get_iov(queue, iov, &out, &in, kvm);
+	len	= readv(rdev->fd, iov, in);
 
 	virt_queue__set_used_elem(queue, head, len);
 
@@ -80,9 +80,9 @@ static bool virtio_rng_do_io_request(struct kvm *kvm, struct rng_dev *rdev, stru
 
 static void virtio_rng_do_io(struct kvm *kvm, void *param)
 {
-	struct rng_dev_job *job = param;
-	struct virt_queue *vq = job->vq;
-	struct rng_dev *rdev = job->rdev;
+	struct rng_dev_job *job	= param;
+	struct virt_queue *vq	= job->vq;
+	struct rng_dev *rdev	= job->rdev;
 
 	while (virt_queue__available(vq))
 		virtio_rng_do_io_request(kvm, rdev, vq);
@@ -99,17 +99,17 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 pfn)
 
 	compat__remove_message(compat_id);
 
-	queue			= &rdev->vqs[vq];
-	queue->pfn		= pfn;
-	p			= guest_pfn_to_host(kvm, queue->pfn);
+	queue		= &rdev->vqs[vq];
+	queue->pfn	= pfn;
+	p		= guest_pfn_to_host(kvm, queue->pfn);
 
 	job = &rdev->jobs[vq];
 
 	vring_init(&queue->vring, VIRTIO_RNG_QUEUE_SIZE, p, VIRTIO_PCI_VRING_ALIGN);
 
-	*job		= (struct rng_dev_job) {
-		.vq		= queue,
-		.rdev		= rdev,
+	*job = (struct rng_dev_job) {
+		.vq	= queue,
+		.rdev	= rdev,
 	};
 
 	thread_pool__init_job(&job->job_id, kvm, virtio_rng_do_io, job);
@@ -179,10 +179,9 @@ void virtio_rng__init(struct kvm *kvm)
 
 void virtio_rng__delete_all(struct kvm *kvm)
 {
-	while (!list_empty(&rdevs)) {
-		struct rng_dev *rdev;
+	struct rng_dev *rdev, *tmp;
 
-		rdev = list_first_entry(&rdevs, struct rng_dev, list);
+	list_for_each_entry_safe(rdev, tmp, &rdevs, list) {
 		list_del(&rdev->list);
 		free(rdev);
 	}

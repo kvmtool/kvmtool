@@ -91,9 +91,8 @@ void *mmap_hugetlbfs(const char *htlbfs_path, u64 size)
 	if (statfs(htlbfs_path, &sfs) < 0)
 		die("Can't stat %s\n", htlbfs_path);
 
-	if ((unsigned int)sfs.f_type != HUGETLBFS_MAGIC) {
+	if ((unsigned int)sfs.f_type != HUGETLBFS_MAGIC)
 		die("%s is not hugetlbfs!\n", htlbfs_path);
-	}
 
 	blk_size = (unsigned long)sfs.f_bsize;
 	if (sfs.f_bsize == 0 || blk_size > size) {

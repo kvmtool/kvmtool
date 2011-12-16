@@ -335,18 +335,16 @@ static ssize_t qcow1_read_cluster(struct qcow *q, u64 offset,
 		csize &= (q->cluster_size - 1);
 
 		if (pread_in_full(q->fd, q->cluster_data, csize,
-				  coffset) < 0) {
+				  coffset) < 0)
 			goto out_error;
-		}
 
 		if (qcow_decompress_buffer(q->cluster_cache, q->cluster_size,
-					q->cluster_data, csize) < 0) {
+					q->cluster_data, csize) < 0)
 			goto out_error;
-		}
 
 		memcpy(dst, q->cluster_cache + clust_offset, length);
 		mutex_unlock(&q->mutex);
-	} else{
+	} else {
 		if (!clust_start)
 			goto zero_cluster;
 
@@ -441,7 +439,7 @@ static ssize_t qcow2_read_cluster(struct qcow *q, u64 offset,
 
 		memcpy(dst, q->cluster_cache + clust_offset, length);
 		mutex_unlock(&q->mutex);
-	} else{
+	} else {
 		clust_start &= QCOW2_OFFSET_MASK;
 		if (!clust_start)
 			goto zero_cluster;
@@ -476,11 +474,11 @@ static ssize_t qcow_read_sector_single(struct disk_image *disk, u64 sector,
 	char *buf;
 	u32 nr;
 
-	buf		= dst;
-	nr_read		= 0;
+	buf = dst;
+	nr_read = 0;
 
 	while (nr_read < dst_len) {
-		offset		= sector << SECTOR_SHIFT;
+		offset = sector << SECTOR_SHIFT;
 		if (offset >= header->size)
 			return -1;
 
@@ -494,9 +492,9 @@ static ssize_t qcow_read_sector_single(struct disk_image *disk, u64 sector,
 		if (nr <= 0)
 			return -1;
 
-		nr_read		+= nr;
-		buf		+= nr;
-		sector		+= (nr >> SECTOR_SHIFT);
+		nr_read	+= nr;
+		buf	+= nr;
+		sector	+= (nr >> SECTOR_SHIFT);
 	}
 
 	return dst_len;
@@ -514,9 +512,9 @@ static ssize_t qcow_read_sector(struct disk_image *disk, u64 sector,
 			return -1;
 		}
 
-		sector	+= iov->iov_len >> SECTOR_SHIFT;
+		sector += iov->iov_len >> SECTOR_SHIFT;
+		total += nr;
 		iov++;
-		total	+= nr;
 	}
 
 	return total;

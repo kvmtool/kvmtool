@@ -150,7 +150,7 @@ static bool virtio_pci__specific_io_out(struct kvm *kvm, struct virtio_trans *vt
 
 			vpci->config_gsi = gsi;
 			break;
-		case VIRTIO_MSI_QUEUE_VECTOR: {
+		case VIRTIO_MSI_QUEUE_VECTOR:
 			vec = vpci->vq_vector[vpci->queue_selector] = ioport__read16(data);
 
 			gsi = irq__add_msix_route(kvm, &vpci->msix_table[vec].msg);
@@ -159,7 +159,6 @@ static bool virtio_pci__specific_io_out(struct kvm *kvm, struct virtio_trans *vt
 				vtrans->virtio_ops->notify_vq_gsi(kvm, vpci->dev,
 							vpci->queue_selector, gsi);
 			break;
-		}
 		};
 
 		return true;
@@ -195,14 +194,14 @@ static bool virtio_pci__io_out(struct ioport *ioport, struct kvm *kvm, u16 port,
 		vtrans->virtio_ops->init_vq(kvm, vpci->dev, vpci->queue_selector, val);
 		break;
 	case VIRTIO_PCI_QUEUE_SEL:
-		vpci->queue_selector	= ioport__read16(data);
+		vpci->queue_selector = ioport__read16(data);
 		break;
 	case VIRTIO_PCI_QUEUE_NOTIFY:
-		val			= ioport__read16(data);
+		val = ioport__read16(data);
 		vtrans->virtio_ops->notify_vq(kvm, vpci->dev, val);
 		break;
 	case VIRTIO_PCI_STATUS:
-		vpci->status		= ioport__read8(data);
+		vpci->status = ioport__read8(data);
 		break;
 	default:
 		ret = virtio_pci__specific_io_out(kvm, vtrans, port, data, size, offset);

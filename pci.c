@@ -160,10 +160,12 @@ void pci__config_rd(struct kvm *kvm, union pci_config_address addr, void *data, 
 			void *p = pci_devices[dev_num];
 
 			memcpy(data, p + offset, size);
-		} else
+		} else {
 			memset(data, 0x00, size);
-	} else
+		}
+	} else {
 		memset(data, 0xff, size);
+	}
 }
 
 void pci__register(struct pci_device_header *dev, u8 dev_num)

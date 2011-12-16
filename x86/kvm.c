@@ -21,7 +21,6 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <fcntl.h>
-#include <asm/unistd.h>
 
 struct kvm_ext kvm_req_ext[] = {
 	{ DEFINE_KVM_EXT(KVM_CAP_COALESCED_MMIO) },
@@ -124,24 +123,23 @@ void kvm__arch_set_cmdline(char *cmdline, bool video)
 {
 	strcpy(cmdline, "noapic noacpi pci=conf1 reboot=k panic=1 i8042.direct=1 "
 				"i8042.dumbkbd=1 i8042.nopnp=1");
-	if (video) {
+	if (video)
 		strcat(cmdline, " video=vesafb console=tty0");
-	} else
+	else
 		strcat(cmdline, " console=ttyS0 earlyprintk=serial i8042.noaux=1");
 }
 
 /* This function wraps the decision between hugetlbfs map (if requested) or normal mmap */
 static void *mmap_anon_or_hugetlbfs(const char *hugetlbfs_path, u64 size)
 {
-	if (hugetlbfs_path) {
+	if (hugetlbfs_path)
 		/*
 		 * We don't /need/ to map guest RAM from hugetlbfs, but we do so
 		 * if the user specifies a hugetlbfs path.
 		 */
 		return mmap_hugetlbfs(hugetlbfs_path, size);
-	} else {
+	else
 		return mmap(NULL, size, PROT_RW, MAP_ANON_NORESERVE, -1, 0);
-	}
 }
 
 /* Architecture-specific KVM init */
@@ -158,19 +156,18 @@ void kvm__arch_init(struct kvm *kvm, const char *kvm_dev, const char *hugetlbfs_
 	if (ret < 0)
 		die_perror("KVM_CREATE_PIT2 ioctl");
 
-	kvm->ram_size		= ram_size;
+	kvm->ram_size = ram_size;
 
 	if (kvm->ram_size < KVM_32BIT_GAP_START) {
 		kvm->ram_start = mmap_anon_or_hugetlbfs(hugetlbfs_path, ram_size);
 	} else {
 		kvm->ram_start = mmap_anon_or_hugetlbfs(hugetlbfs_path, ram_size + KVM_32BIT_GAP_SIZE);
-		if (kvm->ram_start != MAP_FAILED) {
+		if (kvm->ram_start != MAP_FAILED)
 			/*
 			 * We mprotect the gap (see kvm__init_ram() for details) PROT_NONE so that
 			 * if we accidently write to it, we will know.
 			 */
 			mprotect(kvm->ram_start + KVM_32BIT_GAP_START, KVM_32BIT_GAP_SIZE, PROT_NONE);
-		}
 	}
 	if (kvm->ram_start == MAP_FAILED)
 		die("out of memory");
@@ -238,7 +235,7 @@ int load_flat_binary(struct kvm *kvm, int fd_kernel, int fd_initrd, const char *
 	return true;
 }
 
-static const char *BZIMAGE_MAGIC	= "HdrS";
+static const char *BZIMAGE_MAGIC = "HdrS";
 
 bool load_bzimage(struct kvm *kvm, int fd_kernel,
 		  int fd_initrd, const char *kernel_cmdline, u16 vidmode)
@@ -334,13 +331,13 @@ bool load_bzimage(struct kvm *kvm, int fd_kernel,
 		kern_boot->hdr.ramdisk_size	= initrd_stat.st_size;
 	}
 
-	kvm->boot_selector	= BOOT_LOADER_SELECTOR;
+	kvm->boot_selector = BOOT_LOADER_SELECTOR;
 	/*
 	 * The real-mode setup code starts at offset 0x200 of a bzImage. See
 	 * Documentation/x86/boot.txt for details.
 	 */
-	kvm->boot_ip		= BOOT_LOADER_IP + 0x200;
-	kvm->boot_sp		= BOOT_LOADER_SP;
+	kvm->boot_ip = BOOT_LOADER_IP + 0x200;
+	kvm->boot_sp = BOOT_LOADER_SP;
 
 	return true;
 }

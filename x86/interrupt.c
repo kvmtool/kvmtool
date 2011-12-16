@@ -20,7 +20,8 @@ void interrupt_table__setup(struct interrupt_table *itable, struct real_intr_des
 		itable->entries[i] = *entry;
 }
 
-void interrupt_table__set(struct interrupt_table *itable, struct real_intr_desc *entry, unsigned int num)
+void interrupt_table__set(struct interrupt_table *itable,
+				struct real_intr_desc *entry, unsigned int num)
 {
 	if (num < REAL_INTR_VECTORS)
 		itable->entries[num] = *entry;
