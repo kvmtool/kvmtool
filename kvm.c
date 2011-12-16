@@ -209,8 +209,10 @@ int kvm__enumerate_instances(int (*callback)(const char *name, int fd))
 
 	sprintf(full_name, "%s", kvm__get_dir());
 	dir = opendir(full_name);
+	if (!dir)
+		return -1;
 
-	while (dir != NULL) {
+	for (;;) {
 		readdir_r(dir, &entry, &result);
 		if (result == NULL)
 			break;
