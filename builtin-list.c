@@ -11,8 +11,6 @@
 #include <signal.h>
 #include <fcntl.h>
 
-#define PROCESS_NAME "kvm"
-
 struct pid_cmd {
 	u32 type;
 	u32 len;
@@ -70,8 +68,6 @@ static int print_guest(const char *name, int sock)
 	if (fd == NULL)
 		goto cleanup;
 	if (fscanf(fd, "%*u (%as)", &comm) == 0)
-		goto cleanup;
-	if (strncmp(comm, PROCESS_NAME, strlen(PROCESS_NAME)))
 		goto cleanup;
 
 	printf("%5d %-20s %s\n", pid, name, KVM_INSTANCE_RUNNING);
