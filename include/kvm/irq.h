@@ -25,7 +25,8 @@ int irq__register_device(u32 dev, u8 *num, u8 *pin, u8 *line);
 
 struct rb_node *irq__get_pci_tree(void);
 
-void irq__init(struct kvm *kvm);
+int irq__init(struct kvm *kvm);
+int irq__exit(struct kvm *kvm);
 int irq__add_msix_route(struct kvm *kvm, struct msi_msg *msg);
 
 #endif

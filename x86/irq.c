@@ -76,19 +76,20 @@ static int insert(struct rb_root *root, struct pci_dev *data)
 		else if (result > 0)
 			new = &((*new)->rb_right);
 		else
-			return 0;
+			return -EEXIST;
 	}
 
 	/* Add new node and rebalance tree. */
 	rb_link_node(&data->node, parent, new);
 	rb_insert_color(&data->node, root);
 
-	return 1;
+	return 0;
 }
 
 int irq__register_device(u32 dev, u8 *num, u8 *pin, u8 *line)
 {
 	struct pci_dev *node;
+	int r;
 
 	node = search(&pci_tree, dev);
 
@@ -96,7 +97,7 @@ int irq__register_device(u32 dev, u8 *num, u8 *pin, u8 *line)
 		/* We haven't found a node - First device of it's kind */
 		node = malloc(sizeof(*node));
 		if (node == NULL)
-			return -1;
+			return -ENOMEM;
 
 		*node = (struct pci_dev) {
 			.id	= dev,
@@ -111,9 +112,10 @@ int irq__register_device(u32 dev, u8 *num, u8 *pin, u8 *line)
 
 		INIT_LIST_HEAD(&node->lines);
 
-		if (insert(&pci_tree, node) != 1) {
+		r = insert(&pci_tree, node);
+		if (r) {
 			free(node);
-			return -1;
+			return r;
 		}
 	}
 
@@ -121,7 +123,7 @@ int irq__register_device(u32 dev, u8 *num, u8 *pin, u8 *line)
 		/* This device already has a pin assigned, give out a new line and device id */
 		struct irq_line *new = malloc(sizeof(*new));
 		if (new == NULL)
-			return -1;
+			return -ENOMEM;
 
 		new->line	= next_line++;
 		*line		= new->line;
@@ -133,17 +135,17 @@ int irq__register_device(u32 dev, u8 *num, u8 *pin, u8 *line)
 		return 0;
 	}
 
-	return -1;
+	return -EFAULT;
 }
 
-void irq__init(struct kvm *kvm)
+int irq__init(struct kvm *kvm)
 {
 	int i, r;
 
 	irq_routing = calloc(sizeof(struct kvm_irq_routing) +
 			IRQ_MAX_GSI * sizeof(struct kvm_irq_routing_entry), 1);
 	if (irq_routing == NULL)
-		die("Failed allocating space for GSI table");
+		return -ENOMEM;
 
 	/* Hook first 8 GSIs to master IRQCHIP */
 	for (i = 0; i < 8; i++)
@@ -163,8 +165,19 @@ void irq__init(struct kvm *kvm)
 	}
 
 	r = ioctl(kvm->vm_fd, KVM_SET_GSI_ROUTING, irq_routing);
-	if (r)
-		die("Failed setting GSI routes");
+	if (r) {
+		free(irq_routing);
+		return errno;
+	}
+
+	return 0;
+}
+
+int irq__exit(struct kvm *kvm)
+{
+	free(irq_routing);
+
+	return 0;
 }
 
 int irq__add_msix_route(struct kvm *kvm, struct msi_msg *msg)

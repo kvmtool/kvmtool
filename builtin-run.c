@@ -1019,7 +1019,11 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 	if (!kvm_cpus)
 		die("Couldn't allocate array for %d CPUs", nrcpus);
 
-	irq__init(kvm);
+	r = irq__init(kvm);
+	if (r < 0) {
+		pr_err("irq__init() failed with error %d\n", r);
+		goto fail;
+	}
 
 	pci__init();
 
@@ -1219,6 +1223,10 @@ static void kvm_cmd_run_exit(int guest_ret)
 	r = symbol__exit(kvm);
 	if (r < 0)
 		pr_warning("symbol__exit() failed with error %d\n", r);
+
+	r = irq__exit(kvm);
+	if (r < 0)
+		pr_warning("irq__exit() failed with error %d\n", r);
 
 	fb__stop();
 
