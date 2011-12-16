@@ -785,6 +785,38 @@ static int kvm_run_set_sandbox(void)
 	return symlink(script, path);
 }
 
+static void kvm_write_sandbox_cmd_exactly(int fd, const char *arg)
+{
+	const char *single_quote;
+
+	if (!*arg) { /* zero length string */
+		if (write(fd, "''", 2) <= 0)
+			die("Failed writing sandbox script");
+		return;
+	}
+
+	while (*arg) {
+		single_quote = strchrnul(arg, '\'');
+
+		/* write non-single-quote string as #('string') */
+		if (arg != single_quote) {
+			if (write(fd, "'", 1) <= 0 ||
+			    write(fd, arg, single_quote - arg) <= 0 ||
+			    write(fd, "'", 1) <= 0)
+				die("Failed writing sandbox script");
+		}
+
+		/* write single quote as #("'") */
+		if (*single_quote) {
+			if (write(fd, "\"'\"", 3) <= 0)
+				die("Failed writing sandbox script");
+		} else
+			break;
+
+		arg = single_quote + 1;
+	}
+}
+
 static void kvm_run_write_sandbox_cmd(const char **argv, int argc)
 {
 	const char script_hdr[] = "#! /bin/bash\n\n";
@@ -800,8 +832,7 @@ static void kvm_run_write_sandbox_cmd(const char **argv, int argc)
 		die("Failed writing sandbox script");
 
 	while (argc) {
-		if (write(fd, argv[0], strlen(argv[0])) <= 0)
-			die("Failed writing sandbox script");
+		kvm_write_sandbox_cmd_exactly(fd, argv[0]);
 		if (argc - 1)
 			if (write(fd, " ", 1) <= 0)
 				die("Failed writing sandbox script");
