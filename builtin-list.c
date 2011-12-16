@@ -99,12 +99,10 @@ static int kvm_list_running_instances(void)
 
 static int kvm_list_rootfs(void)
 {
-	char name[PATH_MAX];
 	DIR *dir;
 	struct dirent *dirent;
 
-	snprintf(name, PATH_MAX, "%s", kvm__get_dir());
-	dir = opendir(name);
+	dir = opendir(kvm__get_dir());
 	if (dir == NULL)
 		return -1;
 

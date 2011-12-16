@@ -199,14 +199,12 @@ int kvm__get_sock_by_instance(const char *name)
 
 int kvm__enumerate_instances(int (*callback)(const char *name, int fd))
 {
-	char full_name[PATH_MAX];
 	int sock;
 	DIR *dir;
 	struct dirent entry, *result;
 	int ret = 0;
 
-	sprintf(full_name, "%s", kvm__get_dir());
-	dir = opendir(full_name);
+	dir = opendir(kvm__get_dir());
 	if (!dir)
 		return -1;
 
