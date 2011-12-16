@@ -138,8 +138,6 @@ static int kvm__create_socket(struct kvm *kvm)
 	if (!kvm->name)
 		return -1;
 
-	sprintf(full_name, "%s", kvm__get_dir());
-	mkdir(full_name, 0777);
 	sprintf(full_name, "%s/%s.sock", kvm__get_dir(), kvm->name);
 	if (access(full_name, F_OK) == 0)
 		die("Socket file %s already exist", full_name);
