@@ -10,8 +10,6 @@
 
 #define SIGKVMEXIT		(SIGRTMIN + 0)
 #define SIGKVMPAUSE		(SIGRTMIN + 1)
-#define SIGKVMSTOP		(SIGRTMIN + 4)
-#define SIGKVMRESUME		(SIGRTMIN + 5)
 
 #define KVM_PID_FILE_PATH	"/.kvm-tools/"
 #define HOME_DIR		getenv("HOME")
