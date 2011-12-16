@@ -132,6 +132,9 @@ static int img_name_parser(const struct option *opt, const char *arg, int unset)
 	    S_ISDIR(st.st_mode)) {
 		char tmp[PATH_MAX];
 
+		if (using_rootfs)
+			die("Please use only one rootfs directory atmost");
+
 		if (realpath(arg, tmp) == 0 ||
 		    virtio_9p__register(kvm, tmp, "/dev/root") < 0)
 			die("Unable to initialize virtio 9p");
@@ -144,6 +147,9 @@ static int img_name_parser(const struct option *opt, const char *arg, int unset)
 	if (stat(path, &st) == 0 &&
 	    S_ISDIR(st.st_mode)) {
 		char tmp[PATH_MAX];
+
+		if (using_rootfs)
+			die("Please use only one rootfs directory atmost");
 
 		if (realpath(path, tmp) == 0 ||
 		    virtio_9p__register(kvm, tmp, "/dev/root") < 0)
