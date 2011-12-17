@@ -73,11 +73,11 @@ linux-0.2.img.bz2
 
 5. And finally, launch the hypervisor:
 
-  ./kvm run --disk linux-0.2.img \
+  ./lkvm run --disk linux-0.2.img \
 	    --kernel ../../arch/x86/boot/bzImage \
 or
 
-  sudo ./kvm run --disk linux-0.2.img \
+  sudo ./lkvm run --disk linux-0.2.img \
 		 --kernel ../../arch/x86/boot/bzImage \
 		 --network virtio
 
