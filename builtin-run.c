@@ -109,7 +109,7 @@ static int nrcpus;
 static int vidmode = -1;
 
 static const char * const run_usage[] = {
-	"kvm run [<options>] [<kernel image>]",
+	"lkvm run [<options>] [<kernel image>]",
 	NULL
 };
 

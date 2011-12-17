@@ -19,7 +19,7 @@ static bool dump;
 static const char *instance_name;
 
 static const char * const debug_usage[] = {
-	"kvm debug [--all] [-n name] [-d] [-m vcpu]",
+	"lkvm debug [--all] [-n name] [-d] [-m vcpu]",
 	NULL
 };
 

@@ -20,7 +20,7 @@ static bool run;
 static bool rootfs;
 
 static const char * const list_usage[] = {
-	"kvm list",
+	"lkvm list",
 	NULL
 };
 

@@ -19,7 +19,7 @@ static int instance;
 static const char *instance_name;
 
 static const char * const resume_usage[] = {
-	"kvm resume [--all] [-n name]",
+	"lkvm resume [--all] [-n name]",
 	NULL
 };
 

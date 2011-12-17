@@ -19,7 +19,7 @@ static int instance;
 static const char *instance_name;
 
 static const char * const pause_usage[] = {
-	"kvm pause [--all] [-n name]",
+	"lkvm pause [--all] [-n name]",
 	NULL
 };
 

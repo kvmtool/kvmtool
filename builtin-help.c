@@ -10,10 +10,10 @@
 
 
 const char kvm_usage_string[] =
-	"kvm COMMAND [ARGS]";
+	"lkvm COMMAND [ARGS]";
 
 const char kvm_more_info_string[] =
-	"See 'kvm help COMMAND' for more information on a specific command.";
+	"See 'lkvm help COMMAND' for more information on a specific command.";
 
 
 static void list_common_cmds_help(void)

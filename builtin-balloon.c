@@ -21,7 +21,7 @@ struct balloon_cmd {
 };
 
 static const char * const balloon_usage[] = {
-	"kvm balloon [-n name] [-p pid] [-i amount] [-d amount]",
+	"lkvm balloon [-n name] [-p pid] [-i amount] [-d amount]",
 	NULL
 };
 

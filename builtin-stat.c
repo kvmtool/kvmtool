@@ -23,7 +23,7 @@ static int instance;
 static const char *instance_name;
 
 static const char * const stat_usage[] = {
-	"kvm stat [command] [--all] [-n name]",
+	"lkvm stat [command] [--all] [-n name]",
 	NULL
 };
 

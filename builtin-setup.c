@@ -22,7 +22,7 @@
 static const char *instance_name;
 
 static const char * const setup_usage[] = {
-	"kvm setup [name]",
+	"lkvm setup [name]",
 	NULL
 };
 
