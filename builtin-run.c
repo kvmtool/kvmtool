@@ -35,6 +35,7 @@
 #include "kvm/builtin-debug.h"
 
 #include <linux/types.h>
+#include <linux/err.h>
 
 #include <sys/utsname.h>
 #include <sys/types.h>
@@ -1034,8 +1035,9 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 	if (vnc || sdl) {
 		if (vidmode == -1)
 			vidmode = 0x312;
-	} else
+	} else {
 		vidmode = 0;
+	}
 
 	memset(real_cmdline, 0, sizeof(real_cmdline));
 	kvm__arch_set_cmdline(real_cmdline, vnc || sdl);
@@ -1148,20 +1150,35 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 
 	pci_shmem__init(kvm);
 
-	if (vnc || sdl)
+	if (vnc || sdl) {
 		fb = vesa__init(kvm);
-
-	if (vnc) {
-		if (fb)
-			vnc__init(fb);
+		if (IS_ERR(fb)) {
+			pr_err("vesa__init() failed with error %ld\n", PTR_ERR(fb));
+			goto fail;
+		}
 	}
 
-	if (sdl) {
-		if (fb)
-			sdl__init(fb);
+	if (vnc && fb) {
+		r = vnc__init(fb);
+		if (r < 0) {
+			pr_err("vnc__init() failed with error %d\n", r);
+			goto fail;
+		}
 	}
 
-	fb__start();
+	if (sdl && fb) {
+		sdl__init(fb);
+		if (r < 0) {
+			pr_err("sdl__init() failed with error %d\n", r);
+			goto fail;
+		}
+	}
+
+	r = fb__start();
+	if (r < 0) {
+		pr_err("fb__init() failed with error %d\n", r);
+		goto fail;
+	}
 
 	/* Device init all done; firmware init must
 	 * come after this (it may set up device trees etc.)

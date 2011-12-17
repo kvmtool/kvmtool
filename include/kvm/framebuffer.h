@@ -8,6 +8,7 @@ struct framebuffer;
 
 struct fb_target_operations {
 	int (*start)(struct framebuffer *fb);
+	int (*stop)(struct framebuffer *fb);
 };
 
 #define FB_MAX_TARGETS			2

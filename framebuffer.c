@@ -4,6 +4,7 @@
 #include <linux/list.h>
 #include <stdlib.h>
 #include <sys/mman.h>
+#include <errno.h>
 
 static LIST_HEAD(framebuffers);
 
@@ -18,7 +19,7 @@ struct framebuffer *fb__register(struct framebuffer *fb)
 int fb__attach(struct framebuffer *fb, struct fb_target_operations *ops)
 {
 	if (fb->nr_targets >= FB_MAX_TARGETS)
-		return -1;
+		return -ENOSPC;
 
 	fb->targets[fb->nr_targets++] = ops;
 
@@ -63,6 +64,12 @@ void fb__stop(void)
 	struct framebuffer *fb;
 
 	list_for_each_entry(fb, &framebuffers, node) {
+		u32 i;
+
+		for (i = 0; i < fb->nr_targets; i++)
+			if (fb->targets[i]->stop)
+				fb->targets[i]->stop(fb);
+
 		munmap(fb->mem, fb->mem_size);
 	}
 }

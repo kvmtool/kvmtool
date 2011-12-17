@@ -137,6 +137,7 @@ static const struct set2_scancode const keymap[256] = {
 	[118]	= DEFINE_ESC(0x70),	/* <ins> */
 	[119]	= DEFINE_ESC(0x71),	/* <delete> */
 };
+static bool running, done;
 
 static const struct set2_scancode *to_code(u8 scancode)
 {
@@ -225,7 +226,7 @@ static void *sdl__thread(void *p)
 
 	SDL_EnableKeyRepeat(200, 50);
 
-	for (;;) {
+	while (running) {
 		SDL_BlitSurface(guest_screen, NULL, screen, NULL);
 		SDL_Flip(screen);
 
@@ -254,6 +255,11 @@ static void *sdl__thread(void *p)
 
 		SDL_Delay(1000 / FRAME_RATE);
 	}
+
+	if (running == false && done == false) {
+		done = true;
+		return NULL;
+	}
 exit:
 	kvm_cpu__reboot();
 
@@ -264,17 +270,34 @@ static int sdl__start(struct framebuffer *fb)
 {
 	pthread_t thread;
 
+	running = true;
+
 	if (pthread_create(&thread, NULL, sdl__thread, fb) != 0)
 		return -1;
 
 	return 0;
 }
 
+static int sdl__stop(struct framebuffer *fb)
+{
+	running = false;
+	while (done == false)
+		sleep(0);
+
+	return 0;
+}
+
 static struct fb_target_operations sdl_ops = {
-	.start			= sdl__start,
+	.start	= sdl__start,
+	.start	= sdl__stop,
 };
 
-void sdl__init(struct framebuffer *fb)
+int sdl__init(struct framebuffer *fb)
 {
-	fb__attach(fb, &sdl_ops);
+	return fb__attach(fb, &sdl_ops);
+}
+
+int sdl__exit(struct framebuffer *fb)
+{
+	return sdl__stop(fb);
 }

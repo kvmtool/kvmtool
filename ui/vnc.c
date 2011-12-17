@@ -30,6 +30,7 @@ static char letters[26] = {
 	0x1a,
 };
 
+static rfbScreenInfoPtr server;
 static char num[10] = {
 	0x45, 0x16, 0x1e, 0x26, 0x2e, 0x23, 0x36, 0x3d, 0x3e, 0x46,
 };
@@ -182,8 +183,6 @@ static void *vnc__thread(void *p)
 	char argv[1][1] = {{0}};
 	int argc = 1;
 
-	rfbScreenInfoPtr server;
-
 	server = rfbGetScreen(&argc, (char **) argv, fb->width, fb->height, 8, 3, 4);
 	server->frameBuffer		= fb->mem;
 	server->alwaysShared		= TRUE;
@@ -208,11 +207,24 @@ static int vnc__start(struct framebuffer *fb)
 	return 0;
 }
 
+static int vnc__stop(struct framebuffer *fb)
+{
+	rfbShutdownServer(server, TRUE);
+
+	return 0;
+}
+
 static struct fb_target_operations vnc_ops = {
-	.start			= vnc__start,
+	.start	= vnc__start,
+	.stop	= vnc__stop,
 };
 
-void vnc__init(struct framebuffer *fb)
+int vnc__init(struct framebuffer *fb)
 {
-	fb__attach(fb, &vnc_ops);
+	return fb__attach(fb, &vnc_ops);
+}
+
+int vnc__exit(struct framebuffer *fb)
+{
+	return vnc__stop(fb);
 }

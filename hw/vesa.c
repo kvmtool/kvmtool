@@ -8,9 +8,10 @@
 #include "kvm/irq.h"
 #include "kvm/kvm.h"
 #include "kvm/pci.h"
+
 #include <linux/byteorder.h>
 #include <sys/mman.h>
-
+#include <linux/err.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <inttypes.h>
@@ -50,9 +51,11 @@ struct framebuffer *vesa__init(struct kvm *kvm)
 	u16 vesa_base_addr;
 	u8 dev, line, pin;
 	char *mem;
+	int r;
 
-	if (irq__register_device(PCI_DEVICE_ID_VESA, &dev, &pin, &line) < 0)
-		return NULL;
+	r = irq__register_device(PCI_DEVICE_ID_VESA, &dev, &pin, &line);
+	if (r < 0)
+		return ERR_PTR(r);
 
 	vesa_pci_device.irq_pin		= pin;
 	vesa_pci_device.irq_line	= line;
@@ -62,7 +65,7 @@ struct framebuffer *vesa__init(struct kvm *kvm)
 
 	mem = mmap(NULL, VESA_MEM_SIZE, PROT_RW, MAP_ANON_NORESERVE, -1, 0);
 	if (mem == MAP_FAILED)
-		return NULL;
+		ERR_PTR(-errno);
 
 	kvm__register_mem(kvm, VESA_MEM_ADDR, VESA_MEM_SIZE, mem);
 
