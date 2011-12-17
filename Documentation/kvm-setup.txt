@@ -1,14 +1,14 @@
-kvm-setup(1)
+lkvm-setup(1)
 ================
 
 NAME
 ----
-kvm-setup - Setup a new virtual machine
+lkvm-setup - Setup a new virtual machine
 
 SYNOPSIS
 --------
 [verse]
-'kvm setup <name>'
+'lkvm setup <name>'
 
 DESCRIPTION
 -----------

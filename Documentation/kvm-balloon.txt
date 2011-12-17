@@ -1,20 +1,20 @@
-kvm-balloon(1)
+lkvm-balloon(1)
 ================
 
 NAME
 ----
-kvm-balloon - Inflate or deflate the virtio balloon
+lkvm-balloon - Inflate or deflate the virtio balloon
 
 SYNOPSIS
 --------
 [verse]
-'kvm balloon [command] [size] [instance]'
+'lkvm balloon [command] [size] [instance]'
 
 DESCRIPTION
 -----------
 The command inflates or deflates the virtio balloon located in the
 specified instance.
-For a list of running instances see 'kvm list'.
+For a list of running instances see 'lkvm list'.
 
 Command can be either 'inflate' or 'deflate'. Inflate increases the
 size of the balloon, thus decreasing the amount of virtual RAM available

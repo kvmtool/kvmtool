@@ -1,14 +1,14 @@
-kvm-run(1)
+lkvm-run(1)
 ================
 
 NAME
 ----
-kvm-run - Start the virtual machine
+lkvm-run - Start the virtual machine
 
 SYNOPSIS
 --------
 [verse]
-'kvm run' [-k <kernel image> | --kernel <kernel image>]
+'lkvm run' [-k <kernel image> | --kernel <kernel image>]
 
 DESCRIPTION
 -----------

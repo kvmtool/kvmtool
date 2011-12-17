@@ -1,7 +1,7 @@
 This document explains how to debug a guests' kernel using KGDB.
 
 1. Run the guest:
-        'kvm run -k [vmlinuz] -p "kgdboc=ttyS1 kgdbwait" --tty 1'
+        'lkvm run -k [vmlinuz] -p "kgdboc=ttyS1 kgdbwait" --tty 1'
 
 And see which PTY got assigned to ttyS1 (you'll see:
 '  Info: Assigned terminal 1 to pty /dev/pts/X').

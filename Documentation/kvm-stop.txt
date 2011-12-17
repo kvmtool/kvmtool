@@ -1,16 +1,16 @@
-kvm-stop(1)
+lkvm-stop(1)
 ================
 
 NAME
 ----
-kvm-stop - Stop a running instance
+lkvm-stop - Stop a running instance
 
 SYNOPSIS
 --------
 [verse]
-'kvm stop [instance]'
+'lkvm stop [instance]'
 
 DESCRIPTION
 -----------
 The command stops a running instance.
-For a list of running instances see 'kvm list'.
+For a list of running instances see 'lkvm list'.

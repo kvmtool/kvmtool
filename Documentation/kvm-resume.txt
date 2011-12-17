@@ -1,16 +1,16 @@
-kvm-resume(1)
+lkvm-resume(1)
 ================
 
 NAME
 ----
-kvm-resume - Resume the virtual machine
+lkvm-resume - Resume the virtual machine
 
 SYNOPSIS
 --------
 [verse]
-'kvm resume [instance]'
+'lkvm resume [instance]'
 
 DESCRIPTION
 -----------
 The command resumes a virtual machine.
-For a list of running instances see 'kvm list'.
+For a list of running instances see 'lkvm list'.

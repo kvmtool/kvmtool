@@ -2,14 +2,14 @@
 # List of known perf commands.
 # command name			category [deprecated] [common]
 #
-kvm-run				mainporcelain common
-kvm-setup			mainporcelain common
-kvm-pause			common
-kvm-resume			common
-kvm-version			common
-kvm-list			common
-kvm-debug			common
-kvm-balloon			common
-kvm-stop			common
-kvm-stat			common
-kvm-sandbox			common
+lkvm-run			mainporcelain common
+lkvm-setup			mainporcelain common
+lkvm-pause			common
+lkvm-resume			common
+lkvm-version			common
+lkvm-list			common
+lkvm-debug			common
+lkvm-balloon			common
+lkvm-stop			common
+lkvm-stat			common
+lkvm-sandbox			common

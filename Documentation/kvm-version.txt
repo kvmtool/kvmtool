@@ -1,15 +1,15 @@
-kvm-version(1)
+lkvm-version(1)
 ================
 
 NAME
 ----
-kvm-version - Print the version of the kernel tree kvm tools
+lkvm-version - Print the version of the kernel tree kvm tools
 was built on.
 
 SYNOPSIS
 --------
 [verse]
-'kvm version'
+'lkvm version'
 
 DESCRIPTION
 -----------

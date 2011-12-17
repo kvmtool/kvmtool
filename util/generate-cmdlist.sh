@@ -9,11 +9,11 @@ struct cmdname_help
 
 static struct cmdname_help common_cmds[] = {"
 
-sed -n 's/^kvm-\([^ \t]*\).*common/\1/p' command-list.txt |
+sed -n 's/^lkvm-\([^ \t]*\).*common/\1/p' command-list.txt |
 while read cmd
 do
 	 # TODO following sed command should be fixed
-     sed -n '/^NAME/,/^kvm-'"$cmd"'/ {
+     sed -n '/^NAME/,/^lkvm-'"$cmd"'/ {
 		 /NAME/d
 		 /--/d
 		 s/.*kvm-'"$cmd"' - \(.*\)/  {"'"$cmd"'", "\1"},/
