@@ -641,7 +641,8 @@ static void kernel_usage_with_options(void)
 		fprintf(stderr, "\t%s\n", kernel);
 		k++;
 	}
-	fprintf(stderr, "\nPlease see 'kvm run --help' for more options.\n\n");
+	fprintf(stderr, "\nPlease see '%s run --help' for more options.\n\n",
+		KVM_BINARY_NAME);
 }
 
 static u64 host_ram_size(void)
@@ -1043,7 +1044,8 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 		virtio_blk__init_all(kvm);
 	}
 
-	printf("  # kvm run -k %s -m %Lu -c %d --name %s\n", kernel_filename, ram_size / 1024 / 1024, nrcpus, guest_name);
+	printf("  # %s run -k %s -m %Lu -c %d --name %s\n", KVM_BINARY_NAME,
+		kernel_filename, ram_size / 1024 / 1024, nrcpus, guest_name);
 
 	if (!kvm__load_kernel(kvm, kernel_filename, initrd_filename,
 				real_cmdline, vidmode))

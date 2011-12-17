@@ -13,6 +13,7 @@
 
 #define KVM_PID_FILE_PATH	"/.kvm-tools/"
 #define HOME_DIR		getenv("HOME")
+#define KVM_BINARY_NAME		"lkvm"
 
 #define PAGE_SIZE (sysconf(_SC_PAGE_SIZE))
 

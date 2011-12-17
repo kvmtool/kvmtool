@@ -7,6 +7,7 @@
 #include <kvm/util.h>
 #include <kvm/kvm-cmd.h>
 #include <kvm/builtin-help.h>
+#include <kvm/kvm.h>
 
 
 const char kvm_usage_string[] =
@@ -25,7 +26,7 @@ static void list_common_cmds_help(void)
 			longest = strlen(common_cmds[i].name);
 	}
 
-	puts(" The most commonly used kvm commands are:");
+	puts(" The most commonly used lkvm commands are:");
 	for (i = 0; i < ARRAY_SIZE(common_cmds); i++) {
 		printf("   %-*s   ", longest, common_cmds[i].name);
 		puts(common_cmds[i].help);
@@ -34,8 +35,8 @@ static void list_common_cmds_help(void)
 
 static void kvm_help(void)
 {
-	printf("\n To start a simple non-privileged shell run 'kvm run'\n\n"
-		"usage: %s\n\n", kvm_usage_string);
+	printf("\n To start a simple non-privileged shell run '%s run'\n\n"
+		"usage: %s\n\n", KVM_BINARY_NAME, kvm_usage_string);
 	list_common_cmds_help();
 	printf("\n %s\n\n", kvm_more_info_string);
 }
