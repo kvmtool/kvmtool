@@ -71,7 +71,7 @@ static void mptable_add_irq_src(struct mpc_intsrc *mpc_intsrc,
 /**
  * mptable_setup - create mptable and fill guest memory with it
  */
-void mptable_setup(struct kvm *kvm, unsigned int ncpus)
+int mptable_setup(struct kvm *kvm, unsigned int ncpus)
 {
 	unsigned long real_mpc_table, real_mpf_intel, size;
 	struct mpf_intel *mpf_intel;
@@ -264,8 +264,11 @@ void mptable_setup(struct kvm *kvm, unsigned int ncpus)
 	 */
 
 	if (size > (unsigned long)(MB_BIOS_END - bios_rom_size) ||
-	    size > MPTABLE_MAX_SIZE)
-		die("MP table is too big");
+	    size > MPTABLE_MAX_SIZE) {
+		free(mpc_table);
+		pr_err("MP table is too big");
+		return -1;
+	}
 
 	/*
 	 * OK, it is time to move it to guest memory.
@@ -273,4 +276,5 @@ void mptable_setup(struct kvm *kvm, unsigned int ncpus)
 	memcpy(guest_flat_to_host(kvm, real_mpc_table), mpc_table, size);
 
 	free(mpc_table);
+	return 0;
 }

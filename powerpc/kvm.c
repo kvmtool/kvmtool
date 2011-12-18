@@ -175,7 +175,7 @@ static void setup_fdt(struct kvm *kvm)
 /**
  * kvm__arch_setup_firmware
  */
-void kvm__arch_setup_firmware(struct kvm *kvm)
+int kvm__arch_setup_firmware(struct kvm *kvm)
 {
 	/* Load RTAS */
 
@@ -183,4 +183,6 @@ void kvm__arch_setup_firmware(struct kvm *kvm)
 
 	/* Init FDT */
 	setup_fdt(kvm);
+
+	return 0;
 }

@@ -348,7 +348,7 @@ bool load_bzimage(struct kvm *kvm, int fd_kernel,
  * This function is a main routine where we poke guest memory
  * and install BIOS there.
  */
-void kvm__arch_setup_firmware(struct kvm *kvm)
+int kvm__arch_setup_firmware(struct kvm *kvm)
 {
 	/* standart minimal configuration */
 	setup_bios(kvm);
@@ -356,7 +356,7 @@ void kvm__arch_setup_firmware(struct kvm *kvm)
 	/* FIXME: SMP, ACPI and friends here */
 
 	/* MP table */
-	mptable_setup(kvm, kvm->nrcpus);
+	return mptable_setup(kvm, kvm->nrcpus);
 }
 
 void kvm__arch_periodic_poll(struct kvm *kvm)

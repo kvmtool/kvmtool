@@ -1123,7 +1123,9 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	kvm__start_timer(kvm);
 
-	kvm__arch_setup_firmware(kvm);
+	exit_code = kvm__arch_setup_firmware(kvm);
+	if (exit_code)
+		goto err;
 
 	for (i = 0; i < nrcpus; i++) {
 		kvm_cpus[i] = kvm_cpu__init(kvm, i);
@@ -1153,6 +1155,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 			exit_code = 1;
 	}
 
+err:
 	compat__print_all_messages();
 
 	fb__stop();
