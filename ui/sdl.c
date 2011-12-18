@@ -34,7 +34,7 @@ struct set2_scancode {
 	.type = SCANCODE_ESCAPED,\
 }
 
-static const struct set2_scancode const keymap[255] = {
+static const struct set2_scancode const keymap[256] = {
 	[9]	= DEFINE_SC(0x76),	/* <esc> */
 	[10]	= DEFINE_SC(0x16),	/* 1 */
 	[11]	= DEFINE_SC(0x1e),	/* 2 */
