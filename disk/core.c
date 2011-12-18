@@ -118,7 +118,7 @@ struct disk_image **disk_image__open_all(const char **filenames, bool *readonly,
 
 		disks[i] = disk_image__open(filenames[i], readonly[i]);
 		if (!disks[i]) {
-			pr_error("Loading disk image '%s' failed", filenames[i]);
+			pr_err("Loading disk image '%s' failed", filenames[i]);
 			goto error;
 		}
 	}

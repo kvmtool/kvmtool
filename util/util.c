@@ -46,7 +46,7 @@ void die(const char *err, ...)
 	va_end(params);
 }
 
-int pr_error(const char *err, ...)
+int pr_err(const char *err, ...)
 {
 	va_list params;
 
