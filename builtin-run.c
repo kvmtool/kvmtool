@@ -1115,7 +1115,11 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 
 	rtc__init();
 
-	serial8250__init(kvm);
+	r = serial8250__init(kvm);
+	if (r < 0) {
+		pr_err("serial__init() failed with error %d\n", r);
+		goto fail;
+	}
 
 	if (active_console == CONSOLE_VIRTIO)
 		virtio_console__init(kvm);
@@ -1224,6 +1228,7 @@ static int kvm_cmd_run_work(void)
 		r = 0;
 
 	kvm_cpu__delete(kvm_cpus[0]);
+	kvm_cpus[0] = NULL;
 
 	for (i = 1; i < nrcpus; i++) {
 		if (kvm_cpus[i]->is_running) {
@@ -1260,6 +1265,10 @@ static void kvm_cmd_run_exit(int guest_ret)
 
 	disk_image__close_all(kvm->disks, image_count);
 	free(kvm_cpus);
+
+	r = serial8250__exit(kvm);
+	if (r < 0)
+		pr_warning("serial8250__exit() failed with error %d\n", r);
 
 	r = ioport__exit(kvm);
 	if (r < 0)

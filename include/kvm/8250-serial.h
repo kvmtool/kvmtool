@@ -3,7 +3,8 @@
 
 struct kvm;
 
-void serial8250__init(struct kvm *kvm);
+int serial8250__init(struct kvm *kvm);
+int serial8250__exit(struct kvm *kvm);
 void serial8250__update_consoles(struct kvm *kvm);
 void serial8250__inject_sysrq(struct kvm *kvm);
 

@@ -396,19 +396,52 @@ static struct ioport_operations serial8250_ops = {
 	.io_out		= serial8250_out,
 };
 
-static void serial8250__device_init(struct kvm *kvm, struct serial8250_device *dev)
+static int serial8250__device_init(struct kvm *kvm, struct serial8250_device *dev)
 {
-	ioport__register(dev->iobase, &serial8250_ops, 8, NULL);
+	int r;
+
+	r = ioport__register(dev->iobase, &serial8250_ops, 8, NULL);
 	kvm__irq_line(kvm, dev->irq, 0);
+
+	return r;
 }
 
-void serial8250__init(struct kvm *kvm)
+int serial8250__init(struct kvm *kvm)
 {
-	unsigned int i;
+	unsigned int i, j;
+	int r = 0;
 
 	for (i = 0; i < ARRAY_SIZE(devices); i++) {
 		struct serial8250_device *dev = &devices[i];
 
-		serial8250__device_init(kvm, dev);
+		r = serial8250__device_init(kvm, dev);
+		if (r < 0)
+			goto cleanup;
 	}
+
+	return r;
+cleanup:
+	for (j = 0; j <= i; j++) {
+		struct serial8250_device *dev = &devices[j];
+
+		ioport__unregister(dev->iobase);
+	}
+
+	return r;
+}
+
+int serial8250__exit(struct kvm *kvm)
+{
+	unsigned int i;
+	int r;
+
+	for (i = 0; i < ARRAY_SIZE(devices); i++) {
+		struct serial8250_device *dev = &devices[i];
+
+		r = ioport__unregister(dev->iobase);
+		if (r < 0)
+			return r;
+	}
+
+	return 0;
 }
