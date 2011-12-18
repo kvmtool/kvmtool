@@ -51,7 +51,12 @@ static int ioport_insert(struct rb_root *root, struct ioport *data)
 	return rb_int_insert(root, &data->node);
 }
 
-u16 ioport__register(u16 port, struct ioport_operations *ops, int count, void *param)
+static void ioport_remove(struct rb_root *root, struct ioport *data)
+{
+	rb_int_erase(root, &data->node);
+}
+
+int ioport__register(u16 port, struct ioport_operations *ops, int count, void *param)
 {
 	struct ioport *entry;
 
@@ -67,7 +72,7 @@ u16 ioport__register(u16 port, struct ioport_operations *ops, int count, void *p
 
 	entry = malloc(sizeof(*entry));
 	if (entry == NULL)
-		die("Failed allocating new ioport entry");
+		return -ENOMEM;
 
 	*entry = (struct ioport) {
 		.node	= RB_INT_INIT(port, port + count),
@@ -80,6 +85,46 @@ u16 ioport__register(u16 port, struct ioport_operations *ops, int count, void *p
 	br_write_unlock();
 
 	return port;
+}
+
+int ioport__unregister(u16 port)
+{
+	struct ioport *entry;
+	int r;
+
+	br_write_lock();
+
+	r = -ENOENT;
+	entry = ioport_search(&ioport_tree, port);
+	if (!entry)
+		goto done;
+
+	ioport_remove(&ioport_tree, entry);
+
+	free(entry);
+
+	r = 0;
+
+done:
+	br_write_unlock();
+
+	return r;
+}
+
+static void ioport__unregister_all(void)
+{
+	struct ioport *entry;
+	struct rb_node *rb;
+	struct rb_int_node *rb_node;
+
+	rb = rb_first(&ioport_tree);
+	while (rb) {
+		rb_node = rb_int(rb);
+		entry = ioport_node(rb_node);
+		ioport_remove(&ioport_tree, entry);
+		free(entry);
+		rb = rb_first(&ioport_tree);
+	}
 }
 
 static const char *to_direction(int direction)
@@ -131,4 +176,15 @@ error:
 		ioport_error(port, data, direction, size, count);
 
 	return !ioport_debug;
+}
+
+int ioport__init(struct kvm *kvm)
+{
+	return 0;
+}
+
+int ioport__exit(struct kvm *kvm)
+{
+	ioport__unregister_all();
+	return 0;
 }

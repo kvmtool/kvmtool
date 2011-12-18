@@ -1,8 +1,6 @@
 #include <kvm/rbtree-interval.h>
 #include <stddef.h>
 
-#define rb_int(n) rb_entry(n, struct rb_int_node, node)
-
 struct rb_int_node *rb_int_search_single(struct rb_root *root, u64 point)
 {
 	struct rb_node *node = root->rb_node;

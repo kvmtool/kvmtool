@@ -5,6 +5,7 @@
 #include <linux/types.h>
 
 #define RB_INT_INIT(l, h) (struct rb_int_node){.low = l, .high = h}
+#define rb_int(n) rb_entry(n, struct rb_int_node, node)
 
 struct rb_int_node {
 	struct rb_node	node;

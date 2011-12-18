@@ -31,7 +31,10 @@ struct ioport_operations {
 
 void ioport__setup_arch(void);
 
-u16 ioport__register(u16 port, struct ioport_operations *ops, int count, void *param);
+int ioport__register(u16 port, struct ioport_operations *ops, int count, void *param);
+int ioport__unregister(u16 port);
+int ioport__init(struct kvm *kvm);
+int ioport__exit(struct kvm *kvm);
 
 static inline u8 ioport__read8(u8 *data)
 {

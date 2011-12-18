@@ -219,6 +219,7 @@ int pci_shmem__init(struct kvm *kvm)
 {
 	u8 dev, line, pin;
 	char *mem;
+	int r;
 
 	if (shmem_region == 0)
 		return 0;
@@ -231,7 +232,11 @@ int pci_shmem__init(struct kvm *kvm)
 	pci_shmem_pci_device.irq_line = line;
 
 	/* Register MMIO space for MSI-X */
-	ivshmem_registers = ioport__register(IOPORT_EMPTY, &shmem_pci__io_ops, IOPORT_SIZE, NULL);
+	r = ioport__register(IOPORT_EMPTY, &shmem_pci__io_ops, IOPORT_SIZE, NULL);
+	if (r < 0)
+		return r;
+	ivshmem_registers = (u16)r;
+
 	msix_block = pci_get_io_space_block(0x1010);
 	kvm__register_mmio(kvm, msix_block, 0x1010, false, callback_mmio_msix, NULL);
 

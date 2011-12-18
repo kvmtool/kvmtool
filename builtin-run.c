@@ -1028,6 +1028,12 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 
 	pci__init();
 
+	r = ioport__init(kvm);
+	if (r < 0) {
+		pr_err("ioport__init() failed with error %d\n", r);
+		goto fail;
+	}
+
 	/*
 	 * vidmode should be either specified
 	 * either set by default
@@ -1252,6 +1258,11 @@ static void kvm_cmd_run_exit(int guest_ret)
 
 	disk_image__close_all(kvm->disks, image_count);
 	free(kvm_cpus);
+
+	r = ioport__exit(kvm);
+	if (r < 0)
+		pr_warning("ioport__exit() failed with error %d\n", r);
+
 	kvm__delete(kvm);
 
 	if (guest_ret == 0)

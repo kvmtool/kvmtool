@@ -57,9 +57,13 @@ struct framebuffer *vesa__init(struct kvm *kvm)
 	if (r < 0)
 		return ERR_PTR(r);
 
+	r = ioport__register(IOPORT_EMPTY, &vesa_io_ops, IOPORT_SIZE, NULL);
+	if (r < 0)
+		return ERR_PTR(r);
+
 	vesa_pci_device.irq_pin		= pin;
 	vesa_pci_device.irq_line	= line;
-	vesa_base_addr			= ioport__register(IOPORT_EMPTY, &vesa_io_ops, IOPORT_SIZE, NULL);
+	vesa_base_addr			= (u16)r;
 	vesa_pci_device.bar[0]		= cpu_to_le32(vesa_base_addr | PCI_BASE_ADDRESS_SPACE_IO);
 	pci__register(&vesa_pci_device, dev);
 
