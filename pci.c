@@ -3,6 +3,9 @@
 #include "kvm/util.h"
 #include "kvm/kvm.h"
 
+#include <linux/err.h>
+#include <assert.h>
+
 #define PCI_BAR_OFFSET(b)		(offsetof(struct pci_device_header, bar[b]))
 
 static struct pci_device_header		*pci_devices[PCI_MAX_DEVICES];
@@ -29,8 +32,8 @@ static void *pci_config_address_ptr(u16 port)
 	unsigned long offset;
 	void *base;
 
-	offset		= port - PCI_CONFIG_ADDRESS;
-	base		= &pci_config_address;
+	offset	= port - PCI_CONFIG_ADDRESS;
+	base	= &pci_config_address;
 
 	return base + offset;
 }
@@ -54,8 +57,8 @@ static bool pci_config_address_in(struct ioport *ioport, struct kvm *kvm, u16 po
 }
 
 static struct ioport_operations pci_config_address_ops = {
-	.io_in		= pci_config_address_in,
-	.io_out		= pci_config_address_out,
+	.io_in	= pci_config_address_in,
+	.io_out	= pci_config_address_out,
 };
 
 static bool pci_device_exists(u8 bus_number, u8 device_number, u8 function_number)
@@ -71,7 +74,7 @@ static bool pci_device_exists(u8 bus_number, u8 device_number, u8 function_numbe
 	if (device_number >= PCI_MAX_DEVICES)
 		return false;
 
-	dev		= pci_devices[device_number];
+	dev = pci_devices[device_number];
 
 	return dev != NULL;
 }
@@ -103,15 +106,15 @@ static bool pci_config_data_in(struct ioport *ioport, struct kvm *kvm, u16 port,
 }
 
 static struct ioport_operations pci_config_data_ops = {
-	.io_in		= pci_config_data_in,
-	.io_out		= pci_config_data_out,
+	.io_in	= pci_config_data_in,
+	.io_out	= pci_config_data_out,
 };
 
 void pci__config_wr(struct kvm *kvm, union pci_config_address addr, void *data, int size)
 {
 	u8 dev_num;
 
-	dev_num		= addr.device_number;
+	dev_num	= addr.device_number;
 
 	if (pci_device_exists(0, dev_num, 0)) {
 		unsigned long offset;
@@ -148,7 +151,7 @@ void pci__config_rd(struct kvm *kvm, union pci_config_address addr, void *data, 
 {
 	u8 dev_num;
 
-	dev_num		= addr.device_number;
+	dev_num	= addr.device_number;
 
 	if (pci_device_exists(0, dev_num, 0)) {
 		unsigned long offset;
@@ -166,20 +169,45 @@ void pci__config_rd(struct kvm *kvm, union pci_config_address addr, void *data, 
 	}
 }
 
-void pci__register(struct pci_device_header *dev, u8 dev_num)
+int pci__register(struct pci_device_header *dev, u8 dev_num)
 {
-	BUG_ON(dev_num >= PCI_MAX_DEVICES);
-	pci_devices[dev_num]	= dev;
+	if (dev_num >= PCI_MAX_DEVICES)
+		return -ENOSPC;
+
+	pci_devices[dev_num] = dev;
+
+	return 0;
 }
 
 struct pci_device_header *pci__find_dev(u8 dev_num)
 {
-	BUG_ON(dev_num >= PCI_MAX_DEVICES);
+	if (dev_num >= PCI_MAX_DEVICES)
+		return ERR_PTR(-EOVERFLOW);
+
 	return pci_devices[dev_num];
 }
 
-void pci__init(void)
+int pci__init(struct kvm *kvm)
 {
-	ioport__register(PCI_CONFIG_DATA + 0, &pci_config_data_ops, 4, NULL);
-	ioport__register(PCI_CONFIG_ADDRESS + 0, &pci_config_address_ops, 4, NULL);
+	int r;
+
+	r = ioport__register(PCI_CONFIG_DATA + 0, &pci_config_data_ops, 4, NULL);
+	if (r < 0)
+		return r;
+
+	r = ioport__register(PCI_CONFIG_ADDRESS + 0, &pci_config_address_ops, 4, NULL);
+	if (r < 0) {
+		ioport__unregister(PCI_CONFIG_DATA);
+		return r;
+	}
+
+	return 0;
+}
+
+int pci__exit(struct kvm *kvm)
+{
+	ioport__unregister(PCI_CONFIG_DATA);
+	ioport__unregister(PCI_CONFIG_ADDRESS);
+
+	return 0;
 }

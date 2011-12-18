@@ -1030,7 +1030,11 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 		goto fail;
 	}
 
-	pci__init();
+	r = pci__init(kvm);
+	if (r < 0) {
+		pr_err("pci__init() failed with error %d\n", r);
+		goto fail;
+	}
 
 	r = ioport__init(kvm);
 	if (r < 0) {
@@ -1285,6 +1289,10 @@ static void kvm_cmd_run_exit(int guest_ret)
 	r = ioeventfd__exit(kvm);
 	if (r < 0)
 		pr_warning("ioeventfd__exit() failed with error %d\n", r);
+
+	r = pci__exit(kvm);
+	if (r < 0)
+		pr_warning("pci__exit() failed with error %d\n", r);
 
 	kvm__delete(kvm);
 
