@@ -19,9 +19,9 @@ struct ioevent {
 	struct list_head	list;
 };
 
-void ioeventfd__init(struct kvm *kvm);
-void ioeventfd__start(void);
-void ioeventfd__add_event(struct ioevent *ioevent);
-void ioeventfd__del_event(u64 addr, u64 datamatch);
+int ioeventfd__init(struct kvm *kvm);
+int ioeventfd__exit(struct kvm *kvm);
+int ioeventfd__add_event(struct ioevent *ioevent);
+int ioeventfd__del_event(u64 addr, u64 datamatch);
 
 #endif

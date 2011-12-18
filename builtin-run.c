@@ -1000,7 +1000,11 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 
 	kvm->single_step = single_step;
 
-	ioeventfd__init(kvm);
+	r = ioeventfd__init(kvm);
+	if (r < 0) {
+		pr_err("ioeventfd__init() failed with error %d\n", r);
+		goto fail;
+	}
 
 	max_cpus = kvm__max_cpus(kvm);
 	recommended_cpus = kvm__recommended_cpus(kvm);
@@ -1201,8 +1205,6 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 	}
 
 	thread_pool__init(nr_online_cpus);
-	ioeventfd__start();
-
 fail:
 	return r;
 }
@@ -1262,6 +1264,10 @@ static void kvm_cmd_run_exit(int guest_ret)
 	r = ioport__exit(kvm);
 	if (r < 0)
 		pr_warning("ioport__exit() failed with error %d\n", r);
+
+	r = ioeventfd__exit(kvm);
+	if (r < 0)
+		pr_warning("ioeventfd__exit() failed with error %d\n", r);
 
 	kvm__delete(kvm);
 

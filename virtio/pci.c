@@ -34,6 +34,7 @@ static int virtio_pci__init_ioeventfd(struct kvm *kvm, struct virtio_trans *vtra
 {
 	struct ioevent ioevent;
 	struct virtio_pci *vpci = vtrans->virtio;
+	int r;
 
 	vpci->ioeventfds[vq] = (struct virtio_pci_ioevent_param) {
 		.vtrans		= vtrans,
@@ -50,7 +51,9 @@ static int virtio_pci__init_ioeventfd(struct kvm *kvm, struct virtio_trans *vtra
 		.fd		= eventfd(0, 0),
 	};
 
-	ioeventfd__add_event(&ioevent);
+	r = ioeventfd__add_event(&ioevent);
+	if (r)
+		return r;
 
 	if (vtrans->virtio_ops->notify_vq_eventfd)
 		vtrans->virtio_ops->notify_vq_eventfd(kvm, vpci->dev, vq, ioevent.fd);
