@@ -13,10 +13,12 @@ int virtio_trans_init(struct virtio_trans *vtrans, enum virtio_trans_type type)
 	case VIRTIO_PCI:
 		trans = calloc(sizeof(struct virtio_pci), 1);
 		if (!trans)
-			die("Failed allocating virtio transport");
+			return -ENOMEM;
 		vtrans->virtio = trans;
 		vtrans->trans_ops = virtio_pci__get_trans_ops();
 	default:
 		return -1;
 	};
+
+	return 0;
 }

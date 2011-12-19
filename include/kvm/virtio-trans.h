@@ -27,6 +27,7 @@ struct virtio_ops {
 struct virtio_trans_ops {
 	int (*init)(struct kvm *kvm, struct virtio_trans *vtrans, void *dev, int device_id,
 			int subsys_id, int class);
+	int (*uninit)(struct kvm *kvm, struct virtio_trans *vtrans);
 	int (*signal_vq)(struct kvm *kvm, struct virtio_trans *virtio_trans, u32 queueid);
 	int (*signal_config)(struct kvm *kvm, struct virtio_trans *virtio_trans);
 };

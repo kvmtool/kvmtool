@@ -1284,7 +1284,9 @@ static void kvm_cmd_run_exit(int guest_ret)
 	if (r < 0)
 		pr_warning("virtio_blk__exit() failed with error %d\n", r);
 
-	virtio_rng__delete_all(kvm);
+	r = virtio_rng__exit(kvm);
+	if (r < 0)
+		pr_warning("virtio_rng__exit() failed with error %d\n", r);
 
 	r = disk_image__close_all(kvm->disks, image_count);
 	if (r < 0)
@@ -1315,7 +1317,9 @@ static void kvm_cmd_run_exit(int guest_ret)
 	if (r < 0)
 		pr_warning("pci__exit() failed with error %d\n", r);
 
-	kvm__delete(kvm);
+	r = kvm__exit(kvm);
+	if (r < 0)
+		pr_warning("pci__exit() failed with error %d\n", r);
 
 	if (guest_ret == 0)
 		printf("\n  # KVM session ended normally.\n");

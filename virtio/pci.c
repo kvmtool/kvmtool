@@ -18,6 +18,7 @@ struct virtio_trans_ops *virtio_pci__get_trans_ops(void)
 		.signal_vq	= virtio_pci__signal_vq,
 		.signal_config	= virtio_pci__signal_config,
 		.init		= virtio_pci__init,
+		.uninit		= virtio_pci__exit,
 	};
 	return &virtio_pci_trans;
 };
@@ -297,7 +298,9 @@ int virtio_pci__init(struct kvm *kvm, struct virtio_trans *vtrans, void *dev,
 		return r;
 
 	vpci->base_addr = (u16)r;
-	kvm__register_mmio(kvm, vpci->msix_io_block, PCI_IO_SIZE, false, callback_mmio_table, vpci);
+	r = kvm__register_mmio(kvm, vpci->msix_io_block, PCI_IO_SIZE, false, callback_mmio_table, vpci);
+	if (r < 0)
+		goto free_ioport;
 
 	vpci->pci_hdr = (struct pci_device_header) {
 		.vendor_id		= cpu_to_le16(PCI_VENDOR_ID_REDHAT_QUMRANET),
@@ -343,12 +346,35 @@ int virtio_pci__init(struct kvm *kvm, struct virtio_trans *vtrans, void *dev,
 	vpci->pci_hdr.msix.pba_offset = cpu_to_le32(1 | PCI_IO_SIZE); /* Use BAR 3 */
 	vpci->config_vector = 0;
 
-	if (irq__register_device(subsys_id, &ndev, &pin, &line) < 0)
-		return -1;
+	r = irq__register_device(subsys_id, &ndev, &pin, &line);
+	if (r < 0)
+		goto free_mmio;
 
 	vpci->pci_hdr.irq_pin	= pin;
 	vpci->pci_hdr.irq_line	= line;
-	pci__register(&vpci->pci_hdr, ndev);
+	r = pci__register(&vpci->pci_hdr, ndev);
+	if (r < 0)
+		goto free_ioport;
+
+	return 0;
+
+free_mmio:
+	kvm__deregister_mmio(kvm, vpci->msix_io_block);
+free_ioport:
+	ioport__unregister(vpci->base_addr);
+	return r;
+}
+
+int virtio_pci__exit(struct kvm *kvm, struct virtio_trans *vtrans)
+{
+	struct virtio_pci *vpci = vtrans->virtio;
+	int i;
+
+	kvm__deregister_mmio(kvm, vpci->msix_io_block);
+	ioport__unregister(vpci->base_addr);
+
+	for (i = 0; i < VIRTIO_PCI_MAX_VQ; i++)
+		ioeventfd__del_event(vpci->base_addr + VIRTIO_PCI_QUEUE_NOTIFY, i);
 
 	return 0;
 }

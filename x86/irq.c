@@ -46,7 +46,7 @@ static struct pci_dev *search(struct rb_root *root, u32 id)
 	struct rb_node *node = root->rb_node;
 
 	while (node) {
-		struct pci_dev *data = container_of(node, struct pci_dev, node);
+		struct pci_dev *data = rb_entry(node, struct pci_dev, node);
 		int result;
 
 		result = id - data->id;
@@ -175,7 +175,22 @@ int irq__init(struct kvm *kvm)
 
 int irq__exit(struct kvm *kvm)
 {
+	struct rb_node *ent;
+
 	free(irq_routing);
+
+	for (ent = rb_first(&pci_tree); ent; ent = rb_next(ent)) {
+		struct pci_dev *dev;
+		struct irq_line *line;
+		struct list_head *node, *tmp;
+
+		dev = rb_entry(ent, struct pci_dev, node);
+		list_for_each_safe(node, tmp, &dev->lines) {
+			line = list_entry(node, struct irq_line, node);
+			free(line);
+		}
+		free(dev);
+	}
 
 	return 0;
 }

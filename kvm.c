@@ -6,6 +6,7 @@
 #include "kvm/kvm-ipc.h"
 
 #include <linux/kvm.h>
+#include <linux/err.h>
 
 #include <sys/un.h>
 #include <sys/stat.h>
@@ -61,7 +62,7 @@ extern struct kvm_ext kvm_req_ext[];
 
 static char kvm_dir[PATH_MAX];
 
-static void set_dir(const char *fmt, va_list args)
+static int set_dir(const char *fmt, va_list args)
 {
 	char tmp[PATH_MAX];
 
@@ -70,9 +71,11 @@ static void set_dir(const char *fmt, va_list args)
 	mkdir(tmp, 0777);
 
 	if (!realpath(tmp, kvm_dir))
-		die("Unable to set KVM tool directory");
+		return -errno;
 
 	strcat(kvm_dir, "/");
+
+	return 0;
 }
 
 void kvm__set_dir(const char *fmt, ...)
@@ -102,7 +105,7 @@ bool kvm__supports_extension(struct kvm *kvm, unsigned int extension)
 
 static int kvm__check_extensions(struct kvm *kvm)
 {
-	unsigned int i;
+	int i;
 
 	for (i = 0; ; i++) {
 		if (!kvm_req_ext[i].name)
@@ -110,7 +113,7 @@ static int kvm__check_extensions(struct kvm *kvm)
 		if (!kvm__supports_extension(kvm, kvm_req_ext[i].code)) {
 			pr_err("Unsuppored KVM extension detected: %s",
 				kvm_req_ext[i].name);
-			return (int)-i;
+			return -i;
 		}
 	}
 
@@ -119,10 +122,10 @@ static int kvm__check_extensions(struct kvm *kvm)
 
 static struct kvm *kvm__new(void)
 {
-	struct kvm *kvm = calloc(1, sizeof *kvm);
+	struct kvm *kvm = calloc(1, sizeof(*kvm));
 
 	if (!kvm)
-		die("out of memory");
+		return ERR_PTR(-ENOMEM);
 
 	return kvm;
 }
@@ -138,12 +141,14 @@ static int kvm__create_socket(struct kvm *kvm)
 	int len, r;
 
 	if (!kvm->name)
-		return -1;
+		return -EINVAL;
 
 	sprintf(full_name, "%s/%s%s", kvm__get_dir(), kvm->name,
 			KVM_SOCK_SUFFIX);
-	if (access(full_name, F_OK) == 0)
-		die("Socket file %s already exist", full_name);
+	if (access(full_name, F_OK) == 0) {
+		pr_err("Socket file %s already exist", full_name);
+		return -EEXIST;
+	}
 
 	s = socket(AF_UNIX, SOCK_STREAM, 0);
 	if (s < 0)
@@ -163,7 +168,7 @@ static int kvm__create_socket(struct kvm *kvm)
 
 fail:
 	close(s);
-	return -1;
+	return r;
 }
 
 void kvm__remove_socket(const char *name)
@@ -192,9 +197,9 @@ int kvm__get_sock_by_instance(const char *name)
 		/* Tell the user clean ghost socket file */
 		pr_err("\"%s\" could be a ghost socket file, please remove it",
 				sock_file);
-		return -1;
+		return r;
 	} else if (r < 0) {
-		die("Failed connecting to instance");
+		return r;
 	}
 
 	return s;
@@ -209,7 +214,7 @@ int kvm__enumerate_instances(int (*callback)(const char *name, int fd))
 
 	dir = opendir(kvm__get_dir());
 	if (!dir)
-		return -1;
+		return -errno;
 
 	for (;;) {
 		readdir_r(dir, &entry, &result);
@@ -242,7 +247,7 @@ int kvm__enumerate_instances(int (*callback)(const char *name, int fd))
 	return ret;
 }
 
-void kvm__delete(struct kvm *kvm)
+int kvm__exit(struct kvm *kvm)
 {
 	kvm__stop_timer(kvm);
 
@@ -250,6 +255,8 @@ void kvm__delete(struct kvm *kvm)
 	kvm_ipc__stop();
 	kvm__remove_socket(kvm->name);
 	free(kvm);
+
+	return 0;
 }
 
 /*
@@ -257,7 +264,7 @@ void kvm__delete(struct kvm *kvm)
  * memory regions to it. Therefore, be careful if you use this function for
  * registering memory regions for emulating hardware.
  */
-void kvm__register_mem(struct kvm *kvm, u64 guest_phys, u64 size, void *userspace_addr)
+int kvm__register_mem(struct kvm *kvm, u64 guest_phys, u64 size, void *userspace_addr)
 {
 	struct kvm_userspace_memory_region mem;
 	int ret;
@@ -271,7 +278,9 @@ void kvm__register_mem(struct kvm *kvm, u64 guest_phys, u64 size, void *userspac
 
 	ret = ioctl(kvm->vm_fd, KVM_SET_USER_MEMORY_REGION, &mem);
 	if (ret < 0)
-		die_perror("KVM_SET_USER_MEMORY_REGION ioctl");
+		return -errno;
+
+	return 0;
 }
 
 int kvm__recommended_cpus(struct kvm *kvm)
@@ -325,33 +334,53 @@ struct kvm *kvm__init(const char *kvm_dev, const char *hugetlbfs_path, u64 ram_s
 	struct kvm *kvm;
 	int ret;
 
-	if (!kvm__arch_cpu_supports_vm())
-		die("Your CPU does not support hardware virtualization");
+	if (!kvm__arch_cpu_supports_vm()) {
+		pr_err("Your CPU does not support hardware virtualization");
+		return ERR_PTR(-ENOSYS);
+	}
 
 	kvm = kvm__new();
+	if (IS_ERR_OR_NULL(kvm))
+		return kvm;
 
 	kvm->sys_fd = open(kvm_dev, O_RDWR);
 	if (kvm->sys_fd < 0) {
-		if (errno == ENOENT)
-			die("'%s' not found. Please make sure your kernel has CONFIG_KVM enabled and that the KVM modules are loaded.", kvm_dev);
-		if (errno == ENODEV)
-			die("'%s' KVM driver not available.\n  # (If the KVM module is loaded then 'dmesg' may offer further clues about the failure.)", kvm_dev);
+		if (errno == ENOENT) {
+			pr_err("'%s' not found. Please make sure your kernel has CONFIG_KVM "
+				"enabled and that the KVM modules are loaded.", kvm_dev);
+			ret = -errno;
+			goto cleanup;
+		}
+		if (errno == ENODEV) {
+			die("'%s' KVM driver not available.\n  # (If the KVM "
+				"module is loaded then 'dmesg' may offer further clues "
+				"about the failure.)", kvm_dev);
+			ret = -errno;
+			goto cleanup;
+		}
 
-		fprintf(stderr, "  Fatal, could not open %s: ", kvm_dev);
-		perror(NULL);
-		exit(1);
+		pr_err("Could not open %s: ", kvm_dev);
+		ret = -errno;
+		goto cleanup;
 	}
 
 	ret = ioctl(kvm->sys_fd, KVM_GET_API_VERSION, 0);
-	if (ret != KVM_API_VERSION)
-		die_perror("KVM_API_VERSION ioctl");
+	if (ret != KVM_API_VERSION) {
+		pr_err("KVM_API_VERSION ioctl");
+		ret = -errno;
+		goto cleanup;
+	}
 
 	kvm->vm_fd = ioctl(kvm->sys_fd, KVM_CREATE_VM, 0);
-	if (kvm->vm_fd < 0)
-		die_perror("KVM_CREATE_VM ioctl");
+	if (kvm->vm_fd < 0) {
+		ret = kvm->vm_fd;
+		goto cleanup;
+	}
 
-	if (kvm__check_extensions(kvm))
-		die("A required KVM extention is not supported by OS");
+	if (kvm__check_extensions(kvm)) {
+		pr_err("A required KVM extention is not supported by OS");
+		ret = -ENOSYS;
+	}
 
 	kvm__arch_init(kvm, hugetlbfs_path, ram_size);
 
@@ -360,6 +389,12 @@ struct kvm *kvm__init(const char *kvm_dev, const char *hugetlbfs_path, u64 ram_s
 	kvm_ipc__start(kvm__create_socket(kvm));
 	kvm_ipc__register_handler(KVM_IPC_PID, kvm__pid);
 	return kvm;
+cleanup:
+	close(kvm->vm_fd);
+	close(kvm->sys_fd);
+	free(kvm);
+
+	return ERR_PTR(ret);
 }
 
 /* RFC 1952 */

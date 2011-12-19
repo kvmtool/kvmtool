@@ -40,6 +40,7 @@ struct virtio_pci {
 
 int virtio_pci__init(struct kvm *kvm, struct virtio_trans *vtrans, void *dev,
 			int device_id, int subsys_id, int class);
+int virtio_pci__exit(struct kvm *kvm, struct virtio_trans *vtrans);
 int virtio_pci__signal_vq(struct kvm *kvm, struct virtio_trans *vtrans, u32 vq);
 int virtio_pci__signal_config(struct kvm *kvm, struct virtio_trans *vtrans);
 

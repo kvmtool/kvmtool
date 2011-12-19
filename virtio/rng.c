@@ -149,21 +149,27 @@ static struct virtio_ops rng_dev_virtio_ops = (struct virtio_ops) {
 	.get_size_vq		= get_size_vq,
 };
 
-void virtio_rng__init(struct kvm *kvm)
+int virtio_rng__init(struct kvm *kvm)
 {
 	struct rng_dev *rdev;
+	int r;
 
 	rdev = malloc(sizeof(*rdev));
 	if (rdev == NULL)
-		return;
+		return -ENOMEM;
 
 	rdev->fd = open("/dev/urandom", O_RDONLY);
-	if (rdev->fd < 0)
-		die("Failed initializing RNG");
+	if (rdev->fd < 0) {
+		r = rdev->fd;
+		goto cleanup;
+	}
 
 	virtio_trans_init(&rdev->vtrans, VIRTIO_PCI);
-	rdev->vtrans.trans_ops->init(kvm, &rdev->vtrans, rdev, PCI_DEVICE_ID_VIRTIO_RNG,
+	r = rdev->vtrans.trans_ops->init(kvm, &rdev->vtrans, rdev, PCI_DEVICE_ID_VIRTIO_RNG,
 					VIRTIO_ID_RNG, PCI_CLASS_RNG);
+	if (r < 0)
+		goto cleanup;
+
 	rdev->vtrans.virtio_ops = &rng_dev_virtio_ops;
 
 	list_add_tail(&rdev->list, &rdevs);
@@ -175,14 +181,23 @@ void virtio_rng__init(struct kvm *kvm)
 						"Please make sure that the guest kernel was "
 						"compiled with CONFIG_HW_RANDOM_VIRTIO=y enabled "
 						"in its .config");
+	return 0;
+cleanup:
+	close(rdev->fd);
+	free(rdev);
+
+	return r;
 }
 
-void virtio_rng__delete_all(struct kvm *kvm)
+int virtio_rng__exit(struct kvm *kvm)
 {
 	struct rng_dev *rdev, *tmp;
 
 	list_for_each_entry_safe(rdev, tmp, &rdevs, list) {
 		list_del(&rdev->list);
+		rdev->vtrans.trans_ops->uninit(kvm, &rdev->vtrans);
 		free(rdev);
 	}
+
+	return 0;
 }

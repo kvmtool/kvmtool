@@ -59,6 +59,7 @@ static void ioport_remove(struct rb_root *root, struct ioport *data)
 int ioport__register(u16 port, struct ioport_operations *ops, int count, void *param)
 {
 	struct ioport *entry;
+	int r;
 
 	br_write_lock();
 	if (port == IOPORT_EMPTY)
@@ -80,8 +81,12 @@ int ioport__register(u16 port, struct ioport_operations *ops, int count, void *p
 		.priv	= param,
 	};
 
-	ioport_insert(&ioport_tree, entry);
-
+	r = ioport_insert(&ioport_tree, entry);
+	if (r < 0) {
+		free(entry);
+		br_write_unlock();
+		return r;
+	}
 	br_write_unlock();
 
 	return port;

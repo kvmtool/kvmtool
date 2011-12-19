@@ -9,6 +9,8 @@
 #include <linux/kvm.h>
 #include <linux/types.h>
 #include <linux/rbtree.h>
+#include <linux/err.h>
+#include <errno.h>
 
 #define mmio_node(n) rb_entry(n, struct mmio_mapping, node)
 
@@ -56,7 +58,7 @@ static const char *to_direction(u8 is_write)
 	return "read";
 }
 
-bool kvm__register_mmio(struct kvm *kvm, u64 phys_addr, u64 phys_addr_len, bool coalesce,
+int kvm__register_mmio(struct kvm *kvm, u64 phys_addr, u64 phys_addr_len, bool coalesce,
 			void (*mmio_fn)(u64 addr, u8 *data, u32 len, u8 is_write, void *ptr),
 			void *ptr)
 {
@@ -66,7 +68,7 @@ bool kvm__register_mmio(struct kvm *kvm, u64 phys_addr, u64 phys_addr_len, bool 
 
 	mmio = malloc(sizeof(*mmio));
 	if (mmio == NULL)
-		return false;
+		return -ENOMEM;
 
 	*mmio = (struct mmio_mapping) {
 		.node = RB_INT_INIT(phys_addr, phys_addr + phys_addr_len),
@@ -82,7 +84,7 @@ bool kvm__register_mmio(struct kvm *kvm, u64 phys_addr, u64 phys_addr_len, bool 
 		ret = ioctl(kvm->vm_fd, KVM_REGISTER_COALESCED_MMIO, &zone);
 		if (ret < 0) {
 			free(mmio);
-			return false;
+			return -errno;
 		}
 	}
 	br_write_lock();

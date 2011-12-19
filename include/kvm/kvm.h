@@ -38,7 +38,7 @@ struct kvm *kvm__init(const char *kvm_dev, const char *hugetlbfs_path, u64 ram_s
 int kvm__recommended_cpus(struct kvm *kvm);
 int kvm__max_cpus(struct kvm *kvm);
 void kvm__init_ram(struct kvm *kvm);
-void kvm__delete(struct kvm *kvm);
+int kvm__exit(struct kvm *kvm);
 bool kvm__load_kernel(struct kvm *kvm, const char *kernel_filename,
 			const char *initrd_filename, const char *kernel_cmdline, u16 vidmode);
 void kvm__start_timer(struct kvm *kvm);
@@ -47,8 +47,8 @@ void kvm__irq_line(struct kvm *kvm, int irq, int level);
 void kvm__irq_trigger(struct kvm *kvm, int irq);
 bool kvm__emulate_io(struct kvm *kvm, u16 port, void *data, int direction, int size, u32 count);
 bool kvm__emulate_mmio(struct kvm *kvm, u64 phys_addr, u8 *data, u32 len, u8 is_write);
-void kvm__register_mem(struct kvm *kvm, u64 guest_phys, u64 size, void *userspace_addr);
-bool kvm__register_mmio(struct kvm *kvm, u64 phys_addr, u64 phys_addr_len, bool coalesce,
+int kvm__register_mem(struct kvm *kvm, u64 guest_phys, u64 size, void *userspace_addr);
+int kvm__register_mmio(struct kvm *kvm, u64 phys_addr, u64 phys_addr_len, bool coalesce,
 			void (*mmio_fn)(u64 addr, u8 *data, u32 len, u8 is_write, void *ptr),
 			void *ptr);
 bool kvm__deregister_mmio(struct kvm *kvm, u64 phys_addr);

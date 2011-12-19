@@ -3,7 +3,7 @@
 
 struct kvm;
 
-void virtio_rng__init(struct kvm *kvm);
-void virtio_rng__delete_all(struct kvm *kvm);
+int virtio_rng__init(struct kvm *kvm);
+int virtio_rng__exit(struct kvm *kvm);
 
 #endif /* KVM__RNG_VIRTIO_H */

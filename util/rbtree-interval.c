@@ -1,5 +1,6 @@
 #include <kvm/rbtree-interval.h>
 #include <stddef.h>
+#include <errno.h>
 
 struct rb_int_node *rb_int_search_single(struct rb_root *root, u64 point)
 {
@@ -56,10 +57,10 @@ static void update_node_max_high(struct rb_node *node, void *arg)
 
 int rb_int_insert(struct rb_root *root, struct rb_int_node *i_node)
 {
-	struct rb_node **node	= &(root->rb_node), *parent = NULL;
+	struct rb_node **node = &(root->rb_node), *parent = NULL;
 
 	while (*node) {
-		int result	= i_node->low - rb_int(*node)->low;
+		int result = i_node->low - rb_int(*node)->low;
 
 		parent = *node;
 		if (result < 0)
@@ -67,14 +68,14 @@ int rb_int_insert(struct rb_root *root, struct rb_int_node *i_node)
 		else if (result > 0)
 			node	= &((*node)->rb_right);
 		else
-			return 0;
+			return -EEXIST;
 	}
 
 	rb_link_node(&i_node->node, parent, node);
 	rb_insert_color(&i_node->node, root);
 
 	rb_augment_insert(&i_node->node, update_node_max_high, NULL);
-	return 1;
+	return 0;
 }
 
 void rb_int_erase(struct rb_root *root, struct rb_int_node *node)
