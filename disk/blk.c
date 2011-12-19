@@ -1,5 +1,7 @@
 #include "kvm/disk-image.h"
 
+#include <linux/err.h>
+
 /*
  * raw image and blk dev are similar, so reuse raw image ops.
  */
@@ -12,22 +14,23 @@ static struct disk_image_operations blk_dev_ops = {
 struct disk_image *blkdev__probe(const char *filename, struct stat *st)
 {
 	u64 size;
-	int fd;
+	int fd, r;
 
 	if (!S_ISBLK(st->st_mode))
-		return NULL;
+		return ERR_PTR(-EINVAL);
 
 	/*
 	 * Be careful! We are opening host block device!
 	 * Open it readonly since we do not want to break user's data on disk.
 	 */
-	fd			= open(filename, O_RDONLY);
+	fd = open(filename, O_RDONLY);
 	if (fd < 0)
-		return NULL;
+		return ERR_PTR(fd);
 
 	if (ioctl(fd, BLKGETSIZE64, &size) < 0) {
+		r = -errno;
 		close(fd);
-		return NULL;
+		return ERR_PTR(r);
 	}
 
 	/*

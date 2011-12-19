@@ -1094,11 +1094,13 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 
 	if (image_count) {
 		kvm->nr_disks = image_count;
-		kvm->disks    = disk_image__open_all(image_filename, readonly_image, image_count);
-		if (!kvm->disks)
-			die("Unable to load all disk images.");
-
-		virtio_blk__init_all(kvm);
+		kvm->disks = disk_image__open_all(image_filename, readonly_image, image_count);
+		if (IS_ERR(kvm->disks)) {
+			r = PTR_ERR(kvm->disks);
+			pr_err("disk_image__open_all() failed with error %ld\n",
+					PTR_ERR(kvm->disks));
+			goto fail;
+		}
 	}
 
 	printf("  # %s run -k %s -m %Lu -c %d --name %s\n", KVM_BINARY_NAME,
@@ -1126,6 +1128,12 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 	r = serial8250__init(kvm);
 	if (r < 0) {
 		pr_err("serial__init() failed with error %d\n", r);
+		goto fail;
+	}
+
+	r = virtio_blk__init(kvm);
+	if (r < 0) {
+		pr_err("virtio_blk__init() failed with error %d\n", r);
 		goto fail;
 	}
 
@@ -1272,10 +1280,15 @@ static void kvm_cmd_run_exit(int guest_ret)
 
 	fb__stop();
 
-	virtio_blk__delete_all(kvm);
+	r = virtio_blk__exit(kvm);
+	if (r < 0)
+		pr_warning("virtio_blk__exit() failed with error %d\n", r);
+
 	virtio_rng__delete_all(kvm);
 
-	disk_image__close_all(kvm->disks, image_count);
+	r = disk_image__close_all(kvm->disks, image_count);
+	if (r < 0)
+		pr_warning("disk_image__close_all() failed with error %d\n", r);
 	free(kvm_cpus);
 
 	r = serial8250__exit(kvm);

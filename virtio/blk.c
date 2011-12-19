@@ -208,17 +208,17 @@ static struct virtio_ops blk_dev_virtio_ops = (struct virtio_ops) {
 	.get_size_vq		= get_size_vq,
 };
 
-void virtio_blk__init(struct kvm *kvm, struct disk_image *disk)
+static int virtio_blk__init_one(struct kvm *kvm, struct disk_image *disk)
 {
 	struct blk_dev *bdev;
 	unsigned int i;
 
 	if (!disk)
-		return;
+		return -EINVAL;
 
 	bdev = calloc(1, sizeof(struct blk_dev));
 	if (bdev == NULL)
-		die("Failed allocating bdev");
+		return -ENOMEM;
 
 	*bdev = (struct blk_dev) {
 		.mutex			= PTHREAD_MUTEX_INITIALIZER,
@@ -251,23 +251,40 @@ void virtio_blk__init(struct kvm *kvm, struct disk_image *disk)
 						"Please make sure that the guest kernel was "
 						"compiled with CONFIG_VIRTIO_BLK=y enabled "
 						"in its .config");
+	return 0;
 }
 
-void virtio_blk__init_all(struct kvm *kvm)
+static int virtio_blk__exit_one(struct kvm *kvm, struct blk_dev *bdev)
 {
-	int i;
+	list_del(&bdev->list);
+	free(bdev);
 
-	for (i = 0; i < kvm->nr_disks; i++)
-		virtio_blk__init(kvm, kvm->disks[i]);
+	return 0;
 }
 
-void virtio_blk__delete_all(struct kvm *kvm)
+int virtio_blk__init(struct kvm *kvm)
+{
+	int i, r = 0;
+
+	for (i = 0; i < kvm->nr_disks; i++) {
+		r = virtio_blk__init_one(kvm, kvm->disks[i]);
+		if (r < 0)
+			goto cleanup;
+	}
+
+	return 0;
+cleanup:
+	return virtio_blk__exit(kvm);
+}
+
+int virtio_blk__exit(struct kvm *kvm)
 {
 	while (!list_empty(&bdevs)) {
 		struct blk_dev *bdev;
 
 		bdev = list_first_entry(&bdevs, struct blk_dev, list);
-		list_del(&bdev->list);
-		free(bdev);
+		virtio_blk__exit_one(kvm, bdev);
 	}
+
+	return 0;
 }

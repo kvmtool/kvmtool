@@ -1,5 +1,7 @@
 #include "kvm/disk-image.h"
 
+#include <linux/err.h>
+
 #ifdef CONFIG_HAS_AIO
 #include <libaio.h>
 #endif
@@ -116,11 +118,10 @@ struct disk_image *raw_image__probe(int fd, struct stat *st, bool readonly)
 		struct disk_image *disk;
 
 		disk = disk_image__new(fd, st->st_size, &ro_ops, DISK_IMAGE_MMAP);
-		if (disk == NULL) {
-
+		if (IS_ERR_OR_NULL(disk)) {
 			disk = disk_image__new(fd, st->st_size, &ro_ops_nowrite, DISK_IMAGE_REGULAR);
 #ifdef CONFIG_HAS_AIO
-			if (disk)
+			if (!IS_ERR_OR_NULL(disk))
 				disk->async = 1;
 #endif
 		}
@@ -132,7 +133,7 @@ struct disk_image *raw_image__probe(int fd, struct stat *st, bool readonly)
 		 */
 		disk = disk_image__new(fd, st->st_size, &raw_image_regular_ops, DISK_IMAGE_REGULAR);
 #ifdef CONFIG_HAS_AIO
-		if (disk)
+		if (!IS_ERR_OR_NULL(disk))
 			disk->async = 1;
 #endif
 		return disk;

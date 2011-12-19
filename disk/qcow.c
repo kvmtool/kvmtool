@@ -1334,7 +1334,7 @@ static struct disk_image *qcow2_probe(int fd, bool readonly)
 	else
 		disk_image = disk_image__new(fd, h->size, &qcow_disk_ops, DISK_IMAGE_REGULAR);
 
-	if (!disk_image)
+	if (IS_ERR_OR_NULL(disk_image))
 		goto free_refcount_table;
 
 	disk_image->async = 0;

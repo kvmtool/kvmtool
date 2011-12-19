@@ -2,6 +2,7 @@
 #include "kvm/qcow.h"
 #include "kvm/virtio-blk.h"
 
+#include <linux/err.h>
 #include <sys/eventfd.h>
 #include <sys/poll.h>
 
@@ -31,14 +32,17 @@ static void *disk_image__thread(void *param)
 struct disk_image *disk_image__new(int fd, u64 size, struct disk_image_operations *ops, int use_mmap)
 {
 	struct disk_image *disk;
+	int r;
 
-	disk		= malloc(sizeof *disk);
+	disk = malloc(sizeof *disk);
 	if (!disk)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
-	disk->fd	= fd;
-	disk->size	= size;
-	disk->ops	= ops;
+	*disk = (struct disk_image) {
+		.fd	= fd,
+		.size	= size,
+		.ops	= ops,
+	};
 
 	if (use_mmap == DISK_IMAGE_MMAP) {
 		/*
@@ -46,8 +50,9 @@ struct disk_image *disk_image__new(int fd, u64 size, struct disk_image_operation
 		 */
 		disk->priv = mmap(NULL, size, PROT_RW, MAP_PRIVATE | MAP_NORESERVE, fd, 0);
 		if (disk->priv == MAP_FAILED) {
+			r = -errno;
 			free(disk);
-			disk = NULL;
+			return ERR_PTR(r);
 		}
 	}
 
@@ -57,8 +62,12 @@ struct disk_image *disk_image__new(int fd, u64 size, struct disk_image_operation
 
 		disk->evt = eventfd(0, 0);
 		io_setup(AIO_MAX, &disk->ctx);
-		if (pthread_create(&thread, NULL, disk_image__thread, disk) != 0)
-			die("Failed starting IO thread");
+		r = pthread_create(&thread, NULL, disk_image__thread, disk);
+		if (r) {
+			r = -errno;
+			free(disk);
+			return ERR_PTR(r);
+		}
 	}
 #endif
 	return disk;
@@ -71,54 +80,58 @@ struct disk_image *disk_image__open(const char *filename, bool readonly)
 	int fd;
 
 	if (stat(filename, &st) < 0)
-		return NULL;
+		return ERR_PTR(-errno);
 
 	/* blk device ?*/
-	disk		= blkdev__probe(filename, &st);
-	if (disk)
+	disk = blkdev__probe(filename, &st);
+	if (!IS_ERR_OR_NULL(disk))
 		return disk;
 
-	fd		= open(filename, readonly ? O_RDONLY : O_RDWR);
+	fd = open(filename, readonly ? O_RDONLY : O_RDWR);
 	if (fd < 0)
-		return NULL;
+		return ERR_PTR(fd);
 
 	/* qcow image ?*/
-	disk		= qcow_probe(fd, true);
-	if (disk) {
+	disk = qcow_probe(fd, true);
+	if (!IS_ERR_OR_NULL(disk)) {
 		pr_warning("Forcing read-only support for QCOW");
 		return disk;
 	}
 
 	/* raw image ?*/
-	disk		= raw_image__probe(fd, &st, readonly);
-	if (disk)
+	disk = raw_image__probe(fd, &st, readonly);
+	if (!IS_ERR_OR_NULL(disk))
 		return disk;
 
 	if (close(fd) < 0)
 		pr_warning("close() failed");
 
-	return NULL;
+	return ERR_PTR(-ENOSYS);
 }
 
 struct disk_image **disk_image__open_all(const char **filenames, bool *readonly, int count)
 {
 	struct disk_image **disks;
 	int i;
+	void *err;
 
-	if (!count || count > MAX_DISK_IMAGES)
-		return NULL;
+	if (!count)
+		return ERR_PTR(-EINVAL);
+	if (count > MAX_DISK_IMAGES)
+		return ERR_PTR(-ENOSPC);
 
 	disks = calloc(count, sizeof(*disks));
 	if (!disks)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	for (i = 0; i < count; i++) {
 		if (!filenames[i])
 			continue;
 
 		disks[i] = disk_image__open(filenames[i], readonly[i]);
-		if (!disks[i]) {
+		if (IS_ERR_OR_NULL(disks[i])) {
 			pr_err("Loading disk image '%s' failed", filenames[i]);
+			err = disks[i];
 			goto error;
 		}
 	}
@@ -126,10 +139,11 @@ struct disk_image **disk_image__open_all(const char **filenames, bool *readonly,
 	return disks;
 error:
 	for (i = 0; i < count; i++)
-		disk_image__close(disks[i]);
+		if (!IS_ERR_OR_NULL(disks[i]))
+			disk_image__close(disks[i]);
 
 	free(disks);
-	return NULL;
+	return err;
 }
 
 int disk_image__flush(struct disk_image *disk)
@@ -157,12 +171,14 @@ int disk_image__close(struct disk_image *disk)
 	return 0;
 }
 
-void disk_image__close_all(struct disk_image **disks, int count)
+int disk_image__close_all(struct disk_image **disks, int count)
 {
 	while (count)
 		disk_image__close(disks[--count]);
 
 	free(disks);
+
+	return 0;
 }
 
 /*
@@ -181,7 +197,7 @@ ssize_t disk_image__read(struct disk_image *disk, u64 sector, const struct iovec
 		total = disk->ops->read_sector(disk, sector, iov, iovcount, param);
 		if (total < 0) {
 			pr_info("disk_image__read error: total=%ld\n", (long)total);
-			return -1;
+			return total;
 		}
 	} else {
 		/* Do nothing */
@@ -213,7 +229,7 @@ ssize_t disk_image__write(struct disk_image *disk, u64 sector, const struct iove
 		total = disk->ops->write_sector(disk, sector, iov, iovcount, param);
 		if (total < 0) {
 			pr_info("disk_image__write error: total=%ld\n", (long)total);
-			return -1;
+			return total;
 		}
 	} else {
 		/* Do nothing */
@@ -228,9 +244,11 @@ ssize_t disk_image__write(struct disk_image *disk, u64 sector, const struct iove
 ssize_t disk_image__get_serial(struct disk_image *disk, void *buffer, ssize_t *len)
 {
 	struct stat st;
+	int r;
 
-	if (fstat(disk->fd, &st) != 0)
-		return 0;
+	r = fstat(disk->fd, &st);
+	if (r)
+		return r;
 
 	*len = snprintf(buffer, *len, "%llu%llu%llu", (u64)st.st_dev, (u64)st.st_rdev, (u64)st.st_ino);
 	return *len;
