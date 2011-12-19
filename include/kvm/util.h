@@ -9,6 +9,7 @@
  * Some bits are stolen from perf tool :)
  */
 
+#include <assert.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <stddef.h>
@@ -50,7 +51,9 @@ extern void set_die_routine(void (*routine)(const char *err, va_list params) NOR
 				__func__, __LINE__, ##__VA_ARGS__);	\
 	} while (0)
 
-#define BUILD_BUG_ON(condition) ((void)sizeof(char[1 - 2*!!(condition)]))
+#
+#define BUILD_BUG_ON(condition)	((void)sizeof(char[1 - 2*!!(condition)]))
+#define BUG_ON(condition)	assert(!(condition))
 
 #define DIE_IF(cnd)						\
 do {								\

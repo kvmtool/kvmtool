@@ -5,7 +5,6 @@
 
 #include <sys/ioctl.h>
 #include <stdlib.h>
-#include <assert.h>
 
 #define CPUID_FUNC_PERFMON		0x0A
 

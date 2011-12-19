@@ -3,8 +3,6 @@
 #include "kvm/util.h"
 #include "kvm/kvm.h"
 
-#include <assert.h>
-
 #define PCI_BAR_OFFSET(b)		(offsetof(struct pci_device_header, bar[b]))
 
 static struct pci_device_header		*pci_devices[PCI_MAX_DEVICES];
@@ -170,13 +168,13 @@ void pci__config_rd(struct kvm *kvm, union pci_config_address addr, void *data, 
 
 void pci__register(struct pci_device_header *dev, u8 dev_num)
 {
-	assert(dev_num < PCI_MAX_DEVICES);
+	BUG_ON(dev_num >= PCI_MAX_DEVICES);
 	pci_devices[dev_num]	= dev;
 }
 
 struct pci_device_header *pci__find_dev(u8 dev_num)
 {
-	assert(dev_num < PCI_MAX_DEVICES);
+	BUG_ON(dev_num >= PCI_MAX_DEVICES);
 	return pci_devices[dev_num];
 }
 

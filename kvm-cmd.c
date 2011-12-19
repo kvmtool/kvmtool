@@ -2,8 +2,6 @@
 #include <string.h>
 #include <errno.h>
 
-#include <assert.h>
-
 /* user defined header files */
 #include "kvm/builtin-debug.h"
 #include "kvm/builtin-pause.h"
@@ -71,14 +69,14 @@ int handle_command(struct cmd_struct *command, int argc, const char **argv)
 
 	if (!argv || !*argv) {
 		p = kvm_get_command(command, "help");
-		assert(p);
+		BUG_ON(!p);
 		return p->fn(argc, argv, prefix);
 	}
 
 	p = kvm_get_command(command, argv[0]);
 	if (!p) {
 		p = kvm_get_command(command, "help");
-		assert(p);
+		BUG_ON(!p);
 		p->fn(0, NULL, prefix);
 		return EINVAL;
 	}

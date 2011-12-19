@@ -14,7 +14,6 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <stdbool.h>
-#include <assert.h>
 #include <limits.h>
 #include <signal.h>
 #include <stdarg.h>

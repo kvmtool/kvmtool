@@ -21,7 +21,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <termios.h>
-#include <assert.h>
 #include <unistd.h>
 #include <fcntl.h>
 
@@ -136,7 +135,7 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 pfn)
 	struct virt_queue *queue;
 	void *p;
 
-	assert(vq < VIRTIO_CONSOLE_NUM_QUEUES);
+	BUG_ON(vq >= VIRTIO_CONSOLE_NUM_QUEUES);
 
 	compat__remove_message(compat_id);
 

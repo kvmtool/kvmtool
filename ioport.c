@@ -10,7 +10,6 @@
 #include <linux/types.h>
 
 #include <stdbool.h>
-#include <assert.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <stdio.h>

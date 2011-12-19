@@ -98,7 +98,7 @@ static void e820_setup(struct kvm *kvm)
 		};
 	}
 
-	BUILD_BUG_ON(i > E820_X_MAX);
+	BUG_ON(i > E820_X_MAX);
 
 	e820->nr_map = i;
 }
