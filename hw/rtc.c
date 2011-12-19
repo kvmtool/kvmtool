@@ -100,7 +100,6 @@ static bool cmos_ram_index_out(struct ioport *ioport, struct kvm *kvm, u16 port,
 	u8 value = ioport__read8(data);
 
 	kvm->nmi_disabled	= value & (1UL << 7);
-
 	rtc.cmos_idx		= value & ~(1UL << 7);
 
 	return true;
@@ -110,9 +109,29 @@ static struct ioport_operations cmos_ram_index_ioport_ops = {
 	.io_out		= cmos_ram_index_out,
 };
 
-void rtc__init(void)
+int rtc__init(struct kvm *kvm)
+{
+	int r = 0;
+
+	/* PORT 0070-007F - CMOS RAM/RTC (REAL TIME CLOCK) */
+	r = ioport__register(0x0070, &cmos_ram_index_ioport_ops, 1, NULL);
+	if (r < 0)
+		return r;
+
+	r = ioport__register(0x0071, &cmos_ram_data_ioport_ops, 1, NULL);
+	if (r < 0) {
+		ioport__unregister(0x0071);
+		return r;
+	}
+
+	return r;
+}
+
+int rtc__exit(struct kvm *kvm)
 {
 	/* PORT 0070-007F - CMOS RAM/RTC (REAL TIME CLOCK) */
-	ioport__register(0x0070, &cmos_ram_index_ioport_ops, 1, NULL);
-	ioport__register(0x0071, &cmos_ram_data_ioport_ops, 1, NULL);
+	ioport__unregister(0x0070);
+	ioport__unregister(0x0071);
+
+	return 0;
 }

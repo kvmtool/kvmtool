@@ -1,6 +1,9 @@
 #ifndef KVM__RTC_H
 #define KVM__RTC_H
 
-void rtc__init(void);
+struct kvm;
+
+int rtc__init(struct kvm *kvm);
+int rtc__exit(struct kvm *kvm);
 
 #endif /* KVM__RTC_H */

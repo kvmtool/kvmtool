@@ -1117,7 +1117,11 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 
 	ioport__setup_arch();
 
-	rtc__init();
+	r = rtc__init(kvm);
+	if (r < 0) {
+		pr_err("rtc__init() failed with error %d\n", r);
+		goto fail;
+	}
 
 	r = serial8250__init(kvm);
 	if (r < 0) {
@@ -1277,6 +1281,10 @@ static void kvm_cmd_run_exit(int guest_ret)
 	r = serial8250__exit(kvm);
 	if (r < 0)
 		pr_warning("serial8250__exit() failed with error %d\n", r);
+
+	r = rtc__exit(kvm);
+	if (r < 0)
+		pr_warning("rtc__exit() failed with error %d\n", r);
 
 	r = kvm__arch_free_firmware(kvm);
 	if (r < 0)
