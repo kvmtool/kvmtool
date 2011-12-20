@@ -13,7 +13,6 @@
 #define BUFFER_SIZE 100
 
 static bool all;
-static int instance;
 static int nmi = -1;
 static bool dump;
 static const char *instance_name;
@@ -82,19 +81,23 @@ static int do_debug(const char *name, int sock)
 int kvm_cmd_debug(int argc, const char **argv, const char *prefix)
 {
 	parse_debug_options(argc, argv);
+	int instance;
+	int r;
 
 	if (all)
 		return kvm__enumerate_instances(do_debug);
 
-	if (instance_name == NULL &&
-	    instance == 0)
+	if (instance_name == NULL)
 		kvm_debug_help();
 
-	if (instance_name)
-		instance = kvm__get_sock_by_instance(instance_name);
+	instance = kvm__get_sock_by_instance(instance_name);
 
 	if (instance <= 0)
 		die("Failed locating instance");
 
-	return do_debug(instance_name, instance);
+	r = do_debug(instance_name, instance);
+
+	close(instance);
+
+	return r;
 }
