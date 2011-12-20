@@ -50,18 +50,18 @@ void kvm_debug_help(void)
 static int do_debug(const char *name, int sock)
 {
 	char buff[BUFFER_SIZE];
-	struct debug_cmd cmd = {KVM_IPC_DEBUG, 2 * sizeof(u32)};
+	struct debug_cmd_params cmd = {.dbg_type = 0};
 	int r;
 
 	if (dump)
-		cmd.params.dbg_type |= KVM_DEBUG_CMD_TYPE_DUMP;
+		cmd.dbg_type |= KVM_DEBUG_CMD_TYPE_DUMP;
 
 	if (nmi != -1) {
-		cmd.params.dbg_type |= KVM_DEBUG_CMD_TYPE_NMI;
-		cmd.params.cpu = nmi;
+		cmd.dbg_type |= KVM_DEBUG_CMD_TYPE_NMI;
+		cmd.cpu = nmi;
 	}
 
-	r = xwrite(sock, &cmd, sizeof(cmd));
+	r = kvm_ipc__send_msg(sock, KVM_IPC_DEBUG, sizeof(cmd), (u8 *)&cmd);
 	if (r < 0)
 		return r;
 

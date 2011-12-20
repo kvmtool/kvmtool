@@ -521,9 +521,16 @@ static void handle_pause(int fd, u32 type, u32 len, u8 *msg)
 static void handle_debug(int fd, u32 type, u32 len, u8 *msg)
 {
 	int i;
-	struct debug_cmd_params *params = (void *)msg;
-	u32 dbg_type = params->dbg_type;
-	u32 vcpu = params->cpu;
+	struct debug_cmd_params *params;
+	u32 dbg_type;
+	u32 vcpu;
+
+	if (WARN_ON(type != KVM_IPC_DEBUG || len != sizeof(*params)))
+		return;
+
+	params = (void *)msg;
+	dbg_type = params->dbg_type;
+	vcpu = params->cpu;
 
 	if (dbg_type & KVM_DEBUG_CMD_TYPE_NMI) {
 		if ((int)vcpu >= kvm->nrcpus)
