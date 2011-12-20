@@ -19,7 +19,6 @@ struct stat_cmd {
 
 static bool mem;
 static bool all;
-static int instance;
 static const char *instance_name;
 
 static const char * const stat_usage[] = {
@@ -106,6 +105,9 @@ static int do_memstat(const char *name, int sock)
 
 int kvm_cmd_stat(int argc, const char **argv, const char *prefix)
 {
+	int instance;
+	int r = 0;
+
 	parse_stat_options(argc, argv);
 
 	if (!mem)
@@ -114,18 +116,18 @@ int kvm_cmd_stat(int argc, const char **argv, const char *prefix)
 	if (mem && all)
 		return kvm__enumerate_instances(do_memstat);
 
-	if (instance_name == NULL &&
-	    instance == 0)
+	if (instance_name == NULL)
 		kvm_stat_help();
 
-	if (instance_name)
-		instance = kvm__get_sock_by_instance(instance_name);
+	instance = kvm__get_sock_by_instance(instance_name);
 
 	if (instance <= 0)
 		die("Failed locating instance");
 
 	if (mem)
-		return do_memstat(instance_name, instance);
+		r = do_memstat(instance_name, instance);
 
-	return 0;
+	close(instance);
+
+	return r;
 }
