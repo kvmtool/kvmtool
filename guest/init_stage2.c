@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <errno.h>
+#include <linux/reboot.h>
 
 static int run_process(char *filename)
 {
@@ -26,6 +27,9 @@ static int run_process_sandbox(char *filename)
 
 int main(int argc, char *argv[])
 {
+	pid_t child;
+	int status;
+
 	/* get session leader */
 	setsid();
 
@@ -34,12 +38,20 @@ int main(int argc, char *argv[])
 
 	puts("Starting '/bin/sh'...");
 
-	if (access("/virt/sandbox.sh", R_OK) == 0)
-		run_process_sandbox("/bin/sh");
-	else
-		run_process("/bin/sh");
+	child = fork();
+	if (child < 0) {
+		printf("Fatal: fork() failed with %d\n", child);
+		return 0;
+	} else if (child == 0) {
+		if (access("/virt/sandbox.sh", R_OK) == 0)
+			run_process_sandbox("/bin/sh");
+		else
+			run_process("/bin/sh");
+	} else {
+		wait(&status);
+	}
 
-	printf("Init failed: %s\n", strerror(errno));
+	reboot(LINUX_REBOOT_CMD_RESTART);
 
 	return 0;
 }
