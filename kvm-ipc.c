@@ -28,23 +28,23 @@ int kvm_ipc__register_handler(u32 type, void (*cb)(int fd, u32 type, u32 len, u8
 	return 0;
 }
 
-int kvm_ipc__handle(int fd, struct kvm_ipc_msg *msg)
+static int kvm_ipc__handle(int fd, u32 type, u32 len, u8 *data)
 {
 	void (*cb)(int fd, u32 type, u32 len, u8 *msg);
 
-	if (msg->type >= KVM_IPC_MAX_MSGS)
+	if (type >= KVM_IPC_MAX_MSGS)
 		return -ENOSPC;
 
 	down_read(&msgs_rwlock);
-	cb = msgs[msg->type];
+	cb = msgs[type];
 	up_read(&msgs_rwlock);
 
 	if (cb == NULL) {
-		pr_warning("No device handles type %u\n", msg->type);
+		pr_warning("No device handles type %u\n", type);
 		return -ENODEV;
 	}
 
-	cb(fd, msg->type, msg->len, msg->data);
+	cb(fd, type, len, data);
 
 	return 0;
 }
@@ -95,7 +95,7 @@ static void kvm_ipc__new_data(int fd)
 	if (n != msg->len)
 		goto done;
 
-	kvm_ipc__handle(fd, msg);
+	kvm_ipc__handle(fd, msg->type, msg->len, msg->data);
 
 done:
 	free(msg);
