@@ -2,6 +2,7 @@
 #define __PARSE_OPTIONS_H__
 
 #include <inttypes.h>
+#include <kvm/util.h>
 
 enum parse_opt_type {
 	/* special types */
@@ -207,7 +208,7 @@ struct parse_opt_ctx_t {
 
 /* global functions */
 void usage_with_options(const char * const *usagestr,
-		const struct option *opts);
+		const struct option *opts) NORETURN;
 int parse_options(int argc, const char **argv, const struct option *options,
 		const char * const usagestr[], int flags);
 #endif
