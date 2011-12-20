@@ -9,6 +9,11 @@
 #include <sys/socket.h>
 #include <sys/eventfd.h>
 
+struct kvm_ipc_head {
+	u32 type;
+	u32 len;
+};
+
 #define KVM_IPC_MAX_MSGS 16
 
 static void (*msgs[KVM_IPC_MAX_MSGS])(int fd, u32 type, u32 len, u8 *msg);
@@ -74,28 +79,25 @@ static void kvm_ipc__close_conn(int fd)
 	close(fd);
 }
 
-static void kvm_ipc__new_data(int fd)
+static void kvm_ipc__receive(int fd)
 {
-	struct kvm_ipc_msg *msg;
+	struct kvm_ipc_head head;
+	u8 *msg = NULL;
 	u32 n;
 
-	msg = malloc(sizeof(*msg));
+	n = read(fd, &head, sizeof(head));
+	if (n != sizeof(head))
+		goto done;
+
+	msg = malloc(head.len);
 	if (msg == NULL)
 		goto done;
 
-	n = read(fd, msg, sizeof(*msg));
-	if (n != sizeof(*msg))
+	n = read_in_full(fd, msg, head.len);
+	if (n != head.len)
 		goto done;
 
-	msg = realloc(msg, sizeof(*msg) + msg->len);
-	if (msg == NULL)
-		goto done;
-
-	n = read_in_full(fd, msg->data, msg->len);
-	if (n != msg->len)
-		goto done;
-
-	kvm_ipc__handle(fd, msg->type, msg->len, msg->data);
+	kvm_ipc__handle(fd, head.type, head.len, msg);
 
 done:
 	free(msg);
@@ -118,11 +120,11 @@ static void *kvm_ipc__thread(void *param)
 				int client;
 
 				client = kvm_ipc__new_conn(fd);
-				kvm_ipc__new_data(client);
+				kvm_ipc__receive(client);
 			} else if (event.events && (EPOLLERR | EPOLLRDHUP | EPOLLHUP)) {
 				kvm_ipc__close_conn(fd);
 			} else {
-				kvm_ipc__new_data(fd);
+				kvm_ipc__receive(fd);
 			}
 		}
 	}

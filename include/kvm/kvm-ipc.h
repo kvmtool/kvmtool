@@ -3,12 +3,6 @@
 
 #include <linux/types.h>
 
-struct kvm_ipc_msg {
-	u32 type;
-	u32 len;
-	u8 data[];
-};
-
 enum {
 	KVM_IPC_BALLOON	= 1,
 	KVM_IPC_DEBUG	= 2,
