@@ -507,12 +507,17 @@ static int is_paused;
 
 static void handle_pause(int fd, u32 type, u32 len, u8 *msg)
 {
+	if (WARN_ON(len))
+		return;
+
 	if (type == KVM_IPC_RESUME && is_paused)
 		kvm__continue();
 	else if (type == KVM_IPC_PAUSE && !is_paused)
 		kvm__pause();
-	else
+	else {
+		WARN_ON(1);
 		return;
+	}
 
 	is_paused = !is_paused;
 	pr_info("Guest %s\n", is_paused ? "paused" : "resumed");
