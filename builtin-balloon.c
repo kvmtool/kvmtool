@@ -13,12 +13,6 @@ static const char *instance_name;
 static u64 inflate;
 static u64 deflate;
 
-struct balloon_cmd {
-	u32 type;
-	u32 len;
-	int amount;
-};
-
 static const char * const balloon_usage[] = {
 	"lkvm balloon [-n name] [-p pid] [-i amount] [-d amount]",
 	NULL
@@ -50,9 +44,9 @@ static void parse_balloon_options(int argc, const char **argv)
 
 int kvm_cmd_balloon(int argc, const char **argv, const char *prefix)
 {
-	struct balloon_cmd cmd;
 	int instance;
 	int r;
+	int amount;
 
 	parse_balloon_options(argc, argv);
 
@@ -67,17 +61,15 @@ int kvm_cmd_balloon(int argc, const char **argv, const char *prefix)
 	if (instance <= 0)
 		die("Failed locating instance");
 
-	cmd.type = KVM_IPC_BALLOON;
-	cmd.len = sizeof(cmd.amount);
-
 	if (inflate)
-		cmd.amount = inflate;
+		amount = inflate;
 	else if (deflate)
-		cmd.amount = -deflate;
+		amount = -deflate;
 	else
 		kvm_balloon_help();
 
-	r = write(instance, &cmd, sizeof(cmd));
+	r = kvm_ipc__send_msg(instance, KVM_IPC_BALLOON,
+			sizeof(amount), (u8 *)&amount);
 
 	close(instance);
 
