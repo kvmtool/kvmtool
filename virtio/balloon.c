@@ -144,6 +144,9 @@ static void virtio_bln__print_stats(int fd, u32 type, u32 len, u8 *msg)
 {
 	int r;
 
+	if (WARN_ON(type != KVM_IPC_STAT || len))
+		return;
+
 	if (virtio_bln__collect_stats() < 0)
 		return;
 

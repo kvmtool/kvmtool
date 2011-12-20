@@ -12,11 +12,6 @@
 
 #include <linux/virtio_balloon.h>
 
-struct stat_cmd {
-	u32 type;
-	u32 len;
-};
-
 static bool mem;
 static bool all;
 static const char *instance_name;
@@ -52,7 +47,6 @@ void kvm_stat_help(void)
 
 static int do_memstat(const char *name, int sock)
 {
-	struct stat_cmd cmd = {KVM_IPC_STAT, 0};
 	struct virtio_balloon_stat stats[VIRTIO_BALLOON_S_NR];
 	fd_set fdset;
 	struct timeval t = { .tv_sec = 1 };
@@ -61,7 +55,7 @@ static int do_memstat(const char *name, int sock)
 
 	FD_ZERO(&fdset);
 	FD_SET(sock, &fdset);
-	r = write(sock, &cmd, sizeof(cmd));
+	r = kvm_ipc__send(sock, KVM_IPC_STAT);
 	if (r < 0)
 		return r;
 
