@@ -127,6 +127,9 @@ static struct kvm *kvm__new(void)
 	return kvm;
 }
 
+#define KVM_SOCK_SUFFIX		".sock"
+#define KVM_SOCK_SUFFIX_LEN	((ssize_t)sizeof(KVM_SOCK_SUFFIX) - 1)
+
 static int kvm__create_socket(struct kvm *kvm)
 {
 	char full_name[PATH_MAX];
@@ -137,7 +140,8 @@ static int kvm__create_socket(struct kvm *kvm)
 	if (!kvm->name)
 		return -1;
 
-	sprintf(full_name, "%s/%s.sock", kvm__get_dir(), kvm->name);
+	sprintf(full_name, "%s/%s%s", kvm__get_dir(), kvm->name,
+			KVM_SOCK_SUFFIX);
 	if (access(full_name, F_OK) == 0)
 		die("Socket file %s already exist", full_name);
 
@@ -167,7 +171,7 @@ void kvm__remove_socket(const char *name)
 {
 	char full_name[PATH_MAX];
 
-	sprintf(full_name, "%s/%s.sock", kvm__get_dir(), name);
+	sprintf(full_name, "%s/%s%s", kvm__get_dir(), name, KVM_SOCK_SUFFIX);
 	unlink(full_name);
 }
 
@@ -177,7 +181,7 @@ int kvm__get_sock_by_instance(const char *name)
 	char sock_file[PATH_MAX];
 	struct sockaddr_un local;
 
-	sprintf(sock_file, "%s/%s.sock", kvm__get_dir(), name);
+	sprintf(sock_file, "%s/%s%s", kvm__get_dir(), name, KVM_SOCK_SUFFIX);
 	s = socket(AF_UNIX, SOCK_STREAM, 0);
 
 	local.sun_family = AF_UNIX;
@@ -212,7 +216,17 @@ int kvm__enumerate_instances(int (*callback)(const char *name, int fd))
 		if (result == NULL)
 			break;
 		if (entry.d_type == DT_SOCK) {
-			entry.d_name[strlen(entry.d_name)-5] = 0;
+			ssize_t name_len = strlen(entry.d_name);
+			char *p;
+
+			if (name_len <= KVM_SOCK_SUFFIX_LEN)
+				continue;
+
+			p = &entry.d_name[name_len - KVM_SOCK_SUFFIX_LEN];
+			if (memcmp(KVM_SOCK_SUFFIX, p, KVM_SOCK_SUFFIX_LEN))
+				continue;
+
+			*p = 0;
 			sock = kvm__get_sock_by_instance(entry.d_name);
 			if (sock < 0)
 				continue;
