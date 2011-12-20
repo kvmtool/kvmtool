@@ -15,7 +15,6 @@ struct resume_cmd {
 };
 
 static bool all;
-static int instance;
 static const char *instance_name;
 
 static const char * const resume_usage[] = {
@@ -59,20 +58,25 @@ static int do_resume(const char *name, int sock)
 
 int kvm_cmd_resume(int argc, const char **argv, const char *prefix)
 {
+	int instance;
+	int r;
+
 	parse_resume_options(argc, argv);
 
 	if (all)
 		return kvm__enumerate_instances(do_resume);
 
-	if (instance_name == NULL &&
-	    instance == 0)
+	if (instance_name == NULL)
 		kvm_resume_help();
 
-	if (instance_name)
-		instance = kvm__get_sock_by_instance(instance_name);
+	instance = kvm__get_sock_by_instance(instance_name);
 
 	if (instance <= 0)
 		die("Failed locating instance");
 
-	return do_resume(instance_name, instance);
+	r = do_resume(instance_name, instance);
+
+	close(instance);
+
+	return r;
 }
