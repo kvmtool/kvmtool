@@ -9,7 +9,6 @@
 #include <kvm/kvm.h>
 #include <kvm/kvm-ipc.h>
 
-static int instance;
 static const char *instance_name;
 static u64 inflate;
 static u64 deflate;
@@ -52,6 +51,7 @@ static void parse_balloon_options(int argc, const char **argv)
 int kvm_cmd_balloon(int argc, const char **argv, const char *prefix)
 {
 	struct balloon_cmd cmd;
+	int instance;
 	int r;
 
 	parse_balloon_options(argc, argv);
@@ -59,12 +59,10 @@ int kvm_cmd_balloon(int argc, const char **argv, const char *prefix)
 	if (inflate == 0 && deflate == 0)
 		kvm_balloon_help();
 
-	if (instance_name == NULL &&
-	    instance == 0)
+	if (instance_name == NULL)
 		kvm_balloon_help();
 
-	if (instance_name)
-		instance = kvm__get_sock_by_instance(instance_name);
+	instance = kvm__get_sock_by_instance(instance_name);
 
 	if (instance <= 0)
 		die("Failed locating instance");
