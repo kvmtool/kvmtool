@@ -62,6 +62,15 @@ do {								\
 		__stringify(cnd) "\n");				\
 } while (0)
 
+#define WARN_ON(condition) ({					\
+	int __ret_warn_on = !!(condition);			\
+	if (__ret_warn_on)					\
+		pr_warning("(%s) %s:%d: failed condition: %s",	\
+				__FILE__, __func__, __LINE__,	\
+				__stringify(condition));	\
+	__ret_warn_on;						\
+})
+
 #define MSECS_TO_USECS(s) ((s) * 1000)
 
 /* Millisecond sleep */
