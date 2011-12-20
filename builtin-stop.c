@@ -9,11 +9,6 @@
 #include <string.h>
 #include <signal.h>
 
-struct stop_cmd {
-	u32 type;
-	u32 len;
-};
-
 static bool all;
 static const char *instance_name;
 
@@ -46,14 +41,7 @@ void kvm_stop_help(void)
 
 static int do_stop(const char *name, int sock)
 {
-	struct stop_cmd cmd = {KVM_IPC_STOP, 0};
-	int r;
-
-	r = write(sock, &cmd, sizeof(cmd));
-	if (r < 0)
-		return r;
-
-	return 0;
+	return kvm_ipc__send(sock, KVM_IPC_STOP);
 }
 
 int kvm_cmd_stop(int argc, const char **argv, const char *prefix)

@@ -567,6 +567,9 @@ static void handle_sigalrm(int sig)
 
 static void handle_stop(int fd, u32 type, u32 len, u8 *msg)
 {
+	if (WARN_ON(type != KVM_IPC_STOP || len))
+		return;
+
 	kvm_cpu__reboot();
 }
 
