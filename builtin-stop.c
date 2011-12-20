@@ -15,7 +15,6 @@ struct stop_cmd {
 };
 
 static bool all;
-static int instance;
 static const char *instance_name;
 
 static const char * const stop_usage[] = {
@@ -59,20 +58,25 @@ static int do_stop(const char *name, int sock)
 
 int kvm_cmd_stop(int argc, const char **argv, const char *prefix)
 {
+	int instance;
+	int r;
+
 	parse_stop_options(argc, argv);
 
 	if (all)
 		return kvm__enumerate_instances(do_stop);
 
-	if (instance_name == NULL &&
-	    instance == 0)
+	if (instance_name == NULL)
 		kvm_stop_help();
 
-	if (instance_name)
-		instance = kvm__get_sock_by_instance(instance_name);
+	instance = kvm__get_sock_by_instance(instance_name);
 
 	if (instance <= 0)
 		die("Failed locating instance");
 
-	return do_stop(instance_name, instance);
+	r = do_stop(instance_name, instance);
+
+	close(instance);
+
+	return r;
 }
