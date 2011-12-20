@@ -9,7 +9,6 @@
  * Some bits are stolen from perf tool :)
  */
 
-#include <assert.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <stddef.h>
@@ -17,6 +16,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <stdbool.h>
+#include <signal.h>
 #include <errno.h>
 #include <limits.h>
 #include <sys/param.h>
@@ -51,9 +51,20 @@ extern void set_die_routine(void (*routine)(const char *err, va_list params) NOR
 				__func__, __LINE__, ##__VA_ARGS__);	\
 	} while (0)
 
-#
+
 #define BUILD_BUG_ON(condition)	((void)sizeof(char[1 - 2*!!(condition)]))
-#define BUG_ON(condition)	assert(!(condition))
+
+#ifndef BUG_ON_HANDLER
+# define BUG_ON_HANDLER(condition)					\
+	do {								\
+		if ((condition)) {					\
+			pr_err("BUG at %s:%d", __FILE__, __LINE__);	\
+			raise(SIGABRT);					\
+		}							\
+	} while (0)
+#endif
+
+#define BUG_ON(condition)	BUG_ON_HANDLER((condition))
 
 #define DIE_IF(cnd)						\
 do {								\
