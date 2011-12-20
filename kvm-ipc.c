@@ -33,6 +33,29 @@ int kvm_ipc__register_handler(u32 type, void (*cb)(int fd, u32 type, u32 len, u8
 	return 0;
 }
 
+int kvm_ipc__send(int fd, u32 type)
+{
+	struct kvm_ipc_head head = {.type = type, .len = 0,};
+
+	if (write_in_full(fd, &head, sizeof(head)) != sizeof(head))
+		return -1;
+
+	return 0;
+}
+
+int kvm_ipc__send_msg(int fd, u32 type, u32 len, u8 *msg)
+{
+	struct kvm_ipc_head head = {.type = type, .len = len,};
+
+	if (write_in_full(fd, &head, sizeof(head)) != sizeof(head))
+		return -1;
+
+	if (write_in_full(fd, msg, len) != len)
+		return -1;
+
+	return 0;
+}
+
 static int kvm_ipc__handle(int fd, u32 type, u32 len, u8 *data)
 {
 	void (*cb)(int fd, u32 type, u32 len, u8 *msg);
