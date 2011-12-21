@@ -635,11 +635,13 @@ static const char *host_kernels[] = {
 
 static const char *default_kernels[] = {
 	"./bzImage",
+	"arch/" BUILD_ARCH "/boot/bzImage",
 	"../../arch/" BUILD_ARCH "/boot/bzImage",
 	NULL
 };
 
 static const char *default_vmlinux[] = {
+	"vmlinux",
 	"../../../vmlinux",
 	"../../vmlinux",
 	NULL
