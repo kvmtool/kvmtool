@@ -142,7 +142,7 @@ static void *mmap_anon_or_hugetlbfs(const char *hugetlbfs_path, u64 size)
 }
 
 /* Architecture-specific KVM init */
-void kvm__arch_init(struct kvm *kvm, const char *kvm_dev, const char *hugetlbfs_path, u64 ram_size, const char *name)
+void kvm__arch_init(struct kvm *kvm, const char *hugetlbfs_path, u64 ram_size)
 {
 	struct kvm_pit_config pit_config = { .flags = 0, };
 	int ret;

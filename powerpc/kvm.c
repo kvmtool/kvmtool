@@ -69,7 +69,7 @@ void kvm__arch_set_cmdline(char *cmdline, bool video)
 }
 
 /* Architecture-specific KVM init */
-void kvm__arch_init(struct kvm *kvm, const char *kvm_dev, const char *hugetlbfs_path, u64 ram_size, const char *name)
+void kvm__arch_init(struct kvm *kvm, const char *hugetlbfs_path, u64 ram_size)
 {
 	int cap_ppc_rma;
 

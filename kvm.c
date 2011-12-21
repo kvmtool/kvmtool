@@ -353,7 +353,7 @@ struct kvm *kvm__init(const char *kvm_dev, const char *hugetlbfs_path, u64 ram_s
 	if (kvm__check_extensions(kvm))
 		die("A required KVM extention is not supported by OS");
 
-	kvm__arch_init(kvm, kvm_dev, hugetlbfs_path, ram_size, name);
+	kvm__arch_init(kvm, hugetlbfs_path, ram_size);
 
 	kvm->name = name;
 
