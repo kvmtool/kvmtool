@@ -54,7 +54,7 @@ struct blk_dev {
 };
 
 static LIST_HEAD(bdevs);
-static int compat_id;
+static int compat_id = -1;
 
 void virtio_blk_complete(void *param, long len)
 {
