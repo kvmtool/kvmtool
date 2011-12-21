@@ -325,7 +325,7 @@ clean:
 	$(Q) rm -f x86/bios/bios-rom.h
 	$(Q) rm -f tests/boot/boot_test.iso
 	$(Q) rm -rf tests/boot/rootfs/
-	$(Q) rm -f $(DEPS) $(OBJS) $(PROGRAM) $(GUEST_INIT) $(GUEST_INIT_S2)
+	$(Q) rm -f $(DEPS) $(OBJS) $(PROGRAM) $(PROGRAM_ALIAS) $(GUEST_INIT) $(GUEST_INIT_S2)
 	$(Q) rm -f cscope.*
 	$(Q) rm -f $(KVM_INCLUDE)/common-cmds.h
 	$(Q) rm -f KVMTOOLS-VERSION-FILE
