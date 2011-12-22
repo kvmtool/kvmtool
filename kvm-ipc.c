@@ -102,7 +102,7 @@ static void kvm_ipc__close_conn(int fd)
 	close(fd);
 }
 
-static void kvm_ipc__receive(int fd)
+static int kvm_ipc__receive(int fd)
 {
 	struct kvm_ipc_head head;
 	u8 *msg = NULL;
@@ -122,8 +122,11 @@ static void kvm_ipc__receive(int fd)
 
 	kvm_ipc__handle(fd, head.type, head.len, msg);
 
+	return 0;
+
 done:
 	free(msg);
+	return -1;
 }
 
 static void *kvm_ipc__thread(void *param)
@@ -140,10 +143,16 @@ static void *kvm_ipc__thread(void *param)
 			if (fd == stop_fd && event.events & EPOLLIN) {
 				break;
 			} else if (fd == server_fd) {
-				int client;
+				int client, r;
 
 				client = kvm_ipc__new_conn(fd);
-				kvm_ipc__receive(client);
+				/*
+				 * Handle multiple IPC cmd at a time
+				 */
+				do {
+					r = kvm_ipc__receive(client);
+				} while	(r == 0);
+
 			} else if (event.events && (EPOLLERR | EPOLLRDHUP | EPOLLHUP)) {
 				kvm_ipc__close_conn(fd);
 			} else {
