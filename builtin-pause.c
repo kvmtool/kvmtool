@@ -41,7 +41,15 @@ void kvm_pause_help(void)
 
 static int do_pause(const char *name, int sock)
 {
-	return kvm_ipc__send(sock, KVM_IPC_PAUSE);
+	int r;
+
+	r = kvm_ipc__send(sock, KVM_IPC_PAUSE);
+	if (r)
+		return r;
+
+	printf("Guest %s paused\n", name);
+
+	return 0;
 }
 
 int kvm_cmd_pause(int argc, const char **argv, const char *prefix)

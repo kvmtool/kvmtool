@@ -522,7 +522,6 @@ static void handle_pause(int fd, u32 type, u32 len, u8 *msg)
 	}
 
 	is_paused = !is_paused;
-	pr_info("Guest %s\n", is_paused ? "paused" : "resumed");
 }
 
 static void handle_vmstate(int fd, u32 type, u32 len, u8 *msg)

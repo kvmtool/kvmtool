@@ -41,7 +41,15 @@ void kvm_resume_help(void)
 
 static int do_resume(const char *name, int sock)
 {
-	return kvm_ipc__send(sock, KVM_IPC_RESUME);
+	int r;
+
+	r = kvm_ipc__send(sock, KVM_IPC_RESUME);
+	if (r)
+		return r;
+
+	printf("Guest %s resumed\n", name);
+
+	return 0;
 }
 
 int kvm_cmd_resume(int argc, const char **argv, const char *prefix)
