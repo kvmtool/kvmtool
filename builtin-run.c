@@ -517,7 +517,6 @@ static void handle_pause(int fd, u32 type, u32 len, u8 *msg)
 		kvm->vm_state = KVM_VMSTATE_PAUSED;
 		kvm__pause();
 	} else {
-		WARN_ON(1);
 		return;
 	}
 
