@@ -48,6 +48,8 @@ struct kvm {
 	int                     nr_disks;
 
 	const char		*name;
+
+	int			vm_state;
 };
 
 static inline void *guest_flat_to_host(struct kvm *kvm, unsigned long offset); /* In kvm.h */

@@ -510,17 +510,30 @@ static void handle_pause(int fd, u32 type, u32 len, u8 *msg)
 	if (WARN_ON(len))
 		return;
 
-	if (type == KVM_IPC_RESUME && is_paused)
+	if (type == KVM_IPC_RESUME && is_paused) {
+		kvm->vm_state = KVM_VMSTATE_RUNNING;
 		kvm__continue();
-	else if (type == KVM_IPC_PAUSE && !is_paused)
+	} else if (type == KVM_IPC_PAUSE && !is_paused) {
+		kvm->vm_state = KVM_VMSTATE_PAUSED;
 		kvm__pause();
-	else {
+	} else {
 		WARN_ON(1);
 		return;
 	}
 
 	is_paused = !is_paused;
 	pr_info("Guest %s\n", is_paused ? "paused" : "resumed");
+}
+
+static void handle_vmstate(int fd, u32 type, u32 len, u8 *msg)
+{
+	int r = 0;
+
+	if (type == KVM_IPC_VMSTATE)
+		r = write(fd, &kvm->vm_state, sizeof(kvm->vm_state));
+
+	if (r < 0)
+		pr_warning("Failed sending VMSTATE");
 }
 
 static void handle_debug(int fd, u32 type, u32 len, u8 *msg)
@@ -877,6 +890,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	kvm_ipc__register_handler(KVM_IPC_PAUSE, handle_pause);
 	kvm_ipc__register_handler(KVM_IPC_RESUME, handle_pause);
 	kvm_ipc__register_handler(KVM_IPC_STOP, handle_stop);
+	kvm_ipc__register_handler(KVM_IPC_VMSTATE, handle_vmstate);
 
 	nr_online_cpus = sysconf(_SC_NPROCESSORS_ONLN);
 

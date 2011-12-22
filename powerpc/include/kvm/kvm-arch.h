@@ -65,6 +65,7 @@ struct kvm {
 	unsigned long		initrd_gra;
 	unsigned long		initrd_size;
 	const char		*name;
+	int			vm_state;
 };
 
 #endif /* KVM__KVM_ARCH_H */

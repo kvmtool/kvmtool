@@ -21,6 +21,11 @@
 	.name = #ext,			\
 	.code = ext
 
+enum {
+	KVM_VMSTATE_RUNNING,
+	KVM_VMSTATE_PAUSED,
+};
+
 struct kvm_ext {
 	const char *name;
 	int code;

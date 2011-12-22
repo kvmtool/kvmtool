@@ -11,6 +11,7 @@ enum {
 	KVM_IPC_RESUME	= 5,
 	KVM_IPC_STOP	= 6,
 	KVM_IPC_PID	= 7,
+	KVM_IPC_VMSTATE	= 8,
 };
 
 int kvm_ipc__register_handler(u32 type, void (*cb)(int fd, u32 type, u32 len, u8 *msg));
