@@ -16,6 +16,11 @@ struct pid_cmd {
 	u32 len;
 };
 
+struct vmstate_cmd {
+	u32 type;
+	u32 len;
+};
+
 static bool run;
 static bool rootfs;
 
@@ -32,6 +37,7 @@ static const struct option list_options[] = {
 };
 
 #define KVM_INSTANCE_RUNNING	"running"
+#define KVM_INSTANCE_PAUSED	"paused"
 #define KVM_INSTANCE_SHUTOFF	"shut off"
 
 void kvm_list_help(void)
@@ -56,12 +62,34 @@ static pid_t get_pid(int sock)
 	return pid;
 }
 
+static int get_vmstate(int sock)
+{
+	struct vmstate_cmd cmd = {KVM_IPC_VMSTATE, 0};
+	int r;
+	int vmstate;
+
+	r = write(sock, &cmd, sizeof(cmd));
+	if (r < 0)
+		return r;
+
+	r = read(sock, &vmstate, sizeof(vmstate));
+	if (r < 0)
+		return r;
+
+	return vmstate;
+
+}
+
 static int print_guest(const char *name, int sock)
 {
 	char proc_name[PATH_MAX];
 	char *comm = NULL;
 	FILE *fd;
-	pid_t pid = get_pid(sock);
+	pid_t pid;
+	int vmstate;
+
+	pid = get_pid(sock);
+	vmstate = get_vmstate(sock);
 
 	sprintf(proc_name, "/proc/%d/stat", pid);
 	fd = fopen(proc_name, "r");
@@ -70,7 +98,10 @@ static int print_guest(const char *name, int sock)
 	if (fscanf(fd, "%*u (%as)", &comm) == 0)
 		goto cleanup;
 
-	printf("%5d %-20s %s\n", pid, name, KVM_INSTANCE_RUNNING);
+	if (vmstate == KVM_VMSTATE_PAUSED)
+		printf("%5d %-20s %s\n", pid, name, KVM_INSTANCE_PAUSED);
+	else
+		printf("%5d %-20s %s\n", pid, name, KVM_INSTANCE_RUNNING);
 
 	free(comm);
 
