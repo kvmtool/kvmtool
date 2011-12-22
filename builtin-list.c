@@ -11,16 +11,6 @@
 #include <signal.h>
 #include <fcntl.h>
 
-struct pid_cmd {
-	u32 type;
-	u32 len;
-};
-
-struct vmstate_cmd {
-	u32 type;
-	u32 len;
-};
-
 static bool run;
 static bool rootfs;
 
@@ -47,11 +37,10 @@ void kvm_list_help(void)
 
 static pid_t get_pid(int sock)
 {
-	struct pid_cmd cmd = {KVM_IPC_PID, 0};
-	int r;
 	pid_t pid;
+	int r;
 
-	r = write(sock, &cmd, sizeof(cmd));
+	r = kvm_ipc__send(sock, KVM_IPC_PID);
 	if (r < 0)
 		return r;
 
@@ -64,11 +53,10 @@ static pid_t get_pid(int sock)
 
 static int get_vmstate(int sock)
 {
-	struct vmstate_cmd cmd = {KVM_IPC_VMSTATE, 0};
-	int r;
 	int vmstate;
+	int r;
 
-	r = write(sock, &cmd, sizeof(cmd));
+	r = kvm_ipc__send(sock, KVM_IPC_VMSTATE);
 	if (r < 0)
 		return r;
 
