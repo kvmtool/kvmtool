@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
 		else
 			run_process("/bin/sh");
 	} else {
-		wait(&status);
+		waitpid(child, &status, 0);
 	}
 
 	reboot(LINUX_REBOOT_CMD_RESTART);
