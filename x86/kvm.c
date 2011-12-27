@@ -178,6 +178,14 @@ void kvm__arch_init(struct kvm *kvm, const char *hugetlbfs_path, u64 ram_size)
 		die_perror("KVM_CREATE_IRQCHIP ioctl");
 }
 
+void kvm__arch_delete_ram(struct kvm *kvm)
+{
+	if (kvm->ram_size < KVM_32BIT_GAP_START)
+		munmap(kvm->ram_start, kvm->ram_size);
+	else
+		munmap(kvm->ram_start, kvm->ram_size + KVM_32BIT_GAP_SIZE);
+}
+
 void kvm__irq_line(struct kvm *kvm, int irq, int level)
 {
 	struct kvm_irq_level irq_level;

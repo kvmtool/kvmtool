@@ -102,6 +102,11 @@ void kvm__arch_init(struct kvm *kvm, const char *hugetlbfs_path, u64 ram_size)
 		    "which is not yet supported.");
 }
 
+void kvm__arch_delete_ram(struct kvm *kvm)
+{
+	munmap(kvm->ram_start, kvm->ram_size);
+}
+
 void kvm__irq_line(struct kvm *kvm, int irq, int level)
 {
 	fprintf(stderr, "irq_line(%d, %d)\n", irq, level);

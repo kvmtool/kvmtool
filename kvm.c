@@ -246,7 +246,7 @@ void kvm__delete(struct kvm *kvm)
 {
 	kvm__stop_timer(kvm);
 
-	munmap(kvm->ram_start, kvm->ram_size);
+	kvm__arch_delete_ram(kvm);
 	kvm_ipc__stop();
 	kvm__remove_socket(kvm->name);
 	free(kvm);
