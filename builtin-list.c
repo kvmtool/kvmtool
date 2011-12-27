@@ -77,7 +77,7 @@ static int print_guest(const char *name, int sock)
 	vmstate = get_vmstate(sock);
 
 	if ((int)pid < 0 || vmstate < 0)
-		goto cleanup;
+		return -1;
 
 	if (vmstate == KVM_VMSTATE_PAUSED)
 		printf("%5d %-20s %s\n", pid, name, KVM_INSTANCE_PAUSED);
@@ -85,10 +85,6 @@ static int print_guest(const char *name, int sock)
 		printf("%5d %-20s %s\n", pid, name, KVM_INSTANCE_RUNNING);
 
 	return 0;
-
-cleanup:
-	kvm__remove_socket(name);
-	return -1;
 }
 
 static int kvm_list_running_instances(void)

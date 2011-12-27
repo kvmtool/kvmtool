@@ -150,7 +150,6 @@ static int kvm__create_socket(struct kvm *kvm)
 		return s;
 	local.sun_family = AF_UNIX;
 	strcpy(local.sun_path, full_name);
-	unlink(local.sun_path);
 	len = strlen(local.sun_path) + sizeof(local.sun_family);
 	r = bind(s, (struct sockaddr *)&local, len);
 	if (r < 0)
@@ -190,8 +189,9 @@ int kvm__get_sock_by_instance(const char *name)
 
 	r = connect(s, &local, len);
 	if (r < 0 && errno == ECONNREFUSED) {
-		/* Clean ghost socket file */
-		unlink(sock_file);
+		/* Tell the user clean ghost socket file */
+		pr_err("\"%s\" could be a ghost socket file, please remove it",
+				sock_file);
 		return -1;
 	} else if (r < 0) {
 		die("Failed connecting to instance");
