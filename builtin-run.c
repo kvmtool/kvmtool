@@ -981,8 +981,12 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	term_init();
 
 	if (!guest_name) {
-		sprintf(default_name, "guest-%u", getpid());
-		guest_name = default_name;
+		if (custom_rootfs) {
+			guest_name = custom_rootfs_name;
+		} else {
+			sprintf(default_name, "guest-%u", getpid());
+			guest_name = default_name;
+		}
 	}
 
 	kvm = kvm__init(dev, hugetlbfs_path, ram_size, guest_name);
