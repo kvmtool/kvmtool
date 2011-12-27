@@ -51,7 +51,7 @@ static pid_t get_pid(int sock)
 	return pid;
 }
 
-static int get_vmstate(int sock)
+int get_vmstate(int sock)
 {
 	int vmstate;
 	int r;

@@ -1,6 +1,7 @@
 #include <kvm/util.h>
 #include <kvm/kvm-cmd.h>
 #include <kvm/builtin-resume.h>
+#include <kvm/builtin-list.h>
 #include <kvm/kvm.h>
 #include <kvm/parse-options.h>
 #include <kvm/kvm-ipc.h>
@@ -42,6 +43,15 @@ void kvm_resume_help(void)
 static int do_resume(const char *name, int sock)
 {
 	int r;
+	int vmstate;
+
+	vmstate = get_vmstate(sock);
+	if (vmstate < 0)
+		return vmstate;
+	if (vmstate == KVM_VMSTATE_RUNNING) {
+		printf("Guest %s is still running.\n", name);
+		return 0;
+	}
 
 	r = kvm_ipc__send(sock, KVM_IPC_RESUME);
 	if (r)
