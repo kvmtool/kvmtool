@@ -70,20 +70,13 @@ static int get_vmstate(int sock)
 
 static int print_guest(const char *name, int sock)
 {
-	char proc_name[PATH_MAX];
-	char *comm = NULL;
-	FILE *fd;
 	pid_t pid;
 	int vmstate;
 
 	pid = get_pid(sock);
 	vmstate = get_vmstate(sock);
 
-	sprintf(proc_name, "/proc/%d/stat", pid);
-	fd = fopen(proc_name, "r");
-	if (fd == NULL)
-		goto cleanup;
-	if (fscanf(fd, "%*u (%as)", &comm) == 0)
+	if ((int)pid < 0 || vmstate < 0)
 		goto cleanup;
 
 	if (vmstate == KVM_VMSTATE_PAUSED)
@@ -91,20 +84,11 @@ static int print_guest(const char *name, int sock)
 	else
 		printf("%5d %-20s %s\n", pid, name, KVM_INSTANCE_RUNNING);
 
-	free(comm);
-
-	fclose(fd);
-
 	return 0;
 
 cleanup:
-	if (fd)
-		fclose(fd);
-	if (comm)
-		free(comm);
-
 	kvm__remove_socket(name);
-	return 0;
+	return -1;
 }
 
 static int kvm_list_running_instances(void)
