@@ -156,7 +156,7 @@ void setup_bios(struct kvm *kvm)
 
 	/*
 	 * Setup a *fake* real mode vector table, it has only
-	 * one real hadler which does just iret
+	 * one real handler which does just iret
 	 */
 	address = BIOS_IRQ_PA_ADDR(bios_intfake);
 	intr_desc = (struct real_intr_desc) {
