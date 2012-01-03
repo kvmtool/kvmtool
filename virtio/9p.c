@@ -354,6 +354,9 @@ static void virtio_p9_attach(struct p9_dev *p9dev,
 	virtio_p9_pdu_readf(pdu, "ddssd", &fid_val, &afid,
 			    &uname, &aname, &uid);
 
+	free(uname);
+	free(aname);
+
 	/* Reset everything */
 	for (i = 0; i < VIRTIO_P9_MAX_FID; i++)
 		p9dev->fids[i].fid = P9_NOFID;
