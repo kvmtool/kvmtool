@@ -603,8 +603,6 @@ static void *kvm_cpu_thread(void *arg)
 	if (kvm_cpu__start(current_kvm_cpu))
 		goto panic_kvm;
 
-	kvm_cpu__delete(current_kvm_cpu);
-
 	return (void *) (intptr_t) 0;
 
 panic_kvm:
@@ -619,8 +617,6 @@ panic_kvm:
 	kvm_cpu__show_registers(current_kvm_cpu);
 	kvm_cpu__show_code(current_kvm_cpu);
 	kvm_cpu__show_page_tables(current_kvm_cpu);
-
-	kvm_cpu__delete(current_kvm_cpu);
 
 	return (void *) (intptr_t) 1;
 }
@@ -1178,11 +1174,14 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	if (pthread_join(kvm_cpus[0]->thread, &ret) != 0)
 		exit_code = 1;
 
+	kvm_cpu__delete(kvm_cpus[0]);
+
 	for (i = 1; i < nrcpus; i++) {
 		if (kvm_cpus[i]->is_running) {
 			pthread_kill(kvm_cpus[i]->thread, SIGKVMEXIT);
 			if (pthread_join(kvm_cpus[i]->thread, &ret) != 0)
 				die("pthread_join");
+			kvm_cpu__delete(kvm_cpus[i]);
 		}
 		if (ret != NULL)
 			exit_code = 1;
