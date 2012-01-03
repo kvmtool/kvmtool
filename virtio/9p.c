@@ -280,7 +280,6 @@ static void virtio_p9_walk(struct p9_dev *p9dev,
 {
 	u8 i;
 	u16 nwqid;
-	char *str;
 	u16 nwname;
 	struct p9_qid wqid;
 	struct p9_fid *new_fid;
@@ -301,11 +300,15 @@ static void virtio_p9_walk(struct p9_dev *p9dev,
 			struct stat st;
 			char tmp[PATH_MAX] = {0};
 			char full_path[PATH_MAX];
+			char *str;
 
 			virtio_p9_pdu_readf(pdu, "s", &str);
 
 			/* Format the new path we're 'walk'ing into */
 			sprintf(tmp, "%s/%s", new_fid->path, str);
+
+			free(str);
+
 			if (lstat(rel_to_abs(p9dev, tmp, full_path), &st) < 0)
 				goto err_out;
 
