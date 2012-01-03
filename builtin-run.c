@@ -1196,6 +1196,7 @@ err:
 	virtio_rng__delete_all(kvm);
 
 	disk_image__close_all(kvm->disks, image_count);
+	free(kvm_cpus);
 	kvm__delete(kvm);
 
 	if (!exit_code)
