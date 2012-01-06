@@ -109,8 +109,8 @@ void kvm__init_ram(struct kvm *kvm)
 
 		/* Second RAM range from 4GB to the end of RAM: */
 
-		phys_start = 0x100000000ULL;
-		phys_size  = kvm->ram_size - phys_size;
+		phys_start = KVM_32BIT_MAX_MEM_SIZE;
+		phys_size  = kvm->ram_size - phys_start;
 		host_mem   = kvm->ram_start + phys_start;
 
 		kvm__register_mem(kvm, phys_start, phys_size, host_mem);
@@ -155,12 +155,12 @@ void kvm__arch_init(struct kvm *kvm, const char *hugetlbfs_path, u64 ram_size)
 	if (ret < 0)
 		die_perror("KVM_CREATE_PIT2 ioctl");
 
-	kvm->ram_size = ram_size;
-
-	if (kvm->ram_size < KVM_32BIT_GAP_START) {
+	if (ram_size < KVM_32BIT_GAP_START) {
+        kvm->ram_size = ram_size;
 		kvm->ram_start = mmap_anon_or_hugetlbfs(hugetlbfs_path, ram_size);
 	} else {
 		kvm->ram_start = mmap_anon_or_hugetlbfs(hugetlbfs_path, ram_size + KVM_32BIT_GAP_SIZE);
+        kvm->ram_size = ram_size + KVM_32BIT_GAP_SIZE;
 		if (kvm->ram_start != MAP_FAILED)
 			/*
 			 * We mprotect the gap (see kvm__init_ram() for details) PROT_NONE so that

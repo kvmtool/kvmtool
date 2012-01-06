@@ -92,8 +92,8 @@ static void e820_setup(struct kvm *kvm)
 			.type		= E820_RAM,
 		};
 		mem_map[i++]	= (struct e820entry) {
-			.addr		= 0x100000000ULL,
-			.size		= kvm->ram_size - KVM_32BIT_GAP_START,
+			.addr		= KVM_32BIT_MAX_MEM_SIZE,
+			.size		= kvm->ram_size - KVM_32BIT_MAX_MEM_SIZE,
 			.type		= E820_RAM,
 		};
 	}
