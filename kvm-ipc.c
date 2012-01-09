@@ -37,7 +37,7 @@ int kvm_ipc__send(int fd, u32 type)
 {
 	struct kvm_ipc_head head = {.type = type, .len = 0,};
 
-	if (write_in_full(fd, &head, sizeof(head)) != sizeof(head))
+	if (write_in_full(fd, &head, sizeof(head)) < 0)
 		return -1;
 
 	return 0;
@@ -47,7 +47,7 @@ int kvm_ipc__send_msg(int fd, u32 type, u32 len, u8 *msg)
 {
 	struct kvm_ipc_head head = {.type = type, .len = len,};
 
-	if (write_in_full(fd, &head, sizeof(head)) != sizeof(head))
+	if (write_in_full(fd, &head, sizeof(head)) < 0)
 		return -1;
 
 	if (write_in_full(fd, msg, len) < 0)
