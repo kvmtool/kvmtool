@@ -871,15 +871,13 @@ static void kvm_run_write_sandbox_cmd(const char **argv, int argc)
 	close(fd);
 }
 
-int kvm_cmd_run(int argc, const char **argv, const char *prefix)
+static int kvm_cmd_run_init(int argc, const char **argv)
 {
 	static char real_cmdline[2048], default_name[20];
 	struct framebuffer *fb = NULL;
 	unsigned int nr_online_cpus;
-	int exit_code = 0;
 	int max_cpus, recommended_cpus;
 	int i;
-	void *ret;
 
 	signal(SIGALRM, handle_sigalrm);
 	kvm_ipc__register_handler(KVM_IPC_DEBUG, handle_debug);
@@ -1164,9 +1162,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	kvm__start_timer(kvm);
 
-	exit_code = kvm__arch_setup_firmware(kvm);
-	if (exit_code)
-		goto err;
+	kvm__arch_setup_firmware(kvm);
 
 	for (i = 0; i < nrcpus; i++) {
 		kvm_cpus[i] = kvm_cpu__init(kvm, i);
@@ -1177,6 +1173,14 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 	thread_pool__init(nr_online_cpus);
 	ioeventfd__start();
 
+	return 0;
+}
+
+static int kvm_cmd_run_work(void)
+{
+	int i, r = -1;
+	void *ret = NULL;
+
 	for (i = 0; i < nrcpus; i++) {
 		if (pthread_create(&kvm_cpus[i]->thread, NULL, kvm_cpu_thread, kvm_cpus[i]) != 0)
 			die("unable to create KVM VCPU thread");
@@ -1184,7 +1188,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 
 	/* Only VCPU #0 is going to exit by itself when shutting down */
 	if (pthread_join(kvm_cpus[0]->thread, &ret) != 0)
-		exit_code = 1;
+		r = 0;
 
 	kvm_cpu__delete(kvm_cpus[0]);
 
@@ -1195,11 +1199,15 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 				die("pthread_join");
 			kvm_cpu__delete(kvm_cpus[i]);
 		}
-		if (ret != NULL)
-			exit_code = 1;
+		if (ret == NULL)
+			r = 0;
 	}
 
-err:
+	return r;
+}
+
+static int kvm_cmd_run_exit(int guest_ret)
+{
 	compat__print_all_messages();
 
 	fb__stop();
@@ -1211,8 +1219,22 @@ err:
 	free(kvm_cpus);
 	kvm__delete(kvm);
 
-	if (!exit_code)
+	if (guest_ret == 0)
 		printf("\n  # KVM session ended normally.\n");
 
-	return exit_code;
+	return 0;
+}
+
+int kvm_cmd_run(int argc, const char **argv, const char *prefix)
+{
+	int r, ret;
+
+	r = kvm_cmd_run_init(argc, argv);
+	if (r < 0)
+		return r;
+
+	ret = kvm_cmd_run_work();
+	kvm_cmd_run_exit(ret);
+
+	return ret;
 }
