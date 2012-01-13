@@ -114,6 +114,7 @@ static const char * const run_usage[] = {
 };
 
 enum {
+	KVM_RUN_DEFAULT,
 	KVM_RUN_SANDBOX,
 };
 
@@ -904,16 +905,27 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 				}
 			}
 
-			if (kernel_filename) {
+			if ((kvm_run_wrapper == KVM_RUN_DEFAULT && kernel_filename) ||
+				(kvm_run_wrapper == KVM_RUN_SANDBOX && sandbox)) {
 				fprintf(stderr, "Cannot handle parameter: "
 						"%s\n", argv[0]);
 				usage_with_options(run_usage, options);
 				return EINVAL;
 			}
-			/* first unhandled parameter is treated as a kernel
-			   image
-			 */
-			kernel_filename = argv[0];
+			if (kvm_run_wrapper == KVM_RUN_SANDBOX) {
+				/*
+				 * first unhandled parameter is treated as
+				 * sandbox command
+				 */
+				sandbox = DEFAULT_SANDBOX_FILENAME;
+				kvm_run_write_sandbox_cmd(argv, argc);
+			} else {
+				/*
+				 * first unhandled parameter is treated as a kernel
+				 * image
+				 */
+				kernel_filename = argv[0];
+			}
 			argv++;
 			argc--;
 		}
