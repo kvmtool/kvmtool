@@ -191,3 +191,8 @@ int kvm__arch_setup_firmware(struct kvm *kvm)
 
 	return 0;
 }
+
+int kvm__arch_free_firmware(struct kvm *kvm)
+{
+	return 0;
+}

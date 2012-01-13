@@ -71,7 +71,7 @@ static void mptable_add_irq_src(struct mpc_intsrc *mpc_intsrc,
 /**
  * mptable_setup - create mptable and fill guest memory with it
  */
-int mptable_setup(struct kvm *kvm, unsigned int ncpus)
+int mptable__init(struct kvm *kvm)
 {
 	unsigned long real_mpc_table, real_mpf_intel, size;
 	struct mpf_intel *mpf_intel;
@@ -85,7 +85,7 @@ int mptable_setup(struct kvm *kvm, unsigned int ncpus)
 	const int pcibusid = 0;
 	const int isabusid = 1;
 
-	unsigned int i, nentries = 0;
+	unsigned int i, nentries = 0, ncpus = kvm->nrcpus;
 	unsigned int ioapicid;
 	void *last_addr;
 
@@ -100,7 +100,7 @@ int mptable_setup(struct kvm *kvm, unsigned int ncpus)
 
 	mpc_table = calloc(1, MPTABLE_MAX_SIZE);
 	if (!mpc_table)
-		die("Out of memory");
+		return -ENOMEM;
 
 	MPTABLE_STRNCPY(mpc_table->signature,	MPC_SIGNATURE);
 	MPTABLE_STRNCPY(mpc_table->oem,		MPTABLE_OEM);
@@ -267,7 +267,8 @@ int mptable_setup(struct kvm *kvm, unsigned int ncpus)
 	    size > MPTABLE_MAX_SIZE) {
 		free(mpc_table);
 		pr_err("MP table is too big");
-		return -1;
+
+		return -E2BIG;
 	}
 
 	/*
@@ -276,5 +277,11 @@ int mptable_setup(struct kvm *kvm, unsigned int ncpus)
 	memcpy(guest_flat_to_host(kvm, real_mpc_table), mpc_table, size);
 
 	free(mpc_table);
+
+	return 0;
+}
+
+int mptable__exit(struct kvm *kvm)
+{
 	return 0;
 }

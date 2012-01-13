@@ -3,6 +3,7 @@
 
 struct kvm;
 
-int mptable_setup(struct kvm *kvm, unsigned int ncpus);
+int mptable__init(struct kvm *kvm);
+int mptable__exit(struct kvm *kvm);
 
 #endif /* KVM_MPTABLE_H_ */

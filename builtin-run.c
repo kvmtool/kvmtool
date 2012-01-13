@@ -1201,6 +1201,10 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 	kvm__start_timer(kvm);
 
 	kvm__arch_setup_firmware(kvm);
+	if (r < 0) {
+		pr_err("kvm__arch_setup_firmware() failed with error %d\n", r);
+		goto fail;
+	}
 
 	for (i = 0; i < nrcpus; i++) {
 		kvm_cpus[i] = kvm_cpu__init(kvm, i);
@@ -1269,6 +1273,10 @@ static void kvm_cmd_run_exit(int guest_ret)
 	r = serial8250__exit(kvm);
 	if (r < 0)
 		pr_warning("serial8250__exit() failed with error %d\n", r);
+
+	r = kvm__arch_free_firmware(kvm);
+	if (r < 0)
+		pr_warning("kvm__arch_free_firmware() failed with error %d\n", r);
 
 	r = ioport__exit(kvm);
 	if (r < 0)
