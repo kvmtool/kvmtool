@@ -36,8 +36,6 @@ int main(int argc, char *argv[])
 	/* set controlling terminal */
 	ioctl(0, TIOCSCTTY, 1);
 
-	puts("Starting '/bin/sh'...");
-
 	child = fork();
 	if (child < 0) {
 		printf("Fatal: fork() failed with %d\n", child);
