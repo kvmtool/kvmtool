@@ -327,6 +327,8 @@ clean:
 	$(Q) rm -rf tests/boot/rootfs/
 	$(Q) rm -f $(DEPS) $(OBJS) $(PROGRAM) $(PROGRAM_ALIAS) $(GUEST_INIT) $(GUEST_INIT_S2)
 	$(Q) rm -f cscope.*
+	$(Q) rm -f tags
+	$(Q) rm -f TAGS
 	$(Q) rm -f $(KVM_INCLUDE)/common-cmds.h
 	$(Q) rm -f KVMTOOLS-VERSION-FILE
 .PHONY: clean
