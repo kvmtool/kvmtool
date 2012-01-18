@@ -196,7 +196,7 @@ DEFINES	+= -DKVMTOOLS_VERSION='"$(KVMTOOLS_VERSION)"'
 DEFINES	+= -DBUILD_ARCH='"$(ARCH)"'
 
 KVM_INCLUDE := include
-CFLAGS	+= $(CPPFLAGS) $(DEFINES) -I$(KVM_INCLUDE) -I$(ARCH_INCLUDE) -I$(KINCL_PATH)/include -I$(KINCL_PATH)/arch/$(ARCH)/include/ -Os -g
+CFLAGS	+= $(CPPFLAGS) $(DEFINES) -I$(KVM_INCLUDE) -I$(ARCH_INCLUDE) -I$(KINCL_PATH)/include -I$(KINCL_PATH)/arch/$(ARCH)/include/ -O2 -fno-strict-aliasing -g
 
 ifneq ($(WERROR),0)
 	WARNINGS += -Werror
