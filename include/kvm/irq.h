@@ -5,7 +5,8 @@
 #include <linux/rbtree.h>
 #include <linux/list.h>
 #include <linux/kvm.h>
-#include <linux/msi.h>
+
+#include "kvm/msi.h"
 
 struct kvm;
 

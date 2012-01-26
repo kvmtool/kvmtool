@@ -4,10 +4,10 @@
 #include <linux/types.h>
 #include <linux/kvm.h>
 #include <linux/pci_regs.h>
-#include <linux/msi.h>
 #include <endian.h>
 
 #include "kvm/kvm.h"
+#include "kvm/msi.h"
 
 #define PCI_MAX_DEVICES			256
 /*
