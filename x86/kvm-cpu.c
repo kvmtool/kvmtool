@@ -6,7 +6,7 @@
 
 #include <asm/msr-index.h>
 #include <asm/apicdef.h>
-
+#include <linux/err.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <signal.h>
@@ -324,7 +324,7 @@ void kvm_cpu__show_code(struct kvm_cpu *vcpu)
 	unsigned int code_bytes = 64;
 	unsigned int code_prologue = 43;
 	unsigned int code_len = code_bytes;
-	char sym[MAX_SYM_LEN];
+	char sym[MAX_SYM_LEN] = SYMBOL_DEFAULT_UNKNOWN, *psym;
 	unsigned char c;
 	unsigned int i;
 	u8 *ip;
@@ -340,7 +340,11 @@ void kvm_cpu__show_code(struct kvm_cpu *vcpu)
 	dprintf(debug_fd, "\n Code:\n");
 	dprintf(debug_fd,   " -----\n");
 
-	symbol__lookup(vcpu->kvm, vcpu->regs.rip, sym, MAX_SYM_LEN);
+	psym = symbol__lookup(vcpu->kvm, vcpu->regs.rip, sym, MAX_SYM_LEN);
+	if (IS_ERR(psym))
+		dprintf(debug_fd,
+			"Warning: symbol__lookup() failed to find symbol "
+			"with error: %ld\n", PTR_ERR(psym));
 
 	dprintf(debug_fd, " rip: [<%016lx>] %s\n\n", (unsigned long) vcpu->regs.rip, sym);
 

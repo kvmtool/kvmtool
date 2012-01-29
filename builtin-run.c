@@ -877,7 +877,7 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 	struct framebuffer *fb = NULL;
 	unsigned int nr_online_cpus;
 	int max_cpus, recommended_cpus;
-	int i;
+	int i, r;
 
 	signal(SIGALRM, handle_sigalrm);
 	kvm_ipc__register_handler(KVM_IPC_DEBUG, handle_debug);
@@ -984,8 +984,6 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 	if (!script)
 		script = DEFAULT_SCRIPT;
 
-	symbol__init(vmlinux_filename);
-
 	term_init();
 
 	if (!guest_name) {
@@ -1090,7 +1088,12 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 				real_cmdline, vidmode))
 		die("unable to load kernel %s", kernel_filename);
 
-	kvm->vmlinux		= vmlinux_filename;
+	kvm->vmlinux = vmlinux_filename;
+	r = symbol__init(kvm);
+	if (r < 0) {
+		pr_err("symbol__init() failed with error %d\n", r);
+		goto fail;
+	}
 
 	ioport__setup_arch();
 
@@ -1173,7 +1176,8 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 	thread_pool__init(nr_online_cpus);
 	ioeventfd__start();
 
-	return 0;
+fail:
+	return r;
 }
 
 static int kvm_cmd_run_work(void)
@@ -1206,9 +1210,15 @@ static int kvm_cmd_run_work(void)
 	return r;
 }
 
-static int kvm_cmd_run_exit(int guest_ret)
+static void kvm_cmd_run_exit(int guest_ret)
 {
+	int r = 0;
+
 	compat__print_all_messages();
+
+	r = symbol__exit(kvm);
+	if (r < 0)
+		pr_warning("symbol__exit() failed with error %d\n", r);
 
 	fb__stop();
 
@@ -1221,13 +1231,11 @@ static int kvm_cmd_run_exit(int guest_ret)
 
 	if (guest_ret == 0)
 		printf("\n  # KVM session ended normally.\n");
-
-	return 0;
 }
 
 int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 {
-	int r, ret;
+	int r, ret = -EFAULT;
 
 	r = kvm_cmd_run_init(argc, argv);
 	if (r < 0)
