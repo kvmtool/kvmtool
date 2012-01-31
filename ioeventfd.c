@@ -67,7 +67,7 @@ int ioeventfd__init(struct kvm *kvm)
 
 	ioeventfd_avail = kvm__supports_extension(kvm, KVM_CAP_IOEVENTFD);
 	if (!ioeventfd_avail)
-		return -ENOSYS;
+		return 1; /* Not fatal, but let caller determine no-go. */
 
 	epoll_fd = epoll_create(IOEVENTFD_MAX_EVENTS);
 	if (epoll_fd < 0)
