@@ -1112,10 +1112,8 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 
 	kvm->vmlinux = vmlinux_filename;
 	r = symbol__init(kvm);
-	if (r < 0) {
+	if (r < 0)
 		pr_err("symbol__init() failed with error %d\n", r);
-		goto fail;
-	}
 
 	ioport__setup_arch();
 
