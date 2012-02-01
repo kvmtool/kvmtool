@@ -340,10 +340,10 @@ void kvm_cpu__show_code(struct kvm_cpu *vcpu)
 	dprintf(debug_fd, "\n Code:\n");
 	dprintf(debug_fd,   " -----\n");
 
-	psym = symbol__lookup(vcpu->kvm, vcpu->regs.rip, sym, MAX_SYM_LEN);
+	psym = symbol_lookup(vcpu->kvm, vcpu->regs.rip, sym, MAX_SYM_LEN);
 	if (IS_ERR(psym))
 		dprintf(debug_fd,
-			"Warning: symbol__lookup() failed to find symbol "
+			"Warning: symbol_lookup() failed to find symbol "
 			"with error: %ld\n", PTR_ERR(psym));
 
 	dprintf(debug_fd, " rip: [<%016lx>] %s\n\n", (unsigned long) vcpu->regs.rip, sym);

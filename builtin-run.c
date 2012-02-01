@@ -1111,9 +1111,9 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 		die("unable to load kernel %s", kernel_filename);
 
 	kvm->vmlinux = vmlinux_filename;
-	r = symbol__init(kvm);
+	r = symbol_init(kvm);
 	if (r < 0)
-		pr_err("symbol__init() failed with error %d\n", r);
+		pr_err("symbol_init() failed with error %d\n", r);
 
 	ioport__setup_arch();
 
@@ -1268,9 +1268,9 @@ static void kvm_cmd_run_exit(int guest_ret)
 
 	compat__print_all_messages();
 
-	r = symbol__exit(kvm);
+	r = symbol_exit(kvm);
 	if (r < 0)
-		pr_warning("symbol__exit() failed with error %d\n", r);
+		pr_warning("symbol_exit() failed with error %d\n", r);
 
 	r = irq__exit(kvm);
 	if (r < 0)

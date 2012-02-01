@@ -10,9 +10,9 @@
 
 static bfd *abfd;
 
-int symbol__init(struct kvm *kvm)
+int symbol_init(struct kvm *kvm)
 {
-	int r = 0;
+	int ret = 0;
 
 	if (!kvm->vmlinux)
 		return -EINVAL;
@@ -25,25 +25,25 @@ int symbol__init(struct kvm *kvm)
 
 		switch (err) {
 		case bfd_error_no_memory:
-			r = -ENOMEM;
+			ret = -ENOMEM;
 			break;
 		case bfd_error_invalid_target:
-			r = -EINVAL;
+			ret = -EINVAL;
 			break;
 		default:
-			r = -EFAULT;
+			ret = -EFAULT;
 			break;
 		}
 	}
 
-	return r;
+	return ret;
 }
 
 static asymbol *lookup(asymbol **symbols, int nr_symbols, const char *symbol_name)
 {
-	int i, r;
+	int i, ret;
 
-	r = -ENOENT;
+	ret = -ENOENT;
 
 	for (i = 0; i < nr_symbols; i++) {
 		asymbol *symbol = symbols[i];
@@ -52,10 +52,10 @@ static asymbol *lookup(asymbol **symbols, int nr_symbols, const char *symbol_nam
 			return symbol;
 	}
 
-	return ERR_PTR(r);
+	return ERR_PTR(ret);
 }
 
-char *symbol__lookup(struct kvm *kvm, unsigned long addr, char *sym, size_t size)
+char *symbol_lookup(struct kvm *kvm, unsigned long addr, char *sym, size_t size)
 {
 	const char *filename;
 	bfd_vma sym_offset;
@@ -66,9 +66,9 @@ char *symbol__lookup(struct kvm *kvm, unsigned long addr, char *sym, size_t size
 	long symtab_size;
 	asymbol *symbol;
 	asymbol **syms;
-	int nr_syms, r;
+	int nr_syms, ret;
 
-	r = -ENOENT;
+	ret = -ENOENT;
 	if (!abfd)
 		goto not_found;
 
@@ -79,14 +79,14 @@ char *symbol__lookup(struct kvm *kvm, unsigned long addr, char *sym, size_t size
 	if (!symtab_size)
 		goto not_found;
 
-	r = -ENOMEM;
+	ret = -ENOMEM;
 	syms = malloc(symtab_size);
 	if (!syms)
 		goto not_found;
 
 	nr_syms = bfd_canonicalize_symtab(abfd, syms);
 
-	r = -ENOENT;
+	ret = -ENOENT;
 	section = bfd_get_section_by_name(abfd, ".debug_aranges");
 	if (!section)
 		goto not_found;
@@ -114,17 +114,17 @@ char *symbol__lookup(struct kvm *kvm, unsigned long addr, char *sym, size_t size
 	return sym;
 
 not_found:
-	return ERR_PTR(r);
+	return ERR_PTR(ret);
 }
 
-int symbol__exit(struct kvm *kvm)
+int symbol_exit(struct kvm *kvm)
 {
-	bfd_boolean r = TRUE;
+	bfd_boolean ret = TRUE;
 
 	if (abfd)
-		r = bfd_close(abfd);
+		ret = bfd_close(abfd);
 
-	if (r == TRUE)
+	if (ret == TRUE)
 		return 0;
 
 	return -EFAULT;
