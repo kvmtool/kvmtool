@@ -207,10 +207,11 @@ static void *setup_shmem(const char *key, size_t len, int creating)
 	}
 	mem = mmap(NULL, len,
 		   PROT_READ | PROT_WRITE, MAP_SHARED | MAP_NORESERVE, fd, 0);
-	close(fd);
-
-	if (mem == NULL)
+	if (mem == MAP_FAILED) {
 		pr_warning("Failed to mmap shared memory file");
+		mem = NULL;
+	}
+	close(fd);
 
 	return mem;
 }
