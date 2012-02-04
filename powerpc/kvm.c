@@ -17,6 +17,7 @@
 #include "cpu_info.h"
 
 #include "spapr.h"
+#include "spapr_hvcons.h"
 
 #include <linux/kvm.h>
 
@@ -133,6 +134,8 @@ void kvm__arch_init(struct kvm *kvm, const char *hugetlbfs_path, u64 ram_size)
 	/* FIXME: SPAPR-specific */
 	hypercall_init();
 	register_core_rtas();
+	/* Now that hypercalls are initialised, register a couple for the console: */
+	spapr_hvcons_init();
 }
 
 void kvm__arch_delete_ram(struct kvm *kvm)
@@ -149,6 +152,12 @@ void kvm__irq_trigger(struct kvm *kvm, int irq)
 {
 	kvm__irq_line(kvm, irq, 1);
 	kvm__irq_line(kvm, irq, 0);
+}
+
+void kvm__arch_periodic_poll(struct kvm *kvm)
+{
+	/* FIXME: Should register callbacks to platform-specific polls */
+	spapr_hvcons_poll(kvm);
 }
 
 int load_flat_binary(struct kvm *kvm, int fd_kernel, int fd_initrd, const char *kernel_cmdline)
@@ -266,6 +275,13 @@ static void setup_fdt(struct kvm *kvm)
 		_FDT(fdt_property(fdt, "linux,initrd-end",
 				   &ird_end_prop, sizeof(ird_end_prop)));
 	}
+
+	/*
+	 * stdout-path: This is assuming we're using the HV console.  Also, the
+	 * address is hardwired until we do a VIO bus.
+	 */
+	_FDT(fdt_property_string(fdt, "linux,stdout-path",
+				 "/vdevice/vty@30000000"));
 	_FDT(fdt_end_node(fdt));
 
 	/*
@@ -350,6 +366,23 @@ static void setup_fdt(struct kvm *kvm)
 			_FDT(fdt_property_cell(fdt, "ibm,dfp", 0x1));
 		_FDT(fdt_end_node(fdt));
 	}
+	_FDT(fdt_end_node(fdt));
+
+	/*
+	 * VIO: See comment in linux,stdout-path; we don't yet represent a VIO
+	 * bus/address allocation so addresses are hardwired here.
+	 */
+	_FDT(fdt_begin_node(fdt, "vdevice"));
+	_FDT(fdt_property_cell(fdt, "#address-cells", 0x1));
+	_FDT(fdt_property_cell(fdt, "#size-cells", 0x0));
+	_FDT(fdt_property_string(fdt, "device_type", "vdevice"));
+	_FDT(fdt_property_string(fdt, "compatible", "IBM,vdevice"));
+	_FDT(fdt_begin_node(fdt, "vty@30000000"));
+	_FDT(fdt_property_string(fdt, "name", "vty"));
+	_FDT(fdt_property_string(fdt, "device_type", "serial"));
+	_FDT(fdt_property_string(fdt, "compatible", "hvterm1"));
+	_FDT(fdt_property_cell(fdt, "reg", 0x30000000));
+	_FDT(fdt_end_node(fdt));
 	_FDT(fdt_end_node(fdt));
 
 	/* Finalise: */
