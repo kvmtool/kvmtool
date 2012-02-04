@@ -53,6 +53,7 @@ struct kvm {
 	void			*ram_start;
 
 	u64			sdr1;
+	u32			pvr;
 
 	bool			nmi_disabled;
 
@@ -69,5 +70,15 @@ struct kvm {
 	const char		*name;
 	int			vm_state;
 };
+
+/* Helper for the various bits of code that generate FDT nodes */
+#define _FDT(exp)							\
+	do {								\
+		int ret = (exp);					\
+		if (ret < 0) {						\
+			die("Error creating device tree: %s: %s\n",	\
+			    #exp, fdt_strerror(ret));			\
+		}							\
+	} while (0)
 
 #endif /* KVM__KVM_ARCH_H */

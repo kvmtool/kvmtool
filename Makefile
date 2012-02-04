@@ -105,6 +105,8 @@ ifeq ($(uname_M),x86_64)
 	DEFINES      += -DCONFIG_X86_64
 endif
 
+LIBFDT_SRC = fdt.o fdt_ro.o fdt_wip.o fdt_sw.o fdt_rw.o fdt_strerror.o
+LIBFDT_OBJS = $(patsubst %,../../scripts/dtc/libfdt/%,$(LIBFDT_SRC))
 
 ### Arch-specific stuff
 
@@ -130,9 +132,14 @@ ifeq ($(uname_M), ppc64)
 	OBJS	+= powerpc/ioport.o
 	OBJS	+= powerpc/irq.o
 	OBJS	+= powerpc/kvm.o
+	OBJS	+= powerpc/cpu_info.o
 	OBJS	+= powerpc/kvm-cpu.o
+# We use libfdt, but it's sometimes not packaged 64bit.  It's small too,
+# so just build it in:
+	CFLAGS 	+= -I../../scripts/dtc/libfdt
+	OBJS	+= $(LIBFDT_OBJS)
 	ARCH_INCLUDE := powerpc/include
-	CFLAGS += -m64
+	CFLAGS 	+= -m64
 endif
 
 ###
@@ -222,10 +229,6 @@ DEFINES	+= -DBUILD_ARCH='"$(ARCH)"'
 KVM_INCLUDE := include
 CFLAGS	+= $(CPPFLAGS) $(DEFINES) -I$(KVM_INCLUDE) -I$(ARCH_INCLUDE) -I$(KINCL_PATH)/include -I$(KINCL_PATH)/arch/$(ARCH)/include/ -O2 -fno-strict-aliasing -g
 
-ifneq ($(WERROR),0)
-	WARNINGS += -Werror
-endif
-
 WARNINGS += -Wall
 WARNINGS += -Wcast-align
 WARNINGS += -Wformat=2
@@ -243,6 +246,13 @@ WARNINGS += -Wvolatile-register-var
 WARNINGS += -Wwrite-strings
 
 CFLAGS	+= $(WARNINGS)
+
+# Some targets may use 'external' sources that don't build totally cleanly.
+CFLAGS_EASYGOING := $(CFLAGS)
+
+ifneq ($(WERROR),0)
+	CFLAGS += -Werror
+endif
 
 all: arch_support_check $(PROGRAM) $(PROGRAM_ALIAS) $(GUEST_INIT) $(GUEST_INIT_S2)
 
@@ -293,6 +303,12 @@ util/rbtree.d: ../../lib/rbtree.c
 builtin-help.d: $(KVM_INCLUDE)/common-cmds.h
 
 $(OBJS):
+
+# This rule relaxes the -Werror on libfdt, since for now it still has
+# a bunch of warnings. :(
+../../scripts/dtc/libfdt/%.o: ../../scripts/dtc/libfdt/%.c
+	$(E) "  CC      " $@
+	$(Q) $(CC) -c $(CFLAGS_EASYGOING) $< -o $@
 
 util/rbtree.static.o util/rbtree.o: ../../lib/rbtree.c
 	$(E) "  CC      " $@

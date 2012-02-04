@@ -134,6 +134,7 @@ static void kvm_cpu__setup_sregs(struct kvm_cpu *vcpu)
 		die("KVM_GET_SREGS failed");
 
 	sregs.u.s.sdr1 = vcpu->kvm->sdr1;
+	sregs.pvr = vcpu->kvm->pvr;
 
 	if (ioctl(vcpu->vcpu_fd, KVM_SET_SREGS, &sregs) < 0)
 		die("KVM_SET_SREGS failed");
