@@ -36,6 +36,8 @@
 #define MSR_RI		(1UL<<1)
 #define MSR_LE		(1UL<<0)
 
+#define POWER7_EXT_IRQ	0
+
 struct kvm;
 
 struct kvm_cpu {

@@ -15,6 +15,7 @@
 #include "kvm/kvm.h"
 
 #include "spapr.h"
+#include "xics.h"
 
 #include <sys/ioctl.h>
 #include <sys/mman.h>
@@ -90,6 +91,9 @@ struct kvm_cpu *kvm_cpu__init(struct kvm *kvm, unsigned long cpu_id)
 	 */
 	vcpu->is_running = true;
 
+	/* Register with IRQ controller (FIXME, assumes XICS) */
+	xics_cpu_register(vcpu);
+
 	return vcpu;
 }
 
@@ -160,6 +164,13 @@ void kvm_cpu__reset_vcpu(struct kvm_cpu *vcpu)
 /* kvm_cpu__irq - set KVM's IRQ flag on this vcpu */
 void kvm_cpu__irq(struct kvm_cpu *vcpu, int pin, int level)
 {
+	unsigned int virq = level ? KVM_INTERRUPT_SET_LEVEL : KVM_INTERRUPT_UNSET;
+
+	/* FIXME: POWER-specific */
+	if (pin != POWER7_EXT_IRQ)
+		return;
+	if (ioctl(vcpu->vcpu_fd, KVM_INTERRUPT, &virq) < 0)
+		pr_warning("Could not KVM_INTERRUPT.");
 }
 
 void kvm_cpu__arch_nmi(struct kvm_cpu *cpu)

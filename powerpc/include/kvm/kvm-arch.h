@@ -69,6 +69,7 @@ struct kvm {
 	unsigned long		initrd_size;
 	const char		*name;
 	int			vm_state;
+	struct icp_state	*icp;
 };
 
 /* Helper for the various bits of code that generate FDT nodes */

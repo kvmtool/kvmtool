@@ -39,9 +39,13 @@
 
 #define HUGETLBFS_PATH "/var/lib/hugetlbfs/global/pagesize-16MB/"
 
+#define PHANDLE_XICP		0x00001111
+
 static char kern_cmdline[2048];
 
 struct kvm_ext kvm_req_ext[] = {
+	{ DEFINE_KVM_EXT(KVM_CAP_PPC_UNSET_IRQ) },
+	{ DEFINE_KVM_EXT(KVM_CAP_PPC_IRQ_LEVEL) },
 	{ 0, 0 }
 };
 
@@ -143,11 +147,6 @@ void kvm__arch_delete_ram(struct kvm *kvm)
 	munmap(kvm->ram_start, kvm->ram_size);
 }
 
-void kvm__irq_line(struct kvm *kvm, int irq, int level)
-{
-	fprintf(stderr, "irq_line(%d, %d)\n", irq, level);
-}
-
 void kvm__irq_trigger(struct kvm *kvm, int irq)
 {
 	kvm__irq_line(kvm, irq, 1);
@@ -225,6 +224,7 @@ static void setup_fdt(struct kvm *kvm)
 {
 	uint64_t 	mem_reg_property[] = { 0, cpu_to_be64(kvm->ram_size) };
 	int 		smp_cpus = kvm->nrcpus;
+	uint32_t	int_server_ranges_prop[] = {0, cpu_to_be32(smp_cpus)};
 	char 		hypertas_prop_kvm[] = "hcall-pft\0hcall-term\0"
 		"hcall-dabr\0hcall-interrupt\0hcall-tce\0hcall-vio\0"
 		"hcall-splpar\0hcall-bulk";
@@ -366,6 +366,22 @@ static void setup_fdt(struct kvm *kvm)
 			_FDT(fdt_property_cell(fdt, "ibm,dfp", 0x1));
 		_FDT(fdt_end_node(fdt));
 	}
+	_FDT(fdt_end_node(fdt));
+
+	/* IRQ controller */
+	_FDT(fdt_begin_node(fdt, "interrupt-controller@0"));
+
+	_FDT(fdt_property_string(fdt, "device_type",
+				 "PowerPC-External-Interrupt-Presentation"));
+	_FDT(fdt_property_string(fdt, "compatible", "IBM,ppc-xicp"));
+	_FDT(fdt_property_cell(fdt, "reg", 0));
+	_FDT(fdt_property(fdt, "interrupt-controller", NULL, 0));
+	_FDT(fdt_property(fdt, "ibm,interrupt-server-ranges",
+			   int_server_ranges_prop,
+			   sizeof(int_server_ranges_prop)));
+	_FDT(fdt_property_cell(fdt, "#interrupt-cells", 2));
+	_FDT(fdt_property_cell(fdt, "linux,phandle", PHANDLE_XICP));
+	_FDT(fdt_property_cell(fdt, "phandle", PHANDLE_XICP));
 	_FDT(fdt_end_node(fdt));
 
 	/*
