@@ -254,6 +254,7 @@ int kvm__exit(struct kvm *kvm)
 	kvm__arch_delete_ram(kvm);
 	kvm_ipc__stop();
 	kvm__remove_socket(kvm->name);
+	free(kvm->name);
 	free(kvm);
 
 	return 0;
@@ -377,14 +378,18 @@ struct kvm *kvm__init(const char *kvm_dev, const char *hugetlbfs_path, u64 ram_s
 		goto cleanup;
 	}
 
+	kvm->name = strdup(name);
+	if (!kvm->name) {
+		ret = -ENOMEM;
+		goto cleanup;
+	}
+
 	if (kvm__check_extensions(kvm)) {
 		pr_err("A required KVM extention is not supported by OS");
 		ret = -ENOSYS;
 	}
 
 	kvm__arch_init(kvm, hugetlbfs_path, ram_size);
-
-	kvm->name = name;
 
 	kvm_ipc__start(kvm__create_socket(kvm));
 	kvm_ipc__register_handler(KVM_IPC_PID, kvm__pid);

@@ -69,7 +69,7 @@ struct kvm {
 	unsigned long		fdt_gra;
 	unsigned long		initrd_gra;
 	unsigned long		initrd_size;
-	const char		*name;
+	char			*name;
 	int			vm_state;
 	struct icp_state	*icp;
 	struct spapr_phb	*phb;

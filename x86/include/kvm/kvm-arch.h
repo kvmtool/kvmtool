@@ -48,7 +48,7 @@ struct kvm {
 	struct disk_image       **disks;
 	int                     nr_disks;
 
-	const char		*name;
+	char			*name;
 
 	int			vm_state;
 };
