@@ -1289,7 +1289,6 @@ static void kvm_cmd_run_exit(int guest_ret)
 	r = disk_image__close_all(kvm->disks, image_count);
 	if (r < 0)
 		pr_warning("disk_image__close_all() failed with error %d\n", r);
-	free(kvm_cpus);
 
 	r = serial8250__exit(kvm);
 	if (r < 0)
@@ -1318,6 +1317,8 @@ static void kvm_cmd_run_exit(int guest_ret)
 	r = kvm__exit(kvm);
 	if (r < 0)
 		pr_warning("pci__exit() failed with error %d\n", r);
+
+	free(kvm_cpus);
 
 	if (guest_ret == 0)
 		printf("\n  # KVM session ended normally.\n");
