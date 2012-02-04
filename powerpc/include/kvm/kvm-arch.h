@@ -52,6 +52,8 @@ struct kvm {
 	u64			ram_size;
 	void			*ram_start;
 
+	u64			sdr1;
+
 	bool			nmi_disabled;
 
 	bool			single_step;

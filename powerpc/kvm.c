@@ -72,19 +72,24 @@ void kvm__arch_set_cmdline(char *cmdline, bool video)
 void kvm__arch_init(struct kvm *kvm, const char *hugetlbfs_path, u64 ram_size)
 {
 	int cap_ppc_rma;
+	unsigned long hpt;
 
 	kvm->ram_size		= ram_size;
 
 	/*
-	 * Currently, we must map from hugetlbfs; if --hugetlbfs not specified,
-	 * try a default path:
+	 * Currently, HV-mode PPC64 SPAPR requires that we map from hugetlfs.
+	 * Allow a 'default' option to assist.
+	 * PR-mode does not require this.
 	 */
-	if (!hugetlbfs_path) {
-		hugetlbfs_path = HUGETLBFS_PATH;
-		pr_info("Using default %s for memory", hugetlbfs_path);
+	if (hugetlbfs_path) {
+		if (!strcmp(hugetlbfs_path, "default"))
+			hugetlbfs_path = HUGETLBFS_PATH;
+		kvm->ram_start = mmap_hugetlbfs(hugetlbfs_path, kvm->ram_size);
+	} else {
+		kvm->ram_start = mmap(0, kvm->ram_size, PROT_READ | PROT_WRITE,
+				      MAP_ANON | MAP_PRIVATE,
+				      -1, 0);
 	}
-
-	kvm->ram_start = mmap_hugetlbfs(hugetlbfs_path, kvm->ram_size);
 	if (kvm->ram_start == MAP_FAILED)
 		die("Couldn't map %lld bytes for RAM (%d)\n",
 		    kvm->ram_size, errno);
@@ -94,6 +99,12 @@ void kvm__arch_init(struct kvm *kvm, const char *hugetlbfs_path, u64 ram_size)
 	/* FIXME: Not all PPC systems have RTAS */
 	kvm->rtas_gra = kvm->fdt_gra - RTAS_MAX_SIZE;
 	madvise(kvm->ram_start, kvm->ram_size, MADV_MERGEABLE);
+
+	/* FIXME:  SPAPR-PR specific; allocate a guest HPT. */
+	if (posix_memalign((void **)&hpt, (1<<HPT_ORDER), (1<<HPT_ORDER)))
+		die("Can't allocate %d bytes for HPT\n", (1<<HPT_ORDER));
+
+	kvm->sdr1 = ((hpt + 0x3ffffULL) & ~0x3ffffULL) | (HPT_ORDER-18);
 
 	/* FIXME: This is book3s-specific */
 	cap_ppc_rma = ioctl(kvm->sys_fd, KVM_CHECK_EXTENSION, KVM_CAP_PPC_RMA);

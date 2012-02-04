@@ -76,7 +76,8 @@ struct kvm_cpu *kvm_cpu__init(struct kvm *kvm, unsigned long cpu_id)
 	if (vcpu->kvm_run == MAP_FAILED)
 		die("unable to mmap vcpu fd");
 
-	ioctl(vcpu->vcpu_fd, KVM_ENABLE_CAP, &papr_cap);
+	if (ioctl(vcpu->vcpu_fd, KVM_ENABLE_CAP, &papr_cap) < 0)
+		die("unable to enable PAPR capability");
 
 	/*
 	 * We start all CPUs, directing non-primary threads into the kernel's
@@ -121,9 +122,26 @@ static void kvm_cpu__setup_regs(struct kvm_cpu *vcpu)
 static void kvm_cpu__setup_sregs(struct kvm_cpu *vcpu)
 {
 	/*
-	 * No sregs setup is required on PPC64/SPAPR (but there may be setup
-	 * required for non-paravirtualised platforms, e.g. TLB/SLB setup).
+	 * Some sregs setup to initialise SDR1/PVR/HIOR on PPC64 SPAPR
+	 * platforms using PR KVM.  (Technically, this is all ignored on
+	 * SPAPR HV KVM.)  Different setup is required for non-PV non-SPAPR
+	 * platforms!  (FIXME.)
 	 */
+	struct kvm_sregs sregs;
+	struct kvm_one_reg reg = {};
+
+	if (ioctl(vcpu->vcpu_fd, KVM_GET_SREGS, &sregs) < 0)
+		die("KVM_GET_SREGS failed");
+
+	sregs.u.s.sdr1 = vcpu->kvm->sdr1;
+
+	if (ioctl(vcpu->vcpu_fd, KVM_SET_SREGS, &sregs) < 0)
+		die("KVM_SET_SREGS failed");
+
+	reg.id = KVM_ONE_REG_PPC_HIOR;
+	reg.u.reg64 = 0;
+	if (ioctl(vcpu->vcpu_fd, KVM_SET_ONE_REG, &reg) < 0)
+		die("KVM_SET_ONE_REG failed");
 }
 
 /**
