@@ -81,4 +81,13 @@ target_ulong spapr_rtas_call(struct kvm_cpu *vcpu,
                              uint32_t token, uint32_t nargs, target_ulong args,
                              uint32_t nret, target_ulong rets);
 
+#define SPAPR_PCI_BUID          0x800000020000001ULL
+#define SPAPR_PCI_MEM_WIN_ADDR  (KVM_MMIO_START + 0xA0000000)
+#define SPAPR_PCI_MEM_WIN_SIZE  0x20000000
+#define SPAPR_PCI_IO_WIN_ADDR   (SPAPR_PCI_MEM_WIN_ADDR + SPAPR_PCI_MEM_WIN_SIZE)
+#define SPAPR_PCI_IO_WIN_SIZE	0x2000000
+
+#define SPAPR_PCI_WIN_START	SPAPR_PCI_MEM_WIN_ADDR
+#define SPAPR_PCI_WIN_END	(SPAPR_PCI_IO_WIN_ADDR + SPAPR_PCI_IO_WIN_SIZE)
+
 #endif /* !defined (__HW_SPAPR_H__) */

@@ -40,6 +40,8 @@
  */
 #define KVM_PCI_MMIO_AREA		0x1000000
 
+struct spapr_phb;
+
 struct kvm {
 	int			sys_fd;		/* For system ioctls(), i.e. /dev/kvm */
 	int			vm_fd;		/* For VM ioctls() */
@@ -70,6 +72,7 @@ struct kvm {
 	const char		*name;
 	int			vm_state;
 	struct icp_state	*icp;
+	struct spapr_phb	*phb;
 };
 
 /* Helper for the various bits of code that generate FDT nodes */

@@ -21,7 +21,10 @@
 #include <stddef.h>
 #include <stdlib.h>
 
+#include "kvm/pci.h"
+
 #include "xics.h"
+#include "spapr_pci.h"
 
 #define XICS_IRQS               1024
 
@@ -30,10 +33,21 @@
  * generic & cope with multiple PPC platform types.
  */
 
+static int pci_devs = 0;
+
 int irq__register_device(u32 dev, u8 *num, u8 *pin, u8 *line)
 {
-	fprintf(stderr, "irq__register_device(%d, [%d], [%d], [%d]\n",
-		dev, *num, *pin, *line);
+	if (pci_devs >= PCI_MAX_DEVICES)
+		die("Hit PCI device limit!\n");
+
+	*num = pci_devs++;
+
+	*pin = 1;
+	/*
+	 * Have I said how nasty I find this?  Line should be dontcare... PHB
+	 * should determine which CPU/XICS IRQ to fire.
+	 */
+	*line = xics_alloc_irqnum();
 	return 0;
 }
 

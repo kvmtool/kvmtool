@@ -18,6 +18,7 @@
 
 #include "spapr.h"
 #include "spapr_hvcons.h"
+#include "spapr_pci.h"
 
 #include <linux/kvm.h>
 
@@ -140,6 +141,11 @@ void kvm__arch_init(struct kvm *kvm, const char *hugetlbfs_path, u64 ram_size)
 	register_core_rtas();
 	/* Now that hypercalls are initialised, register a couple for the console: */
 	spapr_hvcons_init();
+	spapr_create_phb(kvm, "pci", SPAPR_PCI_BUID,
+			 SPAPR_PCI_MEM_WIN_ADDR,
+			 SPAPR_PCI_MEM_WIN_SIZE,
+			 SPAPR_PCI_IO_WIN_ADDR,
+			 SPAPR_PCI_IO_WIN_SIZE);
 }
 
 void kvm__arch_delete_ram(struct kvm *kvm)
@@ -406,6 +412,11 @@ static void setup_fdt(struct kvm *kvm)
 	_FDT(fdt_finish(fdt));
 
 	_FDT(fdt_open_into(fdt, fdt_dest, FDT_MAX_SIZE));
+
+	/* PCI */
+	if (spapr_populate_pci_devices(kvm, PHANDLE_XICP, fdt_dest))
+		die("Fail populating PCI device nodes");
+
 	_FDT(fdt_add_mem_rsv(fdt_dest, kvm->rtas_gra, kvm->rtas_size));
 	_FDT(fdt_pack(fdt_dest));
 }
