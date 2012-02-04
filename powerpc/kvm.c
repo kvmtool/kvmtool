@@ -16,6 +16,8 @@
 #include "libfdt.h"
 #include "cpu_info.h"
 
+#include "spapr.h"
+
 #include <linux/kvm.h>
 
 #include <sys/types.h>
@@ -126,6 +128,11 @@ void kvm__arch_init(struct kvm *kvm, const char *hugetlbfs_path, u64 ram_size)
 	if (cap_ppc_rma == 2)
 		die("Need contiguous RMA allocation on this hardware, "
 		    "which is not yet supported.");
+
+	/* Do these before FDT setup, IRQ setup, etc. */
+	/* FIXME: SPAPR-specific */
+	hypercall_init();
+	register_core_rtas();
 }
 
 void kvm__arch_delete_ram(struct kvm *kvm)
@@ -230,6 +237,20 @@ static void setup_fdt(struct kvm *kvm)
 	_FDT(fdt_property_string(fdt, "model", "IBM pSeries (kvmtool)"));
 	_FDT(fdt_property_cell(fdt, "#address-cells", 0x2));
 	_FDT(fdt_property_cell(fdt, "#size-cells", 0x2));
+
+	/* RTAS */
+	_FDT(fdt_begin_node(fdt, "rtas"));
+	/* This is what the kernel uses to switch 'We're an LPAR'! */
+        _FDT(fdt_property(fdt, "ibm,hypertas-functions", hypertas_prop_kvm,
+                           sizeof(hypertas_prop_kvm)));
+	_FDT(fdt_property_cell(fdt, "linux,rtas-base", kvm->rtas_gra));
+	_FDT(fdt_property_cell(fdt, "linux,rtas-entry", kvm->rtas_gra));
+	_FDT(fdt_property_cell(fdt, "rtas-size", kvm->rtas_size));
+	/* Now add properties for all RTAS tokens: */
+	if (spapr_rtas_fdt_setup(kvm, fdt))
+		die("Couldn't create RTAS FDT properties\n");
+
+	_FDT(fdt_end_node(fdt));
 
 	/* /chosen */
 	_FDT(fdt_begin_node(fdt, "chosen"));
@@ -345,7 +366,25 @@ static void setup_fdt(struct kvm *kvm)
  */
 int kvm__arch_setup_firmware(struct kvm *kvm)
 {
-	/* Load RTAS */
+	/*
+	 * Set up RTAS stub.  All it is is a single hypercall:
+	 *  0:   7c 64 1b 78     mr      r4,r3
+	 *  4:   3c 60 00 00     lis     r3,0
+	 *  8:   60 63 f0 00     ori     r3,r3,61440
+	 *  c:   44 00 00 22     sc      1
+	 * 10:   4e 80 00 20     blr
+	 */
+	uint32_t *rtas = guest_flat_to_host(kvm, kvm->rtas_gra);
+
+	rtas[0] = 0x7c641b78;
+	rtas[1] = 0x3c600000;
+	rtas[2] = 0x6063f000;
+	rtas[3] = 0x44000022;
+	rtas[4] = 0x4e800020;
+	kvm->rtas_size = 20;
+
+	pr_info("Set up %ld bytes of RTAS at 0x%lx\n",
+		kvm->rtas_size, kvm->rtas_gra);
 
 	/* Load SLOF */
 

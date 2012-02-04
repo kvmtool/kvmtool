@@ -14,6 +14,8 @@
 #include "kvm/util.h"
 #include "kvm/kvm.h"
 
+#include "spapr.h"
+
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <signal.h>
@@ -169,6 +171,10 @@ bool kvm_cpu__handle_exit(struct kvm_cpu *vcpu)
 	bool ret = true;
 	struct kvm_run *run = vcpu->kvm_run;
 	switch(run->exit_reason) {
+	case KVM_EXIT_PAPR_HCALL:
+		run->papr_hcall.ret = spapr_hypercall(vcpu, run->papr_hcall.nr,
+						      (target_ulong*)run->papr_hcall.args);
+		break;
 	default:
 		ret = false;
 	}

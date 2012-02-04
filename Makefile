@@ -134,6 +134,8 @@ ifeq ($(uname_M), ppc64)
 	OBJS	+= powerpc/kvm.o
 	OBJS	+= powerpc/cpu_info.o
 	OBJS	+= powerpc/kvm-cpu.o
+	OBJS	+= powerpc/spapr_hcall.o
+	OBJS	+= powerpc/spapr_rtas.o
 # We use libfdt, but it's sometimes not packaged 64bit.  It's small too,
 # so just build it in:
 	CFLAGS 	+= -I../../scripts/dtc/libfdt
