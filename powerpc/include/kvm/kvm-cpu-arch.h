@@ -14,7 +14,7 @@
 /* Architecture-specific kvm_cpu definitions. */
 
 #include <linux/kvm.h>	/* for struct kvm_regs */
-
+#include <stdbool.h>
 #include <pthread.h>
 
 #define MSR_SF		(1UL<<63)
@@ -64,5 +64,13 @@ struct kvm_cpu {
 };
 
 void kvm_cpu__irq(struct kvm_cpu *vcpu, int pin, int level);
+
+/* This is never actually called on PPC. */
+static inline bool kvm_cpu__emulate_io(struct kvm *kvm, u16 port, void *data, int direction, int size, u32 count)
+{
+	return false;
+}
+
+bool kvm_cpu__emulate_mmio(struct kvm *kvm, u64 phys_addr, u8 *data, u32 len, u8 is_write);
 
 #endif /* KVM__KVM_CPU_ARCH_H */

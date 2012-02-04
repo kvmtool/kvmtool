@@ -15,6 +15,7 @@
 #include "kvm/kvm.h"
 
 #include "spapr.h"
+#include "spapr_pci.h"
 #include "xics.h"
 
 #include <sys/ioctl.h>
@@ -24,6 +25,7 @@
 #include <string.h>
 #include <errno.h>
 #include <stdio.h>
+#include <assert.h>
 
 static int debug_fd;
 
@@ -188,6 +190,26 @@ bool kvm_cpu__handle_exit(struct kvm_cpu *vcpu)
 		break;
 	default:
 		ret = false;
+	}
+	return ret;
+}
+
+bool kvm_cpu__emulate_mmio(struct kvm *kvm, u64 phys_addr, u8 *data, u32 len, u8 is_write)
+{
+	/*
+	 * FIXME: This function will need to be split in order to support
+	 * various PowerPC platforms/PHB types, etc.  It currently assumes SPAPR
+	 * PPC64 guest.
+	 */
+	bool ret = false;
+
+	if ((phys_addr >= SPAPR_PCI_WIN_START) &&
+	    (phys_addr < SPAPR_PCI_WIN_END)) {
+		ret = spapr_phb_mmio(kvm, phys_addr, data, len, is_write);
+	} else {
+		pr_warning("MMIO %s unknown address %llx (size %d)!\n",
+			   is_write ? "write to" : "read from",
+			   phys_addr, len);
 	}
 	return ret;
 }
