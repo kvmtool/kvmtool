@@ -179,10 +179,17 @@ int irq__exit(struct kvm *kvm)
 
 	free(irq_routing);
 
-	for (ent = rb_first(&pci_tree); ent; ent = rb_next(ent)) {
+	ent = rb_first(&pci_tree);
+	for (;;) {
 		struct pci_dev *dev;
+		struct rb_node *next;
 		struct irq_line *line;
 		struct list_head *node, *tmp;
+
+		if (!ent)
+			break;
+
+		next = rb_next(ent);
 
 		dev = rb_entry(ent, struct pci_dev, node);
 		list_for_each_safe(node, tmp, &dev->lines) {
@@ -190,6 +197,7 @@ int irq__exit(struct kvm *kvm)
 			free(line);
 		}
 		free(dev);
+		ent = next;
 	}
 
 	return 0;
