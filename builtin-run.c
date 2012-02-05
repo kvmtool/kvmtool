@@ -997,6 +997,10 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 	}
 
 	kvm = kvm__init(dev, hugetlbfs_path, ram_size, guest_name);
+	if (IS_ERR(kvm)) {
+		r = PTR_ERR(kvm);
+		goto fail;
+	}
 
 	kvm->single_step = single_step;
 

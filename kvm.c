@@ -123,9 +123,11 @@ static int kvm__check_extensions(struct kvm *kvm)
 static struct kvm *kvm__new(void)
 {
 	struct kvm *kvm = calloc(1, sizeof(*kvm));
-
 	if (!kvm)
 		return ERR_PTR(-ENOMEM);
+
+	kvm->sys_fd = -1;
+	kvm->vm_fd = -1;
 
 	return kvm;
 }
@@ -341,47 +343,42 @@ struct kvm *kvm__init(const char *kvm_dev, const char *hugetlbfs_path, u64 ram_s
 	}
 
 	kvm = kvm__new();
-	if (IS_ERR_OR_NULL(kvm))
+	if (IS_ERR(kvm))
 		return kvm;
 
 	kvm->sys_fd = open(kvm_dev, O_RDWR);
 	if (kvm->sys_fd < 0) {
-		if (errno == ENOENT) {
+		if (errno == ENOENT)
 			pr_err("'%s' not found. Please make sure your kernel has CONFIG_KVM "
-				"enabled and that the KVM modules are loaded.", kvm_dev);
-			ret = -errno;
-			goto cleanup;
-		}
-		if (errno == ENODEV) {
-			die("'%s' KVM driver not available.\n  # (If the KVM "
-				"module is loaded then 'dmesg' may offer further clues "
-				"about the failure.)", kvm_dev);
-			ret = -errno;
-			goto cleanup;
-		}
+			       "enabled and that the KVM modules are loaded.", kvm_dev);
+		else if (errno == ENODEV)
+			pr_err("'%s' KVM driver not available.\n  # (If the KVM "
+			       "module is loaded then 'dmesg' may offer further clues "
+			       "about the failure.)", kvm_dev);
+		else
+			pr_err("Could not open %s: ", kvm_dev);
 
-		pr_err("Could not open %s: ", kvm_dev);
 		ret = -errno;
-		goto cleanup;
+		goto err_free;
 	}
 
 	ret = ioctl(kvm->sys_fd, KVM_GET_API_VERSION, 0);
 	if (ret != KVM_API_VERSION) {
 		pr_err("KVM_API_VERSION ioctl");
 		ret = -errno;
-		goto cleanup;
+		goto err_sys_fd;
 	}
 
 	kvm->vm_fd = ioctl(kvm->sys_fd, KVM_CREATE_VM, 0);
 	if (kvm->vm_fd < 0) {
 		ret = kvm->vm_fd;
-		goto cleanup;
+		goto err_sys_fd;
 	}
 
 	kvm->name = strdup(name);
 	if (!kvm->name) {
 		ret = -ENOMEM;
-		goto cleanup;
+		goto err;
 	}
 
 	if (kvm__check_extensions(kvm)) {
@@ -393,10 +390,14 @@ struct kvm *kvm__init(const char *kvm_dev, const char *hugetlbfs_path, u64 ram_s
 
 	kvm_ipc__start(kvm__create_socket(kvm));
 	kvm_ipc__register_handler(KVM_IPC_PID, kvm__pid);
+
 	return kvm;
-cleanup:
+
+err:
 	close(kvm->vm_fd);
+err_sys_fd:
 	close(kvm->sys_fd);
+err_free:
 	free(kvm);
 
 	return ERR_PTR(ret);
