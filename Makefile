@@ -142,7 +142,7 @@ ifeq ($(uname_M), ppc64)
 # We use libfdt, but it's sometimes not packaged 64bit.  It's small too,
 # so just build it in:
 	CFLAGS 	+= -I../../scripts/dtc/libfdt
-	OBJS	+= $(LIBFDT_OBJS)
+	OTHEROBJS	+= $(LIBFDT_OBJS)
 	ARCH_INCLUDE := powerpc/include
 	CFLAGS 	+= -m64
 endif
