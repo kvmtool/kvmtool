@@ -100,6 +100,9 @@ int ioeventfd__exit(struct kvm *kvm)
 	u64 tmp = 1;
 	int r;
 
+	if (!ioeventfd_avail)
+		return 0;
+
 	r = write(epoll_stop_fd, &tmp, sizeof(tmp));
 	if (r < 0)
 		return r;
