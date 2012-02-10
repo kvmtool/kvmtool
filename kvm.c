@@ -390,7 +390,12 @@ struct kvm *kvm__init(const char *kvm_dev, const char *hugetlbfs_path, u64 ram_s
 
 	kvm__arch_init(kvm, hugetlbfs_path, ram_size);
 
-	kvm_ipc__start(kvm__create_socket(kvm));
+	ret = kvm_ipc__start(kvm__create_socket(kvm));
+	if (ret < 0) {
+		pr_err("Starting ipc failed.");
+		goto err_vm_fd;
+	}
+
 	kvm_ipc__register_handler(KVM_IPC_PID, kvm__pid);
 
 	return kvm;

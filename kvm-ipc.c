@@ -166,27 +166,53 @@ static void *kvm_ipc__thread(void *param)
 
 int kvm_ipc__start(int sock)
 {
+	int ret;
 	struct epoll_event ev = {0};
 
 	server_fd = sock;
 
 	epoll_fd = epoll_create(KVM_IPC_MAX_MSGS);
+	if (epoll_fd < 0) {
+		ret = epoll_fd;
+		goto err;
+	}
 
 	ev.events = EPOLLIN | EPOLLET;
 	ev.data.fd = sock;
-	if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, sock, &ev) < 0)
-		die("Failed starting IPC thread");
+	if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, sock, &ev) < 0) {
+		pr_err("Failed starting IPC thread");
+		ret = -EFAULT;
+		goto err_epoll;
+	}
 
 	stop_fd = eventfd(0, 0);
+	if (stop_fd < 0) {
+		ret = stop_fd;
+		goto err_epoll;
+	}
+
 	ev.events = EPOLLIN | EPOLLET;
 	ev.data.fd = stop_fd;
-	if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, stop_fd, &ev) < 0)
-		die("Failed adding stop event to epoll");
+	if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, stop_fd, &ev) < 0) {
+		pr_err("Failed adding stop event to epoll");
+		ret = -EFAULT;
+		goto err_stop;
+	}
 
-	if (pthread_create(&thread, NULL, kvm_ipc__thread, NULL) != 0)
-		die("Failed starting IPC thread");
+	if (pthread_create(&thread, NULL, kvm_ipc__thread, NULL) != 0) {
+		pr_err("Failed starting IPC thread");
+		ret = -EFAULT;
+		goto err_stop;
+	}
 
 	return 0;
+
+err_stop:
+	close(stop_fd);
+err_epoll:
+	close(epoll_fd);
+err:
+	return ret;
 }
 
 int kvm_ipc__stop(void)
