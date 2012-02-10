@@ -396,10 +396,16 @@ struct kvm *kvm__init(const char *kvm_dev, const char *hugetlbfs_path, u64 ram_s
 		goto err_vm_fd;
 	}
 
-	kvm_ipc__register_handler(KVM_IPC_PID, kvm__pid);
+	ret = kvm_ipc__register_handler(KVM_IPC_PID, kvm__pid);
+	if (ret < 0) {
+		pr_err("Register ipc handler failed.");
+		goto err_ipc;
+	}
 
 	return kvm;
 
+err_ipc:
+	kvm_ipc__stop();
 err_vm_fd:
 	close(kvm->vm_fd);
 err_sys_fd:
