@@ -339,7 +339,8 @@ struct kvm *kvm__init(const char *kvm_dev, const char *hugetlbfs_path, u64 ram_s
 
 	if (!kvm__arch_cpu_supports_vm()) {
 		pr_err("Your CPU does not support hardware virtualization");
-		return ERR_PTR(-ENOSYS);
+		ret = -ENOSYS;
+		goto err;
 	}
 
 	kvm = kvm__new();
@@ -378,13 +379,13 @@ struct kvm *kvm__init(const char *kvm_dev, const char *hugetlbfs_path, u64 ram_s
 	kvm->name = strdup(name);
 	if (!kvm->name) {
 		ret = -ENOMEM;
-		goto err;
+		goto err_vm_fd;
 	}
 
 	if (kvm__check_extensions(kvm)) {
 		pr_err("A required KVM extention is not supported by OS");
 		ret = -ENOSYS;
-		goto err;
+		goto err_vm_fd;
 	}
 
 	kvm__arch_init(kvm, hugetlbfs_path, ram_size);
@@ -394,13 +395,13 @@ struct kvm *kvm__init(const char *kvm_dev, const char *hugetlbfs_path, u64 ram_s
 
 	return kvm;
 
-err:
+err_vm_fd:
 	close(kvm->vm_fd);
 err_sys_fd:
 	close(kvm->sys_fd);
 err_free:
 	free(kvm);
-
+err:
 	return ERR_PTR(ret);
 }
 
