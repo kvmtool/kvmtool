@@ -48,7 +48,7 @@ void kvm_setup_help(void)
 {
 	printf("\n%s setup creates a new rootfs under %s.\n"
 		"This can be used later by the '-d' parameter of '%s run'.\n",
-		kvm__get_dir(), KVM_BINARY_NAME, KVM_BINARY_NAME);
+		KVM_BINARY_NAME, kvm__get_dir(), KVM_BINARY_NAME);
 	usage_with_options(setup_usage, setup_options);
 }
 
