@@ -46,6 +46,25 @@ static struct ioport_operations dummy_write_only_ioport_ops = {
 	.io_out		= dummy_io_out,
 };
 
+/*
+ * The "fast A20 gate"
+ */
+
+static bool ps2_control_a_io_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
+{
+	/*
+	 * A20 is always enabled.
+	 */
+	ioport__write8(data, 0x02);
+
+	return true;
+}
+
+static struct ioport_operations ps2_control_a_ops = {
+	.io_in		= ps2_control_a_io_in,
+	.io_out		= dummy_io_out,
+};
+
 void ioport__setup_arch(struct kvm *kvm)
 {
 	/* Legacy ioport setup */
@@ -55,6 +74,9 @@ void ioport__setup_arch(struct kvm *kvm)
 
 	/* PORT 0040-005F - PIT - PROGRAMMABLE INTERVAL TIMER (8253, 8254) */
 	ioport__register(kvm, 0x0040, &dummy_read_write_ioport_ops, 4, NULL);
+
+	/* 0092 - PS/2 system control port A */
+	ioport__register(kvm, 0x0092, &ps2_control_a_ops, 1, NULL);
 
 	/* 0x00A0 - 0x00AF - 8259A PIC 2 */
 	ioport__register(kvm, 0x00A0, &dummy_read_write_ioport_ops, 2, NULL);
