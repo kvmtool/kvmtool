@@ -1,6 +1,7 @@
 #include "kvm/ioport.h"
 
 #include <stdlib.h>
+#include <stdio.h>
 
 static bool debug_io_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
 {
@@ -9,6 +10,21 @@ static bool debug_io_out(struct ioport *ioport, struct kvm *kvm, u16 port, void 
 
 static struct ioport_operations debug_ops = {
 	.io_out		= debug_io_out,
+};
+
+static bool seabios_debug_io_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
+{
+	char ch;
+
+	ch = ioport__read8(data);
+
+	putchar(ch);
+
+	return true;
+}
+
+static struct ioport_operations seabios_debug_ops = {
+	.io_out		= seabios_debug_io_out,
 };
 
 static bool dummy_io_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
@@ -56,4 +72,6 @@ void ioport__setup_arch(void)
 	/* PORT 03D4-03D5 - COLOR VIDEO - CRT CONTROL REGISTERS */
 	ioport__register(0x03D4, &dummy_read_write_ioport_ops, 1, NULL);
 	ioport__register(0x03D5, &dummy_write_only_ioport_ops, 1, NULL);
+
+	ioport__register(0x402, &seabios_debug_ops, 1, NULL);
 }
