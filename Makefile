@@ -113,6 +113,7 @@ LIBFDT_OBJS = $(patsubst %,../../scripts/dtc/libfdt/%,$(LIBFDT_SRC))
 #x86
 ifeq ($(ARCH),x86)
 	DEFINES += -DCONFIG_X86
+	OBJS	+= x86/boot.o
 	OBJS	+= x86/cpuid.o
 	OBJS	+= x86/interrupt.o
 	OBJS	+= x86/ioport.o
@@ -129,6 +130,7 @@ endif
 # POWER/ppc:  Actually only support ppc64 currently.
 ifeq ($(uname_M), ppc64)
 	DEFINES += -DCONFIG_PPC
+	OBJS	+= powerpc/boot.o
 	OBJS	+= powerpc/ioport.o
 	OBJS	+= powerpc/irq.o
 	OBJS	+= powerpc/kvm.o

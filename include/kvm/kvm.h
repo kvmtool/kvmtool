@@ -39,6 +39,7 @@ int kvm__recommended_cpus(struct kvm *kvm);
 int kvm__max_cpus(struct kvm *kvm);
 void kvm__init_ram(struct kvm *kvm);
 int kvm__exit(struct kvm *kvm);
+bool kvm__load_firmware(struct kvm *kvm, const char *firmware_filename);
 bool kvm__load_kernel(struct kvm *kvm, const char *kernel_filename,
 			const char *initrd_filename, const char *kernel_cmdline, u16 vidmode);
 void kvm__start_timer(struct kvm *kvm);

@@ -26,8 +26,9 @@
 
 #define E820_MAP_START			EBDA_START
 
-#define MB_BIOS_BEGIN			0x000f0000
+#define MB_BIOS_BEGIN			0x000e0000
 #define MB_BIOS_END			0x000fffff
+#define MB_BIOS_SIZE			(MB_BIOS_END - MB_BIOS_BEGIN + 1)
 
 #define VGA_RAM_BEGIN			0x000a0000
 #define VGA_RAM_END			0x000bffff

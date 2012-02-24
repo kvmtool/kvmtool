@@ -76,6 +76,7 @@ static const char *kernel_cmdline;
 static const char *kernel_filename;
 static const char *vmlinux_filename;
 static const char *initrd_filename;
+static const char *firmware_filename;
 static const char *image_filename[MAX_DISK_IMAGES];
 static const char *console;
 static const char *dev;
@@ -458,6 +459,8 @@ static const struct option options[] = {
 			"Initial RAM disk image"),
 	OPT_STRING('p', "params", &kernel_cmdline, "params",
 			"Kernel command line arguments"),
+	OPT_STRING('f', "firmware", &firmware_filename, "firmware",
+			"Firmware image to boot in virtual machine"),
 
 	OPT_GROUP("Networking options:"),
 	OPT_CALLBACK_DEFAULT('n', "network", NULL, "network params",
@@ -1110,14 +1113,16 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 	printf("  # %s run -k %s -m %Lu -c %d --name %s\n", KVM_BINARY_NAME,
 		kernel_filename, ram_size / 1024 / 1024, nrcpus, guest_name);
 
-	if (!kvm__load_kernel(kvm, kernel_filename, initrd_filename,
-				real_cmdline, vidmode))
-		die("unable to load kernel %s", kernel_filename);
+	if (!firmware_filename) {
+		if (!kvm__load_kernel(kvm, kernel_filename,
+				initrd_filename, real_cmdline, vidmode))
+			die("unable to load kernel %s", kernel_filename);
 
-	kvm->vmlinux = vmlinux_filename;
-	r = symbol_init(kvm);
-	if (r < 0)
-		pr_debug("symbol_init() failed with error %d\n", r);
+		kvm->vmlinux = vmlinux_filename;
+		r = symbol_init(kvm);
+		if (r < 0)
+			pr_debug("symbol_init() failed with error %d\n", r);
+	}
 
 	ioport__setup_arch();
 
@@ -1218,10 +1223,15 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 
 	kvm__start_timer(kvm);
 
-	kvm__arch_setup_firmware(kvm);
-	if (r < 0) {
-		pr_err("kvm__arch_setup_firmware() failed with error %d\n", r);
-		goto fail;
+	if (firmware_filename) {
+		if (!kvm__load_firmware(kvm, firmware_filename))
+			die("unable to load firmware image %s: %s", firmware_filename, strerror(errno));
+	} else {
+		kvm__arch_setup_firmware(kvm);
+		if (r < 0) {
+			pr_err("kvm__arch_setup_firmware() failed with error %d\n", r);
+			goto fail;
+		}
 	}
 
 	for (i = 0; i < nrcpus; i++) {
