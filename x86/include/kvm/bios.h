@@ -10,6 +10,7 @@
  * EBDA area				0x0009FC00 0x0009FFFF
  * VIDEO RAM				0x000A0000 0x000BFFFF
  * VIDEO ROM (BIOS)			0x000C0000 0x000C7FFF
+ * ROMs & unus. space (mapped hw & misc)0x000C8000 0x000EFFFF 160 KiB (typically)
  * Motherboard BIOS			0x000F0000 0x000FFFFF
  * Extended Memory			0x00100000 0xFEBFFFFF
  * Reserved (configs, ACPI, PnP, etc)	0xFEC00000 0xFFFFFFFF
@@ -26,9 +27,12 @@
 
 #define E820_MAP_START			EBDA_START
 
-#define MB_BIOS_BEGIN			0x000e0000
+#define MB_BIOS_BEGIN			0x000f0000
+#define MB_FIRMWARE_BIOS_BEGIN		0x000e0000
 #define MB_BIOS_END			0x000fffff
+
 #define MB_BIOS_SIZE			(MB_BIOS_END - MB_BIOS_BEGIN + 1)
+#define MB_FIRMWARE_BIOS_SIZE		(MB_BIOS_END - MB_FIRMWARE_BIOS_BEGIN + 1)
 
 #define VGA_RAM_BEGIN			0x000a0000
 #define VGA_RAM_END			0x000bffff
