@@ -847,9 +847,27 @@ static void kvm_write_sandbox_cmd_exactly(int fd, const char *arg)
 	}
 }
 
+static void resolve_program(const char *src, char *dst, size_t len)
+{
+	struct stat st;
+
+	if (stat(src, &st) < 0)
+		die("Unable to resolve program %s: %s", src, strerror(errno));
+
+	if (S_ISREG(st.st_mode)) {
+		char resolved_path[PATH_MAX];
+
+		realpath(src, resolved_path);
+
+		snprintf(dst, len, "/host%s", resolved_path);
+	} else
+		strncpy(dst, src, len);
+}
+
 static void kvm_run_write_sandbox_cmd(const char **argv, int argc)
 {
 	const char script_hdr[] = "#! /bin/bash\n\n";
+	char program[PATH_MAX];
 	int fd;
 
 	remove(sandbox);
@@ -861,11 +879,17 @@ static void kvm_run_write_sandbox_cmd(const char **argv, int argc)
 	if (write(fd, script_hdr, sizeof(script_hdr) - 1) <= 0)
 		die("Failed writing sandbox script");
 
+	resolve_program(argv[0], program, PATH_MAX);
+	kvm_write_sandbox_cmd_exactly(fd, program);
+
+	argv++;
+	argc--;
+
 	while (argc) {
+		if (write(fd, " ", 1) <= 0)
+			die("Failed writing sandbox script");
+
 		kvm_write_sandbox_cmd_exactly(fd, argv[0]);
-		if (argc - 1)
-			if (write(fd, " ", 1) <= 0)
-				die("Failed writing sandbox script");
 		argv++;
 		argc--;
 	}
