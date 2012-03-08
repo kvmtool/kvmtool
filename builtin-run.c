@@ -850,11 +850,11 @@ static void kvm_write_sandbox_cmd_exactly(int fd, const char *arg)
 static void resolve_program(const char *src, char *dst, size_t len)
 {
 	struct stat st;
+	int err;
 
-	if (stat(src, &st) < 0)
-		die("Unable to resolve program %s: %s", src, strerror(errno));
+	err = stat(src, &st);
 
-	if (S_ISREG(st.st_mode)) {
+	if (!err && S_ISREG(st.st_mode)) {
 		char resolved_path[PATH_MAX];
 
 		realpath(src, resolved_path);
