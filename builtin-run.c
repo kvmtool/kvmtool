@@ -857,7 +857,8 @@ static void resolve_program(const char *src, char *dst, size_t len)
 	if (!err && S_ISREG(st.st_mode)) {
 		char resolved_path[PATH_MAX];
 
-		realpath(src, resolved_path);
+		if (!realpath(src, resolved_path))
+			die("Unable to resolve program %s: %s\n", src, strerror(errno));
 
 		snprintf(dst, len, "/host%s", resolved_path);
 	} else
