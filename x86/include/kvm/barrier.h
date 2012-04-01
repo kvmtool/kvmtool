@@ -11,6 +11,6 @@
 #include <linux/stringify.h>
 #include <linux/bitops.h>
 #include <asm/alternative.h>
-#include <asm/system.h>
+#include <asm/barrier.h>
 
 #endif /* _KVM_BARRIER_H_ */
