@@ -193,7 +193,14 @@ static int get_pfn_vq(struct kvm *kvm, void *dev, u32 vq)
 
 static int get_size_vq(struct kvm *kvm, void *dev, u32 vq)
 {
+	/* FIXME: dynamic */
 	return VIRTIO_BLK_QUEUE_SIZE;
+}
+
+static int set_size_vq(struct kvm *kvm, void *dev, u32 vq, int size)
+{
+	/* FIXME: dynamic */
+	return size;
 }
 
 static struct virtio_ops blk_dev_virtio_ops = (struct virtio_ops) {
@@ -205,6 +212,7 @@ static struct virtio_ops blk_dev_virtio_ops = (struct virtio_ops) {
 	.notify_vq		= notify_vq,
 	.get_pfn_vq		= get_pfn_vq,
 	.get_size_vq		= get_size_vq,
+	.set_size_vq		= set_size_vq,
 };
 
 static int virtio_blk__init_one(struct kvm *kvm, struct disk_image *disk)
