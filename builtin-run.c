@@ -244,6 +244,8 @@ static int set_net_param(struct virtio_net_params *p, const char *param,
 		p->guest_ip = strdup(val);
 	} else if (strcmp(param, "host_ip") == 0) {
 		p->host_ip = strdup(val);
+	} else if (strcmp(param, "trans") == 0) {
+		p->trans = strdup(val);
 	} else if (strcmp(param, "vhost") == 0) {
 		p->vhost = atoi(val);
 	} else if (strcmp(param, "fd") == 0) {

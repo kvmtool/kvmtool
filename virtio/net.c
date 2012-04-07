@@ -526,8 +526,12 @@ void virtio_net__init(const struct virtio_net_params *params)
 		ndev->ops = &uip_ops;
 	}
 
-	virtio_init(kvm, ndev, &ndev->vdev, &net_dev_virtio_ops,
-		    VIRTIO_PCI, PCI_DEVICE_ID_VIRTIO_NET, VIRTIO_ID_NET, PCI_CLASS_NET);
+	if (params->trans && strcmp(params->trans, "mmio") == 0)
+		virtio_init(kvm, ndev, &ndev->vdev, &net_dev_virtio_ops,
+			    VIRTIO_MMIO, PCI_DEVICE_ID_VIRTIO_NET, VIRTIO_ID_NET, PCI_CLASS_NET);
+	else
+		virtio_init(kvm, ndev, &ndev->vdev, &net_dev_virtio_ops,
+			    VIRTIO_PCI, PCI_DEVICE_ID_VIRTIO_NET, VIRTIO_ID_NET, PCI_CLASS_NET);
 
 	if (params->vhost)
 		virtio_net__vhost_init(params->kvm, ndev);
