@@ -10,10 +10,10 @@
 
 #define NUM_VIRT_QUEUES		1
 #define VIRTQUEUE_NUM		128
-#define	VIRTIO_P9_DEFAULT_TAG	"kvm_9p"
-#define VIRTIO_P9_HDR_LEN	(sizeof(u32)+sizeof(u8)+sizeof(u16))
-#define VIRTIO_P9_MAX_FID	256
-#define VIRTIO_P9_VERSION_DOTL	"9P2000.L"
+#define	VIRTIO_9P_DEFAULT_TAG	"kvm_9p"
+#define VIRTIO_9P_HDR_LEN	(sizeof(u32)+sizeof(u8)+sizeof(u16))
+#define VIRTIO_9P_MAX_FID	256
+#define VIRTIO_9P_VERSION_DOTL	"9P2000.L"
 #define MAX_TAG_LEN		32
 
 struct p9_msg {
@@ -49,7 +49,7 @@ struct p9_dev {
 	/* virtio queue */
 	struct virt_queue	vqs[NUM_VIRT_QUEUES];
 	struct p9_dev_job	jobs[NUM_VIRT_QUEUES];
-	struct p9_fid		fids[VIRTIO_P9_MAX_FID];
+	struct p9_fid		fids[VIRTIO_9P_MAX_FID];
 	char			root_dir[PATH_MAX];
 };
 

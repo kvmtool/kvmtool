@@ -88,7 +88,7 @@ static void virtio_p9_error_reply(struct p9_dev *p9dev,
 {
 	u16 tag;
 
-	pdu->write_offset = VIRTIO_P9_HDR_LEN;
+	pdu->write_offset = VIRTIO_9P_HDR_LEN;
 	virtio_p9_pdu_writef(pdu, "d", err);
 	*outlen = pdu->write_offset;
 
@@ -111,7 +111,7 @@ static void virtio_p9_version(struct p9_dev *p9dev,
 	 * reply with the same msize the client sent us
 	 * Error out if the request is not for 9P2000.L
 	 */
-	if (!strcmp(version, VIRTIO_P9_VERSION_DOTL))
+	if (!strcmp(version, VIRTIO_9P_VERSION_DOTL))
 		virtio_p9_pdu_writef(pdu, "ds", msize, version);
 	else
 		virtio_p9_pdu_writef(pdu, "ds", msize, "unknown");
@@ -331,7 +331,7 @@ static void virtio_p9_walk(struct p9_dev *p9dev,
 		new_fid->uid    = p9dev->fids[fid_val].uid;
 	}
 	*outlen = pdu->write_offset;
-	pdu->write_offset = VIRTIO_P9_HDR_LEN;
+	pdu->write_offset = VIRTIO_9P_HDR_LEN;
 	virtio_p9_pdu_writef(pdu, "d", nwqid);
 	virtio_p9_set_reply_header(pdu, *outlen);
 	return;
@@ -358,7 +358,7 @@ static void virtio_p9_attach(struct p9_dev *p9dev,
 	free(aname);
 
 	/* Reset everything */
-	for (i = 0; i < VIRTIO_P9_MAX_FID; i++)
+	for (i = 0; i < VIRTIO_9P_MAX_FID; i++)
 		p9dev->fids[i].fid = P9_NOFID;
 
 	if (lstat(p9dev->root_dir, &st) < 0)
@@ -423,8 +423,8 @@ static void virtio_p9_read(struct p9_dev *p9dev,
 	iov_base = pdu->in_iov[0].iov_base;
 	iov_len  = pdu->in_iov[0].iov_len;
 	iov_cnt  = pdu->in_iov_cnt;
-	pdu->in_iov[0].iov_base += VIRTIO_P9_HDR_LEN + sizeof(u32);
-	pdu->in_iov[0].iov_len -= VIRTIO_P9_HDR_LEN + sizeof(u32);
+	pdu->in_iov[0].iov_base += VIRTIO_9P_HDR_LEN + sizeof(u32);
+	pdu->in_iov[0].iov_len -= VIRTIO_9P_HDR_LEN + sizeof(u32);
 	pdu->in_iov_cnt = virtio_p9_update_iov_cnt(pdu->in_iov,
 						   count,
 						   pdu->in_iov_cnt);
@@ -440,7 +440,7 @@ static void virtio_p9_read(struct p9_dev *p9dev,
 	pdu->in_iov[0].iov_len  = iov_len;
 	pdu->in_iov_cnt         = iov_cnt;
 
-	pdu->write_offset = VIRTIO_P9_HDR_LEN;
+	pdu->write_offset = VIRTIO_9P_HDR_LEN;
 	virtio_p9_pdu_writef(pdu, "d", rcount);
 	*outlen = pdu->write_offset + rcount;
 	virtio_p9_set_reply_header(pdu, *outlen);
@@ -504,7 +504,7 @@ static void virtio_p9_readdir(struct p9_dev *p9dev,
 		dent = readdir(fid->dir);
 	}
 
-	pdu->write_offset = VIRTIO_P9_HDR_LEN;
+	pdu->write_offset = VIRTIO_9P_HDR_LEN;
 	virtio_p9_pdu_writef(pdu, "d", rcount);
 	*outlen = pdu->write_offset + rcount;
 	virtio_p9_set_reply_header(pdu, *outlen);
@@ -628,7 +628,7 @@ static void virtio_p9_setattr(struct p9_dev *p9dev,
 		if (ret < 0)
 			goto err_out;
 	}
-	*outlen = VIRTIO_P9_HDR_LEN;
+	*outlen = VIRTIO_9P_HDR_LEN;
 	virtio_p9_set_reply_header(pdu, *outlen);
 	return;
 err_out:
@@ -1018,7 +1018,7 @@ static void virtio_p9_renameat(struct p9_dev *p9dev,
 	 * Now fix path in other fids, if the renamed path is part of
 	 * that.
 	 */
-	for (i = 0; i < VIRTIO_P9_MAX_FID; i++) {
+	for (i = 0; i < VIRTIO_9P_MAX_FID; i++) {
 		if (p9dev->fids[i].fid != P9_NOFID &&
 		    virtio_p9_ancestor(p9dev->fids[i].path, old_name)) {
 			virtio_p9_fix_path(p9dev->fids[i].path, old_name,
@@ -1113,8 +1113,8 @@ static struct p9_pdu *virtio_p9_pdu_init(struct kvm *kvm, struct virt_queue *vq)
 		return NULL;
 
 	/* skip the pdu header p9_msg */
-	pdu->read_offset  = VIRTIO_P9_HDR_LEN;
-	pdu->write_offset = VIRTIO_P9_HDR_LEN;
+	pdu->read_offset  = VIRTIO_9P_HDR_LEN;
+	pdu->write_offset = VIRTIO_9P_HDR_LEN;
 	pdu->queue_head  = virt_queue__get_inout_iov(kvm, vq, pdu->in_iov,
 						     pdu->out_iov,
 						     &pdu->in_iov_cnt,
@@ -1261,7 +1261,7 @@ int virtio_9p__init(struct kvm *kvm)
 
 	list_for_each_entry(p9dev, &devs, list) {
 		virtio_init(kvm, p9dev, &p9dev->vdev, &p9_dev_virtio_ops,
-			    VIRTIO_PCI, PCI_DEVICE_ID_VIRTIO_P9, VIRTIO_ID_9P, PCI_CLASS_P9);
+			    VIRTIO_PCI, PCI_DEVICE_ID_VIRTIO_9P, VIRTIO_ID_9P, PCI_CLASS_9P);
 	}
 
 	return 0;
@@ -1278,7 +1278,7 @@ int virtio_9p__register(struct kvm *kvm, const char *root, const char *tag_name)
 		return -ENOMEM;
 
 	if (!tag_name)
-		tag_name = VIRTIO_P9_DEFAULT_TAG;
+		tag_name = VIRTIO_9P_DEFAULT_TAG;
 
 	p9dev->config = calloc(1, sizeof(*p9dev->config) + strlen(tag_name) + 1);
 	if (p9dev->config == NULL) {
@@ -1292,7 +1292,7 @@ int virtio_9p__register(struct kvm *kvm, const char *root, const char *tag_name)
 	 * We prefix the full path in all fids, This allows us to get the
 	 * absolute path of an fid without playing with strings.
 	 */
-	for (i = 0; i < VIRTIO_P9_MAX_FID; i++) {
+	for (i = 0; i < VIRTIO_9P_MAX_FID; i++) {
 		strcpy(p9dev->fids[i].abs_path, root);
 		p9dev->fids[i].path = p9dev->fids[i].abs_path + root_len;
 	}
