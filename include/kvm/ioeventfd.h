@@ -4,6 +4,7 @@
 #include <linux/types.h>
 #include <linux/list.h>
 #include <sys/eventfd.h>
+#include "kvm/util.h"
 
 struct kvm;
 
@@ -21,7 +22,7 @@ struct ioevent {
 
 int ioeventfd__init(struct kvm *kvm);
 int ioeventfd__exit(struct kvm *kvm);
-int ioeventfd__add_event(struct ioevent *ioevent);
+int ioeventfd__add_event(struct ioevent *ioevent, bool is_pio);
 int ioeventfd__del_event(u64 addr, u64 datamatch);
 
 #endif

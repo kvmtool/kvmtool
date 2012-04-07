@@ -52,7 +52,7 @@ static int virtio_pci__init_ioeventfd(struct kvm *kvm, struct virtio_trans *vtra
 		.fd		= eventfd(0, 0),
 	};
 
-	r = ioeventfd__add_event(&ioevent);
+	r = ioeventfd__add_event(&ioevent, true);
 	if (r)
 		return r;
 

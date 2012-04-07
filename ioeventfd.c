@@ -117,7 +117,7 @@ int ioeventfd__exit(struct kvm *kvm)
 	return 0;
 }
 
-int ioeventfd__add_event(struct ioevent *ioevent)
+int ioeventfd__add_event(struct ioevent *ioevent, bool is_pio)
 {
 	struct kvm_ioeventfd kvm_ioevent;
 	struct epoll_event epoll_event;
@@ -135,12 +135,15 @@ int ioeventfd__add_event(struct ioevent *ioevent)
 	event = new_ioevent->fd;
 
 	kvm_ioevent = (struct kvm_ioeventfd) {
-		.addr			= ioevent->io_addr,
-		.len			= ioevent->io_len,
-		.datamatch		= ioevent->datamatch,
-		.fd			= event,
-		.flags			= KVM_IOEVENTFD_FLAG_PIO | KVM_IOEVENTFD_FLAG_DATAMATCH,
+		.addr		= ioevent->io_addr,
+		.len		= ioevent->io_len,
+		.datamatch	= ioevent->datamatch,
+		.fd		= event,
+		.flags		= KVM_IOEVENTFD_FLAG_DATAMATCH,
 	};
+
+	if (is_pio)
+		kvm_ioevent.flags |= KVM_IOEVENTFD_FLAG_PIO;
 
 	r = ioctl(ioevent->fn_kvm->vm_fd, KVM_IOEVENTFD, &kvm_ioevent);
 	if (r) {
@@ -149,8 +152,8 @@ int ioeventfd__add_event(struct ioevent *ioevent)
 	}
 
 	epoll_event = (struct epoll_event) {
-		.events			= EPOLLIN,
-		.data.ptr		= new_ioevent,
+		.events		= EPOLLIN,
+		.data.ptr	= new_ioevent,
 	};
 
 	r = epoll_ctl(epoll_fd, EPOLL_CTL_ADD, event, &epoll_event);
