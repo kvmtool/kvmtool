@@ -6,6 +6,7 @@
 #include "kvm/barrier.h"
 #include "kvm/virtio.h"
 #include "kvm/virtio-pci.h"
+#include "kvm/virtio-mmio.h"
 #include "kvm/util.h"
 #include "kvm/kvm.h"
 
@@ -177,6 +178,18 @@ int virtio_init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 		vdev->ops->signal_config	= virtio_pci__signal_config;
 		vdev->ops->init			= virtio_pci__init;
 		vdev->ops->exit			= virtio_pci__exit;
+		vdev->ops->init(kvm, dev, vdev, device_id, subsys_id, class);
+		break;
+	case VIRTIO_MMIO:
+		virtio = calloc(sizeof(struct virtio_mmio), 1);
+		if (!virtio)
+			return -ENOMEM;
+		vdev->virtio			= virtio;
+		vdev->ops			= ops;
+		vdev->ops->signal_vq		= virtio_mmio_signal_vq;
+		vdev->ops->signal_config	= virtio_mmio_signal_config;
+		vdev->ops->init			= virtio_mmio_init;
+		vdev->ops->exit			= virtio_mmio_exit;
 		vdev->ops->init(kvm, dev, vdev, device_id, subsys_id, class);
 		break;
 	default:
