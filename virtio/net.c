@@ -340,6 +340,7 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 pfn)
 	queue->pfn	= pfn;
 	p		= guest_pfn_to_host(kvm, queue->pfn);
 
+	/* FIXME: respect pci and mmio vring alignment */
 	vring_init(&queue->vring, VIRTIO_NET_QUEUE_SIZE, p, VIRTIO_PCI_VRING_ALIGN);
 
 	if (ndev->vhost_fd == 0)
@@ -436,7 +437,14 @@ static int get_pfn_vq(struct kvm *kvm, void *dev, u32 vq)
 
 static int get_size_vq(struct kvm *kvm, void *dev, u32 vq)
 {
+	/* FIXME: dynamic */
 	return VIRTIO_NET_QUEUE_SIZE;
+}
+
+static int set_size_vq(struct kvm *kvm, void *dev, u32 vq, int size)
+{
+	/* FIXME: dynamic */
+	return size;
 }
 
 static struct virtio_ops net_dev_virtio_ops = (struct virtio_ops) {
@@ -445,9 +453,10 @@ static struct virtio_ops net_dev_virtio_ops = (struct virtio_ops) {
 	.get_host_features	= get_host_features,
 	.set_guest_features	= set_guest_features,
 	.init_vq		= init_vq,
-	.notify_vq		= notify_vq,
 	.get_pfn_vq		= get_pfn_vq,
 	.get_size_vq		= get_size_vq,
+	.set_size_vq		= set_size_vq,
+	.notify_vq		= notify_vq,
 	.notify_vq_gsi		= notify_vq_gsi,
 	.notify_vq_eventfd	= notify_vq_eventfd,
 };
