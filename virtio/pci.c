@@ -208,7 +208,7 @@ static struct ioport_operations virtio_pci__io_ops = {
 	.io_out	= virtio_pci__io_out,
 };
 
-static void callback_mmio_table(u64 addr, u8 *data, u32 len, u8 is_write, void *ptr)
+static void virtio_pci__mmio_callback(u64 addr, u8 *data, u32 len, u8 is_write, void *ptr)
 {
 	struct virtio_pci *vpci = ptr;
 	void *table;
@@ -287,7 +287,7 @@ int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 
 	vpci->base_addr = (u16)r;
 	r = kvm__register_mmio(kvm, vpci->msix_io_block, PCI_IO_SIZE, false,
-			       callback_mmio_table, vpci);
+			       virtio_pci__mmio_callback, vpci);
 	if (r < 0)
 		goto free_ioport;
 
