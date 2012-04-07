@@ -1,11 +1,14 @@
 #include <linux/virtio_ring.h>
 #include <linux/types.h>
 #include <sys/uio.h>
+#include <stdlib.h>
 
 #include "kvm/barrier.h"
-
-#include "kvm/kvm.h"
 #include "kvm/virtio.h"
+#include "kvm/virtio-pci.h"
+#include "kvm/util.h"
+#include "kvm/kvm.h"
+
 
 struct vring_used_elem *virt_queue__set_used_elem(struct virt_queue *queue, u32 head, u32 len)
 {
@@ -155,4 +158,30 @@ bool virtio_queue__should_signal(struct virt_queue *vq)
 	}
 
 	return false;
+}
+
+int virtio_init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
+		struct virtio_ops *ops, enum virtio_trans trans,
+		int device_id, int subsys_id, int class)
+{
+	void *virtio;
+
+	switch (trans) {
+	case VIRTIO_PCI:
+		virtio = calloc(sizeof(struct virtio_pci), 1);
+		if (!virtio)
+			return -ENOMEM;
+		vdev->virtio			= virtio;
+		vdev->ops			= ops;
+		vdev->ops->signal_vq		= virtio_pci__signal_vq;
+		vdev->ops->signal_config	= virtio_pci__signal_config;
+		vdev->ops->init			= virtio_pci__init;
+		vdev->ops->exit			= virtio_pci__exit;
+		vdev->ops->init(kvm, dev, vdev, device_id, subsys_id, class);
+		break;
+	default:
+		return -1;
+	};
+
+	return 0;
 }

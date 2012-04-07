@@ -11,7 +11,6 @@
 #include "kvm/guest_compat.h"
 #include "kvm/virtio-pci.h"
 #include "kvm/virtio.h"
-#include "kvm/virtio-trans.h"
 
 #include <linux/virtio_ring.h>
 #include <linux/virtio_blk.h>
@@ -44,7 +43,7 @@ struct blk_dev {
 	struct list_head		list;
 	struct list_head		req_list;
 
-	struct virtio_trans		vtrans;
+	struct virtio_device		vdev;
 	struct virtio_blk_config	blk_config;
 	struct disk_image		*disk;
 	u32				features;
@@ -72,7 +71,7 @@ void virtio_blk_complete(void *param, long len)
 	mutex_unlock(&bdev->mutex);
 
 	if (virtio_queue__should_signal(&bdev->vqs[queueid]))
-		bdev->vtrans.trans_ops->signal_vq(req->kvm, &bdev->vtrans, queueid);
+		bdev->vdev.ops->signal_vq(req->kvm, &bdev->vdev, queueid);
 }
 
 static void virtio_blk_do_io_request(struct kvm *kvm, struct blk_dev_req *req)
@@ -230,10 +229,8 @@ static int virtio_blk__init_one(struct kvm *kvm, struct disk_image *disk)
 		},
 	};
 
-	virtio_trans_init(&bdev->vtrans, VIRTIO_PCI);
-	bdev->vtrans.trans_ops->init(kvm, &bdev->vtrans, bdev, PCI_DEVICE_ID_VIRTIO_BLK,
-					VIRTIO_ID_BLOCK, PCI_CLASS_BLK);
-	bdev->vtrans.virtio_ops = &blk_dev_virtio_ops;
+	virtio_init(kvm, bdev, &bdev->vdev, &blk_dev_virtio_ops,
+		    VIRTIO_PCI, PCI_DEVICE_ID_VIRTIO_BLK, VIRTIO_ID_BLOCK, PCI_CLASS_BLK);
 
 	list_add_tail(&bdev->list, &bdevs);
 

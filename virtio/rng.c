@@ -7,7 +7,6 @@
 #include "kvm/kvm.h"
 #include "kvm/threadpool.h"
 #include "kvm/guest_compat.h"
-#include "kvm/virtio-trans.h"
 
 #include <linux/virtio_ring.h>
 #include <linux/virtio_rng.h>
@@ -30,7 +29,7 @@ struct rng_dev_job {
 
 struct rng_dev {
 	struct list_head	list;
-	struct virtio_trans	vtrans;
+	struct virtio_device	vdev;
 
 	int			fd;
 
@@ -87,7 +86,7 @@ static void virtio_rng_do_io(struct kvm *kvm, void *param)
 	while (virt_queue__available(vq))
 		virtio_rng_do_io_request(kvm, rdev, vq);
 
-	rdev->vtrans.trans_ops->signal_vq(kvm, &rdev->vtrans, vq - rdev->vqs);
+	rdev->vdev.ops->signal_vq(kvm, &rdev->vdev, vq - rdev->vqs);
 }
 
 static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 pfn)
@@ -164,13 +163,10 @@ int virtio_rng__init(struct kvm *kvm)
 		goto cleanup;
 	}
 
-	virtio_trans_init(&rdev->vtrans, VIRTIO_PCI);
-	r = rdev->vtrans.trans_ops->init(kvm, &rdev->vtrans, rdev, PCI_DEVICE_ID_VIRTIO_RNG,
-					VIRTIO_ID_RNG, PCI_CLASS_RNG);
+	r = virtio_init(kvm, rdev, &rdev->vdev, &rng_dev_virtio_ops,
+			VIRTIO_PCI, PCI_DEVICE_ID_VIRTIO_RNG, VIRTIO_ID_RNG, PCI_CLASS_RNG);
 	if (r < 0)
 		goto cleanup;
-
-	rdev->vtrans.virtio_ops = &rng_dev_virtio_ops;
 
 	list_add_tail(&rdev->list, &rdevs);
 
@@ -195,7 +191,7 @@ int virtio_rng__exit(struct kvm *kvm)
 
 	list_for_each_entry_safe(rdev, tmp, &rdevs, list) {
 		list_del(&rdev->list);
-		rdev->vtrans.trans_ops->uninit(kvm, &rdev->vtrans);
+		rdev->vdev.ops->exit(kvm, &rdev->vdev);
 		free(rdev);
 	}
 

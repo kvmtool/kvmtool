@@ -1168,7 +1168,7 @@ static void virtio_p9_do_io(struct kvm *kvm, void *param)
 
 	while (virt_queue__available(vq)) {
 		virtio_p9_do_io_request(kvm, job);
-		p9dev->vtrans.trans_ops->signal_vq(kvm, &p9dev->vtrans, vq - p9dev->vqs);
+		p9dev->vdev.ops->signal_vq(kvm, &p9dev->vdev, vq - p9dev->vqs);
 	}
 }
 
@@ -1260,10 +1260,8 @@ int virtio_9p__init(struct kvm *kvm)
 	struct p9_dev *p9dev;
 
 	list_for_each_entry(p9dev, &devs, list) {
-		virtio_trans_init(&p9dev->vtrans, VIRTIO_PCI);
-		p9dev->vtrans.trans_ops->init(kvm, &p9dev->vtrans, p9dev,
-					PCI_DEVICE_ID_VIRTIO_P9, VIRTIO_ID_9P, PCI_CLASS_P9);
-		p9dev->vtrans.virtio_ops = &p9_dev_virtio_ops;
+		virtio_init(kvm, p9dev, &p9dev->vdev, &p9_dev_virtio_ops,
+			    VIRTIO_PCI, PCI_DEVICE_ID_VIRTIO_P9, VIRTIO_ID_9P, PCI_CLASS_P9);
 	}
 
 	return 0;

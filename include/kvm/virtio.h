@@ -64,4 +64,36 @@ u16 virt_queue__get_inout_iov(struct kvm *kvm, struct virt_queue *queue,
 			      u16 *in, u16 *out);
 int virtio__get_dev_specific_field(int offset, bool msix, u32 *config_off);
 
+enum virtio_trans {
+	VIRTIO_PCI,
+	VIRTIO_MMIO,
+};
+
+struct virtio_device {
+	void			*virtio;
+	struct virtio_ops	*ops;
+};
+
+struct virtio_ops {
+	void (*set_config)(struct kvm *kvm, void *dev, u8 data, u32 offset);
+	u8 (*get_config)(struct kvm *kvm, void *dev, u32 offset);
+	u32 (*get_host_features)(struct kvm *kvm, void *dev);
+	void (*set_guest_features)(struct kvm *kvm, void *dev, u32 features);
+	int (*init_vq)(struct kvm *kvm, void *dev, u32 vq, u32 pfn);
+	int (*notify_vq)(struct kvm *kvm, void *dev, u32 vq);
+	int (*get_pfn_vq)(struct kvm *kvm, void *dev, u32 vq);
+	int (*get_size_vq)(struct kvm *kvm, void *dev, u32 vq);
+	int (*set_size_vq)(struct kvm *kvm, void *dev, u32 vq, int size);
+	void (*notify_vq_gsi)(struct kvm *kvm, void *dev, u32 vq, u32 gsi);
+	void (*notify_vq_eventfd)(struct kvm *kvm, void *dev, u32 vq, u32 efd);
+	int (*signal_vq)(struct kvm *kvm, struct virtio_device *vdev, u32 queueid);
+	int (*signal_config)(struct kvm *kvm, struct virtio_device *vdev);
+	int (*init)(struct kvm *kvm, void *dev, struct virtio_device *vdev,
+		    int device_id, int subsys_id, int class);
+	int (*exit)(struct kvm *kvm, struct virtio_device *vdev);
+};
+
+int virtio_init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
+		struct virtio_ops *ops, enum virtio_trans trans,
+		int device_id, int subsys_id, int class);
 #endif /* KVM__VIRTIO_H */

@@ -2,7 +2,6 @@
 #define KVM__VIRTIO_PCI_H
 
 #include "kvm/pci.h"
-#include "kvm/virtio-trans.h"
 
 #include <linux/types.h>
 
@@ -12,7 +11,7 @@
 struct kvm;
 
 struct virtio_pci_ioevent_param {
-	struct virtio_trans	*vtrans;
+	struct virtio_device	*vdev;
 	u32			vq;
 };
 
@@ -38,12 +37,10 @@ struct virtio_pci {
 	struct virtio_pci_ioevent_param ioeventfds[VIRTIO_PCI_MAX_VQ];
 };
 
-int virtio_pci__init(struct kvm *kvm, struct virtio_trans *vtrans, void *dev,
-			int device_id, int subsys_id, int class);
-int virtio_pci__exit(struct kvm *kvm, struct virtio_trans *vtrans);
-int virtio_pci__signal_vq(struct kvm *kvm, struct virtio_trans *vtrans, u32 vq);
-int virtio_pci__signal_config(struct kvm *kvm, struct virtio_trans *vtrans);
-
-struct virtio_trans_ops *virtio_pci__get_trans_ops(void);
+int virtio_pci__signal_vq(struct kvm *kvm, struct virtio_device *vdev, u32 vq);
+int virtio_pci__signal_config(struct kvm *kvm, struct virtio_device *vdev);
+int virtio_pci__exit(struct kvm *kvm, struct virtio_device *vdev);
+int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
+		     int device_id, int subsys_id, int class);
 
 #endif

@@ -11,7 +11,6 @@
 #include "kvm/threadpool.h"
 #include "kvm/irq.h"
 #include "kvm/guest_compat.h"
-#include "kvm/virtio-trans.h"
 
 #include <linux/virtio_console.h>
 #include <linux/virtio_ring.h>
@@ -32,7 +31,7 @@
 struct con_dev {
 	pthread_mutex_t			mutex;
 
-	struct virtio_trans		vtrans;
+	struct virtio_device		vdev;
 	struct virt_queue		vqs[VIRTIO_CONSOLE_NUM_QUEUES];
 	struct virtio_console_config	config;
 	u32				features;
@@ -71,7 +70,7 @@ static void virtio_console__inject_interrupt_callback(struct kvm *kvm, void *par
 		head = virt_queue__get_iov(vq, iov, &out, &in, kvm);
 		len = term_getc_iov(CONSOLE_VIRTIO, iov, in, 0);
 		virt_queue__set_used_elem(vq, head, len);
-		cdev.vtrans.trans_ops->signal_vq(kvm, &cdev.vtrans, vq - cdev.vqs);
+		cdev.vdev.ops->signal_vq(kvm, &cdev.vdev, vq - cdev.vqs);
 	}
 
 	mutex_unlock(&cdev.mutex);
@@ -187,12 +186,8 @@ static struct virtio_ops con_dev_virtio_ops = (struct virtio_ops) {
 
 void virtio_console__init(struct kvm *kvm)
 {
-	virtio_trans_init(&cdev.vtrans, VIRTIO_PCI);
-
-	cdev.vtrans.trans_ops->init(kvm, &cdev.vtrans, &cdev, PCI_DEVICE_ID_VIRTIO_CONSOLE,
-					VIRTIO_ID_CONSOLE, PCI_CLASS_CONSOLE);
-	cdev.vtrans.virtio_ops = &con_dev_virtio_ops;
-
+	virtio_init(kvm, &cdev, &cdev.vdev, &con_dev_virtio_ops,
+		    VIRTIO_PCI, PCI_DEVICE_ID_VIRTIO_CONSOLE, VIRTIO_ID_CONSOLE, PCI_CLASS_CONSOLE);
 	if (compat_id != -1)
 		compat_id = compat__add_message("virtio-console device was not detected",
 						"While you have requested a virtio-console device, "

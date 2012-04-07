@@ -59,7 +59,6 @@ OBJS	+= virtio/net.o
 OBJS	+= virtio/rng.o
 OBJS    += virtio/balloon.o
 OBJS	+= virtio/pci.o
-OBJS	+= virtio/trans.o
 OBJS	+= disk/blk.o
 OBJS	+= disk/qcow.o
 OBJS	+= disk/raw.o
