@@ -26,7 +26,7 @@
 #include <sys/wait.h>
 #include <sys/eventfd.h>
 
-#define VIRTIO_NET_QUEUE_SIZE		128
+#define VIRTIO_NET_QUEUE_SIZE		256
 #define VIRTIO_NET_NUM_QUEUES		2
 #define VIRTIO_NET_RX_QUEUE		0
 #define VIRTIO_NET_TX_QUEUE		1

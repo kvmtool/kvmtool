@@ -25,7 +25,7 @@
  * the header and status consume too entries
  */
 #define DISK_SEG_MAX			(VIRTIO_BLK_QUEUE_SIZE - 2)
-#define VIRTIO_BLK_QUEUE_SIZE		128
+#define VIRTIO_BLK_QUEUE_SIZE		256
 #define NUM_VIRT_QUEUES			1
 
 struct blk_dev_req {
