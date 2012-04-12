@@ -1,29 +1,58 @@
 #include "kvm/disk-image.h"
 
 #include <linux/err.h>
+#include <mntent.h>
 
 /*
  * raw image and blk dev are similar, so reuse raw image ops.
  */
 static struct disk_image_operations blk_dev_ops = {
-	.read_sector		= raw_image__read_sector,
-	.write_sector		= raw_image__write_sector,
-	.close			= raw_image__close,
+	.read_sector	= raw_image__read_sector,
+	.write_sector	= raw_image__write_sector,
 };
+
+static bool is_mounted(struct stat *st)
+{
+	struct stat st_buf;
+	struct mntent *mnt;
+	FILE *f;
+
+	f = setmntent("/proc/mounts", "r");
+	if (!f)
+		return false;
+
+	while ((mnt = getmntent(f)) != NULL) {
+		if (stat(mnt->mnt_fsname, &st_buf) == 0 &&
+		    S_ISBLK(st_buf.st_mode) && st->st_rdev == st_buf.st_rdev) {
+			fclose(f);
+			return true;
+		}
+	}
+
+	fclose(f);
+	return false;
+}
 
 struct disk_image *blkdev__probe(const char *filename, struct stat *st)
 {
-	u64 size;
+	struct disk_image *disk;
 	int fd, r;
+	u64 size;
 
 	if (!S_ISBLK(st->st_mode))
 		return ERR_PTR(-EINVAL);
+
+	if (is_mounted(st)) {
+		pr_err("Block device %s is already mounted! Unmount before use.",
+		       filename);
+		return ERR_PTR(-EINVAL);
+	}
 
 	/*
 	 * Be careful! We are opening host block device!
 	 * Open it readonly since we do not want to break user's data on disk.
 	 */
-	fd = open(filename, O_RDONLY);
+	fd = open(filename, O_RDWR);
 	if (fd < 0)
 		return ERR_PTR(fd);
 
@@ -38,5 +67,10 @@ struct disk_image *blkdev__probe(const char *filename, struct stat *st)
 	 * mmap large disk. There is not enough virtual address space
 	 * in 32-bit host. However, this works on 64-bit host.
 	 */
-	return disk_image__new(fd, size, &blk_dev_ops, DISK_IMAGE_MMAP);
+	disk = disk_image__new(fd, size, &blk_dev_ops, DISK_IMAGE_REGULAR);
+#ifdef CONFIG_HAS_AIO
+		if (!IS_ERR_OR_NULL(disk))
+			disk->async = 1;
+#endif
+	return disk;
 }
