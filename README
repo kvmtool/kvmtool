@@ -70,6 +70,9 @@ linux-0.2.img.bz2
  - For virtio-rng device (--rng):
 	CONFIG_HW_RANDOM_VIRTIO=y
 
+ - For vesa device (--sdl or --vnc):
+	CONFIG_FB_VESA=y
+
 
 5. And finally, launch the hypervisor:
 
