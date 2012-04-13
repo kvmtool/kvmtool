@@ -289,7 +289,7 @@ static int sdl__stop(struct framebuffer *fb)
 
 static struct fb_target_operations sdl_ops = {
 	.start	= sdl__start,
-	.start	= sdl__stop,
+	.stop	= sdl__stop,
 };
 
 int sdl__init(struct framebuffer *fb)
