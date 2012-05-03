@@ -101,6 +101,7 @@ static bool custom_rootfs;
 static bool no_net;
 static bool no_dhcp;
 extern bool ioport_debug;
+extern bool mmio_debug;
 static int  kvm_run_wrapper;
 extern int  active_console;
 extern int  debug_iodelay;
@@ -481,6 +482,8 @@ static const struct option options[] = {
 			"Enable single stepping"),
 	OPT_BOOLEAN('\0', "debug-ioport", &ioport_debug,
 			"Enable ioport debugging"),
+	OPT_BOOLEAN('\0', "debug-mmio", &mmio_debug,
+			"Enable MMIO debugging"),
 	OPT_INTEGER('\0', "debug-iodelay", &debug_iodelay,
 			"Delay IO by millisecond"),
 	OPT_END()

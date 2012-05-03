@@ -21,6 +21,7 @@ struct mmio_mapping {
 };
 
 static struct rb_root mmio_tree = RB_ROOT;
+bool mmio_debug = false;
 
 static struct mmio_mapping *mmio_search(struct rb_root *root, u64 addr, u64 len)
 {
@@ -128,9 +129,11 @@ bool kvm__emulate_mmio(struct kvm *kvm, u64 phys_addr, u8 *data, u32 len, u8 is_
 
 	if (mmio)
 		mmio->mmio_fn(phys_addr, data, len, is_write, mmio->ptr);
-	else
-		fprintf(stderr, "Warning: Ignoring MMIO %s at %016llx (length %u)\n",
-			to_direction(is_write), phys_addr, len);
+	else {
+		if (mmio_debug)
+			fprintf(stderr, "Warning: Ignoring MMIO %s at %016llx (length %u)\n",
+				to_direction(is_write), phys_addr, len);
+	}
 	br_read_unlock();
 
 	return true;
