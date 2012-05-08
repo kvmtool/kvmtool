@@ -26,7 +26,7 @@ bool kvm__load_firmware(struct kvm *kvm, const char *firmware_filename)
 		return false;
 
 	if (st.st_size > MB_FIRMWARE_BIOS_SIZE)
-		die("firmware image %s is too big to fit in memory (%lu KB).\n", firmware_filename, st.st_size / 1024);
+		die("firmware image %s is too big to fit in memory (%Lu KB).\n", firmware_filename, (u64)(st.st_size / 1024));
 
 	p = guest_flat_to_host(kvm, MB_FIRMWARE_BIOS_BEGIN);
 
