@@ -153,7 +153,7 @@ static void *kvm_ipc__thread(void *param)
 					r = kvm_ipc__receive(client);
 				} while	(r == 0);
 
-			} else if (event.events && (EPOLLERR | EPOLLRDHUP | EPOLLHUP)) {
+			} else if (event.events & (EPOLLERR | EPOLLRDHUP | EPOLLHUP)) {
 				kvm_ipc__close_conn(fd);
 			} else {
 				kvm_ipc__receive(fd);
