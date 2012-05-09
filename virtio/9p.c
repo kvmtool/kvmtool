@@ -22,6 +22,14 @@
 static LIST_HEAD(devs);
 static int compat_id = -1;
 
+static struct p9_fid *get_fid(struct p9_dev *p9dev, int fid)
+{
+	if (fid >= VIRTIO_9P_MAX_FID)
+		die("virtio-9p max FID (%u) reached!", VIRTIO_9P_MAX_FID);
+
+	return &p9dev->fids[fid];
+}
+
 /* Warning: Immediately use value returned from this function */
 static const char *rel_to_abs(struct p9_dev *p9dev,
 			      const char *path, char *abs_path)
@@ -156,7 +164,7 @@ static void virtio_p9_open(struct p9_dev *p9dev,
 
 
 	virtio_p9_pdu_readf(pdu, "dd", &fid, &flags);
-	new_fid = &p9dev->fids[fid];
+	new_fid = get_fid(p9dev, fid);
 
 	if (lstat(new_fid->abs_path, &st) < 0)
 		goto err_out;
@@ -197,7 +205,7 @@ static void virtio_p9_create(struct p9_dev *p9dev,
 
 	virtio_p9_pdu_readf(pdu, "dsddd", &dfid_val,
 			    &name, &flags, &mode, &gid);
-	dfid = &p9dev->fids[dfid_val];
+	dfid = get_fid(p9dev, dfid_val);
 
 	flags = virtio_p9_openflags(flags);
 
@@ -245,7 +253,7 @@ static void virtio_p9_mkdir(struct p9_dev *p9dev,
 
 	virtio_p9_pdu_readf(pdu, "dsdd", &dfid_val,
 			    &name, &mode, &gid);
-	dfid = &p9dev->fids[dfid_val];
+	dfid = get_fid(p9dev, dfid_val);
 
 	sprintf(full_path, "%s/%s", dfid->abs_path, name);
 	ret = mkdir(full_path, mode);
@@ -287,11 +295,11 @@ static void virtio_p9_walk(struct p9_dev *p9dev,
 
 
 	virtio_p9_pdu_readf(pdu, "ddw", &fid_val, &newfid_val, &nwname);
-	new_fid	= &p9dev->fids[newfid_val];
+	new_fid	= get_fid(p9dev, newfid_val);
 
 	nwqid = 0;
 	if (nwname) {
-		struct p9_fid *fid = &p9dev->fids[fid_val];
+		struct p9_fid *fid = get_fid(p9dev, fid_val);
 
 		strcpy(new_fid->path, fid->path);
 		/* skip the space for count */
@@ -366,7 +374,7 @@ static void virtio_p9_attach(struct p9_dev *p9dev,
 
 	stat2qid(&st, &qid);
 
-	fid = &p9dev->fids[fid_val];
+	fid = get_fid(p9dev, fid_val);
 	fid->fid = fid_val;
 	fid->uid = uid;
 	fid->is_dir = 1;
@@ -418,7 +426,7 @@ static void virtio_p9_read(struct p9_dev *p9dev,
 
 	rcount = 0;
 	virtio_p9_pdu_readf(pdu, "dqd", &fid_val, &offset, &count);
-	fid = &p9dev->fids[fid_val];
+	fid = get_fid(p9dev, fid_val);
 
 	iov_base = pdu->in_iov[0].iov_base;
 	iov_len  = pdu->in_iov[0].iov_len;
@@ -469,7 +477,7 @@ static void virtio_p9_readdir(struct p9_dev *p9dev,
 
 	rcount = 0;
 	virtio_p9_pdu_readf(pdu, "dqd", &fid_val, &offset, &count);
-	fid = &p9dev->fids[fid_val];
+	fid = get_fid(p9dev, fid_val);
 
 	if (!fid->is_dir) {
 		errno = -EINVAL;
@@ -525,7 +533,7 @@ static void virtio_p9_getattr(struct p9_dev *p9dev,
 	struct p9_stat_dotl statl;
 
 	virtio_p9_pdu_readf(pdu, "dq", &fid_val, &request_mask);
-	fid = &p9dev->fids[fid_val];
+	fid = get_fid(p9dev, fid_val);
 	if (lstat(fid->abs_path, &st) < 0)
 		goto err_out;
 
@@ -573,7 +581,7 @@ static void virtio_p9_setattr(struct p9_dev *p9dev,
 	struct p9_iattr_dotl p9attr;
 
 	virtio_p9_pdu_readf(pdu, "dI", &fid_val, &p9attr);
-	fid = &p9dev->fids[fid_val];
+	fid = get_fid(p9dev, fid_val);
 
 	if (p9attr.valid & ATTR_MODE) {
 		ret = chmod(fid->abs_path, p9attr.mode);
@@ -652,7 +660,7 @@ static void virtio_p9_write(struct p9_dev *p9dev,
 	int twrite_size = sizeof(u32) + sizeof(u64) + sizeof(u32);
 
 	virtio_p9_pdu_readf(pdu, "dqd", &fid_val, &offset, &count);
-	fid = &p9dev->fids[fid_val];
+	fid = get_fid(p9dev, fid_val);
 
 	iov_base = pdu->out_iov[0].iov_base;
 	iov_len  = pdu->out_iov[0].iov_len;
@@ -691,7 +699,7 @@ static void virtio_p9_remove(struct p9_dev *p9dev,
 	struct p9_fid *fid;
 
 	virtio_p9_pdu_readf(pdu, "d", &fid_val);
-	fid = &p9dev->fids[fid_val];
+	fid = get_fid(p9dev, fid_val);
 
 	ret = remove(fid->abs_path);
 	if (ret < 0)
@@ -714,8 +722,8 @@ static void virtio_p9_rename(struct p9_dev *p9dev,
 	char full_path[PATH_MAX], *new_name;
 
 	virtio_p9_pdu_readf(pdu, "dds", &fid_val, &new_fid_val, &new_name);
-	fid = &p9dev->fids[fid_val];
-	new_fid = &p9dev->fids[new_fid_val];
+	fid = get_fid(p9dev, fid_val);
+	new_fid = get_fid(p9dev, new_fid_val);
 
 	sprintf(full_path, "%s/%s", new_fid->abs_path, new_name);
 	ret = rename(fid->abs_path, full_path);
@@ -740,7 +748,7 @@ static void virtio_p9_readlink(struct p9_dev *p9dev,
 	char target_path[PATH_MAX];
 
 	virtio_p9_pdu_readf(pdu, "d", &fid_val);
-	fid = &p9dev->fids[fid_val];
+	fid = get_fid(p9dev, fid_val);
 
 	memset(target_path, 0, PATH_MAX);
 	ret = readlink(fid->abs_path, target_path, PATH_MAX - 1);
@@ -766,7 +774,7 @@ static void virtio_p9_statfs(struct p9_dev *p9dev,
 	struct statfs stat_buf;
 
 	virtio_p9_pdu_readf(pdu, "d", &fid_val);
-	fid = &p9dev->fids[fid_val];
+	fid = get_fid(p9dev, fid_val);
 
 	ret = statfs(fid->abs_path, &stat_buf);
 	if (ret < 0)
@@ -801,7 +809,7 @@ static void virtio_p9_mknod(struct p9_dev *p9dev,
 	virtio_p9_pdu_readf(pdu, "dsdddd", &fid_val, &name, &mode,
 			    &major, &minor, &gid);
 
-	dfid = &p9dev->fids[fid_val];
+	dfid = get_fid(p9dev, fid_val);
 	sprintf(full_path, "%s/%s", dfid->abs_path, name);
 	ret = mknod(full_path, mode, makedev(major, minor));
 	if (ret < 0)
@@ -838,7 +846,7 @@ static void virtio_p9_fsync(struct p9_dev *p9dev,
 	u32 fid_val, datasync;
 
 	virtio_p9_pdu_readf(pdu, "dd", &fid_val, &datasync);
-	fid = &p9dev->fids[fid_val];
+	fid = get_fid(p9dev, fid_val);
 
 	if (datasync)
 		ret = fdatasync(fid->fd);
@@ -867,7 +875,7 @@ static void virtio_p9_symlink(struct p9_dev *p9dev,
 
 	virtio_p9_pdu_readf(pdu, "dssd", &fid_val, &name, &old_path, &gid);
 
-	dfid = &p9dev->fids[fid_val];
+	dfid = get_fid(p9dev, fid_val);
 	sprintf(new_name, "%s/%s", dfid->abs_path, name);
 	ret = symlink(old_path, new_name);
 	if (ret < 0)
@@ -905,8 +913,8 @@ static void virtio_p9_link(struct p9_dev *p9dev,
 
 	virtio_p9_pdu_readf(pdu, "dds", &dfid_val, &fid_val, &name);
 
-	dfid = &p9dev->fids[dfid_val];
-	fid =  &p9dev->fids[fid_val];
+	dfid = get_fid(p9dev, dfid_val);
+	fid =  get_fid(p9dev, fid_val);
 	sprintf(full_path, "%s/%s", dfid->abs_path, name);
 	ret = link(fid->abs_path, full_path);
 	if (ret < 0)
@@ -1006,8 +1014,8 @@ static void virtio_p9_renameat(struct p9_dev *p9dev,
 	virtio_p9_pdu_readf(pdu, "dsds", &old_dfid_val, &old_name,
 			    &new_dfid_val, &new_name);
 
-	old_dfid = &p9dev->fids[old_dfid_val];
-	new_dfid = &p9dev->fids[new_dfid_val];
+	old_dfid = get_fid(p9dev, old_dfid_val);
+	new_dfid = get_fid(p9dev, new_dfid_val);
 
 	sprintf(old_full_path, "%s/%s", old_dfid->abs_path, old_name);
 	sprintf(new_full_path, "%s/%s", new_dfid->abs_path, new_name);
@@ -1019,9 +1027,9 @@ static void virtio_p9_renameat(struct p9_dev *p9dev,
 	 * that.
 	 */
 	for (i = 0; i < VIRTIO_9P_MAX_FID; i++) {
-		if (p9dev->fids[i].fid != P9_NOFID &&
-		    virtio_p9_ancestor(p9dev->fids[i].path, old_name)) {
-			virtio_p9_fix_path(p9dev->fids[i].path, old_name,
+		if (get_fid(p9dev, i)->fid != P9_NOFID &&
+		    virtio_p9_ancestor(get_fid(p9dev, i)->path, old_name)) {
+			virtio_p9_fix_path(get_fid(p9dev, i)->path, old_name,
 					   new_name);
 		}
 	}
@@ -1047,7 +1055,7 @@ static void virtio_p9_unlinkat(struct p9_dev *p9dev,
 	char full_path[PATH_MAX];
 
 	virtio_p9_pdu_readf(pdu, "dsd", &fid_val, &name, &flags);
-	fid = &p9dev->fids[fid_val];
+	fid = get_fid(p9dev, fid_val);
 
 	sprintf(full_path, "%s/%s", fid->abs_path, name);
 	ret = remove(full_path);
@@ -1293,8 +1301,8 @@ int virtio_9p__register(struct kvm *kvm, const char *root, const char *tag_name)
 	 * absolute path of an fid without playing with strings.
 	 */
 	for (i = 0; i < VIRTIO_9P_MAX_FID; i++) {
-		strcpy(p9dev->fids[i].abs_path, root);
-		p9dev->fids[i].path = p9dev->fids[i].abs_path + root_len;
+		strcpy(get_fid(p9dev, i)->abs_path, root);
+		get_fid(p9dev, i)->path = get_fid(p9dev, i)->abs_path + root_len;
 	}
 	p9dev->config->tag_len = strlen(tag_name);
 	if (p9dev->config->tag_len > MAX_TAG_LEN) {
