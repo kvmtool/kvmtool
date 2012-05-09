@@ -12,7 +12,7 @@
 #define VIRTQUEUE_NUM		128
 #define	VIRTIO_9P_DEFAULT_TAG	"kvm_9p"
 #define VIRTIO_9P_HDR_LEN	(sizeof(u32)+sizeof(u8)+sizeof(u16))
-#define VIRTIO_9P_MAX_FID	256
+#define VIRTIO_9P_MAX_FID	16384
 #define VIRTIO_9P_VERSION_DOTL	"9P2000.L"
 #define MAX_TAG_LEN		32
 
