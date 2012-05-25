@@ -38,7 +38,6 @@ struct blk_dev_req {
 
 struct blk_dev {
 	pthread_mutex_t			mutex;
-	pthread_mutex_t			req_mutex;
 
 	struct list_head		list;
 	struct list_head		req_list;
@@ -229,7 +228,6 @@ static int virtio_blk__init_one(struct kvm *kvm, struct disk_image *disk)
 
 	*bdev = (struct blk_dev) {
 		.mutex			= PTHREAD_MUTEX_INITIALIZER,
-		.req_mutex		= PTHREAD_MUTEX_INITIALIZER,
 		.disk			= disk,
 		.blk_config		= (struct virtio_blk_config) {
 			.capacity	= disk->size / SECTOR_SIZE,
