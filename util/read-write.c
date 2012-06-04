@@ -322,23 +322,33 @@ int aio_pwritev(io_context_t ctx, struct iocb *iocb, int fd, const struct iovec 
 		off_t offset, int ev, void *param)
 {
 	struct iocb *ios[1] = { iocb };
+	int ret;
 
 	io_prep_pwritev(iocb, fd, iov, iovcnt, offset);
 	io_set_eventfd(iocb, ev);
 	iocb->data = param;
 
-	return io_submit(ctx, 1, ios);
+restart:
+	ret = io_submit(ctx, 1, ios);
+	if (ret == -EAGAIN)
+		goto restart;
+	return ret;
 }
 
 int aio_preadv(io_context_t ctx, struct iocb *iocb, int fd, const struct iovec *iov, int iovcnt,
 		off_t offset, int ev, void *param)
 {
 	struct iocb *ios[1] = { iocb };
+	int ret;
 
 	io_prep_preadv(iocb, fd, iov, iovcnt, offset);
 	io_set_eventfd(iocb, ev);
 	iocb->data = param;
 
-	return io_submit(ctx, 1, ios);
+restart:
+	ret = io_submit(ctx, 1, ios);
+	if (ret == -EAGAIN)
+		goto restart;
+	return ret;
 }
 #endif
