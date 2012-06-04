@@ -31,10 +31,10 @@ enum {
 struct disk_image;
 
 struct disk_image_operations {
-	ssize_t (*read_sector)(struct disk_image *disk, u64 sector, const struct iovec *iov,
-				int iovcount, void *param);
-	ssize_t (*write_sector)(struct disk_image *disk, u64 sector, const struct iovec *iov,
-				int iovcount, void *param);
+	ssize_t (*read)(struct disk_image *disk, u64 sector, const struct iovec *iov,
+			int iovcount, void *param);
+	ssize_t (*write)(struct disk_image *disk, u64 sector, const struct iovec *iov,
+			int iovcount, void *param);
 	int (*flush)(struct disk_image *disk);
 	int (*close)(struct disk_image *disk);
 };
@@ -68,13 +68,13 @@ ssize_t disk_image__get_serial(struct disk_image *disk, void *buffer, ssize_t *l
 struct disk_image *raw_image__probe(int fd, struct stat *st, bool readonly);
 struct disk_image *blkdev__probe(const char *filename, struct stat *st);
 
-ssize_t raw_image__read_sector(struct disk_image *disk, u64 sector,
+ssize_t raw_image__read(struct disk_image *disk, u64 sector,
 				const struct iovec *iov, int iovcount, void *param);
-ssize_t raw_image__write_sector(struct disk_image *disk, u64 sector,
+ssize_t raw_image__write(struct disk_image *disk, u64 sector,
 				const struct iovec *iov, int iovcount, void *param);
-ssize_t raw_image__read_sector_mmap(struct disk_image *disk, u64 sector,
+ssize_t raw_image__read_mmap(struct disk_image *disk, u64 sector,
 				const struct iovec *iov, int iovcount, void *param);
-ssize_t raw_image__write_sector_mmap(struct disk_image *disk, u64 sector,
+ssize_t raw_image__write_mmap(struct disk_image *disk, u64 sector,
 				const struct iovec *iov, int iovcount, void *param);
 int raw_image__close(struct disk_image *disk);
 void disk_image__set_callback(struct disk_image *disk, void (*disk_req_cb)(void *param, long len));

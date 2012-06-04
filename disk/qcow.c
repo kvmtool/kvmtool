@@ -1180,15 +1180,15 @@ static int qcow_disk_close(struct disk_image *disk)
 }
 
 static struct disk_image_operations qcow_disk_readonly_ops = {
-	.read_sector		= qcow_read_sector,
-	.close			= qcow_disk_close,
+	.read	= qcow_read_sector,
+	.close	= qcow_disk_close,
 };
 
 static struct disk_image_operations qcow_disk_ops = {
-	.read_sector		= qcow_read_sector,
-	.write_sector		= qcow_write_sector,
-	.flush			= qcow_disk_flush,
-	.close			= qcow_disk_close,
+	.read	= qcow_read_sector,
+	.write	= qcow_write_sector,
+	.flush	= qcow_disk_flush,
+	.close	= qcow_disk_close,
 };
 
 static int qcow_read_refcount_table(struct qcow *q)

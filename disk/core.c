@@ -193,8 +193,8 @@ ssize_t disk_image__read(struct disk_image *disk, u64 sector, const struct iovec
 	if (debug_iodelay)
 		msleep(debug_iodelay);
 
-	if (disk->ops->read_sector) {
-		total = disk->ops->read_sector(disk, sector, iov, iovcount, param);
+	if (disk->ops->read) {
+		total = disk->ops->read(disk, sector, iov, iovcount, param);
 		if (total < 0) {
 			pr_info("disk_image__read error: total=%ld\n", (long)total);
 			return total;
@@ -221,12 +221,12 @@ ssize_t disk_image__write(struct disk_image *disk, u64 sector, const struct iove
 	if (debug_iodelay)
 		msleep(debug_iodelay);
 
-	if (disk->ops->write_sector) {
+	if (disk->ops->write) {
 		/*
 		 * Try writev based operation first
 		 */
 
-		total = disk->ops->write_sector(disk, sector, iov, iovcount, param);
+		total = disk->ops->write(disk, sector, iov, iovcount, param);
 		if (total < 0) {
 			pr_info("disk_image__write error: total=%ld\n", (long)total);
 			return total;

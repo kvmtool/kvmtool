@@ -6,7 +6,7 @@
 #include <libaio.h>
 #endif
 
-ssize_t raw_image__read_sector(struct disk_image *disk, u64 sector, const struct iovec *iov,
+ssize_t raw_image__read(struct disk_image *disk, u64 sector, const struct iovec *iov,
 				int iovcount, void *param)
 {
 	u64 offset = sector << SECTOR_SHIFT;
@@ -21,7 +21,7 @@ ssize_t raw_image__read_sector(struct disk_image *disk, u64 sector, const struct
 #endif
 }
 
-ssize_t raw_image__write_sector(struct disk_image *disk, u64 sector, const struct iovec *iov,
+ssize_t raw_image__write(struct disk_image *disk, u64 sector, const struct iovec *iov,
 				int iovcount, void *param)
 {
 	u64 offset = sector << SECTOR_SHIFT;
@@ -36,7 +36,7 @@ ssize_t raw_image__write_sector(struct disk_image *disk, u64 sector, const struc
 #endif
 }
 
-ssize_t raw_image__read_sector_mmap(struct disk_image *disk, u64 sector, const struct iovec *iov,
+ssize_t raw_image__read_mmap(struct disk_image *disk, u64 sector, const struct iovec *iov,
 				int iovcount, void *param)
 {
 	u64 offset = sector << SECTOR_SHIFT;
@@ -54,7 +54,7 @@ ssize_t raw_image__read_sector_mmap(struct disk_image *disk, u64 sector, const s
 	return total;
 }
 
-ssize_t raw_image__write_sector_mmap(struct disk_image *disk, u64 sector, const struct iovec *iov,
+ssize_t raw_image__write_mmap(struct disk_image *disk, u64 sector, const struct iovec *iov,
 				int iovcount, void *param)
 {
 	u64 offset = sector << SECTOR_SHIFT;
@@ -92,18 +92,18 @@ int raw_image__close(struct disk_image *disk)
  * multiple buffer based disk image operations
  */
 static struct disk_image_operations raw_image_regular_ops = {
-	.read_sector	= raw_image__read_sector,
-	.write_sector	= raw_image__write_sector,
+	.read	= raw_image__read,
+	.write	= raw_image__write,
 };
 
 struct disk_image_operations ro_ops = {
-	.read_sector	= raw_image__read_sector_mmap,
-	.write_sector	= raw_image__write_sector_mmap,
+	.read	= raw_image__read_mmap,
+	.write	= raw_image__write_mmap,
 	.close		= raw_image__close,
 };
 
 struct disk_image_operations ro_ops_nowrite = {
-	.read_sector	= raw_image__read_sector,
+	.read	= raw_image__read,
 };
 
 struct disk_image *raw_image__probe(int fd, struct stat *st, bool readonly)

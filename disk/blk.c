@@ -7,8 +7,8 @@
  * raw image and blk dev are similar, so reuse raw image ops.
  */
 static struct disk_image_operations blk_dev_ops = {
-	.read_sector	= raw_image__read_sector,
-	.write_sector	= raw_image__write_sector,
+	.read	= raw_image__read,
+	.write	= raw_image__write,
 };
 
 static bool is_mounted(struct stat *st)
