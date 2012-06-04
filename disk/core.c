@@ -6,7 +6,7 @@
 #include <sys/eventfd.h>
 #include <sys/poll.h>
 
-#define AIO_MAX 32
+#define AIO_MAX 256
 
 int debug_iodelay;
 
