@@ -81,8 +81,8 @@ static void *virtio_net_rx_thread(void *p)
 	u16 head;
 	int len;
 
-	kvm	= ndev->kvm;
-	vq	= &ndev->vqs[VIRTIO_NET_RX_QUEUE];
+	kvm = ndev->kvm;
+	vq = &ndev->vqs[VIRTIO_NET_RX_QUEUE];
 
 	while (1) {
 		mutex_lock(&ndev->io_rx_lock);
@@ -117,8 +117,8 @@ static void *virtio_net_tx_thread(void *p)
 	u16 head;
 	int len;
 
-	kvm	= ndev->kvm;
-	vq	= &ndev->vqs[VIRTIO_NET_TX_QUEUE];
+	kvm = ndev->kvm;
+	vq = &ndev->vqs[VIRTIO_NET_TX_QUEUE];
 
 	while (1) {
 		mutex_lock(&ndev->io_tx_lock);
