@@ -547,6 +547,6 @@ void virtio_net__init(const struct virtio_net_params *params)
 	else
 		virtio_net__io_thread_init(params->kvm, ndev);
 
-	if (compat_id != -1)
+	if (compat_id == -1)
 		compat_id = virtio_compat_add_message("virtio-net", "CONFIG_VIRTIO_NET");
 }

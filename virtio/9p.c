@@ -1312,7 +1312,7 @@ int virtio_9p__register(struct kvm *kvm, const char *root, const char *tag_name)
 
 	list_add(&p9dev->list, &devs);
 
-	if (compat_id != -1)
+	if (compat_id == -1)
 		compat_id = virtio_compat_add_message("virtio-9p", "CONFIG_NET_9P_VIRTIO");
 
 	return err;

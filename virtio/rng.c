@@ -170,7 +170,7 @@ int virtio_rng__init(struct kvm *kvm)
 
 	list_add_tail(&rdev->list, &rdevs);
 
-	if (compat_id != -1)
+	if (compat_id == -1)
 		compat_id = virtio_compat_add_message("virtio-rng", "CONFIG_HW_RANDOM_VIRTIO");
 	return 0;
 cleanup:
