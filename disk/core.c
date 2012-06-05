@@ -29,7 +29,9 @@ static void *disk_image__thread(void *param)
 }
 #endif
 
-struct disk_image *disk_image__new(int fd, u64 size, struct disk_image_operations *ops, int use_mmap)
+struct disk_image *disk_image__new(int fd, u64 size,
+				   struct disk_image_operations *ops,
+				   int use_mmap)
 {
 	struct disk_image *disk;
 	int r;
@@ -109,7 +111,8 @@ struct disk_image *disk_image__open(const char *filename, bool readonly)
 	return ERR_PTR(-ENOSYS);
 }
 
-struct disk_image **disk_image__open_all(const char **filenames, bool *readonly, int count)
+struct disk_image **disk_image__open_all(const char **filenames,
+					 bool *readonly, int count)
 {
 	struct disk_image **disks;
 	int i;
@@ -185,8 +188,8 @@ int disk_image__close_all(struct disk_image **disks, int count)
  * Fill iov with disk data, starting from sector 'sector'.
  * Return amount of bytes read.
  */
-ssize_t disk_image__read(struct disk_image *disk, u64 sector, const struct iovec *iov,
-				int iovcount, void *param)
+ssize_t disk_image__read(struct disk_image *disk, u64 sector,
+			 const struct iovec *iov, int iovcount, void *param)
 {
 	ssize_t total = 0;
 
@@ -199,8 +202,6 @@ ssize_t disk_image__read(struct disk_image *disk, u64 sector, const struct iovec
 			pr_info("disk_image__read error: total=%ld\n", (long)total);
 			return total;
 		}
-	} else {
-		/* Do nothing */
 	}
 
 	if (!disk->async && disk->disk_req_cb)
@@ -213,8 +214,8 @@ ssize_t disk_image__read(struct disk_image *disk, u64 sector, const struct iovec
  * Write iov to disk, starting from sector 'sector'.
  * Return amount of bytes written.
  */
-ssize_t disk_image__write(struct disk_image *disk, u64 sector, const struct iovec *iov,
-				int iovcount, void *param)
+ssize_t disk_image__write(struct disk_image *disk, u64 sector,
+			  const struct iovec *iov, int iovcount, void *param)
 {
 	ssize_t total = 0;
 
@@ -250,11 +251,13 @@ ssize_t disk_image__get_serial(struct disk_image *disk, void *buffer, ssize_t *l
 	if (r)
 		return r;
 
-	*len = snprintf(buffer, *len, "%llu%llu%llu", (u64)st.st_dev, (u64)st.st_rdev, (u64)st.st_ino);
+	*len = snprintf(buffer, *len, "%llu%llu%llu",
+			(u64)st.st_dev, (u64)st.st_rdev, (u64)st.st_ino);
 	return *len;
 }
 
-void disk_image__set_callback(struct disk_image *disk, void (*disk_req_cb)(void *param, long len))
+void disk_image__set_callback(struct disk_image *disk,
+			      void (*disk_req_cb)(void *param, long len))
 {
 	disk->disk_req_cb = disk_req_cb;
 }
