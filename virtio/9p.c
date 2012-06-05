@@ -393,22 +393,22 @@ static void virtio_p9_fill_stat(struct p9_dev *p9dev,
 				struct stat *st, struct p9_stat_dotl *statl)
 {
 	memset(statl, 0, sizeof(*statl));
-	statl->st_mode = st->st_mode;
-	statl->st_nlink = st->st_nlink;
-	statl->st_uid = st->st_uid;
-	statl->st_gid = st->st_gid;
-	statl->st_rdev = st->st_rdev;
-	statl->st_size = st->st_size;
-	statl->st_blksize = st->st_blksize;
-	statl->st_blocks = st->st_blocks;
-	statl->st_atime_sec = st->st_atime;
-	statl->st_atime_nsec = st->st_atim.tv_nsec;
-	statl->st_mtime_sec = st->st_mtime;
-	statl->st_mtime_nsec = st->st_mtim.tv_nsec;
-	statl->st_ctime_sec = st->st_ctime;
-	statl->st_ctime_nsec = st->st_ctim.tv_nsec;
+	statl->st_mode		= st->st_mode;
+	statl->st_nlink		= st->st_nlink;
+	statl->st_uid		= st->st_uid;
+	statl->st_gid		= st->st_gid;
+	statl->st_rdev		= st->st_rdev;
+	statl->st_size		= st->st_size;
+	statl->st_blksize	= st->st_blksize;
+	statl->st_blocks	= st->st_blocks;
+	statl->st_atime_sec	= st->st_atime;
+	statl->st_atime_nsec	= st->st_atim.tv_nsec;
+	statl->st_mtime_sec	= st->st_mtime;
+	statl->st_mtime_nsec	= st->st_mtim.tv_nsec;
+	statl->st_ctime_sec	= st->st_ctime;
+	statl->st_ctime_nsec	= st->st_ctim.tv_nsec;
 	/* Currently we only support BASIC fields in stat */
-	statl->st_result_mask = P9_STATS_BASIC;
+	statl->st_result_mask	= P9_STATS_BASIC;
 	stat2qid(st, &statl->qid);
 }
 
@@ -692,7 +692,7 @@ err_out:
 }
 
 static void virtio_p9_remove(struct p9_dev *p9dev,
-			       struct p9_pdu *pdu, u32 *outlen)
+			     struct p9_pdu *pdu, u32 *outlen)
 {
 	int ret;
 	u32 fid_val;
@@ -714,7 +714,7 @@ err_out:
 }
 
 static void virtio_p9_rename(struct p9_dev *p9dev,
-			       struct p9_pdu *pdu, u32 *outlen)
+			     struct p9_pdu *pdu, u32 *outlen)
 {
 	int ret;
 	u32 fid_val, new_fid_val;
@@ -1121,12 +1121,10 @@ static struct p9_pdu *virtio_p9_pdu_init(struct kvm *kvm, struct virt_queue *vq)
 		return NULL;
 
 	/* skip the pdu header p9_msg */
-	pdu->read_offset  = VIRTIO_9P_HDR_LEN;
-	pdu->write_offset = VIRTIO_9P_HDR_LEN;
-	pdu->queue_head  = virt_queue__get_inout_iov(kvm, vq, pdu->in_iov,
-						     pdu->out_iov,
-						     &pdu->in_iov_cnt,
-						     &pdu->out_iov_cnt);
+	pdu->read_offset	= VIRTIO_9P_HDR_LEN;
+	pdu->write_offset	= VIRTIO_9P_HDR_LEN;
+	pdu->queue_head		= virt_queue__get_inout_iov(kvm, vq, pdu->in_iov,
+					pdu->out_iov, &pdu->in_iov_cnt, &pdu->out_iov_cnt);
 	return pdu;
 }
 
@@ -1215,16 +1213,16 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 pfn)
 
 	compat__remove_message(compat_id);
 
-	queue			= &p9dev->vqs[vq];
-	queue->pfn		= pfn;
-	p			= guest_pfn_to_host(kvm, queue->pfn);
-	job			= &p9dev->jobs[vq];
+	queue		= &p9dev->vqs[vq];
+	queue->pfn	= pfn;
+	p		= guest_pfn_to_host(kvm, queue->pfn);
+	job		= &p9dev->jobs[vq];
 
 	vring_init(&queue->vring, VIRTQUEUE_NUM, p, VIRTIO_PCI_VRING_ALIGN);
 
-	*job			= (struct p9_dev_job) {
-		.vq			= queue,
-		.p9dev			= p9dev,
+	*job		= (struct p9_dev_job) {
+		.vq		= queue,
+		.p9dev		= p9dev,
 	};
 	thread_pool__init_job(&job->job_id, kvm, virtio_p9_do_io, job);
 
