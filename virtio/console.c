@@ -189,10 +189,5 @@ void virtio_console__init(struct kvm *kvm)
 	virtio_init(kvm, &cdev, &cdev.vdev, &con_dev_virtio_ops,
 		    VIRTIO_PCI, PCI_DEVICE_ID_VIRTIO_CONSOLE, VIRTIO_ID_CONSOLE, PCI_CLASS_CONSOLE);
 	if (compat_id != -1)
-		compat_id = compat__add_message("virtio-console device was not detected",
-						"While you have requested a virtio-console device, "
-						"the guest kernel did not initialize it.\n"
-						"Please make sure that the guest kernel was "
-						"compiled with CONFIG_VIRTIO_CONSOLE=y enabled "
-						"in its .config");
+		compat_id = virtio_compat_add_message("virtio-console", "CONFIG_VIRTIO_CONSOLE");
 }

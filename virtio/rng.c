@@ -171,12 +171,7 @@ int virtio_rng__init(struct kvm *kvm)
 	list_add_tail(&rdev->list, &rdevs);
 
 	if (compat_id != -1)
-		compat_id = compat__add_message("virtio-rng device was not detected",
-						"While you have requested a virtio-rng device, "
-						"the guest kernel did not initialize it.\n"
-						"Please make sure that the guest kernel was "
-						"compiled with CONFIG_HW_RANDOM_VIRTIO=y enabled "
-						"in its .config");
+		compat_id = virtio_compat_add_message("virtio-rng", "CONFIG_HW_RANDOM_VIRTIO");
 	return 0;
 cleanup:
 	close(rdev->fd);

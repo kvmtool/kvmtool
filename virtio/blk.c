@@ -250,12 +250,7 @@ static int virtio_blk__init_one(struct kvm *kvm, struct disk_image *disk)
 	disk_image__set_callback(bdev->disk, virtio_blk_complete);
 
 	if (compat_id != -1)
-		compat_id = compat__add_message("virtio-blk device was not detected",
-						"While you have requested a virtio-blk device, "
-						"the guest kernel did not initialize it.\n"
-						"Please make sure that the guest kernel was "
-						"compiled with CONFIG_VIRTIO_BLK=y enabled "
-						"in its .config");
+		compat_id = virtio_compat_add_message("virtio-blk", "CONFIG_VIRTIO_BLK");
 	return 0;
 }
 

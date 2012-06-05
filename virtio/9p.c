@@ -1313,12 +1313,7 @@ int virtio_9p__register(struct kvm *kvm, const char *root, const char *tag_name)
 	list_add(&p9dev->list, &devs);
 
 	if (compat_id != -1)
-		compat_id = compat__add_message("virtio-9p device was not detected",
-						"While you have requested a virtio-9p device, "
-						"the guest kernel did not initialize it.\n"
-						"Please make sure that the guest kernel was "
-						"compiled with CONFIG_NET_9P_VIRTIO=y enabled "
-						"in its .config");
+		compat_id = virtio_compat_add_message("virtio-9p", "CONFIG_NET_9P_VIRTIO");
 
 	return err;
 

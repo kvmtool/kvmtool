@@ -263,10 +263,5 @@ void virtio_bln__init(struct kvm *kvm)
 		    VIRTIO_PCI, PCI_DEVICE_ID_VIRTIO_BLN, VIRTIO_ID_BALLOON, PCI_CLASS_BLN);
 
 	if (compat_id != -1)
-		compat_id = compat__add_message("virtio-balloon device was not detected",
-						"While you have requested a virtio-balloon device, "
-						"the guest kernel did not initialize it.\n"
-						"Please make sure that the guest kernel was "
-						"compiled with CONFIG_VIRTIO_BALLOON=y enabled "
-						"in its .config");
+		compat_id = virtio_compat_add_message("virtio-balloon", "CONFIG_VIRTIO_BALLOON");
 }

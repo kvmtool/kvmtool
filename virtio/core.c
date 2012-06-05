@@ -3,6 +3,7 @@
 #include <sys/uio.h>
 #include <stdlib.h>
 
+#include "kvm/guest_compat.h"
 #include "kvm/barrier.h"
 #include "kvm/virtio.h"
 #include "kvm/virtio-pci.h"
@@ -197,4 +198,36 @@ int virtio_init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 	};
 
 	return 0;
+}
+
+int virtio_compat_add_message(const char *device, const char *config)
+{
+	int len = 1024;
+	int compat_id;
+	char *title;
+	char *desc;
+
+	title = malloc(len);
+	if (!title)
+		return -ENOMEM;
+
+	desc = malloc(len);
+	if (!desc) {
+		free(title);
+		return -ENOMEM;
+	}
+
+	snprintf(title, len, "%s device was not detected", device);
+	snprintf(desc,  len, "While you have requested a %s device, "
+			     "the guest kernel did not initialize it.\n"
+			     "Please make sure that the guest kernel was "
+			     "compiled with %s=y enabled in its .config",
+			     device, config);
+
+	compat_id = compat__add_message(title, desc);
+
+	free(desc);
+	free(title);
+
+	return compat_id;
 }
