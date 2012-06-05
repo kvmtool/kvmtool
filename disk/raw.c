@@ -99,7 +99,7 @@ static struct disk_image_operations raw_image_regular_ops = {
 struct disk_image_operations ro_ops = {
 	.read	= raw_image__read_mmap,
 	.write	= raw_image__write_mmap,
-	.close		= raw_image__close,
+	.close	= raw_image__close,
 };
 
 struct disk_image_operations ro_ops_nowrite = {
