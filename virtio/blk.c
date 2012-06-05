@@ -90,20 +90,21 @@ static void virtio_blk_do_io_request(struct kvm *kvm, struct blk_dev_req *req)
 
 	switch (req_hdr->type) {
 	case VIRTIO_BLK_T_IN:
-		block_cnt	= disk_image__read(bdev->disk, req_hdr->sector, iov + 1,
-					in + out - 2, req);
+		block_cnt = disk_image__read(bdev->disk, req_hdr->sector,
+				iov + 1, in + out - 2, req);
 		break;
 	case VIRTIO_BLK_T_OUT:
-		block_cnt	= disk_image__write(bdev->disk, req_hdr->sector, iov + 1,
-					in + out - 2, req);
+		block_cnt = disk_image__write(bdev->disk, req_hdr->sector,
+				iov + 1, in + out - 2, req);
 		break;
 	case VIRTIO_BLK_T_FLUSH:
-		block_cnt       = disk_image__flush(bdev->disk);
+		block_cnt = disk_image__flush(bdev->disk);
 		virtio_blk_complete(req, block_cnt);
 		break;
 	case VIRTIO_BLK_T_GET_ID:
-		block_cnt	= VIRTIO_BLK_ID_BYTES;
-		disk_image__get_serial(bdev->disk, (iov + 1)->iov_base, &block_cnt);
+		block_cnt = VIRTIO_BLK_ID_BYTES;
+		disk_image__get_serial(bdev->disk,
+				(iov + 1)->iov_base, &block_cnt);
 		virtio_blk_complete(req, block_cnt);
 		break;
 	default:
@@ -121,7 +122,8 @@ static void virtio_blk_do_io(struct kvm *kvm, struct virt_queue *vq, struct blk_
 	while (virt_queue__available(vq)) {
 		head		= virt_queue__pop(vq);
 		req		= &bdev->reqs[head];
-		req->head	= virt_queue__get_head_iov(vq, req->iov, &req->out, &req->in, head, kvm);
+		req->head	= virt_queue__get_head_iov(vq, req->iov, &req->out,
+					&req->in, head, kvm);
 		req->vq		= vq;
 
 		virtio_blk_do_io_request(kvm, req);
@@ -165,9 +167,9 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 pfn)
 
 	compat__remove_message(compat_id);
 
-	queue			= &bdev->vqs[vq];
-	queue->pfn		= pfn;
-	p			= guest_pfn_to_host(kvm, queue->pfn);
+	queue		= &bdev->vqs[vq];
+	queue->pfn	= pfn;
+	p		= guest_pfn_to_host(kvm, queue->pfn);
 
 	vring_init(&queue->vring, VIRTIO_BLK_QUEUE_SIZE, p, VIRTIO_PCI_VRING_ALIGN);
 
@@ -241,8 +243,8 @@ static int virtio_blk__init_one(struct kvm *kvm, struct disk_image *disk)
 	list_add_tail(&bdev->list, &bdevs);
 
 	for (i = 0; i < ARRAY_SIZE(bdev->reqs); i++) {
-		bdev->reqs[i].bdev	= bdev;
-		bdev->reqs[i].kvm	= kvm;
+		bdev->reqs[i].bdev = bdev;
+		bdev->reqs[i].kvm = kvm;
 	}
 
 	disk_image__set_callback(bdev->disk, virtio_blk_complete);
