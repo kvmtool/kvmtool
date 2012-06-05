@@ -209,9 +209,9 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 pfn)
 
 	compat__remove_message(compat_id);
 
-	queue			= &bdev->vqs[vq];
-	queue->pfn		= pfn;
-	p			= guest_pfn_to_host(kvm, queue->pfn);
+	queue		= &bdev->vqs[vq];
+	queue->pfn	= pfn;
+	p		= guest_pfn_to_host(kvm, queue->pfn);
 
 	thread_pool__init_job(&bdev->jobs[vq], kvm, virtio_bln_do_io, queue);
 	vring_init(&queue->vring, VIRTIO_BLN_QUEUE_SIZE, p, VIRTIO_PCI_VRING_ALIGN);
