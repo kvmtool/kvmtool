@@ -138,9 +138,9 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 pfn)
 
 	compat__remove_message(compat_id);
 
-	queue			= &cdev.vqs[vq];
-	queue->pfn		= pfn;
-	p			= guest_pfn_to_host(kvm, queue->pfn);
+	queue		= &cdev.vqs[vq];
+	queue->pfn	= pfn;
+	p		= guest_pfn_to_host(kvm, queue->pfn);
 
 	vring_init(&queue->vring, VIRTIO_CONSOLE_QUEUE_SIZE, p, VIRTIO_PCI_VRING_ALIGN);
 
