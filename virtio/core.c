@@ -217,11 +217,11 @@ int virtio_compat_add_message(const char *device, const char *config)
 		return -ENOMEM;
 	}
 
-	snprintf(title, len, "%s device was not detected", device);
+	snprintf(title, len, "%s device was not detected.", device);
 	snprintf(desc,  len, "While you have requested a %s device, "
 			     "the guest kernel did not initialize it.\n"
-			     "Please make sure that the guest kernel was "
-			     "compiled with %s=y enabled in its .config",
+			     "\tPlease make sure that the guest kernel was "
+			     "compiled with %s=y enabled in .config.",
 			     device, config);
 
 	compat_id = compat__add_message(title, desc);
