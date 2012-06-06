@@ -7,6 +7,7 @@
 int prefixcmp(const char *str, const char *prefix);
 
 extern size_t strlcat(char *dest, const char *src, size_t count);
+extern size_t strlcpy(char *dest, const char *src, size_t size);
 
 /* some inline functions */
 

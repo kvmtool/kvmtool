@@ -1,6 +1,7 @@
 #include "kvm/kvm.h"
 #include "kvm/read-write.h"
 #include "kvm/util.h"
+#include "kvm/strbuf.h"
 #include "kvm/mutex.h"
 #include "kvm/kvm-cpu.h"
 #include "kvm/kvm-ipc.h"
@@ -142,11 +143,14 @@ static int kvm__create_socket(struct kvm *kvm)
 	struct sockaddr_un local;
 	int len, r;
 
+	/* This usually 108 bytes long */
+	BUILD_BUG_ON(sizeof(local.sun_path) < 32);
+
 	if (!kvm->name)
 		return -EINVAL;
 
-	sprintf(full_name, "%s/%s%s", kvm__get_dir(), kvm->name,
-			KVM_SOCK_SUFFIX);
+	snprintf(full_name, sizeof(full_name), "%s/%s%s",
+		 kvm__get_dir(), kvm->name, KVM_SOCK_SUFFIX);
 	if (access(full_name, F_OK) == 0) {
 		pr_err("Socket file %s already exist", full_name);
 		return -EEXIST;
@@ -156,7 +160,7 @@ static int kvm__create_socket(struct kvm *kvm)
 	if (s < 0)
 		return s;
 	local.sun_family = AF_UNIX;
-	strcpy(local.sun_path, full_name);
+	strlcpy(local.sun_path, full_name, sizeof(local.sun_path));
 	len = strlen(local.sun_path) + sizeof(local.sun_family);
 	r = bind(s, (struct sockaddr *)&local, len);
 	if (r < 0)
@@ -177,7 +181,8 @@ void kvm__remove_socket(const char *name)
 {
 	char full_name[PATH_MAX];
 
-	sprintf(full_name, "%s/%s%s", kvm__get_dir(), name, KVM_SOCK_SUFFIX);
+	snprintf(full_name, sizeof(full_name), "%s/%s%s",
+		 kvm__get_dir(), name, KVM_SOCK_SUFFIX);
 	unlink(full_name);
 }
 
@@ -187,11 +192,12 @@ int kvm__get_sock_by_instance(const char *name)
 	char sock_file[PATH_MAX];
 	struct sockaddr_un local;
 
-	sprintf(sock_file, "%s/%s%s", kvm__get_dir(), name, KVM_SOCK_SUFFIX);
+	snprintf(sock_file, sizeof(sock_file), "%s/%s%s",
+		 kvm__get_dir(), name, KVM_SOCK_SUFFIX);
 	s = socket(AF_UNIX, SOCK_STREAM, 0);
 
 	local.sun_family = AF_UNIX;
-	strcpy(local.sun_path, sock_file);
+	strlcpy(local.sun_path, sock_file, sizeof(local.sun_path));
 	len = strlen(local.sun_path) + sizeof(local.sun_family);
 
 	r = connect(s, &local, len);
