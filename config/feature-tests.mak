@@ -166,3 +166,12 @@ int main(void)
 	return 0;
 }
 endef
+
+define SOURCE_STATIC
+#include <stdlib.h>
+
+int main(void)
+{
+	return 0;
+}
+endef

@@ -219,6 +219,9 @@ ifeq ($(call try-cc,$(SOURCE_AIO),$(FLAGS_AIO) -static),y)
 	LIBS_STATOPT	+= -laio
 endif
 
+ifneq ($(call try-build,$(SOURCE_STATIC),-static,),y)
+$(error No static libc found. Please install glibc-static package.)
+endif
 ###
 
 LIBS	+= -lrt
