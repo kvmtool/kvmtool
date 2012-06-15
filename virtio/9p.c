@@ -1071,6 +1071,19 @@ err_out:
 	return;
 }
 
+static void virtio_p9_flush(struct p9_dev *p9dev,
+				struct p9_pdu *pdu, u32 *outlen)
+{
+	u16 tag, oldtag;
+
+	virtio_p9_pdu_readf(pdu, "ww", &tag, &oldtag);
+	virtio_p9_pdu_writef(pdu, "w", tag);
+	*outlen = pdu->write_offset;
+	virtio_p9_set_reply_header(pdu, *outlen);
+
+	return;
+}
+
 static void virtio_p9_eopnotsupp(struct p9_dev *p9dev,
 				 struct p9_pdu *pdu, u32 *outlen)
 {
@@ -1105,7 +1118,7 @@ static p9_handler *virtio_9p_dotl_handler [] = {
 	[P9_TCLUNK]       = virtio_p9_clunk,
 	[P9_TFSYNC]       = virtio_p9_fsync,
 	[P9_TREAD]        = virtio_p9_read,
-	[P9_TFLUSH]       = virtio_p9_eopnotsupp,
+	[P9_TFLUSH]       = virtio_p9_flush,
 	[P9_TLINK]        = virtio_p9_link,
 	[P9_TSYMLINK]     = virtio_p9_symlink,
 	[P9_TLCREATE]     = virtio_p9_create,
