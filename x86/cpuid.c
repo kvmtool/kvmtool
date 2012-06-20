@@ -21,8 +21,13 @@ static void filter_cpuid(struct kvm_cpuid2 *kvm_cpuid)
 		struct kvm_cpuid_entry2 *entry = &kvm_cpuid->entries[i];
 
 		switch (entry->function) {
+		case 1:
+			/* Set X86_FEATURE_HYPERVISOR */
+			if (entry->index == 0)
+				entry->ecx |= (1 << 31);
+			break;
 		case 6:
-			/* Clear presence of IA32_ENERGY_PERF_BIAS */
+			/* Clear X86_FEATURE_EPB */
 			entry->ecx = entry->ecx & ~(1 << 3);
 			break;
 		case CPUID_FUNC_PERFMON:
