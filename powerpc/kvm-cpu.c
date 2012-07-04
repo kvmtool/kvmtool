@@ -137,6 +137,7 @@ static void kvm_cpu__setup_sregs(struct kvm_cpu *vcpu)
 	 */
 	struct kvm_sregs sregs;
 	struct kvm_one_reg reg = {};
+	u64 value;
 
 	if (ioctl(vcpu->vcpu_fd, KVM_GET_SREGS, &sregs) < 0)
 		die("KVM_GET_SREGS failed");
@@ -147,8 +148,9 @@ static void kvm_cpu__setup_sregs(struct kvm_cpu *vcpu)
 	if (ioctl(vcpu->vcpu_fd, KVM_SET_SREGS, &sregs) < 0)
 		die("KVM_SET_SREGS failed");
 
-	reg.id = KVM_ONE_REG_PPC_HIOR;
-	reg.u.reg64 = 0;
+	reg.id = KVM_REG_PPC_HIOR;
+	value = 0;
+	reg.addr = (u64)&value;
 	if (ioctl(vcpu->vcpu_fd, KVM_SET_ONE_REG, &reg) < 0)
 		die("KVM_SET_ONE_REG failed");
 }
