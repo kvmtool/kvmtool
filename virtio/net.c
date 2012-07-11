@@ -492,6 +492,9 @@ static void virtio_net__vhost_init(struct kvm *kvm, struct net_dev *ndev)
 	r = ioctl(ndev->vhost_fd, VHOST_SET_MEM_TABLE, mem);
 	if (r != 0)
 		die_perror("VHOST_SET_MEM_TABLE failed");
+
+	ndev->vdev.use_vhost = true;
+
 	free(mem);
 }
 

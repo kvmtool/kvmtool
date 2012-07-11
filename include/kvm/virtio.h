@@ -72,6 +72,7 @@ enum virtio_trans {
 };
 
 struct virtio_device {
+	bool			use_vhost;
 	void			*virtio;
 	struct virtio_ops	*ops;
 };

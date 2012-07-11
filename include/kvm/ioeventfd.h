@@ -22,7 +22,7 @@ struct ioevent {
 
 int ioeventfd__init(struct kvm *kvm);
 int ioeventfd__exit(struct kvm *kvm);
-int ioeventfd__add_event(struct ioevent *ioevent, bool is_pio);
+int ioeventfd__add_event(struct ioevent *ioevent, bool is_pio, bool poll_in_userspace);
 int ioeventfd__del_event(u64 addr, u64 datamatch);
 
 #endif

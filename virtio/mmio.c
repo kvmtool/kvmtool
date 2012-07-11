@@ -48,7 +48,15 @@ static int virtio_mmio_init_ioeventfd(struct kvm *kvm,
 		.fd		= eventfd(0, 0),
 	};
 
-	err = ioeventfd__add_event(&ioevent, false);
+	if (vdev->use_vhost)
+		/*
+		 * Vhost will poll the eventfd in host kernel side,
+		 * no need to poll in userspace.
+		 */
+		err = ioeventfd__add_event(&ioevent, true, false);
+	else
+		/* Need to poll in userspace. */
+		err = ioeventfd__add_event(&ioevent, true, true);
 	if (err)
 		return err;
 

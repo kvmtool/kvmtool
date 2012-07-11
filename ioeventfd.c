@@ -117,7 +117,7 @@ int ioeventfd__exit(struct kvm *kvm)
 	return 0;
 }
 
-int ioeventfd__add_event(struct ioevent *ioevent, bool is_pio)
+int ioeventfd__add_event(struct ioevent *ioevent, bool is_pio, bool poll_in_userspace)
 {
 	struct kvm_ioeventfd kvm_ioevent;
 	struct epoll_event epoll_event;
@@ -150,6 +150,9 @@ int ioeventfd__add_event(struct ioevent *ioevent, bool is_pio)
 		r = -errno;
 		goto cleanup;
 	}
+
+	if (!poll_in_userspace)
+		return 0;
 
 	epoll_event = (struct epoll_event) {
 		.events		= EPOLLIN,
