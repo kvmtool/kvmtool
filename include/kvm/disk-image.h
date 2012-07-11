@@ -39,6 +39,11 @@ struct disk_image_operations {
 	int (*close)(struct disk_image *disk);
 };
 
+struct disk_image_params {
+	const char *filename;
+	bool readonly;
+};
+
 struct disk_image {
 	int				fd;
 	u64				size;
@@ -54,7 +59,7 @@ struct disk_image {
 };
 
 struct disk_image *disk_image__open(const char *filename, bool readonly);
-struct disk_image **disk_image__open_all(const char **filenames, bool *readonly, int count);
+struct disk_image **disk_image__open_all(struct disk_image_params *params, int count);
 struct disk_image *disk_image__new(int fd, u64 size, struct disk_image_operations *ops, int mmap);
 int disk_image__close(struct disk_image *disk);
 int disk_image__close_all(struct disk_image **disks, int count);

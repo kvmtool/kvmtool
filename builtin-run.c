@@ -68,6 +68,7 @@ struct kvm *kvm;
 struct kvm_cpu **kvm_cpus;
 __thread struct kvm_cpu *current_kvm_cpu;
 
+static struct disk_image_params disk_image[MAX_DISK_IMAGES];
 static u64 ram_size;
 static u8  image_count;
 static u8 num_net_devices;
@@ -77,7 +78,6 @@ static const char *kernel_filename;
 static const char *vmlinux_filename;
 static const char *initrd_filename;
 static const char *firmware_filename;
-static const char *image_filename[MAX_DISK_IMAGES];
 static const char *console;
 static const char *dev;
 static const char *network;
@@ -92,7 +92,6 @@ static const char *hugetlbfs_path;
 static const char *custom_rootfs_name = "default";
 static struct virtio_net_params *net_params;
 static bool single_step;
-static bool readonly_image[MAX_DISK_IMAGES];
 static bool vnc;
 static bool sdl;
 static bool balloon;
@@ -169,11 +168,11 @@ static int img_name_parser(const struct option *opt, const char *arg, int unset)
 	if (image_count >= MAX_DISK_IMAGES)
 		die("Currently only 4 images are supported");
 
-	image_filename[image_count] = arg;
+	disk_image[image_count].filename = arg;
 	sep = strstr(arg, ",");
 	if (sep) {
 		if (strcmp(sep + 1, "ro") == 0)
-			readonly_image[image_count] = 1;
+			disk_image[image_count].readonly = true;
 		*sep = 0;
 	}
 
@@ -1099,7 +1098,7 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 	if (kernel_cmdline)
 		strlcat(real_cmdline, kernel_cmdline, sizeof(real_cmdline));
 
-	if (!using_rootfs && !image_filename[0] && !initrd_filename) {
+	if (!using_rootfs && !disk_image[0].filename && !initrd_filename) {
 		char tmp[PATH_MAX];
 
 		kvm_setup_create_new(custom_rootfs_name);
@@ -1131,7 +1130,7 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 
 	if (image_count) {
 		kvm->nr_disks = image_count;
-		kvm->disks = disk_image__open_all(image_filename, readonly_image, image_count);
+		kvm->disks = disk_image__open_all((struct disk_image_params *)&disk_image, image_count);
 		if (IS_ERR(kvm->disks)) {
 			r = PTR_ERR(kvm->disks);
 			pr_err("disk_image__open_all() failed with error %ld\n",

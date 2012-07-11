@@ -111,12 +111,13 @@ struct disk_image *disk_image__open(const char *filename, bool readonly)
 	return ERR_PTR(-ENOSYS);
 }
 
-struct disk_image **disk_image__open_all(const char **filenames,
-					 bool *readonly, int count)
+struct disk_image **disk_image__open_all(struct disk_image_params *params, int count)
 {
 	struct disk_image **disks;
-	int i;
+	const char *filename;
+	bool readonly;
 	void *err;
+	int i;
 
 	if (!count)
 		return ERR_PTR(-EINVAL);
@@ -128,12 +129,14 @@ struct disk_image **disk_image__open_all(const char **filenames,
 		return ERR_PTR(-ENOMEM);
 
 	for (i = 0; i < count; i++) {
-		if (!filenames[i])
+		filename = params[i].filename;
+		readonly = params[i].readonly;
+		if (!filename)
 			continue;
 
-		disks[i] = disk_image__open(filenames[i], readonly[i]);
+		disks[i] = disk_image__open(filename, readonly);
 		if (IS_ERR_OR_NULL(disks[i])) {
-			pr_err("Loading disk image '%s' failed", filenames[i]);
+			pr_err("Loading disk image '%s' failed", filename);
 			err = disks[i];
 			goto error;
 		}
