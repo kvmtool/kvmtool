@@ -471,7 +471,7 @@ static void virtio_net__vhost_init(struct kvm *kvm, struct net_dev *ndev)
 	if (ndev->vhost_fd < 0)
 		die_perror("Failed openning vhost-net device");
 
-	mem = malloc(sizeof(*mem) + sizeof(struct vhost_memory_region));
+	mem = calloc(1, sizeof(*mem) + sizeof(struct vhost_memory_region));
 	if (mem == NULL)
 		die("Failed allocating memory for vhost memory map");
 
