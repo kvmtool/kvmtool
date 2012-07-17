@@ -21,9 +21,9 @@ struct cpu_info {
 	u32 		*segment_sizes_prop;
 	u32		segment_sizes_prop_len;
 	u32		slb_size;
-	u32		tb_freq;
-	u32		d_bsize;
-	u32		i_bsize;
+	u32		tb_freq; /* timebase frequency */
+	u32		d_bsize; /* d-cache block size */
+	u32		i_bsize; /* i-cache block size */
 	u32		flags;
 };
 

@@ -30,14 +30,16 @@ static u32 power7_page_sizes_prop[] = {0xc, 0x0, 0x1, 0xc, 0x0, 0x18, 0x100, 0x1
 static u32 power7_segment_sizes_prop[] = {0x1c, 0x28, 0xffffffff, 0xffffffff};
 
 static struct cpu_info cpu_power7_info = {
-	"POWER7",
-	power7_page_sizes_prop, sizeof(power7_page_sizes_prop),
-	power7_segment_sizes_prop, sizeof(power7_segment_sizes_prop),
-	32, 		/* SLB size */
-	512000000, 	/* TB frequency */
-	128,		/* d-cache block size */
-	128,		/* i-cache block size */
-	CPUINFO_FLAG_DFP | CPUINFO_FLAG_VSX | CPUINFO_FLAG_VMX
+	.name = "POWER7",
+	.page_sizes_prop = power7_page_sizes_prop,
+	.page_sizes_prop_len = sizeof(power7_segment_sizes_prop),
+	.segment_sizes_prop = power7_segment_sizes_prop,
+	.segment_sizes_prop_len = sizeof(power7_segment_sizes_prop),
+	.slb_size = 32,
+	.tb_freq = 512000000,
+	.d_bsize = 128,
+	.i_bsize = 128,
+	.flags = CPUINFO_FLAG_DFP | CPUINFO_FLAG_VSX | CPUINFO_FLAG_VMX,
 };
 
 /* PPC970/G5 */
@@ -45,18 +47,20 @@ static struct cpu_info cpu_power7_info = {
 static u32 g5_page_sizes_prop[] = {0xc, 0x0, 0x1, 0xc, 0x0, 0x18, 0x100, 0x1, 0x18, 0x0};
 
 static struct cpu_info cpu_970_info = {
-	"G5",
-	g5_page_sizes_prop, sizeof(g5_page_sizes_prop),
-	0 /* Null = no segment sizes prop, use defaults */, 0,
-	0, 		/* SLB size default */
-	33333333, 	/* TB frequency */
-	128,		/* d-cache block size */
-	128,		/* i-cache block size */
-	CPUINFO_FLAG_VMX
+	.name = "G5",
+	.page_sizes_prop = g5_page_sizes_prop,
+	.page_sizes_prop_len = sizeof(g5_page_sizes_prop),
+	.segment_sizes_prop = NULL /* no segment sizes prop, use defaults */,
+	.segment_sizes_prop_len = 0,
+	.slb_size = 0,
+	.tb_freq = 33333333,
+	.d_bsize = 128,
+	.i_bsize = 128,
+	.flags = CPUINFO_FLAG_VMX,
 };
 
 /* This is a default catchall for 'no match' on PVR: */
-static struct cpu_info cpu_dummy_info = { "unknown", 0, 0, 0, 0, 0, 0, 0, 0 };
+static struct cpu_info cpu_dummy_info = { .name = "unknown" };
 
 static struct pvr_info host_pvr_info[] = {
 	{ 0xffffffff, 0x0f000003, &cpu_power7_info },
