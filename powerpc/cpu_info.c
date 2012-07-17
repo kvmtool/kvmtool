@@ -23,13 +23,8 @@
 
 /* POWER7 */
 
-/* POWER7 has 1T segments, so advertise these */
-static u32 power7_segment_sizes_prop[] = {0x1c, 0x28, 0xffffffff, 0xffffffff};
-
 static struct cpu_info cpu_power7_info = {
 	.name = "POWER7",
-	.segment_sizes_prop = power7_segment_sizes_prop,
-	.segment_sizes_prop_len = sizeof(power7_segment_sizes_prop),
 	.slb_size = 32,
 	.tb_freq = 512000000,
 	.d_bsize = 128,
@@ -44,8 +39,6 @@ static struct cpu_info cpu_power7_info = {
 
 static struct cpu_info cpu_970_info = {
 	.name = "G5",
-	.segment_sizes_prop = NULL /* no segment sizes prop, use defaults */,
-	.segment_sizes_prop_len = 0,
 	.slb_size = 0,
 	.tb_freq = 33333333,
 	.d_bsize = 128,

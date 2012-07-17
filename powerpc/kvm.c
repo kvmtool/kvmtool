@@ -299,6 +299,7 @@ static void setup_fdt(struct kvm *kvm)
 	u8		staging_fdt[FDT_MAX_SIZE];
 	struct cpu_info *cpu_info = find_cpu_info(kvm);
 	struct fdt_prop segment_page_sizes;
+	u32 segment_sizes_1T[] = {0x1c, 0x28, 0xffffffff, 0xffffffff};
 
 	/* Generate an appropriate DT at kvm->fdt_gra */
 	void *fdt_dest = guest_flat_to_host(kvm, kvm->fdt_gra);
@@ -424,10 +425,10 @@ static void setup_fdt(struct kvm *kvm)
 					  segment_page_sizes.value,
 					  segment_page_sizes.size));
 
-		if (cpu_info->segment_sizes_prop)
+		if (cpu_info->mmu_info.flags & KVM_PPC_1T_SEGMENTS)
 			_FDT(fdt_property(fdt, "ibm,processor-segment-sizes",
-					  cpu_info->segment_sizes_prop,
-					  cpu_info->segment_sizes_prop_len));
+					  segment_sizes_1T, sizeof(segment_sizes_1T)));
+
 		/* VSX / DFP options: */
 		if (cpu_info->flags & CPUINFO_FLAG_VMX)
 			_FDT(fdt_property_cell(fdt, "ibm,vmx",

@@ -19,8 +19,6 @@
 
 struct cpu_info {
 	const char	*name;
-	u32 		*segment_sizes_prop;
-	u32		segment_sizes_prop_len;
 	u32		slb_size;
 	u32		tb_freq; /* timebase frequency */
 	u32		d_bsize; /* d-cache block size */
