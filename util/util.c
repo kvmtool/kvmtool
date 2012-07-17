@@ -113,3 +113,16 @@ void *mmap_hugetlbfs(const char *htlbfs_path, u64 size)
 
 	return addr;
 }
+
+/* This function wraps the decision between hugetlbfs map (if requested) or normal mmap */
+void *mmap_anon_or_hugetlbfs(const char *hugetlbfs_path, u64 size)
+{
+	if (hugetlbfs_path)
+		/*
+		 * We don't /need/ to map guest RAM from hugetlbfs, but we do so
+		 * if the user specifies a hugetlbfs path.
+		 */
+		return mmap_hugetlbfs(hugetlbfs_path, size);
+	else
+		return mmap(NULL, size, PROT_RW, MAP_ANON_NORESERVE, -1, 0);
+}

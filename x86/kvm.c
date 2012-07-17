@@ -128,19 +128,6 @@ void kvm__arch_set_cmdline(char *cmdline, bool video)
 		strcat(cmdline, " console=ttyS0 earlyprintk=serial i8042.noaux=1");
 }
 
-/* This function wraps the decision between hugetlbfs map (if requested) or normal mmap */
-static void *mmap_anon_or_hugetlbfs(const char *hugetlbfs_path, u64 size)
-{
-	if (hugetlbfs_path)
-		/*
-		 * We don't /need/ to map guest RAM from hugetlbfs, but we do so
-		 * if the user specifies a hugetlbfs path.
-		 */
-		return mmap_hugetlbfs(hugetlbfs_path, size);
-	else
-		return mmap(NULL, size, PROT_RW, MAP_ANON_NORESERVE, -1, 0);
-}
-
 /* Architecture-specific KVM init */
 void kvm__arch_init(struct kvm *kvm, const char *hugetlbfs_path, u64 ram_size)
 {

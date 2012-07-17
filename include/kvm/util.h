@@ -90,6 +90,6 @@ static inline void msleep(unsigned int msecs)
 	usleep(MSECS_TO_USECS(msecs));
 }
 
-void *mmap_hugetlbfs(const char *htlbfs_path, u64 size);
+void *mmap_anon_or_hugetlbfs(const char *hugetlbfs_path, u64 size);
 
 #endif /* KVM__UTIL_H */
