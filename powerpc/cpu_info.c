@@ -75,7 +75,7 @@ static struct pvr_info host_pvr_info[] = {
 struct cpu_info *find_cpu_info(u32 pvr)
 {
 	unsigned int i;
-	for (i = 0; i < sizeof(host_pvr_info)/sizeof(struct pvr_info); i++) {
+	for (i = 0; i < ARRAY_SIZE(host_pvr_info); i++) {
 		if ((pvr & host_pvr_info[i].pvr_mask) ==
 		    host_pvr_info[i].pvr) {
 			return host_pvr_info[i].cpu_info;
