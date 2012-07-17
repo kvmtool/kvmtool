@@ -229,7 +229,7 @@ static void setup_fdt(struct kvm *kvm)
 	int 		i, j;
 	char 		cpu_name[30];
 	u8		staging_fdt[FDT_MAX_SIZE];
-	struct cpu_info *cpu_info = find_cpu_info(kvm->pvr);
+	struct cpu_info *cpu_info = find_cpu_info(kvm);
 
 	/* Generate an appropriate DT at kvm->fdt_gra */
 	void *fdt_dest = guest_flat_to_host(kvm, kvm->fdt_gra);

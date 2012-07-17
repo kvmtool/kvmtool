@@ -72,18 +72,24 @@ static struct pvr_info host_pvr_info[] = {
         { 0xffff0000, 0x00450000, &cpu_970_info },
 };
 
-struct cpu_info *find_cpu_info(u32 pvr)
+struct cpu_info *find_cpu_info(struct kvm *kvm)
 {
+	struct cpu_info *info;
 	unsigned int i;
+	u32 pvr = kvm->pvr;
 
-	for (i = 0; i < ARRAY_SIZE(host_pvr_info); i++) {
+	for (info = NULL, i = 0; i < ARRAY_SIZE(host_pvr_info); i++) {
 		if ((pvr & host_pvr_info[i].pvr_mask) == host_pvr_info[i].pvr) {
-			return host_pvr_info[i].cpu_info;
+			info = host_pvr_info[i].cpu_info;
+			break;
 		}
 	}
 
 	/* Didn't find anything? Rut-ro. */
-	pr_warning("Host CPU unsupported by kvmtool\n");
+	if (!info) {
+		pr_warning("Host CPU unsupported by kvmtool\n");
+		info = &cpu_dummy_info;
+	}
 
-	return &cpu_dummy_info;
+	return info;
 }

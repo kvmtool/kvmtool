@@ -11,6 +11,8 @@
 #ifndef CPU_INFO_H
 #define CPU_INFO_H
 
+#include <kvm/kvm.h>
+
 #include <linux/types.h>
 #include <linux/kernel.h>
 
@@ -38,6 +40,6 @@ struct pvr_info {
 #define CPUINFO_FLAG_VMX	0x00000002
 #define CPUINFO_FLAG_VSX	0x00000004
 
-struct cpu_info *find_cpu_info(u32 pvr);
+struct cpu_info *find_cpu_info(struct kvm *kvm);
 
 #endif
