@@ -393,8 +393,9 @@ static void setup_fdt(struct kvm *kvm)
 		/* Lies, but safeish lies! */
 		_FDT(fdt_property_cell(fdt, "clock-frequency", 0xddbab200));
 
-		if (cpu_info->slb_size)
-			_FDT(fdt_property_cell(fdt, "ibm,slb-size", cpu_info->slb_size));
+		if (cpu_info->mmu_info.slb_size)
+			_FDT(fdt_property_cell(fdt, "ibm,slb-size", cpu_info->mmu_info.slb_size));
+
 		/*
 		 * HPT size is hardwired; KVM currently fixes it at 16MB but the
 		 * moment that changes we'll need to read it out of the kernel.

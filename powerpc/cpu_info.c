@@ -25,13 +25,13 @@
 
 static struct cpu_info cpu_power7_info = {
 	.name = "POWER7",
-	.slb_size = 32,
 	.tb_freq = 512000000,
 	.d_bsize = 128,
 	.i_bsize = 128,
 	.flags = CPUINFO_FLAG_DFP | CPUINFO_FLAG_VSX | CPUINFO_FLAG_VMX,
 	.mmu_info = {
 		.flags = KVM_PPC_PAGE_SIZES_REAL | KVM_PPC_1T_SEGMENTS,
+		.slb_size = 32,
 	},
 };
 
@@ -39,7 +39,6 @@ static struct cpu_info cpu_power7_info = {
 
 static struct cpu_info cpu_970_info = {
 	.name = "G5",
-	.slb_size = 0,
 	.tb_freq = 33333333,
 	.d_bsize = 128,
 	.i_bsize = 128,
