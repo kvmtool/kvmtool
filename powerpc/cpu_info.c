@@ -75,13 +75,15 @@ static struct pvr_info host_pvr_info[] = {
 struct cpu_info *find_cpu_info(u32 pvr)
 {
 	unsigned int i;
+
 	for (i = 0; i < ARRAY_SIZE(host_pvr_info); i++) {
-		if ((pvr & host_pvr_info[i].pvr_mask) ==
-		    host_pvr_info[i].pvr) {
+		if ((pvr & host_pvr_info[i].pvr_mask) == host_pvr_info[i].pvr) {
 			return host_pvr_info[i].cpu_info;
 		}
 	}
+
 	/* Didn't find anything? Rut-ro. */
 	pr_warning("Host CPU unsupported by kvmtool\n");
+
 	return &cpu_dummy_info;
 }
