@@ -211,6 +211,74 @@ bool load_bzimage(struct kvm *kvm, int fd_kernel,
 	return false;
 }
 
+struct fdt_prop {
+	void *value;
+	int size;
+};
+
+static void generate_segment_page_sizes(struct kvm_ppc_smmu_info *info, struct fdt_prop *prop)
+{
+	struct kvm_ppc_one_seg_page_size *sps;
+	int i, j, size;
+	u32 *p;
+
+	for (size = 0, i = 0; i < KVM_PPC_PAGE_SIZES_MAX_SZ; i++) {
+		sps = &info->sps[i];
+
+		if (sps->page_shift == 0)
+			break;
+
+		/* page shift, slb enc & count */
+		size += 3;
+
+		for (j = 0; j < KVM_PPC_PAGE_SIZES_MAX_SZ; j++) {
+			if (info->sps[i].enc[j].page_shift == 0)
+				break;
+
+			/* page shift & pte enc */
+			size += 2;
+		}
+	}
+
+	if (!size) {
+		prop->value = NULL;
+		prop->size = 0;
+		return;
+	}
+
+	/* Convert size to bytes */
+	prop->size = size * sizeof(u32);
+
+	prop->value = malloc(prop->size);
+	if (!prop->value)
+		die_perror("malloc failed");
+
+	p = (u32 *)prop->value;
+	for (i = 0; i < KVM_PPC_PAGE_SIZES_MAX_SZ; i++) {
+		sps = &info->sps[i];
+
+		if (sps->page_shift == 0)
+			break;
+
+		*p++ = sps->page_shift;
+		*p++ = sps->slb_enc;
+
+		for (j = 0; j < KVM_PPC_PAGE_SIZES_MAX_SZ; j++)
+			if (!info->sps[i].enc[j].page_shift)
+				break;
+
+		*p++ = j;	/* count of enc */
+
+		for (j = 0; j < KVM_PPC_PAGE_SIZES_MAX_SZ; j++) {
+			if (!info->sps[i].enc[j].page_shift)
+				break;
+
+			*p++ = info->sps[i].enc[j].page_shift;
+			*p++ = info->sps[i].enc[j].pte_enc;
+		}
+	}
+}
+
 #define SMT_THREADS 4
 
 /*
@@ -230,6 +298,7 @@ static void setup_fdt(struct kvm *kvm)
 	char 		cpu_name[30];
 	u8		staging_fdt[FDT_MAX_SIZE];
 	struct cpu_info *cpu_info = find_cpu_info(kvm);
+	struct fdt_prop segment_page_sizes;
 
 	/* Generate an appropriate DT at kvm->fdt_gra */
 	void *fdt_dest = guest_flat_to_host(kvm, kvm->fdt_gra);
@@ -293,6 +362,8 @@ static void setup_fdt(struct kvm *kvm)
 			  sizeof(mem_reg_property)));
 	_FDT(fdt_end_node(fdt));
 
+	generate_segment_page_sizes(&cpu_info->mmu_info, &segment_page_sizes);
+
 	/* CPUs */
 	_FDT(fdt_begin_node(fdt, "cpus"));
 	_FDT(fdt_property_cell(fdt, "#address-cells", 0x1));
@@ -347,10 +418,12 @@ static void setup_fdt(struct kvm *kvm)
 		_FDT(fdt_property(fdt, "ibm,ppc-interrupt-gserver#s",
 				  gservers_prop,
 				  threads * 2 * sizeof(uint32_t)));
-		if (cpu_info->page_sizes_prop)
+
+		if (segment_page_sizes.value)
 			_FDT(fdt_property(fdt, "ibm,segment-page-sizes",
-					  cpu_info->page_sizes_prop,
-					  cpu_info->page_sizes_prop_len));
+					  segment_page_sizes.value,
+					  segment_page_sizes.size));
+
 		if (cpu_info->segment_sizes_prop)
 			_FDT(fdt_property(fdt, "ibm,processor-segment-sizes",
 					  cpu_info->segment_sizes_prop,
@@ -411,6 +484,8 @@ static void setup_fdt(struct kvm *kvm)
 
 	_FDT(fdt_add_mem_rsv(fdt_dest, kvm->rtas_gra, kvm->rtas_size));
 	_FDT(fdt_pack(fdt_dest));
+
+	free(segment_page_sizes.value);
 }
 
 /**

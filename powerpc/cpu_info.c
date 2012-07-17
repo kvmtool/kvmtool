@@ -15,24 +15,19 @@
  * by the Free Software Foundation.
  */
 
+#include <kvm/kvm.h>
+#include <sys/ioctl.h>
+
 #include "cpu_info.h"
 #include "kvm/util.h"
 
 /* POWER7 */
 
-/*
- * Basic set of pages for POWER7.  It actually supports more but there were some
- * limitations as to which may be advertised to the guest.  FIXME when this
- * settles down -- for now use basic set:
- */
-static u32 power7_page_sizes_prop[] = {0xc, 0x0, 0x1, 0xc, 0x0, 0x18, 0x100, 0x1, 0x18, 0x0};
 /* POWER7 has 1T segments, so advertise these */
 static u32 power7_segment_sizes_prop[] = {0x1c, 0x28, 0xffffffff, 0xffffffff};
 
 static struct cpu_info cpu_power7_info = {
 	.name = "POWER7",
-	.page_sizes_prop = power7_page_sizes_prop,
-	.page_sizes_prop_len = sizeof(power7_segment_sizes_prop),
 	.segment_sizes_prop = power7_segment_sizes_prop,
 	.segment_sizes_prop_len = sizeof(power7_segment_sizes_prop),
 	.slb_size = 32,
@@ -40,16 +35,15 @@ static struct cpu_info cpu_power7_info = {
 	.d_bsize = 128,
 	.i_bsize = 128,
 	.flags = CPUINFO_FLAG_DFP | CPUINFO_FLAG_VSX | CPUINFO_FLAG_VMX,
+	.mmu_info = {
+		.flags = KVM_PPC_PAGE_SIZES_REAL | KVM_PPC_1T_SEGMENTS,
+	},
 };
 
 /* PPC970/G5 */
 
-static u32 g5_page_sizes_prop[] = {0xc, 0x0, 0x1, 0xc, 0x0, 0x18, 0x100, 0x1, 0x18, 0x0};
-
 static struct cpu_info cpu_970_info = {
 	.name = "G5",
-	.page_sizes_prop = g5_page_sizes_prop,
-	.page_sizes_prop_len = sizeof(g5_page_sizes_prop),
 	.segment_sizes_prop = NULL /* no segment sizes prop, use defaults */,
 	.segment_sizes_prop_len = 0,
 	.slb_size = 0,
@@ -72,6 +66,118 @@ static struct pvr_info host_pvr_info[] = {
         { 0xffff0000, 0x00450000, &cpu_970_info },
 };
 
+/* If we can't query the kernel for supported page sizes assume 4K and 16M */
+static struct kvm_ppc_one_seg_page_size fallback_sps[] = {
+	[0] = {
+		.page_shift = 12,
+		.slb_enc    = 0,
+		.enc =  {
+			[0] = {
+				.page_shift = 12,
+				.pte_enc    = 0,
+			},
+		},
+	},
+	[1] = {
+		.page_shift = 24,
+		.slb_enc    = 0x100,
+		.enc =  {
+			[0] = {
+				.page_shift = 24,
+				.pte_enc    = 0,
+			},
+		},
+	},
+};
+
+
+static void setup_mmu_info(struct kvm *kvm, struct cpu_info *cpu_info)
+{
+	static struct kvm_ppc_smmu_info *mmu_info;
+	struct kvm_ppc_one_seg_page_size *sps;
+	int i, j, k, valid;
+
+	if (!kvm__supports_extension(kvm, KVM_CAP_PPC_GET_SMMU_INFO)) {
+		memcpy(&cpu_info->mmu_info.sps, fallback_sps, sizeof(fallback_sps));
+	} else if (ioctl(kvm->vm_fd, KVM_PPC_GET_SMMU_INFO, &cpu_info->mmu_info) < 0) {
+			die_perror("KVM_PPC_GET_SMMU_INFO failed");
+	}
+
+	mmu_info = &cpu_info->mmu_info;
+
+	if (!(mmu_info->flags & KVM_PPC_PAGE_SIZES_REAL))
+		/* Guest pages are not restricted by the backing page size */
+		return;
+
+	/* Filter based on backing page size */
+
+	for (i = 0; i < KVM_PPC_PAGE_SIZES_MAX_SZ; i++) {
+		sps = &mmu_info->sps[i];
+
+		if (!sps->page_shift)
+			break;
+
+		if (kvm->ram_pagesize < (1ul << sps->page_shift)) {
+			/* Mark the whole segment size invalid */
+			sps->page_shift = 0;
+			continue;
+		}
+
+		/* Check each page size for the segment */
+		for (j = 0, valid = 0; j < KVM_PPC_PAGE_SIZES_MAX_SZ; j++) {
+			if (!sps->enc[j].page_shift)
+				break;
+
+			if (kvm->ram_pagesize < (1ul << sps->enc[j].page_shift))
+				sps->enc[j].page_shift = 0;
+			else
+				valid++;
+		}
+
+		if (!valid) {
+			/* Mark the whole segment size invalid */
+			sps->page_shift = 0;
+			continue;
+		}
+
+		/* Mark any trailing entries invalid if we broke out early */
+		for (k = j; k < KVM_PPC_PAGE_SIZES_MAX_SZ; k++)
+			sps->enc[k].page_shift = 0;
+
+		/* Collapse holes */
+		for (j = 0; j < KVM_PPC_PAGE_SIZES_MAX_SZ; j++) {
+			if (sps->enc[j].page_shift)
+				continue;
+
+			for (k = j + 1; k < KVM_PPC_PAGE_SIZES_MAX_SZ; k++) {
+				if (sps->enc[k].page_shift) {
+					sps->enc[j] = sps->enc[k];
+					sps->enc[k].page_shift = 0;
+					break;
+				}
+			}
+		}
+	}
+
+	/* Mark any trailing entries invalid if we broke out early */
+	for (j = i; j < KVM_PPC_PAGE_SIZES_MAX_SZ; j++)
+		mmu_info->sps[j].page_shift = 0;
+
+	/* Collapse holes */
+	for (i = 0; i < KVM_PPC_PAGE_SIZES_MAX_SZ; i++) {
+		if (mmu_info->sps[i].page_shift)
+			continue;
+
+		for (j = i + 1; j < KVM_PPC_PAGE_SIZES_MAX_SZ; j++) {
+			if (mmu_info->sps[j].page_shift) {
+				mmu_info->sps[i] = mmu_info->sps[j];
+				mmu_info->sps[j].page_shift = 0;
+				break;
+			}
+		}
+	}
+}
+
 struct cpu_info *find_cpu_info(struct kvm *kvm)
 {
 	struct cpu_info *info;
@@ -90,6 +196,8 @@ struct cpu_info *find_cpu_info(struct kvm *kvm)
 		pr_warning("Host CPU unsupported by kvmtool\n");
 		info = &cpu_dummy_info;
 	}
+
+	setup_mmu_info(kvm, info);
 
 	return info;
 }
