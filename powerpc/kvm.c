@@ -97,20 +97,12 @@ void kvm__arch_init(struct kvm *kvm, const char *hugetlbfs_path, u64 ram_size)
 
 	kvm->ram_size		= ram_size;
 
-	/*
-	 * Currently, HV-mode PPC64 SPAPR requires that we map from hugetlfs.
-	 * Allow a 'default' option to assist.
-	 * PR-mode does not require this.
-	 */
-	if (hugetlbfs_path) {
-		if (!strcmp(hugetlbfs_path, "default"))
-			hugetlbfs_path = HUGETLBFS_PATH;
-		kvm->ram_start = mmap_hugetlbfs(hugetlbfs_path, kvm->ram_size);
-	} else {
-		kvm->ram_start = mmap(0, kvm->ram_size, PROT_READ | PROT_WRITE,
-				      MAP_ANON | MAP_PRIVATE,
-				      -1, 0);
-	}
+	/* Map "default" hugetblfs path to the standard 16M mount point */
+	if (hugetlbfs_path && !strcmp(hugetlbfs_path, "default"))
+		hugetlbfs_path = HUGETLBFS_PATH;
+
+	kvm->ram_start = mmap_anon_or_hugetlbfs(hugetlbfs_path, kvm->ram_size);
+
 	if (kvm->ram_start == MAP_FAILED)
 		die("Couldn't map %lld bytes for RAM (%d)\n",
 		    kvm->ram_size, errno);
