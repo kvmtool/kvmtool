@@ -101,7 +101,7 @@ void kvm__arch_init(struct kvm *kvm, const char *hugetlbfs_path, u64 ram_size)
 	if (hugetlbfs_path && !strcmp(hugetlbfs_path, "default"))
 		hugetlbfs_path = HUGETLBFS_PATH;
 
-	kvm->ram_start = mmap_anon_or_hugetlbfs(hugetlbfs_path, kvm->ram_size);
+	kvm->ram_start = mmap_anon_or_hugetlbfs(kvm, hugetlbfs_path, kvm->ram_size);
 
 	if (kvm->ram_start == MAP_FAILED)
 		die("Couldn't map %lld bytes for RAM (%d)\n",

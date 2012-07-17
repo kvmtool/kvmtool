@@ -34,6 +34,7 @@ struct kvm {
 
 	u64			ram_size;
 	void			*ram_start;
+	u64			ram_pagesize;
 
 	bool			nmi_disabled;
 

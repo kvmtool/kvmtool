@@ -4,6 +4,7 @@
 
 #include "kvm/util.h"
 
+#include <kvm/kvm.h>
 #include <linux/magic.h>	/* For HUGETLBFS_MAGIC */
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -80,7 +81,7 @@ void die_perror(const char *s)
 	exit(1);
 }
 
-void *mmap_hugetlbfs(const char *htlbfs_path, u64 size)
+void *mmap_hugetlbfs(struct kvm *kvm, const char *htlbfs_path, u64 size)
 {
 	char mpath[PATH_MAX];
 	int fd;
@@ -100,6 +101,8 @@ void *mmap_hugetlbfs(const char *htlbfs_path, u64 size)
 		    blk_size, size);
 	}
 
+	kvm->ram_pagesize = blk_size;
+
 	snprintf(mpath, PATH_MAX, "%s/kvmtoolXXXXXX", htlbfs_path);
 	fd = mkstemp(mpath);
 	if (fd < 0)
@@ -115,14 +118,16 @@ void *mmap_hugetlbfs(const char *htlbfs_path, u64 size)
 }
 
 /* This function wraps the decision between hugetlbfs map (if requested) or normal mmap */
-void *mmap_anon_or_hugetlbfs(const char *hugetlbfs_path, u64 size)
+void *mmap_anon_or_hugetlbfs(struct kvm *kvm, const char *hugetlbfs_path, u64 size)
 {
 	if (hugetlbfs_path)
 		/*
 		 * We don't /need/ to map guest RAM from hugetlbfs, but we do so
 		 * if the user specifies a hugetlbfs path.
 		 */
-		return mmap_hugetlbfs(hugetlbfs_path, size);
-	else
+		return mmap_hugetlbfs(kvm, hugetlbfs_path, size);
+	else {
+		kvm->ram_pagesize = getpagesize();
 		return mmap(NULL, size, PROT_RW, MAP_ANON_NORESERVE, -1, 0);
+	}
 }

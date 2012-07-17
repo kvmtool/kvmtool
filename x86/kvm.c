@@ -144,9 +144,9 @@ void kvm__arch_init(struct kvm *kvm, const char *hugetlbfs_path, u64 ram_size)
 
 	if (ram_size < KVM_32BIT_GAP_START) {
 		kvm->ram_size = ram_size;
-		kvm->ram_start = mmap_anon_or_hugetlbfs(hugetlbfs_path, ram_size);
+		kvm->ram_start = mmap_anon_or_hugetlbfs(kvm, hugetlbfs_path, ram_size);
 	} else {
-		kvm->ram_start = mmap_anon_or_hugetlbfs(hugetlbfs_path, ram_size + KVM_32BIT_GAP_SIZE);
+		kvm->ram_start = mmap_anon_or_hugetlbfs(kvm, hugetlbfs_path, ram_size + KVM_32BIT_GAP_SIZE);
 		kvm->ram_size = ram_size + KVM_32BIT_GAP_SIZE;
 		if (kvm->ram_start != MAP_FAILED)
 			/*
