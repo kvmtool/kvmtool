@@ -548,7 +548,7 @@ static void virtio_p9_readdir(struct p9_dev *p9dev,
 	fid = get_fid(p9dev, fid_val);
 
 	if (!fid->is_dir) {
-		errno = -EINVAL;
+		errno = EINVAL;
 		goto err_out;
 	}
 
