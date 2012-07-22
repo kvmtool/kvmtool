@@ -40,7 +40,6 @@ struct blk_dev {
 	pthread_mutex_t			mutex;
 
 	struct list_head		list;
-	struct list_head		req_list;
 
 	struct virtio_device		vdev;
 	struct virtio_blk_config	blk_config;
