@@ -153,14 +153,13 @@ static void serial8250_update_irq(struct kvm *kvm, struct serial8250_device *dev
 }
 
 #define SYSRQ_PENDING_NONE		0
-#define SYSRQ_PENDING_BREAK		1
 
 static int sysrq_pending;
 
 static void serial8250__sysrq(struct kvm *kvm, struct serial8250_device *dev)
 {
 	dev->lsr |= UART_LSR_DR | UART_LSR_BI;
-	dev->rxbuf[dev->rxcnt++] = 'p';
+	dev->rxbuf[dev->rxcnt++] = sysrq_pending;
 	sysrq_pending	= SYSRQ_PENDING_NONE;
 }
 
@@ -219,9 +218,9 @@ void serial8250__update_consoles(struct kvm *kvm)
 	}
 }
 
-void serial8250__inject_sysrq(struct kvm *kvm)
+void serial8250__inject_sysrq(struct kvm *kvm, char sysrq)
 {
-	sysrq_pending	= SYSRQ_PENDING_BREAK;
+	sysrq_pending = sysrq;
 }
 
 static struct serial8250_device *find_device(u16 port)

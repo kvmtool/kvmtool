@@ -557,6 +557,9 @@ static void handle_debug(int fd, u32 type, u32 len, u8 *msg)
 	dbg_type = params->dbg_type;
 	vcpu = params->cpu;
 
+	if (dbg_type & KVM_DEBUG_CMD_TYPE_SYSRQ)
+		serial8250__inject_sysrq(kvm, params->sysrq);
+
 	if (dbg_type & KVM_DEBUG_CMD_TYPE_NMI) {
 		if ((int)vcpu >= kvm->nrcpus)
 			return;
@@ -589,7 +592,7 @@ static void handle_debug(int fd, u32 type, u32 len, u8 *msg)
 
 	close(fd);
 
-	serial8250__inject_sysrq(kvm);
+	serial8250__inject_sysrq(kvm, 'p');
 }
 
 static void handle_sigalrm(int sig)

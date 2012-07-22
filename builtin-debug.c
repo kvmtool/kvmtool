@@ -16,6 +16,7 @@ static bool all;
 static int nmi = -1;
 static bool dump;
 static const char *instance_name;
+static const char *sysrq;
 
 static const char * const debug_usage[] = {
 	"lkvm debug [--all] [-n name] [-d] [-m vcpu]",
@@ -26,6 +27,7 @@ static const struct option debug_options[] = {
 	OPT_GROUP("General options:"),
 	OPT_BOOLEAN('d', "dump", &dump, "Generate a debug dump from guest"),
 	OPT_INTEGER('m', "nmi", &nmi, "Generate NMI on VCPU"),
+	OPT_STRING('s', "sysrq", &sysrq, "sysrq", "Inject a sysrq"),
 	OPT_GROUP("Instance options:"),
 	OPT_BOOLEAN('a', "all", &all, "Debug all instances"),
 	OPT_STRING('n', "name", &instance_name, "name", "Instance name"),
@@ -59,6 +61,11 @@ static int do_debug(const char *name, int sock)
 	if (nmi != -1) {
 		cmd.dbg_type |= KVM_DEBUG_CMD_TYPE_NMI;
 		cmd.cpu = nmi;
+	}
+
+	if (sysrq) {
+		cmd.dbg_type |= KVM_DEBUG_CMD_TYPE_SYSRQ;
+		cmd.sysrq = sysrq[0];
 	}
 
 	r = kvm_ipc__send_msg(sock, KVM_IPC_DEBUG, sizeof(cmd), (u8 *)&cmd);
