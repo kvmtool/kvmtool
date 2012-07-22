@@ -228,6 +228,15 @@ static int virtio_p9_openflags(int flags)
 	return flags;
 }
 
+static bool is_dir(struct p9_fid *fid)
+{
+	struct stat st;
+
+	stat(fid->abs_path, &st);
+
+	return S_ISDIR(st.st_mode);
+}
+
 static void virtio_p9_open(struct p9_dev *p9dev,
 			   struct p9_pdu *pdu, u32 *outlen)
 {
@@ -245,7 +254,7 @@ static void virtio_p9_open(struct p9_dev *p9dev,
 
 	stat2qid(&st, &qid);
 
-	if (new_fid->is_dir) {
+	if (is_dir(new_fid)) {
 		new_fid->dir = opendir(new_fid->abs_path);
 		if (!new_fid->dir)
 			goto err_out;
@@ -394,7 +403,6 @@ static void virtio_p9_walk(struct p9_dev *p9dev,
 				goto err_out;
 
 			stat2qid(&st, &wqid);
-			new_fid->is_dir = S_ISDIR(st.st_mode);
 			strcpy(new_fid->path, tmp);
 			new_fid->uid = fid->uid;
 			nwqid++;
@@ -406,7 +414,6 @@ static void virtio_p9_walk(struct p9_dev *p9dev,
 		 */
 		pdu->write_offset += sizeof(u16);
 		old_fid = get_fid(p9dev, fid_val);
-		new_fid->is_dir = old_fid->is_dir;
 		strcpy(new_fid->path, old_fid->path);
 		new_fid->uid    = old_fid->uid;
 	}
@@ -445,7 +452,6 @@ static void virtio_p9_attach(struct p9_dev *p9dev,
 
 	fid = get_fid(p9dev, fid_val);
 	fid->uid = uid;
-	fid->is_dir = 1;
 	strcpy(fid->path, "/");
 
 	virtio_p9_pdu_writef(pdu, "Q", &qid);
@@ -547,7 +553,7 @@ static void virtio_p9_readdir(struct p9_dev *p9dev,
 	virtio_p9_pdu_readf(pdu, "dqd", &fid_val, &offset, &count);
 	fid = get_fid(p9dev, fid_val);
 
-	if (!fid->is_dir) {
+	if (!is_dir(fid)) {
 		errno = EINVAL;
 		goto err_out;
 	}

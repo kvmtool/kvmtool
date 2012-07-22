@@ -26,7 +26,6 @@ struct p9_msg {
 struct p9_fid {
 	u32			fid;
 	u32			uid;
-	u8			is_dir;
 	char			abs_path[PATH_MAX];
 	char			*path;
 	DIR			*dir;
