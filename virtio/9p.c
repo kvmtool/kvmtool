@@ -22,12 +22,65 @@
 static LIST_HEAD(devs);
 static int compat_id = -1;
 
+static int insert_new_fid(struct p9_dev *dev, struct p9_fid *fid);
+static struct p9_fid *find_or_create_fid(struct p9_dev *dev, u32 fid)
+{
+	struct rb_node *node = dev->fids.rb_node;
+	struct p9_fid *pfid = NULL;
+
+	while (node) {
+		struct p9_fid *cur = rb_entry(node, struct p9_fid, node);
+
+		if (fid < cur->fid) {
+			node = node->rb_left;
+		} else if (fid > cur->fid) {
+			node = node->rb_right;
+		} else {
+			return cur;
+		}
+	}
+
+	pfid = calloc(sizeof(*pfid), 1);
+	if (!pfid)
+		return NULL;
+
+	pfid->fid = fid;
+	strcpy(pfid->abs_path, dev->root_dir);
+	pfid->path = pfid->abs_path + strlen(dev->root_dir);
+
+	insert_new_fid(dev, pfid);
+
+	return pfid;
+}
+
+static int insert_new_fid(struct p9_dev *dev, struct p9_fid *fid)
+{
+	struct rb_node **node = &(dev->fids.rb_node), *parent = NULL;
+
+	while (*node) {
+		int result = fid->fid - rb_entry(*node, struct p9_fid, node)->fid;
+
+		parent = *node;
+		if (result < 0)
+			node    = &((*node)->rb_left);
+		else if (result > 0)
+			node    = &((*node)->rb_right);
+		else
+			return -EEXIST;
+	}
+
+	rb_link_node(&fid->node, parent, node);
+	rb_insert_color(&fid->node, &dev->fids);
+	return 0;
+}
+
 static struct p9_fid *get_fid(struct p9_dev *p9dev, int fid)
 {
-	if (fid >= VIRTIO_9P_MAX_FID)
-		die("virtio-9p max FID (%u) reached!", VIRTIO_9P_MAX_FID);
+	struct p9_fid *new;
 
-	return &p9dev->fids[fid];
+	new = find_or_create_fid(p9dev, fid);
+
+	return new;
 }
 
 /* Warning: Immediately use value returned from this function */
@@ -52,15 +105,36 @@ static void stat2qid(struct stat *st, struct p9_qid *qid)
 
 static void close_fid(struct p9_dev *p9dev, u32 fid)
 {
-	if (p9dev->fids[fid].fd > 0) {
-		close(p9dev->fids[fid].fd);
-		p9dev->fids[fid].fd = -1;
+	struct p9_fid *pfid = get_fid(p9dev, fid);
+
+	if (pfid->fd > 0)
+		close(pfid->fd);
+
+	if (pfid->dir)
+		closedir(pfid->dir);
+
+	rb_erase(&pfid->node, &p9dev->fids);
+	free(pfid);
+}
+
+static void clear_all_fids(struct p9_dev *p9dev)
+{
+	struct rb_node *node = rb_first(&p9dev->fids);
+
+	while (node) {
+		struct p9_fid *fid = rb_entry(node, struct p9_fid, node);
+
+		if (fid->fd > 0)
+			close(fid->fd);
+
+		if (fid->dir)
+			closedir(fid->dir);
+
+		rb_erase(&fid->node, &p9dev->fids);
+		free(fid);
+
+		node = rb_first(&p9dev->fids);
 	}
-	if (p9dev->fids[fid].dir) {
-		closedir(p9dev->fids[fid].dir);
-		p9dev->fids[fid].dir = NULL;
-	}
-	p9dev->fids[fid].fid = P9_NOFID;
 }
 
 static void virtio_p9_set_reply_header(struct p9_pdu *pdu, u32 size)
@@ -213,7 +287,6 @@ static void virtio_p9_create(struct p9_dev *p9dev,
 	fd = open(full_path, flags | O_CREAT, mode);
 	if (fd < 0)
 		goto err_out;
-	close_fid(p9dev, dfid_val);
 	dfid->fd = fd;
 
 	if (lstat(full_path, &st) < 0)
@@ -290,7 +363,7 @@ static void virtio_p9_walk(struct p9_dev *p9dev,
 	u16 nwqid;
 	u16 nwname;
 	struct p9_qid wqid;
-	struct p9_fid *new_fid;
+	struct p9_fid *new_fid, *old_fid;
 	u32 fid_val, newfid_val;
 
 
@@ -323,7 +396,6 @@ static void virtio_p9_walk(struct p9_dev *p9dev,
 			stat2qid(&st, &wqid);
 			new_fid->is_dir = S_ISDIR(st.st_mode);
 			strcpy(new_fid->path, tmp);
-			new_fid->fid = newfid_val;
 			new_fid->uid = fid->uid;
 			nwqid++;
 			virtio_p9_pdu_writef(pdu, "Q", &wqid);
@@ -333,10 +405,10 @@ static void virtio_p9_walk(struct p9_dev *p9dev,
 		 * update write_offset so our outlen get correct value
 		 */
 		pdu->write_offset += sizeof(u16);
-		new_fid->is_dir = p9dev->fids[fid_val].is_dir;
-		strcpy(new_fid->path, p9dev->fids[fid_val].path);
-		new_fid->fid	= newfid_val;
-		new_fid->uid    = p9dev->fids[fid_val].uid;
+		old_fid = get_fid(p9dev, fid_val);
+		new_fid->is_dir = old_fid->is_dir;
+		strcpy(new_fid->path, old_fid->path);
+		new_fid->uid    = old_fid->uid;
 	}
 	*outlen = pdu->write_offset;
 	pdu->write_offset = VIRTIO_9P_HDR_LEN;
@@ -351,7 +423,6 @@ err_out:
 static void virtio_p9_attach(struct p9_dev *p9dev,
 			     struct p9_pdu *pdu, u32 *outlen)
 {
-	int i;
 	char *uname;
 	char *aname;
 	struct stat st;
@@ -365,9 +436,7 @@ static void virtio_p9_attach(struct p9_dev *p9dev,
 	free(uname);
 	free(aname);
 
-	/* Reset everything */
-	for (i = 0; i < VIRTIO_9P_MAX_FID; i++)
-		p9dev->fids[i].fid = P9_NOFID;
+	clear_all_fids(p9dev);
 
 	if (lstat(p9dev->root_dir, &st) < 0)
 		goto err_out;
@@ -375,7 +444,6 @@ static void virtio_p9_attach(struct p9_dev *p9dev,
 	stat2qid(&st, &qid);
 
 	fid = get_fid(p9dev, fid_val);
-	fid->fid = fid_val;
 	fid->uid = uid;
 	fid->is_dir = 1;
 	strcpy(fid->path, "/");
@@ -729,7 +797,6 @@ static void virtio_p9_rename(struct p9_dev *p9dev,
 	ret = rename(fid->abs_path, full_path);
 	if (ret < 0)
 		goto err_out;
-	close_fid(p9dev, fid_val);
 	*outlen = pdu->write_offset;
 	virtio_p9_set_reply_header(pdu, *outlen);
 	return;
@@ -1001,10 +1068,24 @@ static void virtio_p9_fix_path(char *fid_path, char *old_name, char *new_name)
 	return;
 }
 
+static void rename_fids(struct p9_dev *p9dev, char *old_name, char *new_name)
+{
+	struct rb_node *node = rb_first(&p9dev->fids);
+
+	while (node) {
+		struct p9_fid *fid = rb_entry(node, struct p9_fid, node);
+
+		if (fid->fid != P9_NOFID && virtio_p9_ancestor(fid->path, old_name)) {
+				virtio_p9_fix_path(fid->path, old_name, new_name);
+		}
+		node = rb_next(node);
+	}
+}
+
 static void virtio_p9_renameat(struct p9_dev *p9dev,
 			       struct p9_pdu *pdu, u32 *outlen)
 {
-	int i, ret;
+	int ret;
 	char *old_name, *new_name;
 	u32 old_dfid_val, new_dfid_val;
 	struct p9_fid *old_dfid, *new_dfid;
@@ -1026,13 +1107,7 @@ static void virtio_p9_renameat(struct p9_dev *p9dev,
 	 * Now fix path in other fids, if the renamed path is part of
 	 * that.
 	 */
-	for (i = 0; i < VIRTIO_9P_MAX_FID; i++) {
-		if (get_fid(p9dev, i)->fid != P9_NOFID &&
-		    virtio_p9_ancestor(get_fid(p9dev, i)->path, old_name)) {
-			virtio_p9_fix_path(get_fid(p9dev, i)->path, old_name,
-					   new_name);
-		}
-	}
+	rename_fids(p9dev, old_name, new_name);
 	free(old_name);
 	free(new_name);
 	*outlen = pdu->write_offset;
@@ -1289,7 +1364,6 @@ int virtio_9p__init(struct kvm *kvm)
 int virtio_9p__register(struct kvm *kvm, const char *root, const char *tag_name)
 {
 	struct p9_dev *p9dev;
-	u32 i, root_len;
 	int err = 0;
 
 	p9dev = calloc(1, sizeof(*p9dev));
@@ -1306,15 +1380,6 @@ int virtio_9p__register(struct kvm *kvm, const char *root, const char *tag_name)
 	}
 
 	strcpy(p9dev->root_dir, root);
-	root_len = strlen(root);
-	/*
-	 * We prefix the full path in all fids, This allows us to get the
-	 * absolute path of an fid without playing with strings.
-	 */
-	for (i = 0; i < VIRTIO_9P_MAX_FID; i++) {
-		strcpy(get_fid(p9dev, i)->abs_path, root);
-		get_fid(p9dev, i)->path = get_fid(p9dev, i)->abs_path + root_len;
-	}
 	p9dev->config->tag_len = strlen(tag_name);
 	if (p9dev->config->tag_len > MAX_TAG_LEN) {
 		err = -EINVAL;
