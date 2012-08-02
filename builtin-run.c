@@ -531,6 +531,7 @@ static void handle_pause(int fd, u32 type, u32 len, u8 *msg)
 		kvm__continue();
 	} else if (type == KVM_IPC_PAUSE && !is_paused) {
 		kvm->vm_state = KVM_VMSTATE_PAUSED;
+		ioctl(kvm->vm_fd, KVM_KVMCLOCK_CTRL);
 		kvm__pause();
 	} else {
 		return;
