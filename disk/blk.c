@@ -33,7 +33,7 @@ static bool is_mounted(struct stat *st)
 	return false;
 }
 
-struct disk_image *blkdev__probe(const char *filename, struct stat *st)
+struct disk_image *blkdev__probe(const char *filename, int flags, struct stat *st)
 {
 	struct disk_image *disk;
 	int fd, r;
@@ -52,7 +52,7 @@ struct disk_image *blkdev__probe(const char *filename, struct stat *st)
 	 * Be careful! We are opening host block device!
 	 * Open it readonly since we do not want to break user's data on disk.
 	 */
-	fd = open(filename, O_RDWR);
+	fd = open(filename, flags);
 	if (fd < 0)
 		return ERR_PTR(fd);
 

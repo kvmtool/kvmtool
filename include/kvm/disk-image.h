@@ -42,6 +42,7 @@ struct disk_image_operations {
 struct disk_image_params {
 	const char *filename;
 	bool readonly;
+	bool direct;
 };
 
 struct disk_image {
@@ -58,7 +59,7 @@ struct disk_image {
 #endif
 };
 
-struct disk_image *disk_image__open(const char *filename, bool readonly);
+struct disk_image *disk_image__open(const char *filename, bool readonly, bool direct);
 struct disk_image **disk_image__open_all(struct disk_image_params *params, int count);
 struct disk_image *disk_image__new(int fd, u64 size, struct disk_image_operations *ops, int mmap);
 int disk_image__close(struct disk_image *disk);
@@ -71,7 +72,7 @@ ssize_t disk_image__write(struct disk_image *disk, u64 sector, const struct iove
 ssize_t disk_image__get_serial(struct disk_image *disk, void *buffer, ssize_t *len);
 
 struct disk_image *raw_image__probe(int fd, struct stat *st, bool readonly);
-struct disk_image *blkdev__probe(const char *filename, struct stat *st);
+struct disk_image *blkdev__probe(const char *filename, int flags, struct stat *st);
 
 ssize_t raw_image__read(struct disk_image *disk, u64 sector,
 				const struct iovec *iov, int iovcount, void *param);

@@ -75,21 +75,28 @@ struct disk_image *disk_image__new(int fd, u64 size,
 	return disk;
 }
 
-struct disk_image *disk_image__open(const char *filename, bool readonly)
+struct disk_image *disk_image__open(const char *filename, bool readonly, bool direct)
 {
 	struct disk_image *disk;
 	struct stat st;
-	int fd;
+	int fd, flags;
+
+	if (readonly)
+		flags = O_RDONLY;
+	else
+		flags = O_RDWR;
+	if (direct)
+		flags |= O_DIRECT;
 
 	if (stat(filename, &st) < 0)
 		return ERR_PTR(-errno);
 
 	/* blk device ?*/
-	disk = blkdev__probe(filename, &st);
+	disk = blkdev__probe(filename, flags, &st);
 	if (!IS_ERR_OR_NULL(disk))
 		return disk;
 
-	fd = open(filename, readonly ? O_RDONLY : O_RDWR);
+	fd = open(filename, flags);
 	if (fd < 0)
 		return ERR_PTR(fd);
 
@@ -116,6 +123,7 @@ struct disk_image **disk_image__open_all(struct disk_image_params *params, int c
 	struct disk_image **disks;
 	const char *filename;
 	bool readonly;
+	bool direct;
 	void *err;
 	int i;
 
@@ -131,10 +139,11 @@ struct disk_image **disk_image__open_all(struct disk_image_params *params, int c
 	for (i = 0; i < count; i++) {
 		filename = params[i].filename;
 		readonly = params[i].readonly;
+		direct = params[i].direct;
 		if (!filename)
 			continue;
 
-		disks[i] = disk_image__open(filename, readonly);
+		disks[i] = disk_image__open(filename, readonly, direct);
 		if (IS_ERR_OR_NULL(disks[i])) {
 			pr_err("Loading disk image '%s' failed", filename);
 			err = disks[i];

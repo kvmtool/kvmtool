@@ -127,9 +127,10 @@ void kvm_run_set_wrapper_sandbox(void)
 
 static int img_name_parser(const struct option *opt, const char *arg, int unset)
 {
-	char *sep;
-	struct stat st;
 	char path[PATH_MAX];
+	const char *cur;
+	struct stat st;
+	char *sep;
 
 	if (stat(arg, &st) == 0 &&
 	    S_ISDIR(st.st_mode)) {
@@ -169,12 +170,18 @@ static int img_name_parser(const struct option *opt, const char *arg, int unset)
 		die("Currently only 4 images are supported");
 
 	disk_image[image_count].filename = arg;
-	sep = strstr(arg, ",");
-	if (sep) {
-		if (strcmp(sep + 1, "ro") == 0)
-			disk_image[image_count].readonly = true;
-		*sep = 0;
-	}
+	cur = arg;
+	do {
+		sep = strstr(cur, ",");
+		if (sep) {
+			if (strncmp(sep + 1, "ro", 2) == 0)
+				disk_image[image_count].readonly = true;
+			else if (strncmp(sep + 1, "direct", 6) == 0)
+				disk_image[image_count].direct = true;
+			*sep = 0;
+			cur = sep + 1;
+		}
+	} while (sep);
 
 	image_count++;
 
