@@ -45,7 +45,7 @@ int uip_dhcp_get_dns(struct uip_info *info)
 
 	fp = fopen("/etc/resolv.conf", "r");
 	if (!fp)
-		goto out;
+		return ret;
 
 	while (!feof(fp)) {
 		if (fscanf(fp, "%s %s\n", key, val) != 2)
@@ -62,7 +62,6 @@ int uip_dhcp_get_dns(struct uip_info *info)
 		}
 	}
 
-out:
 	fclose(fp);
 	return ret;
 }
