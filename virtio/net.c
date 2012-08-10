@@ -526,8 +526,7 @@ void virtio_net__init(const struct virtio_net_params *params)
 	ndev->mode = params->mode;
 	if (ndev->mode == NET_MODE_TAP) {
 		if (!virtio_net__tap_init(params, ndev))
-			die_perror("You have requested a TAP device, but creation of one has"
-					"failed because:");
+			die_perror("You have requested a TAP device, but creation of one has failed because");
 		ndev->ops = &tap_ops;
 	} else {
 		ndev->info.host_ip		= ntohl(inet_addr(params->host_ip));
