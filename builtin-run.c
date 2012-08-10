@@ -257,7 +257,8 @@ static int set_net_param(struct virtio_net_params *p, const char *param,
 		p->vhost = atoi(val);
 	} else if (strcmp(param, "fd") == 0) {
 		p->fd = atoi(val);
-	}
+	} else
+		die("Unknown network parameter %s", param);
 
 	return 0;
 }
