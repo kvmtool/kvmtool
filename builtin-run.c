@@ -953,7 +953,7 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 				fprintf(stderr, "Cannot handle parameter: "
 						"%s\n", argv[0]);
 				usage_with_options(run_usage, options);
-				return EINVAL;
+				return -EINVAL;
 			}
 			if (kvm_run_wrapper == KVM_RUN_SANDBOX) {
 				/*
@@ -980,7 +980,7 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 
 	if (!kernel_filename) {
 		kernel_usage_with_options();
-		return EINVAL;
+		return -EINVAL;
 	}
 
 	vmlinux_filename = find_vmlinux();
