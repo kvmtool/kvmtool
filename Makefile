@@ -24,6 +24,14 @@ CC	:= $(CROSS_COMPILE)$(CC)
 FIND	:= find
 CSCOPE	:= cscope
 TAGS	:= ctags
+INSTALL := install
+
+prefix = $(HOME)
+bindir_relative = bin
+bindir = $(prefix)/$(bindir_relative)
+
+DESTDIR_SQ = $(subst ','\'',$(DESTDIR))
+bindir_SQ = $(subst ','\'',$(bindir))
 
 PROGRAM	:= lkvm
 PROGRAM_ALIAS := vm
@@ -379,6 +387,12 @@ check: all
 	./$(PROGRAM) run tests/pit/tick.bin
 	./$(PROGRAM) run -d tests/boot/boot_test.iso -p "init=init"
 .PHONY: check
+
+install: all
+	$(E) "  INSTALL"
+	$(Q) $(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(bindir_SQ)' 
+	$(Q) $(INSTALL) $(PROGRAM) '$(DESTDIR_SQ)$(bindir_SQ)' 
+.PHONY: install
 
 clean:
 	$(E) "  CLEAN"
