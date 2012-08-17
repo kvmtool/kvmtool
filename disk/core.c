@@ -122,6 +122,8 @@ struct disk_image **disk_image__open_all(struct disk_image_params *params, int c
 {
 	struct disk_image **disks;
 	const char *filename;
+	const char *wwpn;
+	const char *tpgt;
 	bool readonly;
 	bool direct;
 	void *err;
@@ -140,6 +142,18 @@ struct disk_image **disk_image__open_all(struct disk_image_params *params, int c
 		filename = params[i].filename;
 		readonly = params[i].readonly;
 		direct = params[i].direct;
+		wwpn = params[i].wwpn;
+		tpgt = params[i].tpgt;
+
+		if (wwpn) {
+			disks[i] = malloc(sizeof(struct disk_image));
+			if (!disks[i])
+				return ERR_PTR(-ENOMEM);
+			disks[i]->wwpn = wwpn;
+			disks[i]->tpgt = tpgt;
+			continue;
+		}
+
 		if (!filename)
 			continue;
 

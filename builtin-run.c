@@ -8,6 +8,7 @@
 #include "kvm/framebuffer.h"
 #include "kvm/disk-image.h"
 #include "kvm/threadpool.h"
+#include "kvm/virtio-scsi.h"
 #include "kvm/virtio-blk.h"
 #include "kvm/virtio-net.h"
 #include "kvm/virtio-rng.h"
@@ -171,6 +172,19 @@ static int img_name_parser(const struct option *opt, const char *arg, int unset)
 
 	disk_image[image_count].filename = arg;
 	cur = arg;
+
+	if (strncmp(arg, "scsi:", 5) == 0) {
+		sep = strstr(arg, ":");
+		if (sep)
+			disk_image[image_count].wwpn = sep + 1;
+		sep = strstr(sep + 1, ":");
+		if (sep) {
+			*sep = 0;
+			disk_image[image_count].tpgt = sep + 1;
+		}
+		cur = sep + 1;
+	}
+
 	do {
 		sep = strstr(cur, ",");
 		if (sep) {
@@ -1185,6 +1199,13 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 		goto fail;
 	}
 
+	r = virtio_scsi_init(kvm);
+	if (r < 0) {
+		pr_err("virtio_scsi_init() failed with error %d\n", r);
+		goto fail;
+	}
+
+
 	if (active_console == CONSOLE_VIRTIO)
 		virtio_console__init(kvm);
 
@@ -1332,6 +1353,10 @@ static void kvm_cmd_run_exit(int guest_ret)
 		pr_warning("irq__exit() failed with error %d\n", r);
 
 	fb__stop();
+
+	r = virtio_scsi_exit(kvm);
+	if (r < 0)
+		pr_warning("virtio_scsi_exit() failed with error %d\n", r);
 
 	r = virtio_blk__exit(kvm);
 	if (r < 0)

@@ -63,6 +63,7 @@ OBJS	+= mmio.o
 OBJS	+= pci.o
 OBJS	+= term.o
 OBJS	+= virtio/blk.o
+OBJS	+= virtio/scsi.o
 OBJS	+= virtio/console.o
 OBJS	+= virtio/core.o
 OBJS	+= virtio/net.o
