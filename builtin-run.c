@@ -111,6 +111,11 @@ bool do_debug_print = false;
 static int nrcpus;
 static int vidmode = -1;
 
+extern char _binary_guest_init_stage2_start;
+extern char _binary_guest_init_stage2_size;
+extern char _binary_guest_init_start;
+extern char _binary_guest_init_size;
+
 static const char * const run_usage[] = {
 	"lkvm run [<options>] [<kernel image>]",
 	NULL
@@ -803,24 +808,41 @@ void kvm_run_help(void)
 	usage_with_options(run_usage, options);
 }
 
-static int kvm_custom_stage2(void)
+static int kvm_setup_guest_init(void)
 {
-	char tmp[PATH_MAX], dst[PATH_MAX], *src;
 	const char *rootfs = custom_rootfs_name;
-	int r;
+	char tmp[PATH_MAX];
+	size_t size;
+	int fd, ret;
+	char *data;
 
-	src = realpath("guest/init_stage2", NULL);
-	if (src == NULL)
-		return -ENOMEM;
+	/* Setup /virt/init */
+	size = (size_t)&_binary_guest_init_size;
+	data = (char *)&_binary_guest_init_start;
+	snprintf(tmp, PATH_MAX, "%s%s/virt/init", kvm__get_dir(), rootfs);
+	remove(tmp);
+	fd = open(tmp, O_CREAT | O_WRONLY, 0755);
+	if (fd < 0)
+		die("Fail to setup %s", tmp);
+	ret = xwrite(fd, data, size);
+	if (ret < 0)
+		die("Fail to setup %s", tmp);
+	close(fd);
 
+	/* Setup /virt/init_stage2 */
+	size = (size_t)&_binary_guest_init_stage2_size;
+	data = (char *)&_binary_guest_init_stage2_start;
 	snprintf(tmp, PATH_MAX, "%s%s/virt/init_stage2", kvm__get_dir(), rootfs);
 	remove(tmp);
+	fd = open(tmp, O_CREAT | O_WRONLY, 0755);
+	if (fd < 0)
+		die("Fail to setup %s", tmp);
+	ret = xwrite(fd, data, size);
+	if (ret < 0)
+		die("Fail to setup %s", tmp);
+	close(fd);
 
-	snprintf(dst, PATH_MAX, "/host/%s", src);
-	r = symlink(dst, tmp);
-	free(src);
-
-	return r;
+	return 0;
 }
 
 static int kvm_run_set_sandbox(void)
@@ -1147,8 +1169,8 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 
 			if (!no_dhcp)
 				strcat(real_cmdline, "  ip=dhcp");
-			if (kvm_custom_stage2())
-				die("Failed linking stage 2 of init.");
+			if (kvm_setup_guest_init())
+				die("Failed to setup init for guest.");
 		}
 	} else if (!strstr(real_cmdline, "root=")) {
 		strlcat(real_cmdline, " root=/dev/vda rw ", sizeof(real_cmdline));

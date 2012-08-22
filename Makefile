@@ -286,14 +286,15 @@ KVMTOOLS-VERSION-FILE:
 # $(OTHEROBJS) are things that do not get substituted like this.
 #
 STATIC_OBJS = $(patsubst %.o,%.static.o,$(OBJS) $(OBJS_STATOPT))
+GUEST_OBJS = guest/guest_init.o guest/guest_init_stage2.o
 
-$(PROGRAM)-static:  $(DEPS) $(STATIC_OBJS) $(OTHEROBJS)
+$(PROGRAM)-static:  $(DEPS) $(STATIC_OBJS) $(OTHEROBJS) $(GUEST_INIT) $(GUEST_INIT_S2)
 	$(E) "  LINK    " $@
-	$(Q) $(CC) -static $(CFLAGS) $(STATIC_OBJS) $(OTHEROBJS) $(LIBS) $(LIBS_STATOPT) -o $@
+	$(Q) $(CC) -static $(CFLAGS) $(STATIC_OBJS) $(OTHEROBJS) $(GUEST_OBJS) $(LIBS) $(LIBS_STATOPT) -o $@
 
-$(PROGRAM): $(DEPS) $(OBJS) $(OBJS_DYNOPT) $(OTHEROBJS)
+$(PROGRAM): $(DEPS) $(OBJS) $(OBJS_DYNOPT) $(OTHEROBJS) $(GUEST_INIT) $(GUEST_INIT_S2)
 	$(E) "  LINK    " $@
-	$(Q) $(CC) $(CFLAGS) $(OBJS) $(OBJS_DYNOPT) $(OTHEROBJS) $(LIBS) $(LIBS_DYNOPT) -o $@
+	$(Q) $(CC) $(CFLAGS) $(OBJS) $(OBJS_DYNOPT) $(OTHEROBJS) $(GUEST_OBJS) $(LIBS) $(LIBS_DYNOPT) -o $@
 
 $(PROGRAM_ALIAS): $(PROGRAM)
 	$(E) "  LN      " $@
@@ -302,10 +303,12 @@ $(PROGRAM_ALIAS): $(PROGRAM)
 $(GUEST_INIT): guest/init.c
 	$(E) "  LINK    " $@
 	$(Q) $(CC) -static guest/init.c -o $@
+	$(Q) ld -r -b binary -o guest/guest_init.o $(GUEST_INIT)
 
 $(GUEST_INIT_S2): guest/init_stage2.c
 	$(E) "  LINK    " $@
 	$(Q) $(CC) -static guest/init_stage2.c -o $@
+	$(Q) ld -r -b binary -o guest/guest_init_stage2.o $(GUEST_INIT_S2)
 
 $(DEPS):
 
@@ -403,7 +406,7 @@ clean:
 	$(Q) rm -f x86/bios/bios-rom.h
 	$(Q) rm -f tests/boot/boot_test.iso
 	$(Q) rm -rf tests/boot/rootfs/
-	$(Q) rm -f $(DEPS) $(OBJS) $(OTHEROBJS) $(OBJS_DYNOPT) $(STATIC_OBJS) $(PROGRAM) $(PROGRAM_ALIAS) $(PROGRAM)-static $(GUEST_INIT) $(GUEST_INIT_S2)
+	$(Q) rm -f $(DEPS) $(OBJS) $(OTHEROBJS) $(OBJS_DYNOPT) $(STATIC_OBJS) $(PROGRAM) $(PROGRAM_ALIAS) $(PROGRAM)-static $(GUEST_INIT) $(GUEST_INIT_S2) $(GUEST_OBJS)
 	$(Q) rm -f cscope.*
 	$(Q) rm -f tags
 	$(Q) rm -f TAGS
