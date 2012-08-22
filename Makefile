@@ -38,7 +38,6 @@ PROGRAM	:= lkvm
 PROGRAM_ALIAS := vm
 
 GUEST_INIT := guest/init
-GUEST_INIT_S2 := guest/init_stage2
 
 OBJS	+= builtin-balloon.o
 OBJS	+= builtin-debug.o
@@ -271,7 +270,7 @@ ifneq ($(WERROR),0)
 	CFLAGS += -Werror
 endif
 
-all: arch_support_check $(PROGRAM) $(PROGRAM_ALIAS) $(GUEST_INIT) $(GUEST_INIT_S2)
+all: arch_support_check $(PROGRAM) $(PROGRAM_ALIAS) $(GUEST_INIT)
 
 arch_support_check:
 	$(UNSUPP_ERR)
@@ -287,13 +286,13 @@ KVMTOOLS-VERSION-FILE:
 # $(OTHEROBJS) are things that do not get substituted like this.
 #
 STATIC_OBJS = $(patsubst %.o,%.static.o,$(OBJS) $(OBJS_STATOPT))
-GUEST_OBJS = guest/guest_init.o guest/guest_init_stage2.o
+GUEST_OBJS = guest/guest_init.o
 
-$(PROGRAM)-static:  $(DEPS) $(STATIC_OBJS) $(OTHEROBJS) $(GUEST_INIT) $(GUEST_INIT_S2)
+$(PROGRAM)-static:  $(DEPS) $(STATIC_OBJS) $(OTHEROBJS) $(GUEST_INIT)
 	$(E) "  LINK    " $@
 	$(Q) $(CC) -static $(CFLAGS) $(STATIC_OBJS) $(OTHEROBJS) $(GUEST_OBJS) $(LIBS) $(LIBS_STATOPT) -o $@
 
-$(PROGRAM): $(DEPS) $(OBJS) $(OBJS_DYNOPT) $(OTHEROBJS) $(GUEST_INIT) $(GUEST_INIT_S2)
+$(PROGRAM): $(DEPS) $(OBJS) $(OBJS_DYNOPT) $(OTHEROBJS) $(GUEST_INIT)
 	$(E) "  LINK    " $@
 	$(Q) $(CC) $(CFLAGS) $(OBJS) $(OBJS_DYNOPT) $(OTHEROBJS) $(GUEST_OBJS) $(LIBS) $(LIBS_DYNOPT) -o $@
 
@@ -305,11 +304,6 @@ $(GUEST_INIT): guest/init.c
 	$(E) "  LINK    " $@
 	$(Q) $(CC) -static guest/init.c -o $@
 	$(Q) $(LD) -r -b binary -o guest/guest_init.o $(GUEST_INIT)
-
-$(GUEST_INIT_S2): guest/init_stage2.c
-	$(E) "  LINK    " $@
-	$(Q) $(CC) -static guest/init_stage2.c -o $@
-	$(Q) $(LD) -r -b binary -o guest/guest_init_stage2.o $(GUEST_INIT_S2)
 
 $(DEPS):
 
@@ -407,7 +401,7 @@ clean:
 	$(Q) rm -f x86/bios/bios-rom.h
 	$(Q) rm -f tests/boot/boot_test.iso
 	$(Q) rm -rf tests/boot/rootfs/
-	$(Q) rm -f $(DEPS) $(OBJS) $(OTHEROBJS) $(OBJS_DYNOPT) $(STATIC_OBJS) $(PROGRAM) $(PROGRAM_ALIAS) $(PROGRAM)-static $(GUEST_INIT) $(GUEST_INIT_S2) $(GUEST_OBJS)
+	$(Q) rm -f $(DEPS) $(OBJS) $(OTHEROBJS) $(OBJS_DYNOPT) $(STATIC_OBJS) $(PROGRAM) $(PROGRAM_ALIAS) $(PROGRAM)-static $(GUEST_INIT) $(GUEST_OBJS)
 	$(Q) rm -f cscope.*
 	$(Q) rm -f tags
 	$(Q) rm -f TAGS

@@ -7,10 +7,19 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <errno.h>
+#include <linux/reboot.h>
 
 static int run_process(char *filename)
 {
 	char *new_argv[] = { filename, NULL };
+	char *new_env[] = { "TERM=linux", NULL };
+
+	return execve(filename, new_argv, new_env);
+}
+
+static int run_process_sandbox(char *filename)
+{
+	char *new_argv[] = { filename, "/virt/sandbox.sh", NULL };
 	char *new_env[] = { "TERM=linux", NULL };
 
 	return execve(filename, new_argv, new_env);
@@ -26,11 +35,33 @@ static void do_mounts(void)
 
 int main(int argc, char *argv[])
 {
+	pid_t child;
+	int status;
+
 	puts("Mounting...");
 
 	do_mounts();
 
-	run_process("/virt/init_stage2");
+	/* get session leader */
+	setsid();
+
+	/* set controlling terminal */
+	ioctl(0, TIOCSCTTY, 1);
+
+	child = fork();
+	if (child < 0) {
+		printf("Fatal: fork() failed with %d\n", child);
+		return 0;
+	} else if (child == 0) {
+		if (access("/virt/sandbox.sh", R_OK) == 0)
+			run_process_sandbox("/bin/sh");
+		else
+			run_process("/bin/sh");
+	} else {
+		waitpid(child, &status, 0);
+	}
+
+	reboot(LINUX_REBOOT_CMD_RESTART);
 
 	printf("Init failed: %s\n", strerror(errno));
 

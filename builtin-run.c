@@ -111,8 +111,6 @@ bool do_debug_print = false;
 static int nrcpus;
 static int vidmode = -1;
 
-extern char _binary_guest_init_stage2_start;
-extern char _binary_guest_init_stage2_size;
 extern char _binary_guest_init_start;
 extern char _binary_guest_init_size;
 
@@ -820,19 +818,6 @@ static int kvm_setup_guest_init(void)
 	size = (size_t)&_binary_guest_init_size;
 	data = (char *)&_binary_guest_init_start;
 	snprintf(tmp, PATH_MAX, "%s%s/virt/init", kvm__get_dir(), rootfs);
-	remove(tmp);
-	fd = open(tmp, O_CREAT | O_WRONLY, 0755);
-	if (fd < 0)
-		die("Fail to setup %s", tmp);
-	ret = xwrite(fd, data, size);
-	if (ret < 0)
-		die("Fail to setup %s", tmp);
-	close(fd);
-
-	/* Setup /virt/init_stage2 */
-	size = (size_t)&_binary_guest_init_stage2_size;
-	data = (char *)&_binary_guest_init_stage2_start;
-	snprintf(tmp, PATH_MAX, "%s%s/virt/init_stage2", kvm__get_dir(), rootfs);
 	remove(tmp);
 	fd = open(tmp, O_CREAT | O_WRONLY, 0755);
 	if (fd < 0)
