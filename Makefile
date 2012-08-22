@@ -20,6 +20,7 @@ include config/utilities.mak
 include config/feature-tests.mak
 
 CC	:= $(CROSS_COMPILE)$(CC)
+LD	:= $(CROSS_COMPILE)$(LD)
 
 FIND	:= find
 CSCOPE	:= cscope
@@ -303,12 +304,12 @@ $(PROGRAM_ALIAS): $(PROGRAM)
 $(GUEST_INIT): guest/init.c
 	$(E) "  LINK    " $@
 	$(Q) $(CC) -static guest/init.c -o $@
-	$(Q) ld -r -b binary -o guest/guest_init.o $(GUEST_INIT)
+	$(Q) $(LD) -r -b binary -o guest/guest_init.o $(GUEST_INIT)
 
 $(GUEST_INIT_S2): guest/init_stage2.c
 	$(E) "  LINK    " $@
 	$(Q) $(CC) -static guest/init_stage2.c -o $@
-	$(Q) ld -r -b binary -o guest/guest_init_stage2.o $(GUEST_INIT_S2)
+	$(Q) $(LD) -r -b binary -o guest/guest_init_stage2.o $(GUEST_INIT_S2)
 
 $(DEPS):
 
@@ -372,7 +373,7 @@ x86/bios/bios.bin.elf: x86/bios/entry.S x86/bios/e820.c x86/bios/int10.c x86/bio
 	$(E) "  CC       x86/bios/entry.o"
 	$(Q) $(CC) $(CFLAGS) $(BIOS_CFLAGS) -c -s x86/bios/entry.S -o x86/bios/entry.o
 	$(E) "  LD      " $@
-	$(Q) ld -T x86/bios/rom.ld.S -o x86/bios/bios.bin.elf x86/bios/memcpy.o x86/bios/entry.o x86/bios/e820.o x86/bios/int10.o x86/bios/int15.o
+	$(Q) $(LD) -T x86/bios/rom.ld.S -o x86/bios/bios.bin.elf x86/bios/memcpy.o x86/bios/entry.o x86/bios/e820.o x86/bios/int10.o x86/bios/int15.o
 
 x86/bios/bios.bin: x86/bios/bios.bin.elf
 	$(E) "  OBJCOPY " $@
