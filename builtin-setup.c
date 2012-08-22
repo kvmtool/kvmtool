@@ -3,6 +3,7 @@
 #include <kvm/builtin-setup.h>
 #include <kvm/kvm.h>
 #include <kvm/parse-options.h>
+#include <kvm/read-write.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -18,6 +19,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
+
+extern char _binary_guest_init_start;
+extern char _binary_guest_init_size;
 
 static const char *instance_name;
 
@@ -126,19 +130,44 @@ static const char *guestfs_symlinks[] = {
 static int copy_init(const char *guestfs_name)
 {
 	char path[PATH_MAX];
+	size_t size;
+	int fd, ret;
+	char *data;
 
+	size = (size_t)&_binary_guest_init_size;
+	data = (char *)&_binary_guest_init_start;
 	snprintf(path, PATH_MAX, "%s%s/virt/init", kvm__get_dir(), guestfs_name);
+	remove(path);
+	fd = open(path, O_CREAT | O_WRONLY, 0755);
+	if (fd < 0)
+		die("Fail to setup %s", path);
+	ret = xwrite(fd, data, size);
+	if (ret < 0)
+		die("Fail to setup %s", path);
+	close(fd);
 
-	return copy_file("guest/init", path);
+	return 0;
 }
 
 static int copy_passwd(const char *guestfs_name)
 {
 	char path[PATH_MAX];
+	FILE *file;
+	int ret;
 
 	snprintf(path, PATH_MAX, "%s%s/etc/passwd", kvm__get_dir(), guestfs_name);
 
-	return copy_file("guest/passwd", path);
+	file = fopen(path, "w");
+	if (!file)
+		return -1;
+
+	ret = fprintf(file, "root:x:0:0:root:/root:/bin/sh\n");
+	if (ret < 0)
+		return ret;
+
+	fclose(file);
+
+	return 0;
 }
 
 static int make_guestfs_symlink(const char *guestfs_name, const char *path)
