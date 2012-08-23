@@ -231,10 +231,12 @@ struct uip_tcp_socket {
 	struct sockaddr_in addr;
 	struct list_head list;
 	struct uip_info *info;
+	pthread_cond_t	cond;
 	pthread_mutex_t *lock;
 	pthread_t thread;
 	u32 dport, sport;
 	u32 guest_acked;
+	u16 window_size;
 	/*
 	 * Initial Sequence Number
 	 */

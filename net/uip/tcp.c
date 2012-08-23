@@ -70,6 +70,8 @@ static struct uip_tcp_socket *uip_tcp_socket_alloc(struct uip_tx_arg *arg, u32 s
 	sk->addr.sin_port		= dport;
 	sk->addr.sin_addr.s_addr	= dip;
 
+	pthread_cond_init(&sk->cond, NULL);
+
 	if (ntohl(dip) == arg->info->host_ip)
 		sk->addr.sin_addr.s_addr = inet_addr("127.0.0.1");
 
@@ -171,25 +173,41 @@ static int uip_tcp_payload_send(struct uip_tcp_socket *sk, u8 flag, u16 payload_
 static void *uip_tcp_socket_thread(void *p)
 {
 	struct uip_tcp_socket *sk;
-	u8 *payload;
-	int ret;
+	int len, left, ret;
+	u8 *payload, *pos;
 
 	sk = p;
 
 	payload = malloc(UIP_MAX_TCP_PAYLOAD);
-	sk->payload = payload;
-	if (!sk->payload)
+	if (!payload)
 		goto out;
 
 	while (1) {
+		pos = payload;
 
 		ret = read(sk->fd, payload, UIP_MAX_TCP_PAYLOAD);
 
 		if (ret <= 0 || ret > UIP_MAX_TCP_PAYLOAD)
 			goto out;
 
-		uip_tcp_payload_send(sk, UIP_TCP_FLAG_ACK, ret);
+		left = ret;
 
+		while (left > 0) {
+			mutex_lock(sk->lock);
+			while ((len = sk->guest_acked + sk->window_size - sk->seq_server) <= 0)
+				pthread_cond_wait(&sk->cond, sk->lock);
+			mutex_unlock(sk->lock);
+
+			sk->payload = pos;
+			if (len > left)
+				len = left;
+			if (len > UIP_MAX_TCP_PAYLOAD)
+				len = UIP_MAX_TCP_PAYLOAD;
+			left -= len;
+			pos += len;
+
+			uip_tcp_payload_send(sk, UIP_TCP_FLAG_ACK, len);
+		}
 	}
 
 out:
@@ -203,7 +221,7 @@ out:
 
 	sk->read_done = 1;
 
-	free(sk->payload);
+	free(payload);
 	pthread_exit(NULL);
 
 	return NULL;
@@ -254,6 +272,8 @@ int uip_tx_do_ipv4_tcp(struct uip_tx_arg *arg)
 		if (!sk)
 			return -1;
 
+		sk->window_size = ntohs(tcp->win);
+
 		/*
 		 * Setup ISN number
 		 */
@@ -280,7 +300,11 @@ int uip_tx_do_ipv4_tcp(struct uip_tx_arg *arg)
 	if (!sk)
 		return -1;
 
+	mutex_lock(sk->lock);
+	sk->window_size = ntohs(tcp->win);
 	sk->guest_acked = ntohl(tcp->ack);
+	pthread_cond_signal(&sk->cond);
+	mutex_unlock(sk->lock);
 
 	if (uip_tcp_is_fin(tcp)) {
 		if (sk->write_done)
