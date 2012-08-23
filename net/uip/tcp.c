@@ -3,6 +3,7 @@
 #include <linux/virtio_net.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
+#include <arpa/inet.h>
 
 static int uip_tcp_socket_close(struct uip_tcp_socket *sk, int how)
 {
@@ -66,8 +67,11 @@ static struct uip_tcp_socket *uip_tcp_socket_alloc(struct uip_tx_arg *arg, u32 s
 
 	sk->fd				= socket(AF_INET, SOCK_STREAM, 0);
 	sk->addr.sin_family		= AF_INET;
-	sk->addr.sin_addr.s_addr	= dip;
 	sk->addr.sin_port		= dport;
+	sk->addr.sin_addr.s_addr	= dip;
+
+	if (ntohl(dip) == arg->info->host_ip)
+		sk->addr.sin_addr.s_addr = inet_addr("127.0.0.1");
 
 	ret = connect(sk->fd, (struct sockaddr *)&sk->addr, sizeof(sk->addr));
 	if (ret) {
