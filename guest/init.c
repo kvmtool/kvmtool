@@ -31,6 +31,8 @@ static void do_mounts(void)
 	mount("", "/sys", "sysfs", 0, NULL);
 	mount("proc", "/proc", "proc", 0, NULL);
 	mount("devtmpfs", "/dev", "devtmpfs", 0, NULL);
+	mkdir("/dev/pts", 0755);
+	mount("devpts", "/dev/pts", "devpts", 0, NULL);
 }
 
 int main(int argc, char *argv[])
