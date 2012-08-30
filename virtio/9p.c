@@ -117,26 +117,6 @@ static void close_fid(struct p9_dev *p9dev, u32 fid)
 	free(pfid);
 }
 
-static void clear_all_fids(struct p9_dev *p9dev)
-{
-	struct rb_node *node = rb_first(&p9dev->fids);
-
-	while (node) {
-		struct p9_fid *fid = rb_entry(node, struct p9_fid, node);
-
-		if (fid->fd > 0)
-			close(fid->fd);
-
-		if (fid->dir)
-			closedir(fid->dir);
-
-		rb_erase(&fid->node, &p9dev->fids);
-		free(fid);
-
-		node = rb_first(&p9dev->fids);
-	}
-}
-
 static void virtio_p9_set_reply_header(struct p9_pdu *pdu, u32 size)
 {
 	u8 cmd;
@@ -442,8 +422,6 @@ static void virtio_p9_attach(struct p9_dev *p9dev,
 
 	free(uname);
 	free(aname);
-
-	clear_all_fids(p9dev);
 
 	if (lstat(p9dev->root_dir, &st) < 0)
 		goto err_out;
