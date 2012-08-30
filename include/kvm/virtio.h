@@ -78,8 +78,7 @@ struct virtio_device {
 };
 
 struct virtio_ops {
-	void (*set_config)(struct kvm *kvm, void *dev, u8 data, u32 offset);
-	u8 (*get_config)(struct kvm *kvm, void *dev, u32 offset);
+	u8 *(*get_config)(struct kvm *kvm, void *dev);
 	u32 (*get_host_features)(struct kvm *kvm, void *dev);
 	void (*set_guest_features)(struct kvm *kvm, void *dev, u32 features);
 	int (*init_vq)(struct kvm *kvm, void *dev, u32 vq, u32 pfn);

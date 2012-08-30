@@ -29,18 +29,11 @@ struct scsi_dev {
 	struct kvm			*kvm;
 };
 
-static void set_config(struct kvm *kvm, void *dev, u8 data, u32 offset)
+static u8 *get_config(struct kvm *kvm, void *dev)
 {
 	struct scsi_dev *sdev = dev;
 
-	((u8 *)(&sdev->config))[offset] = data;
-}
-
-static u8 get_config(struct kvm *kvm, void *dev, u32 offset)
-{
-	struct scsi_dev *sdev = dev;
-
-	return ((u8 *)(&sdev->config))[offset];
+	return ((u8 *)(&sdev->config));
 }
 
 static u32 get_host_features(struct kvm *kvm, void *dev)
@@ -174,7 +167,6 @@ static int set_size_vq(struct kvm *kvm, void *dev, u32 vq, int size)
 }
 
 static struct virtio_ops scsi_dev_virtio_ops = (struct virtio_ops) {
-	.set_config		= set_config,
 	.get_config		= get_config,
 	.get_host_features	= get_host_features,
 	.set_guest_features	= set_guest_features,

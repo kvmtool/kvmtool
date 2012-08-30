@@ -94,11 +94,11 @@ static void virtio_mmio_device_specific(u64 addr, u8 *data, u32 len,
 
 	for (i = 0; i < len; i++) {
 		if (is_write)
-			vdev->ops->set_config(vmmio->kvm, vmmio->dev,
-					      *(u8 *)data + i, addr + i);
+			vdev->ops->get_config(vmmio->kvm, vmmio->dev)[addr + i] =
+					      *(u8 *)data + i;
 		else
 			data[i] = vdev->ops->get_config(vmmio->kvm,
-							vmmio->dev, addr + i);
+							vmmio->dev)[addr + i];
 	}
 }
 

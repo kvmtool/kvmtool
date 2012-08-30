@@ -86,7 +86,7 @@ static bool virtio_pci__specific_io_in(struct kvm *kvm, struct virtio_device *vd
 	} else if (type == VIRTIO_PCI_O_CONFIG) {
 		u8 cfg;
 
-		cfg = vdev->ops->get_config(kvm, vpci->dev, config_offset);
+		cfg = vdev->ops->get_config(kvm, vpci->dev)[config_offset];
 		ioport__write8(data, cfg);
 		return true;
 	}
@@ -164,7 +164,7 @@ static bool virtio_pci__specific_io_out(struct kvm *kvm, struct virtio_device *v
 
 		return true;
 	} else if (type == VIRTIO_PCI_O_CONFIG) {
-		vdev->ops->set_config(kvm, vpci->dev, *(u8 *)data, config_offset);
+		vdev->ops->get_config(kvm, vpci->dev)[config_offset] = *(u8 *)data;
 
 		return true;
 	}

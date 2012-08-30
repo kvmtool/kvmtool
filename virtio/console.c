@@ -105,18 +105,11 @@ static void virtio_console_handle_callback(struct kvm *kvm, void *param)
 
 }
 
-static void set_config(struct kvm *kvm, void *dev, u8 data, u32 offset)
+static u8 *get_config(struct kvm *kvm, void *dev)
 {
 	struct con_dev *cdev = dev;
 
-	((u8 *)(&cdev->config))[offset] = data;
-}
-
-static u8 get_config(struct kvm *kvm, void *dev, u32 offset)
-{
-	struct con_dev *cdev = dev;
-
-	return ((u8 *)(&cdev->config))[offset];
+	return ((u8 *)(&cdev->config));
 }
 
 static u32 get_host_features(struct kvm *kvm, void *dev)
@@ -174,7 +167,6 @@ static int get_size_vq(struct kvm *kvm, void *dev, u32 vq)
 }
 
 static struct virtio_ops con_dev_virtio_ops = (struct virtio_ops) {
-	.set_config		= set_config,
 	.get_config		= get_config,
 	.get_host_features	= get_host_features,
 	.set_guest_features	= set_guest_features,

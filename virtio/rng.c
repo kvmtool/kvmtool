@@ -41,12 +41,7 @@ struct rng_dev {
 static LIST_HEAD(rdevs);
 static int compat_id = -1;
 
-static void set_config(struct kvm *kvm, void *dev, u8 data, u32 offset)
-{
-	/* Unused */
-}
-
-static u8 get_config(struct kvm *kvm, void *dev, u32 offset)
+static u8 *get_config(struct kvm *kvm, void *dev)
 {
 	/* Unused */
 	return 0;
@@ -138,7 +133,6 @@ static int get_size_vq(struct kvm *kvm, void *dev, u32 vq)
 }
 
 static struct virtio_ops rng_dev_virtio_ops = (struct virtio_ops) {
-	.set_config		= set_config,
 	.get_config		= get_config,
 	.get_host_features	= get_host_features,
 	.set_guest_features	= set_guest_features,

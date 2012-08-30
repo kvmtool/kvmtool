@@ -290,18 +290,11 @@ static struct net_dev_operations uip_ops = {
 	.tx	= uip_ops_tx,
 };
 
-static void set_config(struct kvm *kvm, void *dev, u8 data, u32 offset)
+static u8 *get_config(struct kvm *kvm, void *dev)
 {
 	struct net_dev *ndev = dev;
 
-	((u8 *)(&ndev->config))[offset] = data;
-}
-
-static u8 get_config(struct kvm *kvm, void *dev, u32 offset)
-{
-	struct net_dev *ndev = dev;
-
-	return ((u8 *)(&ndev->config))[offset];
+	return ((u8 *)(&ndev->config));
 }
 
 static u32 get_host_features(struct kvm *kvm, void *dev)
@@ -448,7 +441,6 @@ static int set_size_vq(struct kvm *kvm, void *dev, u32 vq, int size)
 }
 
 static struct virtio_ops net_dev_virtio_ops = (struct virtio_ops) {
-	.set_config		= set_config,
 	.get_config		= get_config,
 	.get_host_features	= get_host_features,
 	.set_guest_features	= set_guest_features,
