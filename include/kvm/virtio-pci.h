@@ -15,6 +15,8 @@ struct virtio_pci_ioevent_param {
 	u32			vq;
 };
 
+#define VIRTIO_PCI_F_SIGNAL_MSI (1 << 0)
+
 struct virtio_pci {
 	struct pci_device_header pci_hdr;
 	void			*dev;
@@ -22,6 +24,7 @@ struct virtio_pci {
 	u16			base_addr;
 	u8			status;
 	u8			isr;
+	u32			features;
 
 	/* MSI-X */
 	u16			config_vector;

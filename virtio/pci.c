@@ -7,6 +7,7 @@
 #include "kvm/virtio.h"
 #include "kvm/ioeventfd.h"
 
+#include <sys/ioctl.h>
 #include <linux/virtio_pci.h>
 #include <linux/byteorder.h>
 #include <string.h>
@@ -236,6 +237,17 @@ static void virtio_pci__mmio_callback(u64 addr, u8 *data, u32 len, u8 is_write, 
 		memcpy(data, table + addr - offset, len);
 }
 
+static void virtio_pci__signal_msi(struct kvm *kvm, struct virtio_pci *vpci, int vec)
+{
+	struct kvm_msi msi = {
+		.address_lo = vpci->msix_table[vec].msg.address_lo,
+		.address_hi = vpci->msix_table[vec].msg.address_hi,
+		.data = vpci->msix_table[vec].msg.data,
+	};
+
+	ioctl(kvm->vm_fd, KVM_SIGNAL_MSI, &msi);
+}
+
 int virtio_pci__signal_vq(struct kvm *kvm, struct virtio_device *vdev, u32 vq)
 {
 	struct virtio_pci *vpci = vdev->virtio;
@@ -249,7 +261,10 @@ int virtio_pci__signal_vq(struct kvm *kvm, struct virtio_device *vdev, u32 vq)
 			return 0;
 		}
 
-		kvm__irq_trigger(kvm, vpci->gsis[vq]);
+		if (vpci->features & VIRTIO_PCI_F_SIGNAL_MSI)
+			virtio_pci__signal_msi(kvm, vpci, vpci->vq_vector[vq]);
+		else
+			kvm__irq_trigger(kvm, vpci->gsis[vq]);
 	} else {
 		vpci->isr = VIRTIO_IRQ_HIGH;
 		kvm__irq_trigger(kvm, vpci->pci_hdr.irq_line);
@@ -270,7 +285,10 @@ int virtio_pci__signal_config(struct kvm *kvm, struct virtio_device *vdev)
 			return 0;
 		}
 
-		kvm__irq_trigger(kvm, vpci->config_gsi);
+		if (vpci->features & VIRTIO_PCI_F_SIGNAL_MSI)
+			virtio_pci__signal_msi(kvm, vpci, vpci->vq_vector[vpci->config_vector]);
+		else
+			kvm__irq_trigger(kvm, vpci->config_gsi);
 	} else {
 		vpci->isr = VIRTIO_PCI_ISR_CONFIG;
 		kvm__irq_trigger(kvm, vpci->pci_hdr.irq_line);
@@ -346,6 +364,9 @@ int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 	r = irq__register_device(subsys_id, &ndev, &pin, &line);
 	if (r < 0)
 		goto free_mmio;
+
+	if (kvm__supports_extension(kvm, KVM_CAP_SIGNAL_MSI))
+		vpci->features |= VIRTIO_PCI_F_SIGNAL_MSI;
 
 	vpci->pci_hdr.irq_pin	= pin;
 	vpci->pci_hdr.irq_line	= line;
