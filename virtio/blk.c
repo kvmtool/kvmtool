@@ -184,9 +184,12 @@ static void *virtio_blk_thread(void *dev)
 {
 	struct blk_dev *bdev = dev;
 	u64 data;
+	int r;
 
 	while (1) {
-		read(bdev->io_efd, &data, sizeof(u64));
+		r = read(bdev->io_efd, &data, sizeof(u64));
+		if (r < 0)
+			continue;
 		virtio_blk_do_io(bdev->kvm, &bdev->vqs[0], bdev);
 	}
 
@@ -198,8 +201,11 @@ static int notify_vq(struct kvm *kvm, void *dev, u32 vq)
 {
 	struct blk_dev *bdev = dev;
 	u64 data = 1;
+	int r;
 
-	write(bdev->io_efd, &data, sizeof(data));
+	r = write(bdev->io_efd, &data, sizeof(data));
+	if (r < 0)
+		return r;
 
 	return 0;
 }
