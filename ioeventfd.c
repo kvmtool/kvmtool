@@ -44,7 +44,6 @@ static void *ioeventfd__thread(void *param)
 	}
 
 done:
-	tmp = 1;
 	tmp = write(epoll_stop_fd, &tmp, sizeof(tmp));
 
 	return NULL;
