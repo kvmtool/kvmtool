@@ -12,7 +12,8 @@
 static int run_process(char *filename)
 {
 	char *new_argv[] = { filename, NULL };
-	char *new_env[] = { "TERM=linux", "DISPLAY=192.168.33.1:0", NULL };
+	char *new_env[] = { "TERM=linux", "DISPLAY=192.168.33.1:0",
+				"HOME=/virt/home", NULL };
 
 	return execve(filename, new_argv, new_env);
 }
@@ -20,7 +21,7 @@ static int run_process(char *filename)
 static int run_process_sandbox(char *filename)
 {
 	char *new_argv[] = { filename, "/virt/sandbox.sh", NULL };
-	char *new_env[] = { "TERM=linux", NULL };
+	char *new_env[] = { "TERM=linux", "HOME=/virt/home", NULL };
 
 	return execve(filename, new_argv, new_env);
 }

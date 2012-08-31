@@ -116,6 +116,7 @@ static const char *guestfs_dirs[] = {
 	"/var",
 	"/var/lib",
 	"/virt",
+	"/virt/home",
 };
 
 static const char *guestfs_symlinks[] = {
