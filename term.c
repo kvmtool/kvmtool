@@ -127,13 +127,26 @@ void term_set_tty(int term)
 	term_fds[term][TERM_FD_IN] = term_fds[term][TERM_FD_OUT] = master;
 }
 
-void term_init(void)
+int tty_parser(const struct option *opt, const char *arg, int unset)
+{
+	int tty = atoi(arg);
+
+	term_set_tty(tty);
+
+	return 0;
+}
+
+int term_init(struct kvm *kvm)
 {
 	struct termios term;
-	int i;
+	int i, r;
 
-	if (tcgetattr(STDIN_FILENO, &orig_term) < 0)
-		die("unable to save initial standard input settings");
+	r = tcgetattr(STDIN_FILENO, &orig_term);
+	if (r < 0) {
+		pr_warning("unable to save initial standard input settings");
+		return r;
+	}
+
 
 	term = orig_term;
 	term.c_lflag &= ~(ICANON | ECHO | ISIG);
@@ -147,4 +160,11 @@ void term_init(void)
 
 	signal(SIGTERM, term_sig_cleanup);
 	atexit(term_cleanup);
+
+	return 0;
+}
+
+int term_exit(struct kvm *kvm)
+{
+	return 0;
 }

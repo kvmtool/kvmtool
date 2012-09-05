@@ -1,6 +1,8 @@
 #ifndef KVM__TERM_H
 #define KVM__TERM_H
 
+#include "kvm/kvm.h"
+
 #include <sys/uio.h>
 #include <stdbool.h>
 
@@ -15,6 +17,8 @@ int term_getc(int term);
 
 bool term_readable(int term);
 void term_set_tty(int term);
-void term_init(void);
+int term_init(struct kvm *kvm);
+int term_exit(struct kvm *kvm);
+int tty_parser(const struct option *opt, const char *arg, int unset);
 
 #endif /* KVM__TERM_H */

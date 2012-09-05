@@ -146,15 +146,6 @@ static int virtio_9p_rootdir_parser(const struct option *opt, const char *arg, i
 	return 0;
 }
 
-static int tty_parser(const struct option *opt, const char *arg, int unset)
-{
-	int tty = atoi(arg);
-
-	term_set_tty(tty);
-
-	return 0;
-}
-
 static inline void str_to_mac(const char *str, char *mac)
 {
 	sscanf(str, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
@@ -988,7 +979,11 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 	if (!kvm->cfg.script)
 		kvm->cfg.script = DEFAULT_SCRIPT;
 
-	term_init();
+	r = term_init(kvm);
+	if (r < 0) {
+		pr_err("term_init() failed with error %d\n", r);
+		goto fail;
+	}
 
 	if (!kvm->cfg.guest_name) {
 		if (kvm->cfg.custom_rootfs) {
@@ -1299,6 +1294,10 @@ static void kvm_cmd_run_exit(int guest_ret)
 		pr_warning("ioeventfd__exit() failed with error %d\n", r);
 
 	r = pci__exit(kvm);
+	if (r < 0)
+		pr_warning("pci__exit() failed with error %d\n", r);
+
+	r = term_exit(kvm);
 	if (r < 0)
 		pr_warning("pci__exit() failed with error %d\n", r);
 
