@@ -69,37 +69,40 @@ struct kvm *kvm;
 struct kvm_cpu **kvm_cpus;
 __thread struct kvm_cpu *current_kvm_cpu;
 
-static struct disk_image_params disk_image[MAX_DISK_IMAGES];
-static u64 ram_size;
-static u8  image_count;
-static u8 num_net_devices;
-static bool virtio_rng;
-static const char *kernel_cmdline;
-static const char *kernel_filename;
-static const char *vmlinux_filename;
-static const char *initrd_filename;
-static const char *firmware_filename;
-static const char *console;
-static const char *dev;
-static const char *network;
-static const char *host_ip;
-static const char *guest_ip;
-static const char *guest_mac;
-static const char *host_mac;
-static const char *script;
-static const char *guest_name;
-static const char *sandbox;
-static const char *hugetlbfs_path;
-static const char *custom_rootfs_name = "default";
-static struct virtio_net_params *net_params;
-static bool single_step;
-static bool vnc;
-static bool sdl;
-static bool balloon;
-static bool using_rootfs;
-static bool custom_rootfs;
-static bool no_net;
-static bool no_dhcp;
+struct kvm_config {
+	struct disk_image_params disk_image[MAX_DISK_IMAGES];
+	u64 ram_size;
+	u8  image_count;
+	u8 num_net_devices;
+	bool virtio_rng;
+	const char *kernel_cmdline;
+	const char *kernel_filename;
+	const char *vmlinux_filename;
+	const char *initrd_filename;
+	const char *firmware_filename;
+	const char *console;
+	const char *dev;
+	const char *network;
+	const char *host_ip;
+	const char *guest_ip;
+	const char *guest_mac;
+	const char *host_mac;
+	const char *script;
+	const char *guest_name;
+	const char *sandbox;
+	const char *hugetlbfs_path;
+	const char *custom_rootfs_name;
+	struct virtio_net_params *net_params;
+	bool single_step;
+	bool vnc;
+	bool sdl;
+	bool balloon;
+	bool using_rootfs;
+	bool custom_rootfs;
+	bool no_net;
+	bool no_dhcp;
+} cfg;
+
 extern bool ioport_debug;
 extern bool mmio_debug;
 static int  kvm_run_wrapper;
@@ -140,13 +143,13 @@ static int img_name_parser(const struct option *opt, const char *arg, int unset)
 	    S_ISDIR(st.st_mode)) {
 		char tmp[PATH_MAX];
 
-		if (using_rootfs)
+		if (cfg.using_rootfs)
 			die("Please use only one rootfs directory atmost");
 
 		if (realpath(arg, tmp) == 0 ||
 		    virtio_9p__register(kvm, tmp, "/dev/root") < 0)
 			die("Unable to initialize virtio 9p");
-		using_rootfs = 1;
+		cfg.using_rootfs = 1;
 		return 0;
 	}
 
@@ -156,7 +159,7 @@ static int img_name_parser(const struct option *opt, const char *arg, int unset)
 	    S_ISDIR(st.st_mode)) {
 		char tmp[PATH_MAX];
 
-		if (using_rootfs)
+		if (cfg.using_rootfs)
 			die("Please use only one rootfs directory atmost");
 
 		if (realpath(path, tmp) == 0 ||
@@ -165,25 +168,25 @@ static int img_name_parser(const struct option *opt, const char *arg, int unset)
 		if (virtio_9p__register(kvm, "/", "hostfs") < 0)
 			die("Unable to initialize virtio 9p");
 		kvm_setup_resolv(arg);
-		using_rootfs = custom_rootfs = 1;
-		custom_rootfs_name = arg;
+		cfg.using_rootfs = cfg.custom_rootfs = 1;
+		cfg.custom_rootfs_name = arg;
 		return 0;
 	}
 
-	if (image_count >= MAX_DISK_IMAGES)
+	if (cfg.image_count >= MAX_DISK_IMAGES)
 		die("Currently only 4 images are supported");
 
-	disk_image[image_count].filename = arg;
+	cfg.disk_image[cfg.image_count].filename = arg;
 	cur = arg;
 
 	if (strncmp(arg, "scsi:", 5) == 0) {
 		sep = strstr(arg, ":");
 		if (sep)
-			disk_image[image_count].wwpn = sep + 1;
+			cfg.disk_image[cfg.image_count].wwpn = sep + 1;
 		sep = strstr(sep + 1, ":");
 		if (sep) {
 			*sep = 0;
-			disk_image[image_count].tpgt = sep + 1;
+			cfg.disk_image[cfg.image_count].tpgt = sep + 1;
 		}
 		cur = sep + 1;
 	}
@@ -192,15 +195,15 @@ static int img_name_parser(const struct option *opt, const char *arg, int unset)
 		sep = strstr(cur, ",");
 		if (sep) {
 			if (strncmp(sep + 1, "ro", 2) == 0)
-				disk_image[image_count].readonly = true;
+				cfg.disk_image[cfg.image_count].readonly = true;
 			else if (strncmp(sep + 1, "direct", 6) == 0)
-				disk_image[image_count].direct = true;
+				cfg.disk_image[cfg.image_count].direct = true;
 			*sep = 0;
 			cur = sep + 1;
 		}
 	} while (sep);
 
-	image_count++;
+	cfg.image_count++;
 
 	return 0;
 }
@@ -251,17 +254,17 @@ static int set_net_param(struct virtio_net_params *p, const char *param,
 		if (!strncmp(val, "user", 4)) {
 			int i;
 
-			for (i = 0; i < num_net_devices; i++)
-				if (net_params[i].mode == NET_MODE_USER)
+			for (i = 0; i < cfg.num_net_devices; i++)
+				if (cfg.net_params[i].mode == NET_MODE_USER)
 					die("Only one usermode network device allowed at a time");
 			p->mode = NET_MODE_USER;
 		} else if (!strncmp(val, "tap", 3)) {
 			p->mode = NET_MODE_TAP;
 		} else if (!strncmp(val, "none", 4)) {
-			no_net = 1;
+			cfg.no_net = 1;
 			return -1;
 		} else
-			die("Unkown network mode %s, please use user, tap or none", network);
+			die("Unknown network mode %s, please use user, tap or none", cfg.network);
 	} else if (strcmp(param, "script") == 0) {
 		p->script = strdup(val);
 	} else if (strcmp(param, "guest_ip") == 0) {
@@ -301,7 +304,7 @@ static int netdev_parser(const struct option *opt, const char *arg, int unset)
 	};
 
 	str_to_mac(DEFAULT_GUEST_MAC, p.guest_mac);
-	p.guest_mac[5] += num_net_devices;
+	p.guest_mac[5] += cfg.num_net_devices;
 
 	while (cur) {
 		if (on_cmd) {
@@ -315,13 +318,13 @@ static int netdev_parser(const struct option *opt, const char *arg, int unset)
 		cur = strtok(NULL, ",=");
 	};
 
-	num_net_devices++;
+	cfg.num_net_devices++;
 
-	net_params = realloc(net_params, num_net_devices * sizeof(*net_params));
-	if (net_params == NULL)
+	cfg.net_params = realloc(cfg.net_params, cfg.num_net_devices * sizeof(*cfg.net_params));
+	if (cfg.net_params == NULL)
 		die("Failed adding new network device");
 
-	net_params[num_net_devices - 1] = p;
+	cfg.net_params[cfg.num_net_devices - 1] = p;
 
 done:
 	free(buf);
@@ -454,46 +457,46 @@ static int shmem_parser(const struct option *opt, const char *arg, int unset)
 
 static const struct option options[] = {
 	OPT_GROUP("Basic options:"),
-	OPT_STRING('\0', "name", &guest_name, "guest name",
+	OPT_STRING('\0', "name", &cfg.guest_name, "guest name",
 			"A name for the guest"),
 	OPT_INTEGER('c', "cpus", &nrcpus, "Number of CPUs"),
-	OPT_U64('m', "mem", &ram_size, "Virtual machine memory size in MiB."),
+	OPT_U64('m', "mem", &cfg.ram_size, "Virtual machine memory size in MiB."),
 	OPT_CALLBACK('\0', "shmem", NULL,
 		     "[pci:]<addr>:<size>[:handle=<handle>][:create]",
 		     "Share host shmem with guest via pci device",
 		     shmem_parser),
 	OPT_CALLBACK('d', "disk", NULL, "image or rootfs_dir", "Disk image or rootfs directory", img_name_parser),
-	OPT_BOOLEAN('\0', "balloon", &balloon, "Enable virtio balloon"),
-	OPT_BOOLEAN('\0', "vnc", &vnc, "Enable VNC framebuffer"),
-	OPT_BOOLEAN('\0', "sdl", &sdl, "Enable SDL framebuffer"),
-	OPT_BOOLEAN('\0', "rng", &virtio_rng, "Enable virtio Random Number Generator"),
+	OPT_BOOLEAN('\0', "balloon", &cfg.balloon, "Enable virtio balloon"),
+	OPT_BOOLEAN('\0', "vnc", &cfg.vnc, "Enable VNC framebuffer"),
+	OPT_BOOLEAN('\0', "sdl", &cfg.sdl, "Enable SDL framebuffer"),
+	OPT_BOOLEAN('\0', "rng", &cfg.virtio_rng, "Enable virtio Random Number Generator"),
 	OPT_CALLBACK('\0', "9p", NULL, "dir_to_share,tag_name",
 		     "Enable virtio 9p to share files between host and guest", virtio_9p_rootdir_parser),
-	OPT_STRING('\0', "console", &console, "serial, virtio or hv",
+	OPT_STRING('\0', "console", &cfg.console, "serial, virtio or hv",
 			"Console to use"),
-	OPT_STRING('\0', "dev", &dev, "device_file", "KVM device file"),
+	OPT_STRING('\0', "dev", &cfg.dev, "device_file", "KVM device file"),
 	OPT_CALLBACK('\0', "tty", NULL, "tty id",
 		     "Remap guest TTY into a pty on the host",
 		     tty_parser),
-	OPT_STRING('\0', "sandbox", &sandbox, "script",
+	OPT_STRING('\0', "sandbox", &cfg.sandbox, "script",
 			"Run this script when booting into custom rootfs"),
-	OPT_STRING('\0', "hugetlbfs", &hugetlbfs_path, "path", "Hugetlbfs path"),
+	OPT_STRING('\0', "hugetlbfs", &cfg.hugetlbfs_path, "path", "Hugetlbfs path"),
 
 	OPT_GROUP("Kernel options:"),
-	OPT_STRING('k', "kernel", &kernel_filename, "kernel",
+	OPT_STRING('k', "kernel", &cfg.kernel_filename, "kernel",
 			"Kernel to boot in virtual machine"),
-	OPT_STRING('i', "initrd", &initrd_filename, "initrd",
+	OPT_STRING('i', "initrd", &cfg.initrd_filename, "initrd",
 			"Initial RAM disk image"),
-	OPT_STRING('p', "params", &kernel_cmdline, "params",
+	OPT_STRING('p', "params", &cfg.kernel_cmdline, "params",
 			"Kernel command line arguments"),
-	OPT_STRING('f', "firmware", &firmware_filename, "firmware",
+	OPT_STRING('f', "firmware", &cfg.firmware_filename, "firmware",
 			"Firmware image to boot in virtual machine"),
 
 	OPT_GROUP("Networking options:"),
 	OPT_CALLBACK_DEFAULT('n', "network", NULL, "network params",
 		     "Create a new guest NIC",
 		     netdev_parser, NULL),
-	OPT_BOOLEAN('\0', "no-dhcp", &no_dhcp, "Disable kernel DHCP in rootfs mode"),
+	OPT_BOOLEAN('\0', "no-dhcp", &cfg.no_dhcp, "Disable kernel DHCP in rootfs mode"),
 
 	OPT_GROUP("BIOS options:"),
 	OPT_INTEGER('\0', "vidmode", &vidmode,
@@ -502,7 +505,7 @@ static const struct option options[] = {
 	OPT_GROUP("Debug options:"),
 	OPT_BOOLEAN('\0', "debug", &do_debug_print,
 			"Enable debug messages"),
-	OPT_BOOLEAN('\0', "debug-single-step", &single_step,
+	OPT_BOOLEAN('\0', "debug-single-step", &cfg.single_step,
 			"Enable single stepping"),
 	OPT_BOOLEAN('\0', "debug-ioport", &ioport_debug,
 			"Enable ioport debugging"),
@@ -808,7 +811,7 @@ void kvm_run_help(void)
 
 static int kvm_setup_guest_init(void)
 {
-	const char *rootfs = custom_rootfs_name;
+	const char *rootfs = cfg.custom_rootfs_name;
 	char tmp[PATH_MAX];
 	size_t size;
 	int fd, ret;
@@ -832,17 +835,17 @@ static int kvm_setup_guest_init(void)
 
 static int kvm_run_set_sandbox(void)
 {
-	const char *guestfs_name = custom_rootfs_name;
+	const char *guestfs_name = cfg.custom_rootfs_name;
 	char path[PATH_MAX], script[PATH_MAX], *tmp;
 
 	snprintf(path, PATH_MAX, "%s%s/virt/sandbox.sh", kvm__get_dir(), guestfs_name);
 
 	remove(path);
 
-	if (sandbox == NULL)
+	if (cfg.sandbox == NULL)
 		return 0;
 
-	tmp = realpath(sandbox, NULL);
+	tmp = realpath(cfg.sandbox, NULL);
 	if (tmp == NULL)
 		return -ENOMEM;
 
@@ -908,9 +911,9 @@ static void kvm_run_write_sandbox_cmd(const char **argv, int argc)
 	char program[PATH_MAX];
 	int fd;
 
-	remove(sandbox);
+	remove(cfg.sandbox);
 
-	fd = open(sandbox, O_RDWR | O_CREAT, 0777);
+	fd = open(cfg.sandbox, O_RDWR | O_CREAT, 0777);
 	if (fd < 0)
 		die("Failed creating sandbox script");
 
@@ -954,6 +957,7 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 	kvm_ipc__register_handler(KVM_IPC_VMSTATE, handle_vmstate);
 
 	nr_online_cpus = sysconf(_SC_NPROCESSORS_ONLN);
+	cfg.custom_rootfs_name = "default";
 
 	while (argc != 0) {
 		argc = parse_options(argc, argv, options, run_usage,
@@ -963,14 +967,14 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 			/* Cusrom options, should have been handled elsewhere */
 			if (strcmp(argv[0], "--") == 0) {
 				if (kvm_run_wrapper == KVM_RUN_SANDBOX) {
-					sandbox = DEFAULT_SANDBOX_FILENAME;
+					cfg.sandbox = DEFAULT_SANDBOX_FILENAME;
 					kvm_run_write_sandbox_cmd(argv+1, argc-1);
 					break;
 				}
 			}
 
-			if ((kvm_run_wrapper == KVM_RUN_DEFAULT && kernel_filename) ||
-				(kvm_run_wrapper == KVM_RUN_SANDBOX && sandbox)) {
+			if ((kvm_run_wrapper == KVM_RUN_DEFAULT && cfg.kernel_filename) ||
+				(kvm_run_wrapper == KVM_RUN_SANDBOX && cfg.sandbox)) {
 				fprintf(stderr, "Cannot handle parameter: "
 						"%s\n", argv[0]);
 				usage_with_options(run_usage, options);
@@ -981,14 +985,14 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 				 * first unhandled parameter is treated as
 				 * sandbox command
 				 */
-				sandbox = DEFAULT_SANDBOX_FILENAME;
+				cfg.sandbox = DEFAULT_SANDBOX_FILENAME;
 				kvm_run_write_sandbox_cmd(argv, argc);
 			} else {
 				/*
 				 * first unhandled parameter is treated as a kernel
 				 * image
 				 */
-				kernel_filename = argv[0];
+				cfg.kernel_filename = argv[0];
 			}
 			argv++;
 			argc--;
@@ -996,78 +1000,78 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 
 	}
 
-	if (!kernel_filename)
-		kernel_filename = find_kernel();
+	if (!cfg.kernel_filename)
+		cfg.kernel_filename = find_kernel();
 
-	if (!kernel_filename) {
+	if (!cfg.kernel_filename) {
 		kernel_usage_with_options();
 		return -EINVAL;
 	}
 
-	vmlinux_filename = find_vmlinux();
+	cfg.vmlinux_filename = find_vmlinux();
 
 	if (nrcpus == 0)
 		nrcpus = nr_online_cpus;
 
-	if (!ram_size)
-		ram_size	= get_ram_size(nrcpus);
+	if (!cfg.ram_size)
+		cfg.ram_size = get_ram_size(nrcpus);
 
-	if (ram_size < MIN_RAM_SIZE_MB)
-		die("Not enough memory specified: %lluMB (min %lluMB)", ram_size, MIN_RAM_SIZE_MB);
+	if (cfg.ram_size < MIN_RAM_SIZE_MB)
+		die("Not enough memory specified: %lluMB (min %lluMB)", cfg.ram_size, MIN_RAM_SIZE_MB);
 
-	if (ram_size > host_ram_size())
-		pr_warning("Guest memory size %lluMB exceeds host physical RAM size %lluMB", ram_size, host_ram_size());
+	if (cfg.ram_size > host_ram_size())
+		pr_warning("Guest memory size %lluMB exceeds host physical RAM size %lluMB", cfg.ram_size, host_ram_size());
 
-	ram_size <<= MB_SHIFT;
+	cfg.ram_size <<= MB_SHIFT;
 
-	if (!dev)
-		dev = DEFAULT_KVM_DEV;
+	if (!cfg.dev)
+		cfg.dev = DEFAULT_KVM_DEV;
 
-	if (!console)
-		console = DEFAULT_CONSOLE;
+	if (!cfg.console)
+		cfg.console = DEFAULT_CONSOLE;
 
-	if (!strncmp(console, "virtio", 6))
+	if (!strncmp(cfg.console, "virtio", 6))
 		active_console  = CONSOLE_VIRTIO;
-	else if (!strncmp(console, "serial", 6))
+	else if (!strncmp(cfg.console, "serial", 6))
 		active_console  = CONSOLE_8250;
-	else if (!strncmp(console, "hv", 2))
+	else if (!strncmp(cfg.console, "hv", 2))
 		active_console = CONSOLE_HV;
 	else
 		pr_warning("No console!");
 
-	if (!host_ip)
-		host_ip = DEFAULT_HOST_ADDR;
+	if (!cfg.host_ip)
+		cfg.host_ip = DEFAULT_HOST_ADDR;
 
-	if (!guest_ip)
-		guest_ip = DEFAULT_GUEST_ADDR;
+	if (!cfg.guest_ip)
+		cfg.guest_ip = DEFAULT_GUEST_ADDR;
 
-	if (!guest_mac)
-		guest_mac = DEFAULT_GUEST_MAC;
+	if (!cfg.guest_mac)
+		cfg.guest_mac = DEFAULT_GUEST_MAC;
 
-	if (!host_mac)
-		host_mac = DEFAULT_HOST_MAC;
+	if (!cfg.host_mac)
+		cfg.host_mac = DEFAULT_HOST_MAC;
 
-	if (!script)
-		script = DEFAULT_SCRIPT;
+	if (!cfg.script)
+		cfg.script = DEFAULT_SCRIPT;
 
 	term_init();
 
-	if (!guest_name) {
-		if (custom_rootfs) {
-			guest_name = custom_rootfs_name;
+	if (!cfg.guest_name) {
+		if (cfg.custom_rootfs) {
+			cfg.guest_name = cfg.custom_rootfs_name;
 		} else {
 			sprintf(default_name, "guest-%u", getpid());
-			guest_name = default_name;
+			cfg.guest_name = default_name;
 		}
 	}
 
-	kvm = kvm__init(dev, hugetlbfs_path, ram_size, guest_name);
+	kvm = kvm__init(cfg.dev, cfg.hugetlbfs_path, cfg.ram_size, cfg.guest_name);
 	if (IS_ERR(kvm)) {
 		r = PTR_ERR(kvm);
 		goto fail;
 	}
 
-	kvm->single_step = single_step;
+	kvm->single_step = cfg.single_step;
 
 	r = ioeventfd__init(kvm);
 	if (r < 0) {
@@ -1115,7 +1119,7 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 	 * vidmode should be either specified
 	 * either set by default
 	 */
-	if (vnc || sdl) {
+	if (cfg.vnc || cfg.sdl) {
 		if (vidmode == -1)
 			vidmode = 0x312;
 	} else {
@@ -1123,36 +1127,36 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 	}
 
 	memset(real_cmdline, 0, sizeof(real_cmdline));
-	kvm__arch_set_cmdline(real_cmdline, vnc || sdl);
+	kvm__arch_set_cmdline(real_cmdline, cfg.vnc || cfg.sdl);
 
 	if (strlen(real_cmdline) > 0)
 		strcat(real_cmdline, " ");
 
-	if (kernel_cmdline)
-		strlcat(real_cmdline, kernel_cmdline, sizeof(real_cmdline));
+	if (cfg.kernel_cmdline)
+		strlcat(real_cmdline, cfg.kernel_cmdline, sizeof(real_cmdline));
 
-	if (!using_rootfs && !disk_image[0].filename && !initrd_filename) {
+	if (!cfg.using_rootfs && !cfg.disk_image[0].filename && !cfg.initrd_filename) {
 		char tmp[PATH_MAX];
 
-		kvm_setup_create_new(custom_rootfs_name);
-		kvm_setup_resolv(custom_rootfs_name);
+		kvm_setup_create_new(cfg.custom_rootfs_name);
+		kvm_setup_resolv(cfg.custom_rootfs_name);
 
 		snprintf(tmp, PATH_MAX, "%s%s", kvm__get_dir(), "default");
 		if (virtio_9p__register(kvm, tmp, "/dev/root") < 0)
 			die("Unable to initialize virtio 9p");
 		if (virtio_9p__register(kvm, "/", "hostfs") < 0)
 			die("Unable to initialize virtio 9p");
-		using_rootfs = custom_rootfs = 1;
+		cfg.using_rootfs = cfg.custom_rootfs = 1;
 	}
 
-	if (using_rootfs) {
+	if (cfg.using_rootfs) {
 		strcat(real_cmdline, " root=/dev/root rw rootflags=rw,trans=virtio,version=9p2000.L rootfstype=9p");
-		if (custom_rootfs) {
+		if (cfg.custom_rootfs) {
 			kvm_run_set_sandbox();
 
 			strcat(real_cmdline, " init=/virt/init");
 
-			if (!no_dhcp)
+			if (!cfg.no_dhcp)
 				strcat(real_cmdline, "  ip=dhcp");
 			if (kvm_setup_guest_init())
 				die("Failed to setup init for guest.");
@@ -1161,9 +1165,9 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 		strlcat(real_cmdline, " root=/dev/vda rw ", sizeof(real_cmdline));
 	}
 
-	if (image_count) {
-		kvm->nr_disks = image_count;
-		kvm->disks = disk_image__open_all((struct disk_image_params *)&disk_image, image_count);
+	if (cfg.image_count) {
+		kvm->nr_disks = cfg.image_count;
+		kvm->disks = disk_image__open_all((struct disk_image_params *)&cfg.disk_image, cfg.image_count);
 		if (IS_ERR(kvm->disks)) {
 			r = PTR_ERR(kvm->disks);
 			pr_err("disk_image__open_all() failed with error %ld\n",
@@ -1173,14 +1177,14 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 	}
 
 	printf("  # %s run -k %s -m %Lu -c %d --name %s\n", KVM_BINARY_NAME,
-		kernel_filename, ram_size / 1024 / 1024, nrcpus, guest_name);
+		cfg.kernel_filename, cfg.ram_size / 1024 / 1024, nrcpus, cfg.guest_name);
 
-	if (!firmware_filename) {
-		if (!kvm__load_kernel(kvm, kernel_filename,
-				initrd_filename, real_cmdline, vidmode))
-			die("unable to load kernel %s", kernel_filename);
+	if (!cfg.firmware_filename) {
+		if (!kvm__load_kernel(kvm, cfg.kernel_filename,
+				cfg.initrd_filename, real_cmdline, vidmode))
+			die("unable to load kernel %s", cfg.kernel_filename);
 
-		kvm->vmlinux = vmlinux_filename;
+		kvm->vmlinux = cfg.vmlinux_filename;
 		r = symbol_init(kvm);
 		if (r < 0)
 			pr_debug("symbol_init() failed with error %d\n", r);
@@ -1216,34 +1220,34 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 	if (active_console == CONSOLE_VIRTIO)
 		virtio_console__init(kvm);
 
-	if (virtio_rng)
+	if (cfg.virtio_rng)
 		virtio_rng__init(kvm);
 
-	if (balloon)
+	if (cfg.balloon)
 		virtio_bln__init(kvm);
 
-	if (!network)
-		network = DEFAULT_NETWORK;
+	if (!cfg.network)
+		cfg.network = DEFAULT_NETWORK;
 
 	virtio_9p__init(kvm);
 
-	for (i = 0; i < num_net_devices; i++) {
-		net_params[i].kvm = kvm;
-		virtio_net__init(&net_params[i]);
+	for (i = 0; i < cfg.num_net_devices; i++) {
+		cfg.net_params[i].kvm = kvm;
+		virtio_net__init(&cfg.net_params[i]);
 	}
 
-	if (num_net_devices == 0 && no_net == 0) {
+	if (cfg.num_net_devices == 0 && cfg.no_net == 0) {
 		struct virtio_net_params net_params;
 
 		net_params = (struct virtio_net_params) {
-			.guest_ip	= guest_ip,
-			.host_ip	= host_ip,
+			.guest_ip	= cfg.guest_ip,
+			.host_ip	= cfg.host_ip,
 			.kvm		= kvm,
-			.script		= script,
+			.script		= cfg.script,
 			.mode		= NET_MODE_USER,
 		};
-		str_to_mac(guest_mac, net_params.guest_mac);
-		str_to_mac(host_mac, net_params.host_mac);
+		str_to_mac(cfg.guest_mac, net_params.guest_mac);
+		str_to_mac(cfg.host_mac, net_params.host_mac);
 
 		virtio_net__init(&net_params);
 	}
@@ -1256,7 +1260,7 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 
 	pci_shmem__init(kvm);
 
-	if (vnc || sdl) {
+	if (cfg.vnc || cfg.sdl) {
 		fb = vesa__init(kvm);
 		if (IS_ERR(fb)) {
 			pr_err("vesa__init() failed with error %ld\n", PTR_ERR(fb));
@@ -1264,7 +1268,7 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 		}
 	}
 
-	if (vnc && fb) {
+	if (cfg.vnc && fb) {
 		r = vnc__init(fb);
 		if (r < 0) {
 			pr_err("vnc__init() failed with error %d\n", r);
@@ -1272,7 +1276,7 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 		}
 	}
 
-	if (sdl && fb) {
+	if (cfg.sdl && fb) {
 		sdl__init(fb);
 		if (r < 0) {
 			pr_err("sdl__init() failed with error %d\n", r);
@@ -1292,9 +1296,9 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 
 	kvm__start_timer(kvm);
 
-	if (firmware_filename) {
-		if (!kvm__load_firmware(kvm, firmware_filename))
-			die("unable to load firmware image %s: %s", firmware_filename, strerror(errno));
+	if (cfg.firmware_filename) {
+		if (!kvm__load_firmware(kvm, cfg.firmware_filename))
+			die("unable to load firmware image %s: %s", cfg.firmware_filename, strerror(errno));
 	} else {
 		kvm__arch_setup_firmware(kvm);
 		if (r < 0) {
@@ -1373,7 +1377,7 @@ static void kvm_cmd_run_exit(int guest_ret)
 	if (r < 0)
 		pr_warning("virtio_rng__exit() failed with error %d\n", r);
 
-	r = disk_image__close_all(kvm->disks, image_count);
+	r = disk_image__close_all(kvm->disks, cfg.image_count);
 	if (r < 0)
 		pr_warning("disk_image__close_all() failed with error %d\n", r);
 
