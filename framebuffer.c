@@ -44,7 +44,7 @@ static int start_targets(struct framebuffer *fb)
 	return 0;
 }
 
-int fb__start(void)
+int fb__init(struct kvm *kvm)
 {
 	struct framebuffer *fb;
 
@@ -59,7 +59,7 @@ int fb__start(void)
 	return 0;
 }
 
-void fb__stop(void)
+int fb__exit(struct kvm *kvm)
 {
 	struct framebuffer *fb;
 
@@ -72,4 +72,6 @@ void fb__stop(void)
 
 		munmap(fb->mem, fb->mem_size);
 	}
+
+	return 0;
 }

@@ -1197,7 +1197,7 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 		}
 	}
 
-	r = fb__start();
+	r = fb__init(kvm);
 	if (r < 0) {
 		pr_err("fb__init() failed with error %d\n", r);
 		goto fail;
@@ -1258,7 +1258,9 @@ static void kvm_cmd_run_exit(int guest_ret)
 	if (r < 0)
 		pr_warning("irq__exit() failed with error %d\n", r);
 
-	fb__stop();
+	r = fb__exit(kvm);
+	if (r < 0)
+		pr_warning("fb__exit() failed with error %d\n", r);
 
 	r = virtio_scsi_exit(kvm);
 	if (r < 0)
