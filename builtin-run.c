@@ -800,8 +800,6 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 		goto fail;
 	}
 
-	kvm__init_ram(kvm);
-
 	r = kbd__init(kvm);
 	if (r < 0) {
 		pr_err("kbd__init() failed with error %d\n", r);
