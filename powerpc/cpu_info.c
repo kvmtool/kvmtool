@@ -174,7 +174,7 @@ struct cpu_info *find_cpu_info(struct kvm *kvm)
 {
 	struct cpu_info *info;
 	unsigned int i;
-	u32 pvr = kvm->pvr;
+	u32 pvr = kvm->arch.pvr;
 
 	for (info = NULL, i = 0; i < ARRAY_SIZE(host_pvr_info); i++) {
 		if ((pvr & host_pvr_info[i].pvr_mask) == host_pvr_info[i].pvr) {

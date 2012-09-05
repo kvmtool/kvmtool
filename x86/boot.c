@@ -33,9 +33,9 @@ bool kvm__load_firmware(struct kvm *kvm, const char *firmware_filename)
 	while ((nr = read(fd, p, st.st_size)) > 0)
 		p += nr;
 
-	kvm->boot_selector	= BIOS_SELECTOR;
-	kvm->boot_ip		= BIOS_IP;
-	kvm->boot_sp		= BIOS_SP;
+	kvm->arch.boot_selector	= BIOS_SELECTOR;
+	kvm->arch.boot_ip	= BIOS_IP;
+	kvm->arch.boot_sp	= BIOS_SP;
 
 	return true;
 }

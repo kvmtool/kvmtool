@@ -43,36 +43,14 @@
 
 struct spapr_phb;
 
-struct kvm {
-	int			sys_fd;		/* For system ioctls(), i.e. /dev/kvm */
-	int			vm_fd;		/* For VM ioctls() */
-	timer_t			timerid;	/* Posix timer for interrupts */
-
-	int			nrcpus;		/* Number of cpus to run */
-
-	u32			mem_slots;	/* for KVM_SET_USER_MEMORY_REGION */
-
-	u64			ram_size;
-	void			*ram_start;
-	u64			ram_pagesize;
-
+struct kvm_arch {
 	u64			sdr1;
 	u32			pvr;
-
-	bool			nmi_disabled;
-
-	bool			single_step;
-
-	const char		*vmlinux;
-	struct disk_image       **disks;
-	int                     nr_disks;
 	unsigned long		rtas_gra;
 	unsigned long		rtas_size;
 	unsigned long		fdt_gra;
 	unsigned long		initrd_gra;
 	unsigned long		initrd_size;
-	char			*name;
-	int			vm_state;
 	struct icp_state	*icp;
 	struct spapr_phb	*phb;
 };

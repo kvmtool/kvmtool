@@ -59,7 +59,7 @@ int irq__init(struct kvm *kvm)
 	 * are numbered 0..nrcpus.  This may not really be true,
 	 * but it is OK currently.
 	 */
-	kvm->icp = xics_system_init(XICS_IRQS, kvm->nrcpus);
+	kvm->arch.icp = xics_system_init(XICS_IRQS, kvm->nrcpus);
 	return 0;
 }
 

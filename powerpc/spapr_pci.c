@@ -220,7 +220,7 @@ void spapr_create_phb(struct kvm *kvm,
 	phb.io_addr  = io_win_addr;
 	phb.io_size  = io_win_size;
 
-	kvm->phb = &phb;
+	kvm->arch.phb = &phb;
 }
 
 static uint32_t bar_to_ss(unsigned long bar)

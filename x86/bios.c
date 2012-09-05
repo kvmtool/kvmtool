@@ -48,7 +48,7 @@ static void setup_irq_handler(struct kvm *kvm, struct irq_handler *handler)
 
 	DIE_IF((handler->address - MB_BIOS_BEGIN) > 0xffffUL);
 
-	interrupt_table__set(&kvm->interrupt_table, &intr_desc, handler->irq);
+	interrupt_table__set(&kvm->arch.interrupt_table, &intr_desc, handler->irq);
 }
 
 /**
@@ -163,12 +163,12 @@ void setup_bios(struct kvm *kvm)
 		.segment	= REAL_SEGMENT(MB_BIOS_BEGIN),
 		.offset		= address - MB_BIOS_BEGIN,
 	};
-	interrupt_table__setup(&kvm->interrupt_table, &intr_desc);
+	interrupt_table__setup(&kvm->arch.interrupt_table, &intr_desc);
 
 	for (i = 0; i < ARRAY_SIZE(bios_irq_handlers); i++)
 		setup_irq_handler(kvm, &bios_irq_handlers[i]);
 
 	/* we almost done */
 	p = guest_flat_to_host(kvm, 0);
-	interrupt_table__copy(&kvm->interrupt_table, p, REAL_INTR_SIZE);
+	interrupt_table__copy(&kvm->arch.interrupt_table, p, REAL_INTR_SIZE);
 }

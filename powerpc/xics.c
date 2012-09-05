@@ -302,7 +302,7 @@ static target_ulong h_cppr(struct kvm_cpu *vcpu,
 	target_ulong cppr = args[0];
 
 	xics_dprintf("h_cppr(%lx)\n", cppr);
-	icp_set_cppr(vcpu->kvm->icp, vcpu->cpu_id, cppr);
+	icp_set_cppr(vcpu->kvm->arch.icp, vcpu->cpu_id, cppr);
 	return H_SUCCESS;
 }
 
@@ -313,18 +313,18 @@ static target_ulong h_ipi(struct kvm_cpu *vcpu,
 	target_ulong mfrr = args[1];
 
 	xics_dprintf("h_ipi(%lx, %lx)\n", server, mfrr);
-	if (server >= vcpu->kvm->icp->nr_servers) {
+	if (server >= vcpu->kvm->arch.icp->nr_servers) {
 		return H_PARAMETER;
 	}
 
-	icp_set_mfrr(vcpu->kvm->icp, server, mfrr);
+	icp_set_mfrr(vcpu->kvm->arch.icp, server, mfrr);
 	return H_SUCCESS;
 }
 
 static target_ulong h_xirr(struct kvm_cpu *vcpu,
 			   target_ulong opcode, target_ulong *args)
 {
-	uint32_t xirr = icp_accept(vcpu->kvm->icp->ss + vcpu->cpu_id);
+	uint32_t xirr = icp_accept(vcpu->kvm->arch.icp->ss + vcpu->cpu_id);
 
 	xics_dprintf("h_xirr() = %x\n", xirr);
 	args[0] = xirr;
@@ -337,7 +337,7 @@ static target_ulong h_eoi(struct kvm_cpu *vcpu,
 	target_ulong xirr = args[0];
 
 	xics_dprintf("h_eoi(%lx)\n", xirr);
-	icp_eoi(vcpu->kvm->icp, vcpu->cpu_id, xirr);
+	icp_eoi(vcpu->kvm->arch.icp, vcpu->cpu_id, xirr);
 	return H_SUCCESS;
 }
 
@@ -345,7 +345,7 @@ static void rtas_set_xive(struct kvm_cpu *vcpu, uint32_t token,
 			  uint32_t nargs, target_ulong args,
 			  uint32_t nret, target_ulong rets)
 {
-	struct ics_state *ics = vcpu->kvm->icp->ics;
+	struct ics_state *ics = vcpu->kvm->arch.icp->ics;
 	uint32_t nr, server, priority;
 
 	if ((nargs != 3) || (nret != 1)) {
@@ -373,7 +373,7 @@ static void rtas_get_xive(struct kvm_cpu *vcpu, uint32_t token,
 			  uint32_t nargs, target_ulong args,
 			  uint32_t nret, target_ulong rets)
 {
-	struct ics_state *ics = vcpu->kvm->icp->ics;
+	struct ics_state *ics = vcpu->kvm->arch.icp->ics;
 	uint32_t nr;
 
 	if ((nargs != 1) || (nret != 3)) {
@@ -397,7 +397,7 @@ static void rtas_int_off(struct kvm_cpu *vcpu, uint32_t token,
 			 uint32_t nargs, target_ulong args,
 			 uint32_t nret, target_ulong rets)
 {
-	struct ics_state *ics = vcpu->kvm->icp->ics;
+	struct ics_state *ics = vcpu->kvm->arch.icp->ics;
 	uint32_t nr;
 
 	if ((nargs != 1) || (nret != 1)) {
@@ -421,7 +421,7 @@ static void rtas_int_on(struct kvm_cpu *vcpu, uint32_t token,
 			uint32_t nargs, target_ulong args,
 			uint32_t nret, target_ulong rets)
 {
-	struct ics_state *ics = vcpu->kvm->icp->ics;
+	struct ics_state *ics = vcpu->kvm->arch.icp->ics;
 	uint32_t nr;
 
 	if ((nargs != 1) || (nret != 1)) {
@@ -443,8 +443,8 @@ static void rtas_int_on(struct kvm_cpu *vcpu, uint32_t token,
 
 void xics_cpu_register(struct kvm_cpu *vcpu)
 {
-	if (vcpu->cpu_id < vcpu->kvm->icp->nr_servers)
-		vcpu->kvm->icp->ss[vcpu->cpu_id].cpu = vcpu;
+	if (vcpu->cpu_id < vcpu->kvm->arch.icp->nr_servers)
+		vcpu->kvm->arch.icp->ss[vcpu->cpu_id].cpu = vcpu;
 	else
 		die("Setting invalid server for cpuid %ld\n", vcpu->cpu_id);
 }
@@ -510,5 +510,5 @@ void kvm__irq_line(struct kvm *kvm, int irq, int level)
 	 * kvm_cpu__irq(vcpu, POWER7_EXT_IRQ, 1)
 	 */
 	xics_dprintf("Raising IRQ %d -> %d\n", irq, level);
-	ics_set_irq_msi(kvm->icp->ics, irq - kvm->icp->ics->offset, level);
+	ics_set_irq_msi(kvm->arch.icp->ics, irq - kvm->arch.icp->ics->offset, level);
 }

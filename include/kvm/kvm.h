@@ -31,6 +31,33 @@ struct kvm_ext {
 	int code;
 };
 
+struct kvm {
+	struct kvm_arch		arch;
+	int			sys_fd;		/* For system ioctls(), i.e. /dev/kvm */
+	int			vm_fd;		/* For VM ioctls() */
+	timer_t			timerid;	/* Posix timer for interrupts */
+
+	int			nrcpus;		/* Number of cpus to run */
+
+	u32			mem_slots;	/* for KVM_SET_USER_MEMORY_REGION */
+
+	u64			ram_size;
+	void			*ram_start;
+	u64			ram_pagesize;
+
+	bool			nmi_disabled;
+
+	bool			single_step;
+
+	const char		*vmlinux;
+	struct disk_image       **disks;
+	int                     nr_disks;
+
+	char			*name;
+
+	int			vm_state;
+};
+
 void kvm__set_dir(const char *fmt, ...);
 const char *kvm__get_dir(void);
 

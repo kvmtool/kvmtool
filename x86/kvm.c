@@ -219,9 +219,9 @@ int load_flat_binary(struct kvm *kvm, int fd_kernel, int fd_initrd, const char *
 	while ((nr = read(fd_kernel, p, 65536)) > 0)
 		p += nr;
 
-	kvm->boot_selector	= BOOT_LOADER_SELECTOR;
-	kvm->boot_ip		= BOOT_LOADER_IP;
-	kvm->boot_sp		= BOOT_LOADER_SP;
+	kvm->arch.boot_selector	= BOOT_LOADER_SELECTOR;
+	kvm->arch.boot_ip	= BOOT_LOADER_IP;
+	kvm->arch.boot_sp	= BOOT_LOADER_SP;
 
 	return true;
 }
@@ -322,13 +322,13 @@ bool load_bzimage(struct kvm *kvm, int fd_kernel,
 		kern_boot->hdr.ramdisk_size	= initrd_stat.st_size;
 	}
 
-	kvm->boot_selector = BOOT_LOADER_SELECTOR;
+	kvm->arch.boot_selector = BOOT_LOADER_SELECTOR;
 	/*
 	 * The real-mode setup code starts at offset 0x200 of a bzImage. See
 	 * Documentation/x86/boot.txt for details.
 	 */
-	kvm->boot_ip = BOOT_LOADER_IP + 0x200;
-	kvm->boot_sp = BOOT_LOADER_SP;
+	kvm->arch.boot_ip = BOOT_LOADER_IP + 0x200;
+	kvm->arch.boot_sp = BOOT_LOADER_SP;
 
 	return true;
 }

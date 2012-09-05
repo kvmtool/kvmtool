@@ -108,18 +108,18 @@ void kvm__arch_init(struct kvm *kvm, const char *hugetlbfs_path, u64 ram_size)
 		    kvm->ram_size, errno);
 
 	/* FDT goes at top of memory, RTAS just below */
-	kvm->fdt_gra = kvm->ram_size - FDT_MAX_SIZE;
+	kvm->arch.fdt_gra = kvm->ram_size - FDT_MAX_SIZE;
 	/* FIXME: Not all PPC systems have RTAS */
-	kvm->rtas_gra = kvm->fdt_gra - RTAS_MAX_SIZE;
+	kvm->arch.rtas_gra = kvm->arch.fdt_gra - RTAS_MAX_SIZE;
 	madvise(kvm->ram_start, kvm->ram_size, MADV_MERGEABLE);
 
 	/* FIXME:  SPAPR-PR specific; allocate a guest HPT. */
 	if (posix_memalign((void **)&hpt, (1<<HPT_ORDER), (1<<HPT_ORDER)))
 		die("Can't allocate %d bytes for HPT\n", (1<<HPT_ORDER));
 
-	kvm->sdr1 = ((hpt + 0x3ffffULL) & ~0x3ffffULL) | (HPT_ORDER-18);
+	kvm->arch.sdr1 = ((hpt + 0x3ffffULL) & ~0x3ffffULL) | (HPT_ORDER-18);
 
-	kvm->pvr = mfpvr();
+	kvm->arch.pvr = mfpvr();
 
 	/* FIXME: This is book3s-specific */
 	cap_ppc_rma = ioctl(kvm->sys_fd, KVM_CHECK_EXTENSION, KVM_CAP_PPC_RMA);
@@ -193,10 +193,10 @@ int load_flat_binary(struct kvm *kvm, int fd_kernel, int fd_initrd, const char *
 
 		pr_info("Loaded initrd to 0x%x (%ld bytes)",
 			INITRD_LOAD_ADDR, p-i_start);
-		kvm->initrd_gra = INITRD_LOAD_ADDR;
-		kvm->initrd_size = p-i_start;
+		kvm->arch.initrd_gra = INITRD_LOAD_ADDR;
+		kvm->arch.initrd_size = p-i_start;
 	} else {
-		kvm->initrd_size = 0;
+		kvm->arch.initrd_size = 0;
 	}
 	strncpy(kern_cmdline, kernel_cmdline, 2048);
 	kern_cmdline[2047] = '\0';
@@ -301,8 +301,8 @@ static void setup_fdt(struct kvm *kvm)
 	struct fdt_prop segment_page_sizes;
 	u32 segment_sizes_1T[] = {0x1c, 0x28, 0xffffffff, 0xffffffff};
 
-	/* Generate an appropriate DT at kvm->fdt_gra */
-	void *fdt_dest = guest_flat_to_host(kvm, kvm->fdt_gra);
+	/* Generate an appropriate DT at kvm->arch.fdt_gra */
+	void *fdt_dest = guest_flat_to_host(kvm, kvm->arch.fdt_gra);
 	void *fdt = staging_fdt;
 
 	_FDT(fdt_create(fdt, FDT_MAX_SIZE));
@@ -320,9 +320,9 @@ static void setup_fdt(struct kvm *kvm)
 	/* This is what the kernel uses to switch 'We're an LPAR'! */
         _FDT(fdt_property(fdt, "ibm,hypertas-functions", hypertas_prop_kvm,
                            sizeof(hypertas_prop_kvm)));
-	_FDT(fdt_property_cell(fdt, "linux,rtas-base", kvm->rtas_gra));
-	_FDT(fdt_property_cell(fdt, "linux,rtas-entry", kvm->rtas_gra));
-	_FDT(fdt_property_cell(fdt, "rtas-size", kvm->rtas_size));
+	_FDT(fdt_property_cell(fdt, "linux,rtas-base", kvm->arch.rtas_gra));
+	_FDT(fdt_property_cell(fdt, "linux,rtas-entry", kvm->arch.rtas_gra));
+	_FDT(fdt_property_cell(fdt, "rtas-size", kvm->arch.rtas_size));
 	/* Now add properties for all RTAS tokens: */
 	if (spapr_rtas_fdt_setup(kvm, fdt))
 		die("Couldn't create RTAS FDT properties\n");
@@ -334,10 +334,10 @@ static void setup_fdt(struct kvm *kvm)
 	/* cmdline */
 	_FDT(fdt_property_string(fdt, "bootargs", kern_cmdline));
 	/* Initrd */
-	if (kvm->initrd_size != 0) {
-		uint32_t ird_st_prop = cpu_to_be32(kvm->initrd_gra);
-		uint32_t ird_end_prop = cpu_to_be32(kvm->initrd_gra +
-						    kvm->initrd_size);
+	if (kvm->arch.initrd_size != 0) {
+		uint32_t ird_st_prop = cpu_to_be32(kvm->arch.initrd_gra);
+		uint32_t ird_end_prop = cpu_to_be32(kvm->arch.initrd_gra +
+						    kvm->arch.initrd_size);
 		_FDT(fdt_property(fdt, "linux,initrd-start",
 				   &ird_st_prop, sizeof(ird_st_prop)));
 		_FDT(fdt_property(fdt, "linux,initrd-end",
@@ -384,7 +384,7 @@ static void setup_fdt(struct kvm *kvm)
 		_FDT(fdt_property_string(fdt, "device_type", "cpu"));
 
 		_FDT(fdt_property_cell(fdt, "reg", i));
-		_FDT(fdt_property_cell(fdt, "cpu-version", kvm->pvr));
+		_FDT(fdt_property_cell(fdt, "cpu-version", kvm->arch.pvr));
 
 		_FDT(fdt_property_cell(fdt, "dcache-block-size", cpu_info->d_bsize));
 		_FDT(fdt_property_cell(fdt, "icache-block-size", cpu_info->i_bsize));
@@ -484,7 +484,7 @@ static void setup_fdt(struct kvm *kvm)
 	if (spapr_populate_pci_devices(kvm, PHANDLE_XICP, fdt_dest))
 		die("Fail populating PCI device nodes");
 
-	_FDT(fdt_add_mem_rsv(fdt_dest, kvm->rtas_gra, kvm->rtas_size));
+	_FDT(fdt_add_mem_rsv(fdt_dest, kvm->arch.rtas_gra, kvm->arch.rtas_size));
 	_FDT(fdt_pack(fdt_dest));
 
 	free(segment_page_sizes.value);
@@ -503,17 +503,17 @@ int kvm__arch_setup_firmware(struct kvm *kvm)
 	 *  c:   44 00 00 22     sc      1
 	 * 10:   4e 80 00 20     blr
 	 */
-	uint32_t *rtas = guest_flat_to_host(kvm, kvm->rtas_gra);
+	uint32_t *rtas = guest_flat_to_host(kvm, kvm->arch.rtas_gra);
 
 	rtas[0] = 0x7c641b78;
 	rtas[1] = 0x3c600000;
 	rtas[2] = 0x6063f000;
 	rtas[3] = 0x44000022;
 	rtas[4] = 0x4e800020;
-	kvm->rtas_size = 20;
+	kvm->arch.rtas_size = 20;
 
 	pr_info("Set up %ld bytes of RTAS at 0x%lx\n",
-		kvm->rtas_size, kvm->rtas_gra);
+		kvm->arch.rtas_size, kvm->arch.rtas_gra);
 
 	/* Load SLOF */
 
