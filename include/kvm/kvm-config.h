@@ -48,6 +48,7 @@ struct kvm_config {
 	bool custom_rootfs;
 	bool no_net;
 	bool no_dhcp;
+	bool ioport_debug;
 };
 
 #endif

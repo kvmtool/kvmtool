@@ -21,7 +21,6 @@ DEFINE_MUTEX(ioport_mutex);
 static u16			free_io_port_idx; /* protected by ioport_mutex */
 
 static struct rb_root		ioport_tree = RB_ROOT;
-bool				ioport_debug;
 
 static u16 ioport__find_free_port(void)
 {
@@ -177,10 +176,10 @@ bool kvm__emulate_io(struct kvm *kvm, u16 port, void *data, int direction, int s
 error:
 	br_read_unlock();
 
-	if (ioport_debug)
+	if (kvm->cfg.ioport_debug)
 		ioport_error(port, data, direction, size, count);
 
-	return !ioport_debug;
+	return !kvm->cfg.ioport_debug;
 }
 
 int ioport__init(struct kvm *kvm)
