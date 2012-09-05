@@ -13,6 +13,10 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 
+#define MB_SHIFT (20)
+#define KB_SHIFT (10)
+#define GB_SHIFT (30)
+
 static struct pci_device_header pci_shmem_pci_device = {
 	.vendor_id	= cpu_to_le16(PCI_VENDOR_ID_REDHAT_QUMRANET),
 	.device_id	= cpu_to_le16(0x1110),
@@ -216,6 +220,130 @@ static void *setup_shmem(const char *key, size_t len, int creating)
 	return mem;
 }
 
+int shmem_parser(const struct option *opt, const char *arg, int unset)
+{
+	const u64 default_size = SHMEM_DEFAULT_SIZE;
+	const u64 default_phys_addr = SHMEM_DEFAULT_ADDR;
+	const char *default_handle = SHMEM_DEFAULT_HANDLE;
+	struct shmem_info *si = malloc(sizeof(struct shmem_info));
+	u64 phys_addr;
+	u64 size;
+	char *handle = NULL;
+	int create = 0;
+	const char *p = arg;
+	char *next;
+	int base = 10;
+	int verbose = 0;
+
+	const int skip_pci = strlen("pci:");
+	if (verbose)
+		pr_info("shmem_parser(%p,%s,%d)", opt, arg, unset);
+	/* parse out optional addr family */
+	if (strcasestr(p, "pci:")) {
+		p += skip_pci;
+	} else if (strcasestr(p, "mem:")) {
+		die("I can't add to E820 map yet.\n");
+	}
+	/* parse out physical addr */
+	base = 10;
+	if (strcasestr(p, "0x"))
+		base = 16;
+	phys_addr = strtoll(p, &next, base);
+	if (next == p && phys_addr == 0) {
+		pr_info("shmem: no physical addr specified, using default.");
+		phys_addr = default_phys_addr;
+	}
+	if (*next != ':' && *next != '\0')
+		die("shmem: unexpected chars after phys addr.\n");
+	if (*next == '\0')
+		p = next;
+	else
+		p = next + 1;
+	/* parse out size */
+	base = 10;
+	if (strcasestr(p, "0x"))
+		base = 16;
+	size = strtoll(p, &next, base);
+	if (next == p && size == 0) {
+		pr_info("shmem: no size specified, using default.");
+		size = default_size;
+	}
+	/* look for [KMGkmg][Bb]*  uses base 2. */
+	int skip_B = 0;
+	if (strspn(next, "KMGkmg")) {	/* might have a prefix */
+		if (*(next + 1) == 'B' || *(next + 1) == 'b')
+			skip_B = 1;
+		switch (*next) {
+		case 'K':
+		case 'k':
+			size = size << KB_SHIFT;
+			break;
+		case 'M':
+		case 'm':
+			size = size << MB_SHIFT;
+			break;
+		case 'G':
+		case 'g':
+			size = size << GB_SHIFT;
+			break;
+		default:
+			die("shmem: bug in detecting size prefix.");
+			break;
+		}
+		next += 1 + skip_B;
+	}
+	if (*next != ':' && *next != '\0') {
+		die("shmem: unexpected chars after phys size. <%c><%c>\n",
+		    *next, *p);
+	}
+	if (*next == '\0')
+		p = next;
+	else
+		p = next + 1;
+	/* parse out optional shmem handle */
+	const int skip_handle = strlen("handle=");
+	next = strcasestr(p, "handle=");
+	if (*p && next) {
+		if (p != next)
+			die("unexpected chars before handle\n");
+		p += skip_handle;
+		next = strchrnul(p, ':');
+		if (next - p) {
+			handle = malloc(next - p + 1);
+			strncpy(handle, p, next - p);
+			handle[next - p] = '\0';	/* just in case. */
+		}
+		if (*next == '\0')
+			p = next;
+		else
+			p = next + 1;
+	}
+	/* parse optional create flag to see if we should create shm seg. */
+	if (*p && strcasestr(p, "create")) {
+		create = 1;
+		p += strlen("create");
+	}
+	if (*p != '\0')
+		die("shmem: unexpected trailing chars\n");
+	if (handle == NULL) {
+		handle = malloc(strlen(default_handle) + 1);
+		strcpy(handle, default_handle);
+	}
+	if (verbose) {
+		pr_info("shmem: phys_addr = %llx", phys_addr);
+		pr_info("shmem: size      = %llx", size);
+		pr_info("shmem: handle    = %s", handle);
+		pr_info("shmem: create    = %d", create);
+	}
+
+	si->phys_addr = phys_addr;
+	si->size = size;
+	si->handle = handle;
+	si->create = create;
+	pci_shmem__register_mem(si);	/* ownership of si, etc. passed on. */
+	return 0;
+}
+
 int pci_shmem__init(struct kvm *kvm)
 {
 	u8 dev, line, pin;
@@ -226,8 +354,9 @@ int pci_shmem__init(struct kvm *kvm)
 		return 0;
 
 	/* Register good old INTx */
-	if (irq__register_device(PCI_DEVICE_ID_PCI_SHMEM, &dev, &pin, &line) < 0)
-		return 0;
+	r = irq__register_device(PCI_DEVICE_ID_PCI_SHMEM, &dev, &pin, &line);
+	if (r < 0)
+		return r;
 
 	pci_shmem_pci_device.irq_pin = pin;
 	pci_shmem_pci_device.irq_line = line;
@@ -261,8 +390,14 @@ int pci_shmem__init(struct kvm *kvm)
 	mem = setup_shmem(shmem_region->handle, shmem_region->size,
 				shmem_region->create);
 	if (mem == NULL)
-		return 0;
+		return -EINVAL;
+
 	kvm__register_mem(kvm, shmem_region->phys_addr, shmem_region->size,
 			  mem);
-	return 1;
+	return 0;
+}
+
+int pci_shmem__exit(struct kvm *kvm)
+{
+	return 0;
 }
