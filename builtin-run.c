@@ -455,66 +455,76 @@ static int shmem_parser(const struct option *opt, const char *arg, int unset)
 	return 0;
 }
 
-static const struct option options[] = {
-	OPT_GROUP("Basic options:"),
-	OPT_STRING('\0', "name", &cfg.guest_name, "guest name",
-			"A name for the guest"),
-	OPT_INTEGER('c', "cpus", &nrcpus, "Number of CPUs"),
-	OPT_U64('m', "mem", &cfg.ram_size, "Virtual machine memory size in MiB."),
-	OPT_CALLBACK('\0', "shmem", NULL,
-		     "[pci:]<addr>:<size>[:handle=<handle>][:create]",
-		     "Share host shmem with guest via pci device",
-		     shmem_parser),
-	OPT_CALLBACK('d', "disk", NULL, "image or rootfs_dir", "Disk image or rootfs directory", img_name_parser),
-	OPT_BOOLEAN('\0', "balloon", &cfg.balloon, "Enable virtio balloon"),
-	OPT_BOOLEAN('\0', "vnc", &cfg.vnc, "Enable VNC framebuffer"),
-	OPT_BOOLEAN('\0', "sdl", &cfg.sdl, "Enable SDL framebuffer"),
-	OPT_BOOLEAN('\0', "rng", &cfg.virtio_rng, "Enable virtio Random Number Generator"),
-	OPT_CALLBACK('\0', "9p", NULL, "dir_to_share,tag_name",
-		     "Enable virtio 9p to share files between host and guest", virtio_9p_rootdir_parser),
-	OPT_STRING('\0', "console", &cfg.console, "serial, virtio or hv",
-			"Console to use"),
-	OPT_STRING('\0', "dev", &cfg.dev, "device_file", "KVM device file"),
-	OPT_CALLBACK('\0', "tty", NULL, "tty id",
-		     "Remap guest TTY into a pty on the host",
-		     tty_parser),
-	OPT_STRING('\0', "sandbox", &cfg.sandbox, "script",
-			"Run this script when booting into custom rootfs"),
-	OPT_STRING('\0', "hugetlbfs", &cfg.hugetlbfs_path, "path", "Hugetlbfs path"),
-
-	OPT_GROUP("Kernel options:"),
-	OPT_STRING('k', "kernel", &cfg.kernel_filename, "kernel",
-			"Kernel to boot in virtual machine"),
-	OPT_STRING('i', "initrd", &cfg.initrd_filename, "initrd",
-			"Initial RAM disk image"),
-	OPT_STRING('p', "params", &cfg.kernel_cmdline, "params",
-			"Kernel command line arguments"),
-	OPT_STRING('f', "firmware", &cfg.firmware_filename, "firmware",
-			"Firmware image to boot in virtual machine"),
-
-	OPT_GROUP("Networking options:"),
-	OPT_CALLBACK_DEFAULT('n', "network", NULL, "network params",
-		     "Create a new guest NIC",
-		     netdev_parser, NULL),
-	OPT_BOOLEAN('\0', "no-dhcp", &cfg.no_dhcp, "Disable kernel DHCP in rootfs mode"),
-
-	OPT_GROUP("BIOS options:"),
-	OPT_INTEGER('\0', "vidmode", &vidmode,
-		    "Video mode"),
-
-	OPT_GROUP("Debug options:"),
-	OPT_BOOLEAN('\0', "debug", &do_debug_print,
-			"Enable debug messages"),
-	OPT_BOOLEAN('\0', "debug-single-step", &cfg.single_step,
-			"Enable single stepping"),
-	OPT_BOOLEAN('\0', "debug-ioport", &ioport_debug,
-			"Enable ioport debugging"),
-	OPT_BOOLEAN('\0', "debug-mmio", &mmio_debug,
-			"Enable MMIO debugging"),
-	OPT_INTEGER('\0', "debug-iodelay", &debug_iodelay,
-			"Delay IO by millisecond"),
-	OPT_END()
-};
+#define BUILD_OPTIONS(name, cfg)					\
+	struct option name[] = {					\
+	OPT_GROUP("Basic options:"),					\
+	OPT_STRING('\0', "name", &(cfg)->guest_name, "guest name",	\
+			"A name for the guest"),			\
+	OPT_INTEGER('c', "cpus", &nrcpus, "Number of CPUs"),		\
+	OPT_U64('m', "mem", &(cfg)->ram_size, "Virtual machine memory size\
+		in MiB."),						\
+	OPT_CALLBACK('\0', "shmem", NULL,				\
+		     "[pci:]<addr>:<size>[:handle=<handle>][:create]",	\
+		     "Share host shmem with guest via pci device",	\
+		     shmem_parser),					\
+	OPT_CALLBACK('d', "disk", NULL, "image or rootfs_dir", "Disk	\
+			image or rootfs directory", img_name_parser),	\
+	OPT_BOOLEAN('\0', "balloon", &(cfg)->balloon, "Enable virtio	\
+			balloon"),					\
+	OPT_BOOLEAN('\0', "vnc", &(cfg)->vnc, "Enable VNC framebuffer"),\
+	OPT_BOOLEAN('\0', "sdl", &(cfg)->sdl, "Enable SDL framebuffer"),\
+	OPT_BOOLEAN('\0', "rng", &(cfg)->virtio_rng, "Enable virtio Random\
+			Number Generator"),				\
+	OPT_CALLBACK('\0', "9p", NULL, "dir_to_share,tag_name",		\
+		     "Enable virtio 9p to share files between host and	\
+		     guest", virtio_9p_rootdir_parser),			\
+	OPT_STRING('\0', "console", &(cfg)->console, "serial, virtio or	\
+			hv", "Console to use"),				\
+	OPT_STRING('\0', "dev", &(cfg)->dev, "device_file",		\
+			"KVM device file"),				\
+	OPT_CALLBACK('\0', "tty", NULL, "tty id",			\
+		     "Remap guest TTY into a pty on the host",		\
+		     tty_parser),					\
+	OPT_STRING('\0', "sandbox", &(cfg)->sandbox, "script",		\
+			"Run this script when booting into custom	\
+			rootfs"),					\
+	OPT_STRING('\0', "hugetlbfs", &(cfg)->hugetlbfs_path, "path",	\
+			"Hugetlbfs path"),				\
+									\
+	OPT_GROUP("Kernel options:"),					\
+	OPT_STRING('k', "kernel", &(cfg)->kernel_filename, "kernel",	\
+			"Kernel to boot in virtual machine"),		\
+	OPT_STRING('i', "initrd", &(cfg)->initrd_filename, "initrd",	\
+			"Initial RAM disk image"),			\
+	OPT_STRING('p', "params", &(cfg)->kernel_cmdline, "params",	\
+			"Kernel command line arguments"),		\
+	OPT_STRING('f', "firmware", &(cfg)->firmware_filename, "firmware",\
+			"Firmware image to boot in virtual machine"),	\
+									\
+	OPT_GROUP("Networking options:"),				\
+	OPT_CALLBACK_DEFAULT('n', "network", NULL, "network params",	\
+		     "Create a new guest NIC",				\
+		     netdev_parser, NULL),				\
+	OPT_BOOLEAN('\0', "no-dhcp", &(cfg)->no_dhcp, "Disable kernel DHCP\
+			in rootfs mode"),				\
+									\
+	OPT_GROUP("BIOS options:"),					\
+	OPT_INTEGER('\0', "vidmode", &vidmode,				\
+		    "Video mode"),					\
+									\
+	OPT_GROUP("Debug options:"),					\
+	OPT_BOOLEAN('\0', "debug", &do_debug_print,			\
+			"Enable debug messages"),			\
+	OPT_BOOLEAN('\0', "debug-single-step", &(cfg)->single_step,	\
+			"Enable single stepping"),			\
+	OPT_BOOLEAN('\0', "debug-ioport", &ioport_debug,		\
+			"Enable ioport debugging"),			\
+	OPT_BOOLEAN('\0', "debug-mmio", &mmio_debug,			\
+			"Enable MMIO debugging"),			\
+	OPT_INTEGER('\0', "debug-iodelay", &debug_iodelay,		\
+			"Delay IO by millisecond"),			\
+	OPT_END()							\
+	};
 
 /*
  * Serialize debug printout so that the output of multiple vcpus does not
@@ -806,6 +816,7 @@ static const char *find_vmlinux(void)
 
 void kvm_run_help(void)
 {
+	BUILD_OPTIONS(options, &cfg);
 	usage_with_options(run_usage, options);
 }
 
@@ -947,6 +958,7 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 	unsigned int nr_online_cpus;
 	int max_cpus, recommended_cpus;
 	int i, r;
+	BUILD_OPTIONS(options, &cfg);
 
 	signal(SIGALRM, handle_sigalrm);
 	kvm_ipc__register_handler(KVM_IPC_DEBUG, handle_debug);
