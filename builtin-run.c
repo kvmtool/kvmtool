@@ -1130,8 +1130,11 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 		goto fail;
 	}
 
-	if (kvm->cfg.virtio_rng)
-		virtio_rng__init(kvm);
+	r = virtio_rng__init(kvm);
+	if (r < 0) {
+		pr_err("virtio_rng__init() failed with error %d\n", r);
+		goto fail;
+	}
 
 	if (kvm->cfg.balloon)
 		virtio_bln__init(kvm);
