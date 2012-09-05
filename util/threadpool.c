@@ -14,6 +14,7 @@ static LIST_HEAD(head);
 
 static pthread_t	*threads;
 static long		threadcount;
+static bool		running;
 
 static struct thread_pool__job *thread_pool__job_pop_locked(void)
 {
@@ -76,15 +77,16 @@ static void *thread_pool__threadfunc(void *param)
 {
 	pthread_cleanup_push(thread_pool__threadfunc_cleanup, NULL);
 
-	for (;;) {
+	while (running) {
 		struct thread_pool__job *curjob;
 
 		mutex_lock(&job_mutex);
-		while ((curjob = thread_pool__job_pop_locked()) == NULL)
+		while (running && (curjob = thread_pool__job_pop_locked()) == NULL)
 			pthread_cond_wait(&job_cond, &job_mutex);
 		mutex_unlock(&job_mutex);
 
-		thread_pool__handle_job(curjob);
+		if (running)
+			thread_pool__handle_job(curjob);
 	}
 
 	pthread_cleanup_pop(0);
@@ -116,15 +118,38 @@ static int thread_pool__addthread(void)
 	return res;
 }
 
-int thread_pool__init(unsigned long thread_count)
+int thread_pool__init(struct kvm *kvm)
 {
 	unsigned long i;
+	unsigned int thread_count = sysconf(_SC_NPROCESSORS_ONLN);
+
+	running = true;
 
 	for (i = 0; i < thread_count; i++)
 		if (thread_pool__addthread() < 0)
 			return i;
 
 	return i;
+}
+
+int thread_pool__exit(struct kvm *kvm)
+{
+	int i;
+	void *NUL = NULL;
+
+	running = false;
+
+	for (i = 0; i < threadcount; i++) {
+		mutex_lock(&job_mutex);
+		pthread_cond_signal(&job_cond);
+		mutex_unlock(&job_mutex);
+	}
+
+	for (i = 0; i < threadcount; i++) {
+		pthread_join(threads[i], NUL);
+	}
+
+	return 0;
 }
 
 void thread_pool__do_job(struct thread_pool__job *job)

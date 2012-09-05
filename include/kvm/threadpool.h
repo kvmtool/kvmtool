@@ -30,7 +30,8 @@ static inline void thread_pool__init_job(struct thread_pool__job *job, struct kv
 	};
 }
 
-int thread_pool__init(unsigned long thread_count);
+int thread_pool__init(struct kvm *kvm);
+int thread_pool__exit(struct kvm *kvm);
 
 void thread_pool__do_job(struct thread_pool__job *job);
 

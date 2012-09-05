@@ -1216,7 +1216,12 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 		}
 	}
 
-	thread_pool__init(nr_online_cpus);
+	r = thread_pool__init(kvm);
+	if (r < 0) {
+		pr_err("thread_pool__init() failed with error %d\n", r);
+		goto fail;
+	}
+
 fail:
 	return r;
 }
@@ -1300,6 +1305,10 @@ static void kvm_cmd_run_exit(int guest_ret)
 	r = term_exit(kvm);
 	if (r < 0)
 		pr_warning("pci__exit() failed with error %d\n", r);
+
+	r = thread_pool__exit(kvm);
+	if (r < 0)
+		pr_warning("thread_pool__exit() failed with error %d\n", r);
 
 	r = kvm__exit(kvm);
 	if (r < 0)
