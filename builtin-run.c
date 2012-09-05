@@ -77,71 +77,18 @@ static int img_name_parser(const struct option *opt, const char *arg, int unset)
 {
 	char path[PATH_MAX];
 	struct stat st;
-	struct kvm *kvm = opt->ptr;
-
-	if (stat(arg, &st) == 0 &&
-	    S_ISDIR(st.st_mode)) {
-		char tmp[PATH_MAX];
-
-		if (kvm->cfg.using_rootfs)
-			die("Please use only one rootfs directory atmost");
-
-		if (realpath(arg, tmp) == 0 ||
-		    virtio_9p__register(kvm, tmp, "/dev/root") < 0)
-			die("Unable to initialize virtio 9p");
-		kvm->cfg.using_rootfs = 1;
-		return 0;
-	}
 
 	snprintf(path, PATH_MAX, "%s%s", kvm__get_dir(), arg);
 
-	if (stat(path, &st) == 0 &&
-	    S_ISDIR(st.st_mode)) {
-		char tmp[PATH_MAX];
-
-		if (kvm->cfg.using_rootfs)
-			die("Please use only one rootfs directory atmost");
-
-		if (realpath(path, tmp) == 0 ||
-		    virtio_9p__register(kvm, tmp, "/dev/root") < 0)
-			die("Unable to initialize virtio 9p");
-		if (virtio_9p__register(kvm, "/", "hostfs") < 0)
-			die("Unable to initialize virtio 9p");
-		kvm_setup_resolv(arg);
-		kvm->cfg.using_rootfs = kvm->cfg.custom_rootfs = 1;
-		kvm->cfg.custom_rootfs_name = arg;
-		return 0;
-	}
-
+	if ((stat(arg, &st) == 0 && S_ISDIR(st.st_mode)) ||
+	   (stat(path, &st) == 0 && S_ISDIR(st.st_mode)))
+		return virtio_9p_img_name_parser(opt, arg, unset);
 	return disk_img_name_parser(opt, arg, unset);
 }
 
 void kvm_run_set_wrapper_sandbox(void)
 {
 	kvm_run_wrapper = KVM_RUN_SANDBOX;
-}
-
-static int virtio_9p_rootdir_parser(const struct option *opt, const char *arg, int unset)
-{
-	char *tag_name;
-	char tmp[PATH_MAX];
-
-	/*
-	 * 9p dir can be of the form dirname,tag_name or
-	 * just dirname. In the later case we use the
-	 * default tag name
-	 */
-	tag_name = strstr(arg, ",");
-	if (tag_name) {
-		*tag_name = '\0';
-		tag_name++;
-	}
-	if (realpath(arg, tmp)) {
-		if (virtio_9p__register(kvm, tmp, tag_name) < 0)
-			die("Unable to initialize virtio 9p");
-	} else
-		die("Failed resolving 9p path");
-	return 0;
 }
 
 #define BUILD_OPTIONS(name, cfg, kvm)					\
@@ -167,7 +114,7 @@ static int virtio_9p_rootdir_parser(const struct option *opt, const char *arg, i
 			Number Generator"),				\
 	OPT_CALLBACK('\0', "9p", NULL, "dir_to_share,tag_name",		\
 		     "Enable virtio 9p to share files between host and	\
-		     guest", virtio_9p_rootdir_parser, NULL),		\
+		     guest", virtio_9p_rootdir_parser, kvm),		\
 	OPT_STRING('\0', "console", &(cfg)->console, "serial, virtio or	\
 			hv", "Console to use"),				\
 	OPT_STRING('\0', "dev", &(cfg)->dev, "device_file",		\
@@ -792,7 +739,11 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 		goto fail;
 	}
 
-	virtio_9p__init(kvm);
+	r = virtio_9p__init(kvm);
+	if (r < 0) {
+		pr_err("virtio_9p__init() failed with error %d\n", r);
+		goto fail;
+	}
 
 	r = virtio_net__init(kvm);
 	if (r < 0) {

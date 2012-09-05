@@ -3,6 +3,7 @@
 #include "kvm/virtio.h"
 #include "kvm/pci.h"
 #include "kvm/threadpool.h"
+#include "kvm/parse-options.h"
 
 #include <sys/types.h>
 #include <dirent.h>
@@ -65,6 +66,8 @@ struct p9_pdu {
 
 struct kvm;
 
+int virtio_9p_rootdir_parser(const struct option *opt, const char *arg, int unset);
+int virtio_9p_img_name_parser(const struct option *opt, const char *arg, int unset);
 int virtio_9p__register(struct kvm *kvm, const char *root, const char *tag_name);
 int virtio_9p__init(struct kvm *kvm);
 int virtio_p9_pdu_readf(struct p9_pdu *pdu, const char *fmt, ...);
