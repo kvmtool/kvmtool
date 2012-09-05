@@ -3,6 +3,7 @@
 
 #include "kvm/read-write.h"
 #include "kvm/util.h"
+#include "kvm/parse-options.h"
 
 #include <linux/types.h>
 #include <linux/fs.h>	/* for BLKGETSIZE64 */
@@ -65,13 +66,13 @@ struct disk_image {
 #endif
 	const char			*wwpn;
 	const char			*tpgt;
+	int				debug_iodelay;
 };
 
-struct disk_image *disk_image__open(const char *filename, bool readonly, bool direct);
-struct disk_image **disk_image__open_all(struct disk_image_params *params, int count);
+int disk_img_name_parser(const struct option *opt, const char *arg, int unset);
+int disk_image__init(struct kvm *kvm);
+int disk_image__exit(struct kvm *kvm);
 struct disk_image *disk_image__new(int fd, u64 size, struct disk_image_operations *ops, int mmap);
-int disk_image__close(struct disk_image *disk);
-int disk_image__close_all(struct disk_image **disks, int count);
 int disk_image__flush(struct disk_image *disk);
 ssize_t disk_image__read(struct disk_image *disk, u64 sector, const struct iovec *iov,
 				int iovcount, void *param);

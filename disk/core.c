@@ -1,6 +1,7 @@
 #include "kvm/disk-image.h"
 #include "kvm/qcow.h"
 #include "kvm/virtio-blk.h"
+#include "kvm/kvm.h"
 
 #include <linux/err.h>
 #include <sys/eventfd.h>
@@ -9,6 +10,49 @@
 #define AIO_MAX 256
 
 int debug_iodelay;
+
+static int disk_image__close(struct disk_image *disk);
+
+int disk_img_name_parser(const struct option *opt, const char *arg, int unset)
+{
+	const char *cur;
+	char *sep;
+	struct kvm *kvm = opt->ptr;
+
+	if (kvm->cfg.image_count >= MAX_DISK_IMAGES)
+		die("Currently only 4 images are supported");
+
+	kvm->cfg.disk_image[kvm->cfg.image_count].filename = arg;
+	cur = arg;
+
+	if (strncmp(arg, "scsi:", 5) == 0) {
+		sep = strstr(arg, ":");
+		if (sep)
+			kvm->cfg.disk_image[kvm->cfg.image_count].wwpn = sep + 1;
+		sep = strstr(sep + 1, ":");
+		if (sep) {
+			*sep = 0;
+			kvm->cfg.disk_image[kvm->cfg.image_count].tpgt = sep + 1;
+		}
+		cur = sep + 1;
+	}
+
+	do {
+		sep = strstr(cur, ",");
+		if (sep) {
+			if (strncmp(sep + 1, "ro", 2) == 0)
+				kvm->cfg.disk_image[kvm->cfg.image_count].readonly = true;
+			else if (strncmp(sep + 1, "direct", 6) == 0)
+				kvm->cfg.disk_image[kvm->cfg.image_count].direct = true;
+			*sep = 0;
+			cur = sep + 1;
+		}
+	} while (sep);
+
+	kvm->cfg.image_count++;
+
+	return 0;
+}
 
 #ifdef CONFIG_HAS_AIO
 static void *disk_image__thread(void *param)
@@ -75,7 +119,7 @@ struct disk_image *disk_image__new(int fd, u64 size,
 	return disk;
 }
 
-struct disk_image *disk_image__open(const char *filename, bool readonly, bool direct)
+static struct disk_image *disk_image__open(const char *filename, bool readonly, bool direct)
 {
 	struct disk_image *disk;
 	struct stat st;
@@ -118,7 +162,7 @@ struct disk_image *disk_image__open(const char *filename, bool readonly, bool di
 	return ERR_PTR(-ENOSYS);
 }
 
-struct disk_image **disk_image__open_all(struct disk_image_params *params, int count)
+static struct disk_image **disk_image__open_all(struct kvm *kvm)
 {
 	struct disk_image **disks;
 	const char *filename;
@@ -128,6 +172,8 @@ struct disk_image **disk_image__open_all(struct disk_image_params *params, int c
 	bool direct;
 	void *err;
 	int i;
+	struct disk_image_params *params = (struct disk_image_params *)&kvm->cfg.disk_image;
+	int count = kvm->cfg.image_count;
 
 	if (!count)
 		return ERR_PTR(-EINVAL);
@@ -163,6 +209,7 @@ struct disk_image **disk_image__open_all(struct disk_image_params *params, int c
 			err = disks[i];
 			goto error;
 		}
+		disks[i]->debug_iodelay = kvm->cfg.debug_iodelay;
 	}
 
 	return disks;
@@ -183,7 +230,7 @@ int disk_image__flush(struct disk_image *disk)
 	return fsync(disk->fd);
 }
 
-int disk_image__close(struct disk_image *disk)
+static int disk_image__close(struct disk_image *disk)
 {
 	/* If there was no disk image then there's nothing to do: */
 	if (!disk)
@@ -200,7 +247,7 @@ int disk_image__close(struct disk_image *disk)
 	return 0;
 }
 
-int disk_image__close_all(struct disk_image **disks, int count)
+static int disk_image__close_all(struct disk_image **disks, int count)
 {
 	while (count)
 		disk_image__close(disks[--count]);
@@ -286,4 +333,20 @@ void disk_image__set_callback(struct disk_image *disk,
 			      void (*disk_req_cb)(void *param, long len))
 {
 	disk->disk_req_cb = disk_req_cb;
+}
+
+int disk_image__init(struct kvm *kvm)
+{
+	if (kvm->cfg.image_count) {
+		kvm->disks = disk_image__open_all(kvm);
+		if (IS_ERR(kvm->disks))
+			return PTR_ERR(kvm->disks);
+	}
+
+	return 0;
+}
+
+int disk_image__exit(struct kvm *kvm)
+{
+	return disk_image__close_all(kvm->disks, kvm->nr_disks);
 }

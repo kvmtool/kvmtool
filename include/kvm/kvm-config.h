@@ -23,6 +23,7 @@ struct kvm_config {
 	u8 num_net_devices;
 	bool virtio_rng;
 	int active_console;
+	int debug_iodelay;
 	const char *kernel_cmdline;
 	const char *kernel_filename;
 	const char *vmlinux_filename;

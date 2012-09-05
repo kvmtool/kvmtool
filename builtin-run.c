@@ -58,7 +58,6 @@ struct kvm_cpu **kvm_cpus;
 __thread struct kvm_cpu *current_kvm_cpu;
 
 static int  kvm_run_wrapper;
-extern int  debug_iodelay;
 
 bool do_debug_print = false;
 
@@ -78,17 +77,11 @@ enum {
 	KVM_RUN_SANDBOX,
 };
 
-void kvm_run_set_wrapper_sandbox(void)
-{
-	kvm_run_wrapper = KVM_RUN_SANDBOX;
-}
-
 static int img_name_parser(const struct option *opt, const char *arg, int unset)
 {
 	char path[PATH_MAX];
-	const char *cur;
 	struct stat st;
-	char *sep;
+	struct kvm *kvm = opt->ptr;
 
 	if (stat(arg, &st) == 0 &&
 	    S_ISDIR(st.st_mode)) {
@@ -124,39 +117,12 @@ static int img_name_parser(const struct option *opt, const char *arg, int unset)
 		return 0;
 	}
 
-	if (kvm->cfg.image_count >= MAX_DISK_IMAGES)
-		die("Currently only 4 images are supported");
+	return disk_img_name_parser(opt, arg, unset);
+}
 
-	kvm->cfg.disk_image[kvm->cfg.image_count].filename = arg;
-	cur = arg;
-
-	if (strncmp(arg, "scsi:", 5) == 0) {
-		sep = strstr(arg, ":");
-		if (sep)
-			kvm->cfg.disk_image[kvm->cfg.image_count].wwpn = sep + 1;
-		sep = strstr(sep + 1, ":");
-		if (sep) {
-			*sep = 0;
-			kvm->cfg.disk_image[kvm->cfg.image_count].tpgt = sep + 1;
-		}
-		cur = sep + 1;
-	}
-
-	do {
-		sep = strstr(cur, ",");
-		if (sep) {
-			if (strncmp(sep + 1, "ro", 2) == 0)
-				kvm->cfg.disk_image[kvm->cfg.image_count].readonly = true;
-			else if (strncmp(sep + 1, "direct", 6) == 0)
-				kvm->cfg.disk_image[kvm->cfg.image_count].direct = true;
-			*sep = 0;
-			cur = sep + 1;
-		}
-	} while (sep);
-
-	kvm->cfg.image_count++;
-
-	return 0;
+void kvm_run_set_wrapper_sandbox(void)
+{
+	kvm_run_wrapper = KVM_RUN_SANDBOX;
 }
 
 static int virtio_9p_rootdir_parser(const struct option *opt, const char *arg, int unset)
@@ -406,7 +372,7 @@ static int shmem_parser(const struct option *opt, const char *arg, int unset)
 	return 0;
 }
 
-#define BUILD_OPTIONS(name, cfg)					\
+#define BUILD_OPTIONS(name, cfg, kvm)					\
 	struct option name[] = {					\
 	OPT_GROUP("Basic options:"),					\
 	OPT_STRING('\0', "name", &(cfg)->guest_name, "guest name",	\
@@ -420,7 +386,7 @@ static int shmem_parser(const struct option *opt, const char *arg, int unset)
 		     shmem_parser, NULL),				\
 	OPT_CALLBACK('d', "disk", kvm, "image or rootfs_dir", "Disk 	\
 			image or rootfs directory", img_name_parser,	\
-			NULL),						\
+			kvm),						\
 	OPT_BOOLEAN('\0', "balloon", &(cfg)->balloon, "Enable virtio	\
 			balloon"),					\
 	OPT_BOOLEAN('\0', "vnc", &(cfg)->vnc, "Enable VNC framebuffer"),\
@@ -473,7 +439,7 @@ static int shmem_parser(const struct option *opt, const char *arg, int unset)
 			"Enable ioport debugging"),			\
 	OPT_BOOLEAN('\0', "debug-mmio", &(cfg)->mmio_debug,		\
 			"Enable MMIO debugging"),			\
-	OPT_INTEGER('\0', "debug-iodelay", &debug_iodelay,		\
+	OPT_INTEGER('\0', "debug-iodelay", &(cfg)->debug_iodelay,	\
 			"Delay IO by millisecond"),			\
 	OPT_END()							\
 	};
@@ -768,7 +734,7 @@ static const char *find_vmlinux(void)
 
 void kvm_run_help(void)
 {
-	BUILD_OPTIONS(options, &kvm->cfg);
+	BUILD_OPTIONS(options, &kvm->cfg, kvm);
 	usage_with_options(run_usage, options);
 }
 
@@ -927,7 +893,7 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 	kvm->cfg.custom_rootfs_name = "default";
 
 	while (argc != 0) {
-		BUILD_OPTIONS(options, &kvm->cfg);
+		BUILD_OPTIONS(options, &kvm->cfg, kvm);
 		argc = parse_options(argc, argv, options, run_usage,
 				PARSE_OPT_STOP_AT_NON_OPTION |
 				PARSE_OPT_KEEP_DASHDASH);
@@ -968,6 +934,8 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 		}
 
 	}
+
+	kvm->nr_disks = kvm->cfg.image_count;
 
 	if (!kvm->cfg.kernel_filename)
 		kvm->cfg.kernel_filename = find_kernel();
@@ -1130,15 +1098,10 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 		strlcat(real_cmdline, " root=/dev/vda rw ", sizeof(real_cmdline));
 	}
 
-	if (kvm->cfg.image_count) {
-		kvm->nr_disks = kvm->cfg.image_count;
-		kvm->disks = disk_image__open_all((struct disk_image_params *)&kvm->cfg.disk_image, kvm->cfg.image_count);
-		if (IS_ERR(kvm->disks)) {
-			r = PTR_ERR(kvm->disks);
-			pr_err("disk_image__open_all() failed with error %ld\n",
-					PTR_ERR(kvm->disks));
-			goto fail;
-		}
+	r = disk_image__init(kvm);
+	if (r < 0) {
+		pr_err("disk_image__init() failed with error %d\n", r);
+		goto fail;
 	}
 
 	printf("  # %s run -k %s -m %Lu -c %d --name %s\n", KVM_BINARY_NAME,
@@ -1342,9 +1305,9 @@ static void kvm_cmd_run_exit(int guest_ret)
 	if (r < 0)
 		pr_warning("virtio_rng__exit() failed with error %d\n", r);
 
-	r = disk_image__close_all(kvm->disks, kvm->cfg.image_count);
+	r = disk_image__exit(kvm);
 	if (r < 0)
-		pr_warning("disk_image__close_all() failed with error %d\n", r);
+		pr_warning("disk_image__exit() failed with error %d\n", r);
 
 	r = serial8250__exit(kvm);
 	if (r < 0)
