@@ -818,9 +818,11 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 
 	kvm__init_ram(kvm);
 
-#ifdef CONFIG_X86
-	kbd__init(kvm);
-#endif
+	r = kbd__init(kvm);
+	if (r < 0) {
+		pr_err("kbd__init() failed with error %d\n", r);
+		goto fail;
+	}
 
 	r = pci_shmem__init(kvm);
 	if (r < 0) {
