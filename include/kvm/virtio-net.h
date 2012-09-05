@@ -1,6 +1,8 @@
 #ifndef KVM__VIRTIO_NET_H
 #define KVM__VIRTIO_NET_H
 
+#include "kvm/parse-options.h"
+
 struct kvm;
 
 struct virtio_net_params {
@@ -16,7 +18,9 @@ struct virtio_net_params {
 	int fd;
 };
 
-void virtio_net__init(const struct virtio_net_params *params);
+int virtio_net__init(struct kvm *kvm);
+int virtio_net__exit(struct kvm *kvm);
+int netdev_parser(const struct option *opt, const char *arg, int unset);
 
 enum {
 	NET_MODE_USER,

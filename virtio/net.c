@@ -490,17 +490,106 @@ static void virtio_net__vhost_init(struct kvm *kvm, struct net_dev *ndev)
 	free(mem);
 }
 
-void virtio_net__init(const struct virtio_net_params *params)
+static inline void str_to_mac(const char *str, char *mac)
+{
+	sscanf(str, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
+		mac, mac+1, mac+2, mac+3, mac+4, mac+5);
+}
+static int set_net_param(struct virtio_net_params *p, const char *param,
+				const char *val)
+{
+	if (strcmp(param, "guest_mac") == 0) {
+		str_to_mac(val, p->guest_mac);
+	} else if (strcmp(param, "mode") == 0) {
+		if (!strncmp(val, "user", 4)) {
+			int i;
+
+			for (i = 0; i < kvm->cfg.num_net_devices; i++)
+				if (kvm->cfg.net_params[i].mode == NET_MODE_USER)
+					die("Only one usermode network device allowed at a time");
+			p->mode = NET_MODE_USER;
+		} else if (!strncmp(val, "tap", 3)) {
+			p->mode = NET_MODE_TAP;
+		} else if (!strncmp(val, "none", 4)) {
+			kvm->cfg.no_net = 1;
+			return -1;
+		} else
+			die("Unknown network mode %s, please use user, tap or none", kvm->cfg.network);
+	} else if (strcmp(param, "script") == 0) {
+		p->script = strdup(val);
+	} else if (strcmp(param, "guest_ip") == 0) {
+		p->guest_ip = strdup(val);
+	} else if (strcmp(param, "host_ip") == 0) {
+		p->host_ip = strdup(val);
+	} else if (strcmp(param, "trans") == 0) {
+		p->trans = strdup(val);
+	} else if (strcmp(param, "vhost") == 0) {
+		p->vhost = atoi(val);
+	} else if (strcmp(param, "fd") == 0) {
+		p->fd = atoi(val);
+	} else
+		die("Unknown network parameter %s", param);
+
+	return 0;
+}
+
+int netdev_parser(const struct option *opt, const char *arg, int unset)
+{
+	struct virtio_net_params p;
+	char *buf = NULL, *cmd = NULL, *cur = NULL;
+	bool on_cmd = true;
+	struct kvm *kvm = opt->ptr;
+
+	if (arg) {
+		buf = strdup(arg);
+		if (buf == NULL)
+			die("Failed allocating new net buffer");
+		cur = strtok(buf, ",=");
+	}
+
+	p = (struct virtio_net_params) {
+		.guest_ip	= DEFAULT_GUEST_ADDR,
+		.host_ip	= DEFAULT_HOST_ADDR,
+		.script		= DEFAULT_SCRIPT,
+		.mode		= NET_MODE_TAP,
+	};
+
+	str_to_mac(DEFAULT_GUEST_MAC, p.guest_mac);
+	p.guest_mac[5] += kvm->cfg.num_net_devices;
+
+	while (cur) {
+		if (on_cmd) {
+			cmd = cur;
+		} else {
+			if (set_net_param(&p, cmd, cur) < 0)
+				goto done;
+		}
+		on_cmd = !on_cmd;
+
+		cur = strtok(NULL, ",=");
+	};
+
+	kvm->cfg.num_net_devices++;
+
+	kvm->cfg.net_params = realloc(kvm->cfg.net_params, kvm->cfg.num_net_devices * sizeof(*kvm->cfg.net_params));
+	if (kvm->cfg.net_params == NULL)
+		die("Failed adding new network device");
+
+	kvm->cfg.net_params[kvm->cfg.num_net_devices - 1] = p;
+
+done:
+	free(buf);
+	return 0;
+}
+
+static int virtio_net__init_one(struct virtio_net_params *params)
 {
 	int i;
 	struct net_dev *ndev;
 
-	if (!params)
-		return;
-
 	ndev = calloc(1, sizeof(struct net_dev));
 	if (ndev == NULL)
-		die("Failed allocating ndev");
+		return -ENOMEM;
 
 	list_add_tail(&ndev->list, &ndevs);
 
@@ -543,4 +632,39 @@ void virtio_net__init(const struct virtio_net_params *params)
 
 	if (compat_id == -1)
 		compat_id = virtio_compat_add_message("virtio-net", "CONFIG_VIRTIO_NET");
+
+	return 0;
+}
+
+int virtio_net__init(struct kvm *kvm)
+{
+	int i;
+
+	for (i = 0; i < kvm->cfg.num_net_devices; i++) {
+		kvm->cfg.net_params[i].kvm = kvm;
+		virtio_net__init_one(&kvm->cfg.net_params[i]);
+	}
+
+	if (kvm->cfg.num_net_devices == 0 && kvm->cfg.no_net == 0) {
+		struct virtio_net_params net_params;
+
+		net_params = (struct virtio_net_params) {
+			.guest_ip	= kvm->cfg.guest_ip,
+			.host_ip	= kvm->cfg.host_ip,
+			.kvm		= kvm,
+			.script		= kvm->cfg.script,
+			.mode		= NET_MODE_USER,
+		};
+		str_to_mac(kvm->cfg.guest_mac, net_params.guest_mac);
+		str_to_mac(kvm->cfg.host_mac, net_params.host_mac);
+
+		virtio_net__init_one(&net_params);
+	}
+
+	return 0;
+}
+
+int virtio_net__exit(struct kvm *kvm)
+{
+	return 0;
 }

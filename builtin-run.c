@@ -146,97 +146,6 @@ static int virtio_9p_rootdir_parser(const struct option *opt, const char *arg, i
 	return 0;
 }
 
-static inline void str_to_mac(const char *str, char *mac)
-{
-	sscanf(str, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
-		mac, mac+1, mac+2, mac+3, mac+4, mac+5);
-}
-static int set_net_param(struct virtio_net_params *p, const char *param,
-				const char *val)
-{
-	if (strcmp(param, "guest_mac") == 0) {
-		str_to_mac(val, p->guest_mac);
-	} else if (strcmp(param, "mode") == 0) {
-		if (!strncmp(val, "user", 4)) {
-			int i;
-
-			for (i = 0; i < kvm->cfg.num_net_devices; i++)
-				if (kvm->cfg.net_params[i].mode == NET_MODE_USER)
-					die("Only one usermode network device allowed at a time");
-			p->mode = NET_MODE_USER;
-		} else if (!strncmp(val, "tap", 3)) {
-			p->mode = NET_MODE_TAP;
-		} else if (!strncmp(val, "none", 4)) {
-			kvm->cfg.no_net = 1;
-			return -1;
-		} else
-			die("Unknown network mode %s, please use user, tap or none", kvm->cfg.network);
-	} else if (strcmp(param, "script") == 0) {
-		p->script = strdup(val);
-	} else if (strcmp(param, "guest_ip") == 0) {
-		p->guest_ip = strdup(val);
-	} else if (strcmp(param, "host_ip") == 0) {
-		p->host_ip = strdup(val);
-	} else if (strcmp(param, "trans") == 0) {
-		p->trans = strdup(val);
-	} else if (strcmp(param, "vhost") == 0) {
-		p->vhost = atoi(val);
-	} else if (strcmp(param, "fd") == 0) {
-		p->fd = atoi(val);
-	} else
-		die("Unknown network parameter %s", param);
-
-	return 0;
-}
-
-static int netdev_parser(const struct option *opt, const char *arg, int unset)
-{
-	struct virtio_net_params p;
-	char *buf = NULL, *cmd = NULL, *cur = NULL;
-	bool on_cmd = true;
-
-	if (arg) {
-		buf = strdup(arg);
-		if (buf == NULL)
-			die("Failed allocating new net buffer");
-		cur = strtok(buf, ",=");
-	}
-
-	p = (struct virtio_net_params) {
-		.guest_ip	= DEFAULT_GUEST_ADDR,
-		.host_ip	= DEFAULT_HOST_ADDR,
-		.script		= DEFAULT_SCRIPT,
-		.mode		= NET_MODE_TAP,
-	};
-
-	str_to_mac(DEFAULT_GUEST_MAC, p.guest_mac);
-	p.guest_mac[5] += kvm->cfg.num_net_devices;
-
-	while (cur) {
-		if (on_cmd) {
-			cmd = cur;
-		} else {
-			if (set_net_param(&p, cmd, cur) < 0)
-				goto done;
-		}
-		on_cmd = !on_cmd;
-
-		cur = strtok(NULL, ",=");
-	};
-
-	kvm->cfg.num_net_devices++;
-
-	kvm->cfg.net_params = realloc(kvm->cfg.net_params, kvm->cfg.num_net_devices * sizeof(*kvm->cfg.net_params));
-	if (kvm->cfg.net_params == NULL)
-		die("Failed adding new network device");
-
-	kvm->cfg.net_params[kvm->cfg.num_net_devices - 1] = p;
-
-done:
-	free(buf);
-	return 0;
-}
-
 #define BUILD_OPTIONS(name, cfg, kvm)					\
 	struct option name[] = {					\
 	OPT_GROUP("Basic options:"),					\
@@ -287,7 +196,7 @@ done:
 	OPT_GROUP("Networking options:"),				\
 	OPT_CALLBACK_DEFAULT('n', "network", NULL, "network params",	\
 		     "Create a new guest NIC",				\
-		     netdev_parser, NULL, NULL),			\
+		     netdev_parser, NULL, kvm),				\
 	OPT_BOOLEAN('\0', "no-dhcp", &(cfg)->no_dhcp, "Disable kernel DHCP\
 			in rootfs mode"),				\
 									\
@@ -739,7 +648,7 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 	static char real_cmdline[2048], default_name[20];
 	struct framebuffer *fb = NULL;
 	unsigned int nr_online_cpus;
-	int i, r;
+	int r;
 
 	kvm = kvm__new();
 	if (IS_ERR(kvm))
@@ -1023,25 +932,10 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 
 	virtio_9p__init(kvm);
 
-	for (i = 0; i < kvm->cfg.num_net_devices; i++) {
-		kvm->cfg.net_params[i].kvm = kvm;
-		virtio_net__init(&kvm->cfg.net_params[i]);
-	}
-
-	if (kvm->cfg.num_net_devices == 0 && kvm->cfg.no_net == 0) {
-		struct virtio_net_params net_params;
-
-		net_params = (struct virtio_net_params) {
-			.guest_ip	= kvm->cfg.guest_ip,
-			.host_ip	= kvm->cfg.host_ip,
-			.kvm		= kvm,
-			.script		= kvm->cfg.script,
-			.mode		= NET_MODE_USER,
-		};
-		str_to_mac(kvm->cfg.guest_mac, net_params.guest_mac);
-		str_to_mac(kvm->cfg.host_mac, net_params.host_mac);
-
-		virtio_net__init(&net_params);
+	r = virtio_net__init(kvm);
+	if (r < 0) {
+		pr_err("virtio_net__init() failed with error %d\n", r);
+		goto fail;
 	}
 
 	kvm__init_ram(kvm);
@@ -1157,6 +1051,10 @@ static void kvm_cmd_run_exit(int guest_ret)
 	r = fb__exit(kvm);
 	if (r < 0)
 		pr_warning("kvm_timer__exit() failed with error %d\n", r);
+
+	r = virtio_net__exit(kvm);
+	if (r < 0)
+		pr_warning("virtio_net__exit() failed with error %d\n", r);
 
 	r = virtio_scsi_exit(kvm);
 	if (r < 0)
