@@ -218,125 +218,9 @@ static int virtio_9p_rootdir_parser(const struct option *opt, const char *arg, i
 	OPT_END()							\
 	};
 
-/*
- * Serialize debug printout so that the output of multiple vcpus does not
- * get mixed up:
- */
-static int printout_done;
-
-static void handle_sigusr1(int sig)
-{
-	struct kvm_cpu *cpu = current_kvm_cpu;
-	int fd = kvm_cpu__get_debug_fd();
-
-	if (!cpu || cpu->needs_nmi)
-		return;
-
-	dprintf(fd, "\n #\n # vCPU #%ld's dump:\n #\n", cpu->cpu_id);
-	kvm_cpu__show_registers(cpu);
-	kvm_cpu__show_code(cpu);
-	kvm_cpu__show_page_tables(cpu);
-	fflush(stdout);
-	printout_done = 1;
-	mb();
-}
-
-/* Pause/resume the guest using SIGUSR2 */
-static int is_paused;
-
-static void handle_pause(int fd, u32 type, u32 len, u8 *msg)
-{
-	if (WARN_ON(len))
-		return;
-
-	if (type == KVM_IPC_RESUME && is_paused) {
-		kvm->vm_state = KVM_VMSTATE_RUNNING;
-		kvm__continue();
-	} else if (type == KVM_IPC_PAUSE && !is_paused) {
-		kvm->vm_state = KVM_VMSTATE_PAUSED;
-		ioctl(kvm->vm_fd, KVM_KVMCLOCK_CTRL);
-		kvm__pause();
-	} else {
-		return;
-	}
-
-	is_paused = !is_paused;
-}
-
-static void handle_vmstate(int fd, u32 type, u32 len, u8 *msg)
-{
-	int r = 0;
-
-	if (type == KVM_IPC_VMSTATE)
-		r = write(fd, &kvm->vm_state, sizeof(kvm->vm_state));
-
-	if (r < 0)
-		pr_warning("Failed sending VMSTATE");
-}
-
-static void handle_debug(int fd, u32 type, u32 len, u8 *msg)
-{
-	int i;
-	struct debug_cmd_params *params;
-	u32 dbg_type;
-	u32 vcpu;
-
-	if (WARN_ON(type != KVM_IPC_DEBUG || len != sizeof(*params)))
-		return;
-
-	params = (void *)msg;
-	dbg_type = params->dbg_type;
-	vcpu = params->cpu;
-
-	if (dbg_type & KVM_DEBUG_CMD_TYPE_SYSRQ)
-		serial8250__inject_sysrq(kvm, params->sysrq);
-
-	if (dbg_type & KVM_DEBUG_CMD_TYPE_NMI) {
-		if ((int)vcpu >= kvm->nrcpus)
-			return;
-
-		kvm->cpus[vcpu]->needs_nmi = 1;
-		pthread_kill(kvm->cpus[vcpu]->thread, SIGUSR1);
-	}
-
-	if (!(dbg_type & KVM_DEBUG_CMD_TYPE_DUMP))
-		return;
-
-	for (i = 0; i < kvm->nrcpus; i++) {
-		struct kvm_cpu *cpu = kvm->cpus[i];
-
-		if (!cpu)
-			continue;
-
-		printout_done = 0;
-
-		kvm_cpu__set_debug_fd(fd);
-		pthread_kill(cpu->thread, SIGUSR1);
-		/*
-		 * Wait for the vCPU to dump state before signalling
-		 * the next thread. Since this is debug code it does
-		 * not matter that we are burning CPU time a bit:
-		 */
-		while (!printout_done)
-			mb();
-	}
-
-	close(fd);
-
-	serial8250__inject_sysrq(kvm, 'p');
-}
-
 static void handle_sigalrm(int sig)
 {
 	kvm__arch_periodic_poll(kvm);
-}
-
-static void handle_stop(int fd, u32 type, u32 len, u8 *msg)
-{
-	if (WARN_ON(type != KVM_IPC_STOP || len))
-		return;
-
-	kvm_cpu__reboot(kvm);
 }
 
 static void *kvm_cpu_thread(void *arg)
@@ -655,12 +539,6 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 		return PTR_ERR(kvm);
 
 	signal(SIGALRM, handle_sigalrm);
-	kvm_ipc__register_handler(KVM_IPC_DEBUG, handle_debug);
-	signal(SIGUSR1, handle_sigusr1);
-	kvm_ipc__register_handler(KVM_IPC_PAUSE, handle_pause);
-	kvm_ipc__register_handler(KVM_IPC_RESUME, handle_pause);
-	kvm_ipc__register_handler(KVM_IPC_STOP, handle_stop);
-	kvm_ipc__register_handler(KVM_IPC_VMSTATE, handle_vmstate);
 
 	nr_online_cpus = sysconf(_SC_NPROCESSORS_ONLN);
 	kvm->cfg.custom_rootfs_name = "default";

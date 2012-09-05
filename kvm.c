@@ -133,130 +133,9 @@ struct kvm *kvm__new(void)
 	return kvm;
 }
 
-#define KVM_SOCK_SUFFIX		".sock"
-#define KVM_SOCK_SUFFIX_LEN	((ssize_t)sizeof(KVM_SOCK_SUFFIX) - 1)
-
-static int kvm__create_socket(struct kvm *kvm)
-{
-	char full_name[PATH_MAX];
-	unsigned int s;
-	struct sockaddr_un local;
-	int len, r;
-
-	/* This usually 108 bytes long */
-	BUILD_BUG_ON(sizeof(local.sun_path) < 32);
-
-	snprintf(full_name, sizeof(full_name), "%s/%s%s",
-		 kvm__get_dir(), kvm->cfg.guest_name, KVM_SOCK_SUFFIX);
-	if (access(full_name, F_OK) == 0) {
-		pr_err("Socket file %s already exist", full_name);
-		return -EEXIST;
-	}
-
-	s = socket(AF_UNIX, SOCK_STREAM, 0);
-	if (s < 0)
-		return s;
-	local.sun_family = AF_UNIX;
-	strlcpy(local.sun_path, full_name, sizeof(local.sun_path));
-	len = strlen(local.sun_path) + sizeof(local.sun_family);
-	r = bind(s, (struct sockaddr *)&local, len);
-	if (r < 0)
-		goto fail;
-
-	r = listen(s, 5);
-	if (r < 0)
-		goto fail;
-
-	return s;
-
-fail:
-	close(s);
-	return r;
-}
-
-void kvm__remove_socket(const char *name)
-{
-	char full_name[PATH_MAX];
-
-	snprintf(full_name, sizeof(full_name), "%s/%s%s",
-		 kvm__get_dir(), name, KVM_SOCK_SUFFIX);
-	unlink(full_name);
-}
-
-int kvm__get_sock_by_instance(const char *name)
-{
-	int s, len, r;
-	char sock_file[PATH_MAX];
-	struct sockaddr_un local;
-
-	snprintf(sock_file, sizeof(sock_file), "%s/%s%s",
-		 kvm__get_dir(), name, KVM_SOCK_SUFFIX);
-	s = socket(AF_UNIX, SOCK_STREAM, 0);
-
-	local.sun_family = AF_UNIX;
-	strlcpy(local.sun_path, sock_file, sizeof(local.sun_path));
-	len = strlen(local.sun_path) + sizeof(local.sun_family);
-
-	r = connect(s, &local, len);
-	if (r < 0 && errno == ECONNREFUSED) {
-		/* Tell the user clean ghost socket file */
-		pr_err("\"%s\" could be a ghost socket file, please remove it",
-				sock_file);
-		return r;
-	} else if (r < 0) {
-		return r;
-	}
-
-	return s;
-}
-
-int kvm__enumerate_instances(int (*callback)(const char *name, int fd))
-{
-	int sock;
-	DIR *dir;
-	struct dirent entry, *result;
-	int ret = 0;
-
-	dir = opendir(kvm__get_dir());
-	if (!dir)
-		return -errno;
-
-	for (;;) {
-		readdir_r(dir, &entry, &result);
-		if (result == NULL)
-			break;
-		if (entry.d_type == DT_SOCK) {
-			ssize_t name_len = strlen(entry.d_name);
-			char *p;
-
-			if (name_len <= KVM_SOCK_SUFFIX_LEN)
-				continue;
-
-			p = &entry.d_name[name_len - KVM_SOCK_SUFFIX_LEN];
-			if (memcmp(KVM_SOCK_SUFFIX, p, KVM_SOCK_SUFFIX_LEN))
-				continue;
-
-			*p = 0;
-			sock = kvm__get_sock_by_instance(entry.d_name);
-			if (sock < 0)
-				continue;
-			ret = callback(entry.d_name, sock);
-			close(sock);
-			if (ret < 0)
-				break;
-		}
-	}
-
-	closedir(dir);
-
-	return ret;
-}
-
 int kvm__exit(struct kvm *kvm)
 {
 	kvm__arch_delete_ram(kvm);
-	kvm_ipc__stop();
-	kvm__remove_socket(kvm->cfg.guest_name);
 	free(kvm);
 
 	return 0;
@@ -299,18 +178,6 @@ int kvm__recommended_cpus(struct kvm *kvm)
 		return 4;
 
 	return ret;
-}
-
-static void kvm__pid(int fd, u32 type, u32 len, u8 *msg)
-{
-	pid_t pid = getpid();
-	int r = 0;
-
-	if (type == KVM_IPC_PID)
-		r = write(fd, &pid, sizeof(pid));
-
-	if (r < 0)
-		pr_warning("Failed sending PID");
 }
 
 /*
@@ -379,22 +246,8 @@ int kvm__init(struct kvm *kvm)
 
 	kvm__arch_init(kvm, kvm->cfg.hugetlbfs_path, kvm->cfg.ram_size);
 
-	ret = kvm_ipc__start(kvm__create_socket(kvm));
-	if (ret < 0) {
-		pr_err("Starting ipc failed.");
-		goto err_vm_fd;
-	}
-
-	ret = kvm_ipc__register_handler(KVM_IPC_PID, kvm__pid);
-	if (ret < 0) {
-		pr_err("Register ipc handler failed.");
-		goto err_ipc;
-	}
-
 	return 0;
 
-err_ipc:
-	kvm_ipc__stop();
 err_vm_fd:
 	close(kvm->vm_fd);
 err_sys_fd:

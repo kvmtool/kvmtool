@@ -139,7 +139,7 @@ static int virtio_bln__collect_stats(void)
 	return 0;
 }
 
-static void virtio_bln__print_stats(int fd, u32 type, u32 len, u8 *msg)
+static void virtio_bln__print_stats(struct kvm *kvm, int fd, u32 type, u32 len, u8 *msg)
 {
 	int r;
 
@@ -154,7 +154,7 @@ static void virtio_bln__print_stats(int fd, u32 type, u32 len, u8 *msg)
 		pr_warning("Failed sending memory stats");
 }
 
-static void handle_mem(int fd, u32 type, u32 len, u8 *msg)
+static void handle_mem(struct kvm *kvm, int fd, u32 type, u32 len, u8 *msg)
 {
 	int mem;
 
