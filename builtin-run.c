@@ -417,9 +417,10 @@ static int shmem_parser(const struct option *opt, const char *arg, int unset)
 	OPT_CALLBACK('\0', "shmem", NULL,				\
 		     "[pci:]<addr>:<size>[:handle=<handle>][:create]",	\
 		     "Share host shmem with guest via pci device",	\
-		     shmem_parser),					\
-	OPT_CALLBACK('d', "disk", NULL, "image or rootfs_dir", "Disk	\
-			image or rootfs directory", img_name_parser),	\
+		     shmem_parser, NULL),				\
+	OPT_CALLBACK('d', "disk", kvm, "image or rootfs_dir", "Disk 	\
+			image or rootfs directory", img_name_parser,	\
+			NULL),						\
 	OPT_BOOLEAN('\0', "balloon", &(cfg)->balloon, "Enable virtio	\
 			balloon"),					\
 	OPT_BOOLEAN('\0', "vnc", &(cfg)->vnc, "Enable VNC framebuffer"),\
@@ -428,14 +429,14 @@ static int shmem_parser(const struct option *opt, const char *arg, int unset)
 			Number Generator"),				\
 	OPT_CALLBACK('\0', "9p", NULL, "dir_to_share,tag_name",		\
 		     "Enable virtio 9p to share files between host and	\
-		     guest", virtio_9p_rootdir_parser),			\
+		     guest", virtio_9p_rootdir_parser, NULL),		\
 	OPT_STRING('\0', "console", &(cfg)->console, "serial, virtio or	\
 			hv", "Console to use"),				\
 	OPT_STRING('\0', "dev", &(cfg)->dev, "device_file",		\
 			"KVM device file"),				\
 	OPT_CALLBACK('\0', "tty", NULL, "tty id",			\
 		     "Remap guest TTY into a pty on the host",		\
-		     tty_parser),					\
+		     tty_parser, NULL),					\
 	OPT_STRING('\0', "sandbox", &(cfg)->sandbox, "script",		\
 			"Run this script when booting into custom	\
 			rootfs"),					\
@@ -455,7 +456,7 @@ static int shmem_parser(const struct option *opt, const char *arg, int unset)
 	OPT_GROUP("Networking options:"),				\
 	OPT_CALLBACK_DEFAULT('n', "network", NULL, "network params",	\
 		     "Create a new guest NIC",				\
-		     netdev_parser, NULL),				\
+		     netdev_parser, NULL, NULL),			\
 	OPT_BOOLEAN('\0', "no-dhcp", &(cfg)->no_dhcp, "Disable kernel DHCP\
 			in rootfs mode"),				\
 									\

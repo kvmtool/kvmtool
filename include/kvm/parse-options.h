@@ -89,6 +89,7 @@ const char *long_name;
 void *value;
 const char *argh;
 const char *help;
+void *ptr;
 
 int flags;
 parse_opt_cb *callback;
@@ -150,18 +151,7 @@ intptr_t defval;
 	.help = (h)                         \
 }
 
-#define OPT_CALLBACK(s, l, v, a, h, f)      \
-{					    \
-	.type = OPTION_CALLBACK,	    \
-	.short_name = (s),		    \
-	.long_name = (l),		    \
-	.value = (v),			    \
-	(a),				    \
-	.help = (h),			    \
-	.callback = (f)			    \
-}
-
-#define OPT_CALLBACK_NOOPT(s, l, v, a, h, f) \
+#define OPT_CALLBACK(s, l, v, a, h, f, p)   \
 {					    \
 	.type = OPTION_CALLBACK,	    \
 	.short_name = (s),		    \
@@ -170,10 +160,23 @@ intptr_t defval;
 	(a),				    \
 	.help = (h),			    \
 	.callback = (f),		    \
-	.flags = PARSE_OPT_NOARG	    \
+	.ptr = (p),			    \
 }
 
-#define OPT_CALLBACK_DEFAULT(s, l, v, a, h, f, d) \
+#define OPT_CALLBACK_NOOPT(s, l, v, a, h, f, p) \
+{					    \
+	.type = OPTION_CALLBACK,	    \
+	.short_name = (s),		    \
+	.long_name = (l),		    \
+	.value = (v),			    \
+	(a),				    \
+	.help = (h),			    \
+	.callback = (f),		    \
+	.flags = PARSE_OPT_NOARG,	    \
+	.ptr = (p),			    \
+}
+
+#define OPT_CALLBACK_DEFAULT(s, l, v, a, h, f, d, p) \
 {					    \
 	.type = OPTION_CALLBACK,	    \
 	.short_name = (s),		    \
@@ -182,7 +185,8 @@ intptr_t defval;
 	.help = (h),			    \
 	.callback = (f),		    \
 	.defval = (intptr_t)d,		    \
-	.flags = PARSE_OPT_LASTARG_DEFAULT  \
+	.flags = PARSE_OPT_LASTARG_DEFAULT, \
+	.ptr = (p)			    \
 }
 
 #define OPT_END() { .type = OPTION_END }
