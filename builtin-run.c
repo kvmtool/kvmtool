@@ -1203,7 +1203,11 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 	 * come after this (it may set up device trees etc.)
 	 */
 
-	kvm__start_timer(kvm);
+	r = kvm_timer__init(kvm);
+	if (r < 0) {
+		pr_err("kvm_timer__init() failed with error %d\n", r);
+		goto fail;
+	}
 
 	if (kvm->cfg.firmware_filename) {
 		if (!kvm__load_firmware(kvm, kvm->cfg.firmware_filename))
@@ -1258,9 +1262,13 @@ static void kvm_cmd_run_exit(int guest_ret)
 	if (r < 0)
 		pr_warning("irq__exit() failed with error %d\n", r);
 
+	r = kvm_timer__exit(kvm);
+	if (r < 0)
+		pr_warning("kvm_timer__exit() failed with error %d\n", r);
+
 	r = fb__exit(kvm);
 	if (r < 0)
-		pr_warning("fb__exit() failed with error %d\n", r);
+		pr_warning("kvm_timer__exit() failed with error %d\n", r);
 
 	r = virtio_scsi_exit(kvm);
 	if (r < 0)

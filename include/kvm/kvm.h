@@ -68,8 +68,8 @@ int kvm__exit(struct kvm *kvm);
 bool kvm__load_firmware(struct kvm *kvm, const char *firmware_filename);
 bool kvm__load_kernel(struct kvm *kvm, const char *kernel_filename,
 			const char *initrd_filename, const char *kernel_cmdline, u16 vidmode);
-void kvm__start_timer(struct kvm *kvm);
-void kvm__stop_timer(struct kvm *kvm);
+int kvm_timer__init(struct kvm *kvm);
+int kvm_timer__exit(struct kvm *kvm);
 void kvm__irq_line(struct kvm *kvm, int irq, int level);
 void kvm__irq_trigger(struct kvm *kvm, int irq);
 bool kvm__emulate_io(struct kvm *kvm, u16 port, void *data, int direction, int size, u32 count);
