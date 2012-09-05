@@ -2,6 +2,7 @@
 #define KVM__KVM_H
 
 #include "kvm/kvm-arch.h"
+#include "kvm/kvm-config.h"
 
 #include <stdbool.h>
 #include <linux/types.h>
@@ -33,6 +34,7 @@ struct kvm_ext {
 
 struct kvm {
 	struct kvm_arch		arch;
+	struct kvm_config	cfg;
 	int			sys_fd;		/* For system ioctls(), i.e. /dev/kvm */
 	int			vm_fd;		/* For VM ioctls() */
 	timer_t			timerid;	/* Posix timer for interrupts */
@@ -53,15 +55,14 @@ struct kvm {
 	struct disk_image       **disks;
 	int                     nr_disks;
 
-	char			*name;
-
 	int			vm_state;
 };
 
 void kvm__set_dir(const char *fmt, ...);
 const char *kvm__get_dir(void);
 
-struct kvm *kvm__init(const char *kvm_dev, const char *hugetlbfs_path, u64 ram_size, const char *name);
+int kvm__init(struct kvm *kvm);
+struct kvm *kvm__new(void);
 int kvm__recommended_cpus(struct kvm *kvm);
 int kvm__max_cpus(struct kvm *kvm);
 void kvm__init_ram(struct kvm *kvm);

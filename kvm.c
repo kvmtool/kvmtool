@@ -121,7 +121,7 @@ static int kvm__check_extensions(struct kvm *kvm)
 	return 0;
 }
 
-static struct kvm *kvm__new(void)
+struct kvm *kvm__new(void)
 {
 	struct kvm *kvm = calloc(1, sizeof(*kvm));
 	if (!kvm)
@@ -146,11 +146,8 @@ static int kvm__create_socket(struct kvm *kvm)
 	/* This usually 108 bytes long */
 	BUILD_BUG_ON(sizeof(local.sun_path) < 32);
 
-	if (!kvm->name)
-		return -EINVAL;
-
 	snprintf(full_name, sizeof(full_name), "%s/%s%s",
-		 kvm__get_dir(), kvm->name, KVM_SOCK_SUFFIX);
+		 kvm__get_dir(), kvm->cfg.guest_name, KVM_SOCK_SUFFIX);
 	if (access(full_name, F_OK) == 0) {
 		pr_err("Socket file %s already exist", full_name);
 		return -EEXIST;
@@ -261,8 +258,7 @@ int kvm__exit(struct kvm *kvm)
 
 	kvm__arch_delete_ram(kvm);
 	kvm_ipc__stop();
-	kvm__remove_socket(kvm->name);
-	free(kvm->name);
+	kvm__remove_socket(kvm->cfg.guest_name);
 	free(kvm);
 
 	return 0;
@@ -338,9 +334,8 @@ int kvm__max_cpus(struct kvm *kvm)
 	return ret;
 }
 
-struct kvm *kvm__init(const char *kvm_dev, const char *hugetlbfs_path, u64 ram_size, const char *name)
+int kvm__init(struct kvm *kvm)
 {
-	struct kvm *kvm;
 	int ret;
 
 	if (!kvm__arch_cpu_supports_vm()) {
@@ -349,21 +344,17 @@ struct kvm *kvm__init(const char *kvm_dev, const char *hugetlbfs_path, u64 ram_s
 		goto err;
 	}
 
-	kvm = kvm__new();
-	if (IS_ERR(kvm))
-		return kvm;
-
-	kvm->sys_fd = open(kvm_dev, O_RDWR);
+	kvm->sys_fd = open(kvm->cfg.dev, O_RDWR);
 	if (kvm->sys_fd < 0) {
 		if (errno == ENOENT)
 			pr_err("'%s' not found. Please make sure your kernel has CONFIG_KVM "
-			       "enabled and that the KVM modules are loaded.", kvm_dev);
+			       "enabled and that the KVM modules are loaded.", kvm->cfg.dev);
 		else if (errno == ENODEV)
 			pr_err("'%s' KVM driver not available.\n  # (If the KVM "
 			       "module is loaded then 'dmesg' may offer further clues "
-			       "about the failure.)", kvm_dev);
+			       "about the failure.)", kvm->cfg.dev);
 		else
-			pr_err("Could not open %s: ", kvm_dev);
+			pr_err("Could not open %s: ", kvm->cfg.dev);
 
 		ret = -errno;
 		goto err_free;
@@ -382,19 +373,13 @@ struct kvm *kvm__init(const char *kvm_dev, const char *hugetlbfs_path, u64 ram_s
 		goto err_sys_fd;
 	}
 
-	kvm->name = strdup(name);
-	if (!kvm->name) {
-		ret = -ENOMEM;
-		goto err_vm_fd;
-	}
-
 	if (kvm__check_extensions(kvm)) {
 		pr_err("A required KVM extention is not supported by OS");
 		ret = -ENOSYS;
 		goto err_vm_fd;
 	}
 
-	kvm__arch_init(kvm, hugetlbfs_path, ram_size);
+	kvm__arch_init(kvm, kvm->cfg.hugetlbfs_path, kvm->cfg.ram_size);
 
 	ret = kvm_ipc__start(kvm__create_socket(kvm));
 	if (ret < 0) {
@@ -408,7 +393,7 @@ struct kvm *kvm__init(const char *kvm_dev, const char *hugetlbfs_path, u64 ram_s
 		goto err_ipc;
 	}
 
-	return kvm;
+	return 0;
 
 err_ipc:
 	kvm_ipc__stop();
@@ -419,7 +404,7 @@ err_sys_fd:
 err_free:
 	free(kvm);
 err:
-	return ERR_PTR(ret);
+	return ret;
 }
 
 /* RFC 1952 */
