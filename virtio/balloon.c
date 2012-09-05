@@ -243,8 +243,11 @@ struct virtio_ops bln_dev_virtio_ops = (struct virtio_ops) {
 	.get_size_vq		= get_size_vq,
 };
 
-void virtio_bln__init(struct kvm *kvm)
+int virtio_bln__init(struct kvm *kvm)
 {
+	if (!kvm->cfg.balloon)
+		return 0;
+
 	kvm_ipc__register_handler(KVM_IPC_BALLOON, handle_mem);
 	kvm_ipc__register_handler(KVM_IPC_STAT, virtio_bln__print_stats);
 
@@ -256,4 +259,11 @@ void virtio_bln__init(struct kvm *kvm)
 
 	if (compat_id == -1)
 		compat_id = virtio_compat_add_message("virtio-balloon", "CONFIG_VIRTIO_BALLOON");
+
+	return 0;
+}
+
+int virtio_bln__exit(struct kvm *kvm)
+{
+	return 0;
 }

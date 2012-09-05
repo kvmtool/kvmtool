@@ -1136,8 +1136,11 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 		goto fail;
 	}
 
-	if (kvm->cfg.balloon)
-		virtio_bln__init(kvm);
+	r = virtio_bln__init(kvm);
+	if (r < 0) {
+		pr_err("virtio_rng__init() failed with error %d\n", r);
+		goto fail;
+	}
 
 	if (!kvm->cfg.network)
 		kvm->cfg.network = DEFAULT_NETWORK;
@@ -1286,6 +1289,10 @@ static void kvm_cmd_run_exit(int guest_ret)
 	r = virtio_rng__exit(kvm);
 	if (r < 0)
 		pr_warning("virtio_rng__exit() failed with error %d\n", r);
+
+	r = virtio_bln__exit(kvm);
+	if (r < 0)
+		pr_warning("virtio_bln__exit() failed with error %d\n", r);
 
 	r = virtio_console__exit(kvm);
 	if (r < 0)
