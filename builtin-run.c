@@ -643,6 +643,9 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 	if (!kvm->cfg.vnc && !kvm->cfg.sdl)
 		kvm->cfg.vidmode = -1;
 
+	if (!kvm->cfg.network)
+                kvm->cfg.network = DEFAULT_NETWORK;
+
 	memset(real_cmdline, 0, sizeof(real_cmdline));
 	kvm__arch_set_cmdline(real_cmdline, kvm->cfg.vnc || kvm->cfg.sdl);
 
@@ -788,9 +791,6 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 		pr_err("virtio_rng__init() failed with error %d\n", r);
 		goto fail;
 	}
-
-	if (!kvm->cfg.network)
-		kvm->cfg.network = DEFAULT_NETWORK;
 
 	virtio_9p__init(kvm);
 
