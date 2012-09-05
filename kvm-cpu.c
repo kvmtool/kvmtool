@@ -92,7 +92,7 @@ int kvm_cpu__start(struct kvm_cpu *cpu)
 
 	kvm_cpu__reset_vcpu(cpu);
 
-	if (cpu->kvm->single_step)
+	if (cpu->kvm->cfg.single_step)
 		kvm_cpu__enable_singlestep(cpu);
 
 	while (cpu->is_running) {

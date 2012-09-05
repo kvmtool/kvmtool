@@ -1040,8 +1040,6 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 	if (r)
 		goto fail;
 
-	kvm->single_step = kvm->cfg.single_step;
-
 	r = ioeventfd__init(kvm);
 	if (r < 0) {
 		pr_err("ioeventfd__init() failed with error %d\n", r);

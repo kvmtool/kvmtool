@@ -42,14 +42,11 @@ struct kvm {
 	int			nrcpus;		/* Number of cpus to run */
 
 	u32			mem_slots;	/* for KVM_SET_USER_MEMORY_REGION */
-
 	u64			ram_size;
 	void			*ram_start;
 	u64			ram_pagesize;
 
 	bool			nmi_disabled;
-
-	bool			single_step;
 
 	const char		*vmlinux;
 	struct disk_image       **disks;
