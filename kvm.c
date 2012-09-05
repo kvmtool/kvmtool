@@ -246,6 +246,21 @@ int kvm__init(struct kvm *kvm)
 
 	kvm__arch_init(kvm, kvm->cfg.hugetlbfs_path, kvm->cfg.ram_size);
 
+	if (!kvm->cfg.firmware_filename) {
+		if (!kvm__load_kernel(kvm, kvm->cfg.kernel_filename,
+				kvm->cfg.initrd_filename, kvm->cfg.real_cmdline, kvm->cfg.vidmode))
+			die("unable to load kernel %s", kvm->cfg.kernel_filename);
+	}
+
+	if (kvm->cfg.firmware_filename) {
+		if (!kvm__load_firmware(kvm, kvm->cfg.firmware_filename))
+			die("unable to load firmware image %s: %s", kvm->cfg.firmware_filename, strerror(errno));
+	} else {
+		ret = kvm__arch_setup_firmware(kvm);
+		if (ret < 0)
+			die("kvm__arch_setup_firmware() failed with error %d\n", ret);
+	}
+
 	return 0;
 
 err_vm_fd:

@@ -594,6 +594,7 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 	}
 
 	kvm->cfg.vmlinux_filename = find_vmlinux();
+	kvm->vmlinux = kvm->cfg.vmlinux_filename;
 
 	if (kvm->cfg.nrcpus == 0)
 		kvm->cfg.nrcpus = nr_online_cpus;
@@ -642,11 +643,14 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 	if (!kvm->cfg.vnc && !kvm->cfg.sdl)
 		kvm->cfg.vidmode = -1;
 
-	r = term_init(kvm);
-	if (r < 0) {
-		pr_err("term_init() failed with error %d\n", r);
-		goto fail;
-	}
+	memset(real_cmdline, 0, sizeof(real_cmdline));
+	kvm__arch_set_cmdline(real_cmdline, kvm->cfg.vnc || kvm->cfg.sdl);
+
+	if (strlen(real_cmdline) > 0)
+		strcat(real_cmdline, " ");
+
+	if (kvm->cfg.kernel_cmdline)
+		strlcat(real_cmdline, kvm->cfg.kernel_cmdline, sizeof(real_cmdline));
 
 	if (!kvm->cfg.guest_name) {
 		if (kvm->cfg.custom_rootfs) {
@@ -656,49 +660,6 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 			kvm->cfg.guest_name = default_name;
 		}
 	}
-
-	r = kvm__init(kvm);
-	if (r)
-		goto fail;
-
-	r = ioeventfd__init(kvm);
-	if (r < 0) {
-		pr_err("ioeventfd__init() failed with error %d\n", r);
-		goto fail;
-	}
-
-	r = kvm_cpu__init(kvm);
-	if (r < 0) {
-		pr_err("kvm_cpu__init() failed with error %d\n", r);
-		goto fail;
-	}
-
-	r = irq__init(kvm);
-	if (r < 0) {
-		pr_err("irq__init() failed with error %d\n", r);
-		goto fail;
-	}
-
-	r = pci__init(kvm);
-	if (r < 0) {
-		pr_err("pci__init() failed with error %d\n", r);
-		goto fail;
-	}
-
-	r = ioport__init(kvm);
-	if (r < 0) {
-		pr_err("ioport__init() failed with error %d\n", r);
-		goto fail;
-	}
-
-	memset(real_cmdline, 0, sizeof(real_cmdline));
-	kvm__arch_set_cmdline(real_cmdline, kvm->cfg.vnc || kvm->cfg.sdl);
-
-	if (strlen(real_cmdline) > 0)
-		strcat(real_cmdline, " ");
-
-	if (kvm->cfg.kernel_cmdline)
-		strlcat(real_cmdline, kvm->cfg.kernel_cmdline, sizeof(real_cmdline));
 
 	if (!kvm->cfg.using_rootfs && !kvm->cfg.disk_image[0].filename && !kvm->cfg.initrd_filename) {
 		char tmp[PATH_MAX];
@@ -730,25 +691,61 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 		strlcat(real_cmdline, " root=/dev/vda rw ", sizeof(real_cmdline));
 	}
 
+	kvm->cfg.real_cmdline = real_cmdline;
+
+	printf("  # %s run -k %s -m %Lu -c %d --name %s\n", KVM_BINARY_NAME,
+		kvm->cfg.kernel_filename, kvm->cfg.ram_size / 1024 / 1024, kvm->cfg.nrcpus, kvm->cfg.guest_name);
+
+	r = kvm__init(kvm);
+	if (r)
+		goto fail;
+
+	r = term_init(kvm);
+	if (r < 0) {
+		pr_err("term_init() failed with error %d\n", r);
+		goto fail;
+	}
+
+
+	r = ioeventfd__init(kvm);
+	if (r < 0) {
+		pr_err("ioeventfd__init() failed with error %d\n", r);
+		goto fail;
+	}
+
+	r = kvm_cpu__init(kvm);
+	if (r < 0) {
+		pr_err("kvm_cpu__init() failed with error %d\n", r);
+		goto fail;
+	}
+
+	r = irq__init(kvm);
+	if (r < 0) {
+		pr_err("irq__init() failed with error %d\n", r);
+		goto fail;
+	}
+
+	r = pci__init(kvm);
+	if (r < 0) {
+		pr_err("pci__init() failed with error %d\n", r);
+		goto fail;
+	}
+
+	r = ioport__init(kvm);
+	if (r < 0) {
+		pr_err("ioport__init() failed with error %d\n", r);
+		goto fail;
+	}
+
 	r = disk_image__init(kvm);
 	if (r < 0) {
 		pr_err("disk_image__init() failed with error %d\n", r);
 		goto fail;
 	}
 
-	printf("  # %s run -k %s -m %Lu -c %d --name %s\n", KVM_BINARY_NAME,
-		kvm->cfg.kernel_filename, kvm->cfg.ram_size / 1024 / 1024, kvm->cfg.nrcpus, kvm->cfg.guest_name);
-
-	if (!kvm->cfg.firmware_filename) {
-		if (!kvm__load_kernel(kvm, kvm->cfg.kernel_filename,
-				kvm->cfg.initrd_filename, real_cmdline, kvm->cfg.vidmode))
-			die("unable to load kernel %s", kvm->cfg.kernel_filename);
-
-		kvm->vmlinux = kvm->cfg.vmlinux_filename;
-		r = symbol_init(kvm);
-		if (r < 0)
-			pr_debug("symbol_init() failed with error %d\n", r);
-	}
+	r = symbol_init(kvm);
+	if (r < 0)
+		pr_debug("symbol_init() failed with error %d\n", r);
 
 	ioport__setup_arch();
 
@@ -846,17 +843,6 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 	if (r < 0) {
 		pr_err("kvm_timer__init() failed with error %d\n", r);
 		goto fail;
-	}
-
-	if (kvm->cfg.firmware_filename) {
-		if (!kvm__load_firmware(kvm, kvm->cfg.firmware_filename))
-			die("unable to load firmware image %s: %s", kvm->cfg.firmware_filename, strerror(errno));
-	} else {
-		kvm__arch_setup_firmware(kvm);
-		if (r < 0) {
-			pr_err("kvm__arch_setup_firmware() failed with error %d\n", r);
-			goto fail;
-		}
 	}
 
 	r = thread_pool__init(kvm);
