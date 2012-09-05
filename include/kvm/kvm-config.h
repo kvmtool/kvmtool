@@ -24,6 +24,7 @@ struct kvm_config {
 	bool virtio_rng;
 	int active_console;
 	int debug_iodelay;
+	int nrcpus;
 	const char *kernel_cmdline;
 	const char *kernel_filename;
 	const char *vmlinux_filename;

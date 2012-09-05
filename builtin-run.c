@@ -61,7 +61,6 @@ static int  kvm_run_wrapper;
 
 bool do_debug_print = false;
 
-static int nrcpus;
 static int vidmode = -1;
 
 extern char _binary_guest_init_start;
@@ -377,7 +376,7 @@ static int shmem_parser(const struct option *opt, const char *arg, int unset)
 	OPT_GROUP("Basic options:"),					\
 	OPT_STRING('\0', "name", &(cfg)->guest_name, "guest name",	\
 			"A name for the guest"),			\
-	OPT_INTEGER('c', "cpus", &nrcpus, "Number of CPUs"),		\
+	OPT_INTEGER('c', "cpus", &(cfg)->nrcpus, "Number of CPUs"),	\
 	OPT_U64('m', "mem", &(cfg)->ram_size, "Virtual machine memory size\
 		in MiB."),						\
 	OPT_CALLBACK('\0', "shmem", NULL,				\
@@ -528,7 +527,7 @@ static void handle_debug(int fd, u32 type, u32 len, u8 *msg)
 	if (!(dbg_type & KVM_DEBUG_CMD_TYPE_DUMP))
 		return;
 
-	for (i = 0; i < nrcpus; i++) {
+	for (i = 0; i < kvm->nrcpus; i++) {
 		struct kvm_cpu *cpu = kvm_cpus[i];
 
 		if (!cpu)
@@ -947,11 +946,11 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 
 	kvm->cfg.vmlinux_filename = find_vmlinux();
 
-	if (nrcpus == 0)
-		nrcpus = nr_online_cpus;
+	if (kvm->cfg.nrcpus == 0)
+		kvm->cfg.nrcpus = nr_online_cpus;
 
 	if (!kvm->cfg.ram_size)
-		kvm->cfg.ram_size = get_ram_size(nrcpus);
+		kvm->cfg.ram_size = get_ram_size(kvm->cfg.nrcpus);
 
 	if (kvm->cfg.ram_size < MIN_RAM_SIZE_MB)
 		die("Not enough memory specified: %lluMB (min %lluMB)", kvm->cfg.ram_size, MIN_RAM_SIZE_MB);
@@ -1015,20 +1014,20 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 	max_cpus = kvm__max_cpus(kvm);
 	recommended_cpus = kvm__recommended_cpus(kvm);
 
-	if (nrcpus > max_cpus) {
+	if (kvm->cfg.nrcpus > max_cpus) {
 		printf("  # Limit the number of CPUs to %d\n", max_cpus);
-		nrcpus = max_cpus;
-	} else if (nrcpus > recommended_cpus) {
+		kvm->cfg.nrcpus = max_cpus;
+	} else if (kvm->cfg.nrcpus > recommended_cpus) {
 		printf("  # Warning: The maximum recommended amount of VCPUs"
 			" is %d\n", recommended_cpus);
 	}
 
-	kvm->nrcpus = nrcpus;
+	kvm->nrcpus = kvm->cfg.nrcpus;
 
 	/* Alloc one pointer too many, so array ends up 0-terminated */
-	kvm_cpus = calloc(nrcpus + 1, sizeof(void *));
+	kvm_cpus = calloc(kvm->nrcpus + 1, sizeof(void *));
 	if (!kvm_cpus)
-		die("Couldn't allocate array for %d CPUs", nrcpus);
+		die("Couldn't allocate array for %d CPUs", kvm->nrcpus);
 
 	r = irq__init(kvm);
 	if (r < 0) {
@@ -1105,7 +1104,7 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 	}
 
 	printf("  # %s run -k %s -m %Lu -c %d --name %s\n", KVM_BINARY_NAME,
-		kvm->cfg.kernel_filename, kvm->cfg.ram_size / 1024 / 1024, nrcpus, kvm->cfg.guest_name);
+		kvm->cfg.kernel_filename, kvm->cfg.ram_size / 1024 / 1024, kvm->cfg.nrcpus, kvm->cfg.guest_name);
 
 	if (!kvm->cfg.firmware_filename) {
 		if (!kvm__load_kernel(kvm, kvm->cfg.kernel_filename,
@@ -1235,7 +1234,7 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 		}
 	}
 
-	for (i = 0; i < nrcpus; i++) {
+	for (i = 0; i < kvm->nrcpus; i++) {
 		kvm_cpus[i] = kvm_cpu__init(kvm, i);
 		if (!kvm_cpus[i])
 			die("unable to initialize KVM VCPU");
@@ -1251,7 +1250,7 @@ static int kvm_cmd_run_work(void)
 	int i, r = -1;
 	void *ret = NULL;
 
-	for (i = 0; i < nrcpus; i++) {
+	for (i = 0; i < kvm->nrcpus; i++) {
 		if (pthread_create(&kvm_cpus[i]->thread, NULL, kvm_cpu_thread, kvm_cpus[i]) != 0)
 			die("unable to create KVM VCPU thread");
 	}
@@ -1263,7 +1262,7 @@ static int kvm_cmd_run_work(void)
 	kvm_cpu__delete(kvm_cpus[0]);
 	kvm_cpus[0] = NULL;
 
-	for (i = 1; i < nrcpus; i++) {
+	for (i = 1; i < kvm->nrcpus; i++) {
 		if (kvm_cpus[i]->is_running) {
 			pthread_kill(kvm_cpus[i]->thread, SIGKVMEXIT);
 			if (pthread_join(kvm_cpus[i]->thread, &ret) != 0)
