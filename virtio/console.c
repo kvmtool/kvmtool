@@ -182,10 +182,20 @@ static struct virtio_ops con_dev_virtio_ops = (struct virtio_ops) {
 	.get_size_vq		= get_size_vq,
 };
 
-void virtio_console__init(struct kvm *kvm)
+int virtio_console__init(struct kvm *kvm)
 {
+	if (kvm->cfg.active_console != CONSOLE_VIRTIO)
+		return 0;
+
 	virtio_init(kvm, &cdev, &cdev.vdev, &con_dev_virtio_ops,
 		    VIRTIO_PCI, PCI_DEVICE_ID_VIRTIO_CONSOLE, VIRTIO_ID_CONSOLE, PCI_CLASS_CONSOLE);
 	if (compat_id == -1)
 		compat_id = virtio_compat_add_message("virtio-console", "CONFIG_VIRTIO_CONSOLE");
+
+	return 0;
+}
+
+int virtio_console__exit(struct kvm *kvm)
+{
+	return 0;
 }

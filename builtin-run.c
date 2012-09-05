@@ -1124,9 +1124,11 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 		goto fail;
 	}
 
-
-	if (kvm->cfg.active_console == CONSOLE_VIRTIO)
-		virtio_console__init(kvm);
+	r = virtio_console__init(kvm);
+	if (r < 0) {
+		pr_err("virtio_console__init() failed with error %d\n", r);
+		goto fail;
+	}
 
 	if (kvm->cfg.virtio_rng)
 		virtio_rng__init(kvm);
@@ -1281,6 +1283,10 @@ static void kvm_cmd_run_exit(int guest_ret)
 	r = virtio_rng__exit(kvm);
 	if (r < 0)
 		pr_warning("virtio_rng__exit() failed with error %d\n", r);
+
+	r = virtio_console__exit(kvm);
+	if (r < 0)
+		pr_warning("virtio_console__exit() failed with error %d\n", r);
 
 	r = disk_image__exit(kvm);
 	if (r < 0)
