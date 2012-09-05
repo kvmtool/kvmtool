@@ -747,8 +747,6 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 	if (r < 0)
 		pr_debug("symbol_init() failed with error %d\n", r);
 
-	ioport__setup_arch();
-
 	r = rtc__init(kvm);
 	if (r < 0) {
 		pr_err("rtc__init() failed with error %d\n", r);

@@ -184,6 +184,8 @@ error:
 
 int ioport__init(struct kvm *kvm)
 {
+	ioport__setup_arch();
+
 	return 0;
 }
 
