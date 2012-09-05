@@ -57,7 +57,6 @@ struct kvm *kvm;
 struct kvm_cpu **kvm_cpus;
 __thread struct kvm_cpu *current_kvm_cpu;
 
-extern bool mmio_debug;
 static int  kvm_run_wrapper;
 extern int  active_console;
 extern int  debug_iodelay;
@@ -472,7 +471,7 @@ static int shmem_parser(const struct option *opt, const char *arg, int unset)
 			"Enable single stepping"),			\
 	OPT_BOOLEAN('\0', "debug-ioport", &(cfg)->ioport_debug,		\
 			"Enable ioport debugging"),			\
-	OPT_BOOLEAN('\0', "debug-mmio", &mmio_debug,			\
+	OPT_BOOLEAN('\0', "debug-mmio", &(cfg)->mmio_debug,		\
 			"Enable MMIO debugging"),			\
 	OPT_INTEGER('\0', "debug-iodelay", &debug_iodelay,		\
 			"Delay IO by millisecond"),			\

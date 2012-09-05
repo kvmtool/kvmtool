@@ -49,6 +49,7 @@ struct kvm_config {
 	bool no_net;
 	bool no_dhcp;
 	bool ioport_debug;
+	bool mmio_debug;
 };
 
 #endif
