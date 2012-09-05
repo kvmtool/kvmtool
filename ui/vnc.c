@@ -2,11 +2,13 @@
 
 #include "kvm/framebuffer.h"
 #include "kvm/i8042.h"
+#include "kvm/vesa.h"
 
 #include <linux/types.h>
 #include <rfb/keysym.h>
 #include <rfb/rfb.h>
 #include <pthread.h>
+#include <linux/err.h>
 
 #define VESA_QUEUE_SIZE		128
 #define VESA_IRQ		14
@@ -219,12 +221,23 @@ static struct fb_target_operations vnc_ops = {
 	.stop	= vnc__stop,
 };
 
-int vnc__init(struct framebuffer *fb)
+int vnc__init(struct kvm *kvm)
 {
+	struct framebuffer *fb;
+
+	if (!kvm->cfg.vnc)
+		return 0;
+
+	fb = vesa__init(kvm);
+	if (IS_ERR(fb)) {
+		pr_err("vesa__init() failed with error %ld\n", PTR_ERR(fb));
+		return PTR_ERR(fb);
+	}
+
 	return fb__attach(fb, &vnc_ops);
 }
 
-int vnc__exit(struct framebuffer *fb)
+int vnc__exit(struct kvm *kvm)
 {
-	return vnc__stop(fb);
+	return vnc__stop(NULL);
 }

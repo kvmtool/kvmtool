@@ -60,8 +60,6 @@ static int  kvm_run_wrapper;
 
 bool do_debug_print = false;
 
-static int vidmode = -1;
-
 extern char _binary_guest_init_start;
 extern char _binary_guest_init_size;
 
@@ -201,7 +199,7 @@ static int virtio_9p_rootdir_parser(const struct option *opt, const char *arg, i
 			in rootfs mode"),				\
 									\
 	OPT_GROUP("BIOS options:"),					\
-	OPT_INTEGER('\0', "vidmode", &vidmode,				\
+	OPT_INTEGER('\0', "vidmode", &(cfg)->vidmode,			\
 		    "Video mode"),					\
 									\
 	OPT_GROUP("Debug options:"),					\
@@ -530,7 +528,6 @@ static void kvm_run_write_sandbox_cmd(const char **argv, int argc)
 static int kvm_cmd_run_init(int argc, const char **argv)
 {
 	static char real_cmdline[2048], default_name[20];
-	struct framebuffer *fb = NULL;
 	unsigned int nr_online_cpus;
 	int r;
 
@@ -642,6 +639,9 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 	if (!kvm->cfg.script)
 		kvm->cfg.script = DEFAULT_SCRIPT;
 
+	if (!kvm->cfg.vnc && !kvm->cfg.sdl)
+		kvm->cfg.vidmode = -1;
+
 	r = term_init(kvm);
 	if (r < 0) {
 		pr_err("term_init() failed with error %d\n", r);
@@ -689,17 +689,6 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 	if (r < 0) {
 		pr_err("ioport__init() failed with error %d\n", r);
 		goto fail;
-	}
-
-	/*
-	 * vidmode should be either specified
-	 * either set by default
-	 */
-	if (kvm->cfg.vnc || kvm->cfg.sdl) {
-		if (vidmode == -1)
-			vidmode = 0x312;
-	} else {
-		vidmode = 0;
 	}
 
 	memset(real_cmdline, 0, sizeof(real_cmdline));
@@ -752,7 +741,7 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 
 	if (!kvm->cfg.firmware_filename) {
 		if (!kvm__load_kernel(kvm, kvm->cfg.kernel_filename,
-				kvm->cfg.initrd_filename, real_cmdline, vidmode))
+				kvm->cfg.initrd_filename, real_cmdline, kvm->cfg.vidmode))
 			die("unable to load kernel %s", kvm->cfg.kernel_filename);
 
 		kvm->vmlinux = kvm->cfg.vmlinux_filename;
@@ -830,28 +819,16 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 		goto fail;
 	}
 
-	if (kvm->cfg.vnc || kvm->cfg.sdl) {
-		fb = vesa__init(kvm);
-		if (IS_ERR(fb)) {
-			pr_err("vesa__init() failed with error %ld\n", PTR_ERR(fb));
-			goto fail;
-		}
+	r = vnc__init(kvm);
+	if (r < 0) {
+		pr_err("vnc__init() failed with error %d\n", r);
+		goto fail;
 	}
 
-	if (kvm->cfg.vnc && fb) {
-		r = vnc__init(fb);
-		if (r < 0) {
-			pr_err("vnc__init() failed with error %d\n", r);
-			goto fail;
-		}
-	}
-
-	if (kvm->cfg.sdl && fb) {
-		sdl__init(fb);
-		if (r < 0) {
-			pr_err("sdl__init() failed with error %d\n", r);
-			goto fail;
-		}
+	r = sdl__init(kvm);
+	if (r < 0) {
+		pr_err("sdl__init() failed with error %d\n", r);
+		goto fail;
 	}
 
 	r = fb__init(kvm);

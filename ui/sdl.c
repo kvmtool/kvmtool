@@ -5,10 +5,12 @@
 #include "kvm/util.h"
 #include "kvm/kvm.h"
 #include "kvm/kvm-cpu.h"
+#include "kvm/vesa.h"
 
 #include <SDL/SDL.h>
 #include <pthread.h>
 #include <signal.h>
+#include <linux/err.h>
 
 #define FRAME_RATE		25
 
@@ -292,12 +294,23 @@ static struct fb_target_operations sdl_ops = {
 	.stop	= sdl__stop,
 };
 
-int sdl__init(struct framebuffer *fb)
+int sdl__init(struct kvm *kvm)
 {
+	struct framebuffer *fb;
+
+	if (!kvm->cfg.sdl)
+		return 0;
+
+	fb = vesa__init(kvm);
+	if (IS_ERR(fb)) {
+		pr_err("vesa__init() failed with error %ld\n", PTR_ERR(fb));
+		return PTR_ERR(fb);
+	}
+
 	return fb__attach(fb, &sdl_ops);
 }
 
-int sdl__exit(struct framebuffer *fb)
+int sdl__exit(struct kvm *kvm)
 {
-	return sdl__stop(fb);
+	return sdl__stop(NULL);
 }

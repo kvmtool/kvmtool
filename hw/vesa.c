@@ -53,6 +53,9 @@ struct framebuffer *vesa__init(struct kvm *kvm)
 	char *mem;
 	int r;
 
+	if (!kvm->cfg.vnc && !kvm->cfg.sdl)
+		return NULL;
+
 	r = irq__register_device(PCI_DEVICE_ID_VESA, &dev, &pin, &line);
 	if (r < 0)
 		return ERR_PTR(r);
