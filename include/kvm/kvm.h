@@ -40,6 +40,7 @@ struct kvm {
 	timer_t			timerid;	/* Posix timer for interrupts */
 
 	int			nrcpus;		/* Number of cpus to run */
+	struct kvm_cpu		**cpus;
 
 	u32			mem_slots;	/* for KVM_SET_USER_MEMORY_REGION */
 	u64			ram_size;

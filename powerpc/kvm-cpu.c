@@ -57,7 +57,7 @@ void kvm_cpu__delete(struct kvm_cpu *vcpu)
 	free(vcpu);
 }
 
-struct kvm_cpu *kvm_cpu__init(struct kvm *kvm, unsigned long cpu_id)
+struct kvm_cpu *kvm_cpu__arch_init(struct kvm *kvm, unsigned long cpu_id)
 {
 	struct kvm_cpu *vcpu;
 	int mmap_size;

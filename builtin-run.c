@@ -54,7 +54,6 @@
 #define GB_SHIFT		(30)
 
 struct kvm *kvm;
-struct kvm_cpu **kvm_cpus;
 __thread struct kvm_cpu *current_kvm_cpu;
 
 static int  kvm_run_wrapper;
@@ -520,15 +519,15 @@ static void handle_debug(int fd, u32 type, u32 len, u8 *msg)
 		if ((int)vcpu >= kvm->nrcpus)
 			return;
 
-		kvm_cpus[vcpu]->needs_nmi = 1;
-		pthread_kill(kvm_cpus[vcpu]->thread, SIGUSR1);
+		kvm->cpus[vcpu]->needs_nmi = 1;
+		pthread_kill(kvm->cpus[vcpu]->thread, SIGUSR1);
 	}
 
 	if (!(dbg_type & KVM_DEBUG_CMD_TYPE_DUMP))
 		return;
 
 	for (i = 0; i < kvm->nrcpus; i++) {
-		struct kvm_cpu *cpu = kvm_cpus[i];
+		struct kvm_cpu *cpu = kvm->cpus[i];
 
 		if (!cpu)
 			continue;
@@ -561,7 +560,7 @@ static void handle_stop(int fd, u32 type, u32 len, u8 *msg)
 	if (WARN_ON(type != KVM_IPC_STOP || len))
 		return;
 
-	kvm_cpu__reboot();
+	kvm_cpu__reboot(kvm);
 }
 
 static void *kvm_cpu_thread(void *arg)
@@ -873,7 +872,6 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 	static char real_cmdline[2048], default_name[20];
 	struct framebuffer *fb = NULL;
 	unsigned int nr_online_cpus;
-	int max_cpus, recommended_cpus;
 	int i, r;
 
 	kvm = kvm__new();
@@ -1011,23 +1009,11 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 		goto fail;
 	}
 
-	max_cpus = kvm__max_cpus(kvm);
-	recommended_cpus = kvm__recommended_cpus(kvm);
-
-	if (kvm->cfg.nrcpus > max_cpus) {
-		printf("  # Limit the number of CPUs to %d\n", max_cpus);
-		kvm->cfg.nrcpus = max_cpus;
-	} else if (kvm->cfg.nrcpus > recommended_cpus) {
-		printf("  # Warning: The maximum recommended amount of VCPUs"
-			" is %d\n", recommended_cpus);
+	r = kvm_cpu__init(kvm);
+	if (r < 0) {
+		pr_err("kvm_cpu__init() failed with error %d\n", r);
+		goto fail;
 	}
-
-	kvm->nrcpus = kvm->cfg.nrcpus;
-
-	/* Alloc one pointer too many, so array ends up 0-terminated */
-	kvm_cpus = calloc(kvm->nrcpus + 1, sizeof(void *));
-	if (!kvm_cpus)
-		die("Couldn't allocate array for %d CPUs", kvm->nrcpus);
 
 	r = irq__init(kvm);
 	if (r < 0) {
@@ -1217,7 +1203,8 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 		goto fail;
 	}
 
-	/* Device init all done; firmware init must
+	/*
+	 * Device init all done; firmware init must
 	 * come after this (it may set up device trees etc.)
 	 */
 
@@ -1234,12 +1221,6 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 		}
 	}
 
-	for (i = 0; i < kvm->nrcpus; i++) {
-		kvm_cpus[i] = kvm_cpu__init(kvm, i);
-		if (!kvm_cpus[i])
-			die("unable to initialize KVM VCPU");
-	}
-
 	thread_pool__init(nr_online_cpus);
 fail:
 	return r;
@@ -1247,33 +1228,16 @@ fail:
 
 static int kvm_cmd_run_work(void)
 {
-	int i, r = -1;
+	int i;
 	void *ret = NULL;
 
 	for (i = 0; i < kvm->nrcpus; i++) {
-		if (pthread_create(&kvm_cpus[i]->thread, NULL, kvm_cpu_thread, kvm_cpus[i]) != 0)
+		if (pthread_create(&kvm->cpus[i]->thread, NULL, kvm_cpu_thread, kvm->cpus[i]) != 0)
 			die("unable to create KVM VCPU thread");
 	}
 
 	/* Only VCPU #0 is going to exit by itself when shutting down */
-	if (pthread_join(kvm_cpus[0]->thread, &ret) != 0)
-		r = 0;
-
-	kvm_cpu__delete(kvm_cpus[0]);
-	kvm_cpus[0] = NULL;
-
-	for (i = 1; i < kvm->nrcpus; i++) {
-		if (kvm_cpus[i]->is_running) {
-			pthread_kill(kvm_cpus[i]->thread, SIGKVMEXIT);
-			if (pthread_join(kvm_cpus[i]->thread, &ret) != 0)
-				die("pthread_join");
-			kvm_cpu__delete(kvm_cpus[i]);
-		}
-		if (ret == NULL)
-			r = 0;
-	}
-
-	return r;
+	return pthread_join(kvm->cpus[0]->thread, &ret);
 }
 
 static void kvm_cmd_run_exit(int guest_ret)
@@ -1281,6 +1245,10 @@ static void kvm_cmd_run_exit(int guest_ret)
 	int r = 0;
 
 	compat__print_all_messages();
+
+	r = kvm_cpu__exit(kvm);
+	if (r < 0)
+		pr_warning("kvm_cpu__exit() failed with error %d\n", r);
 
 	r = symbol_exit(kvm);
 	if (r < 0)
@@ -1335,8 +1303,6 @@ static void kvm_cmd_run_exit(int guest_ret)
 	r = kvm__exit(kvm);
 	if (r < 0)
 		pr_warning("pci__exit() failed with error %d\n", r);
-
-	free(kvm_cpus);
 
 	if (guest_ret == 0)
 		printf("\n  # KVM session ended normally.\n");

@@ -261,7 +261,7 @@ static void *sdl__thread(void *p)
 		return NULL;
 	}
 exit:
-	kvm_cpu__reboot();
+	kvm_cpu__reboot(fb->kvm);
 
 	return NULL;
 }

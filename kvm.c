@@ -536,7 +536,7 @@ void kvm__pause(void)
 	int i, paused_vcpus = 0;
 
 	/* Check if the guest is running */
-	if (!kvm_cpus[0] || kvm_cpus[0]->thread == 0)
+	if (!kvm->cpus[0] || kvm->cpus[0]->thread == 0)
 		return;
 
 	mutex_lock(&pause_lock);
@@ -545,7 +545,7 @@ void kvm__pause(void)
 	if (pause_event < 0)
 		die("Failed creating pause notification event");
 	for (i = 0; i < kvm->nrcpus; i++)
-		pthread_kill(kvm_cpus[i]->thread, SIGKVMPAUSE);
+		pthread_kill(kvm->cpus[i]->thread, SIGKVMPAUSE);
 
 	while (paused_vcpus < kvm->nrcpus) {
 		u64 cur_read;
@@ -560,7 +560,7 @@ void kvm__pause(void)
 void kvm__continue(void)
 {
 	/* Check if the guest is running */
-	if (!kvm_cpus[0] || kvm_cpus[0]->thread == 0)
+	if (!kvm->cpus[0] || kvm->cpus[0]->thread == 0)
 		return;
 
 	mutex_unlock(&pause_lock);

@@ -80,6 +80,7 @@ struct framebuffer *vesa__init(struct kvm *kvm)
 		.mem			= mem,
 		.mem_addr		= VESA_MEM_ADDR,
 		.mem_size		= VESA_MEM_SIZE,
+		.kvm			= kvm,
 	};
 	return fb__register(&vesafb);
 }

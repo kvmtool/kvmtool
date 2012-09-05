@@ -90,7 +90,7 @@ static int kvm_cpu__set_lint(struct kvm_cpu *vcpu)
 	return ioctl(vcpu->vcpu_fd, KVM_SET_LAPIC, &lapic);
 }
 
-struct kvm_cpu *kvm_cpu__init(struct kvm *kvm, unsigned long cpu_id)
+struct kvm_cpu *kvm_cpu__arch_init(struct kvm *kvm, unsigned long cpu_id)
 {
 	struct kvm_cpu *vcpu;
 	int mmap_size;

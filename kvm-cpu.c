@@ -12,7 +12,6 @@
 #include <errno.h>
 #include <stdio.h>
 
-extern struct kvm_cpu **kvm_cpus;
 extern __thread struct kvm_cpu *current_kvm_cpu;
 
 void kvm_cpu__enable_singlestep(struct kvm_cpu *vcpu)
@@ -65,14 +64,14 @@ static void kvm_cpu__handle_coalesced_mmio(struct kvm_cpu *cpu)
 	}
 }
 
-void kvm_cpu__reboot(void)
+void kvm_cpu__reboot(struct kvm *kvm)
 {
 	int i;
 
-	/* The kvm_cpus array contains a null pointer in the last location */
+	/* The kvm->cpus array contains a null pointer in the last location */
 	for (i = 0; ; i++) {
-		if (kvm_cpus[i])
-			pthread_kill(kvm_cpus[i]->thread, SIGKVMEXIT);
+		if (kvm->cpus[i])
+			pthread_kill(kvm->cpus[i]->thread, SIGKVMEXIT);
 		else
 			break;
 	}
@@ -172,4 +171,70 @@ exit_kvm:
 
 panic_kvm:
 	return 1;
+}
+
+int kvm_cpu__init(struct kvm *kvm)
+{
+	int max_cpus, recommended_cpus, i;
+
+	max_cpus = kvm__max_cpus(kvm);
+	recommended_cpus = kvm__recommended_cpus(kvm);
+
+	if (kvm->cfg.nrcpus > max_cpus) {
+		printf("  # Limit the number of CPUs to %d\n", max_cpus);
+		kvm->cfg.nrcpus = max_cpus;
+	} else if (kvm->cfg.nrcpus > recommended_cpus) {
+		printf("  # Warning: The maximum recommended amount of VCPUs"
+			" is %d\n", recommended_cpus);
+	}
+
+	kvm->nrcpus = kvm->cfg.nrcpus;
+
+	/* Alloc one pointer too many, so array ends up 0-terminated */
+	kvm->cpus = calloc(kvm->nrcpus + 1, sizeof(void *));
+	if (!kvm->cpus) {
+		pr_warning("Couldn't allocate array for %d CPUs", kvm->nrcpus);
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < kvm->nrcpus; i++) {
+		kvm->cpus[i] = kvm_cpu__arch_init(kvm, i);
+		if (!kvm->cpus[i]) {
+			pr_warning("unable to initialize KVM VCPU");
+			goto fail_alloc;
+		}
+	}
+
+	return 0;
+
+fail_alloc:
+	for (i = 0; i < kvm->nrcpus; i++)
+		free(kvm->cpus[i]);
+	return -ENOMEM;
+}
+
+int kvm_cpu__exit(struct kvm *kvm)
+{
+	int i, r;
+	void *ret = NULL;
+
+	kvm_cpu__delete(kvm->cpus[0]);
+	kvm->cpus[0] = NULL;
+
+	for (i = 1; i < kvm->nrcpus; i++) {
+		if (kvm->cpus[i]->is_running) {
+			pthread_kill(kvm->cpus[i]->thread, SIGKVMEXIT);
+			if (pthread_join(kvm->cpus[i]->thread, &ret) != 0)
+				die("pthread_join");
+			kvm_cpu__delete(kvm->cpus[i]);
+		}
+		if (ret == NULL)
+			r = 0;
+	}
+
+	free(kvm->cpus);
+
+	kvm->nrcpus = 0;
+
+	return r;
 }
