@@ -95,12 +95,13 @@ static struct serial8250_device devices[] = {
 	},
 };
 
-static void serial8250_flush_tx(struct serial8250_device *dev)
+static void serial8250_flush_tx(struct kvm *kvm, struct serial8250_device *dev)
 {
 	dev->lsr |= UART_LSR_TEMT | UART_LSR_THRE;
 
 	if (dev->txcnt) {
-		term_putc(CONSOLE_8250, dev->txbuf, dev->txcnt, dev->id);
+		if (kvm->cfg.active_console == CONSOLE_8250)
+			term_putc(dev->txbuf, dev->txcnt, dev->id);
 		dev->txcnt = 0;
 	}
 }
@@ -149,7 +150,7 @@ static void serial8250_update_irq(struct kvm *kvm, struct serial8250_device *dev
 	 * here.
 	 */
 	if (!(dev->ier & UART_IER_THRI))
-		serial8250_flush_tx(dev);
+		serial8250_flush_tx(kvm, dev);
 }
 
 #define SYSRQ_PENDING_NONE		0
@@ -175,7 +176,7 @@ static void serial8250__receive(struct kvm *kvm, struct serial8250_device *dev,
 	 * should give the kernel the desired pause. That also flushes
 	 * the tx fifo to the terminal.
 	 */
-	serial8250_flush_tx(dev);
+	serial8250_flush_tx(kvm, dev);
 
 	if (dev->mcr & UART_MCR_LOOP)
 		return;
@@ -188,10 +189,13 @@ static void serial8250__receive(struct kvm *kvm, struct serial8250_device *dev,
 		return;
 	}
 
-	while (term_readable(CONSOLE_8250, dev->id) &&
+	if (kvm->cfg.active_console != CONSOLE_8250)
+		return;
+
+	while (term_readable(dev->id) &&
 	       dev->rxcnt < FIFO_LEN) {
 
-		c = term_getc(CONSOLE_8250, dev->id);
+		c = term_getc(dev->id);
 
 		if (c < 0)
 			break;

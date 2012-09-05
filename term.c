@@ -23,16 +23,12 @@ static struct termios	orig_term;
 int term_escape_char	= 0x01; /* ctrl-a is used for escape */
 bool term_got_escape	= false;
 
-int active_console;
-
 int term_fds[4][2];
 
-int term_getc(int who, int term)
+int term_getc(int term)
 {
 	unsigned char c;
 
-	if (who != active_console)
-		return -1;
 	if (read_in_full(term_fds[term][TERM_FD_IN], &c, 1) < 0)
 		return -1;
 
@@ -52,12 +48,9 @@ int term_getc(int who, int term)
 	return c;
 }
 
-int term_putc(int who, char *addr, int cnt, int term)
+int term_putc(char *addr, int cnt, int term)
 {
 	int ret;
-
-	if (who != active_console)
-		return -1;
 
 	while (cnt--) {
 		ret = write(term_fds[term][TERM_FD_OUT], addr++, 1);
@@ -68,14 +61,11 @@ int term_putc(int who, char *addr, int cnt, int term)
 	return cnt;
 }
 
-int term_getc_iov(int who, struct iovec *iov, int iovcnt, int term)
+int term_getc_iov(struct iovec *iov, int iovcnt, int term)
 {
 	int c;
 
-	if (who != active_console)
-		return 0;
-
-	c = term_getc(who, term);
+	c = term_getc(term);
 
 	if (c < 0)
 		return 0;
@@ -85,24 +75,18 @@ int term_getc_iov(int who, struct iovec *iov, int iovcnt, int term)
 	return sizeof(char);
 }
 
-int term_putc_iov(int who, struct iovec *iov, int iovcnt, int term)
+int term_putc_iov(struct iovec *iov, int iovcnt, int term)
 {
-	if (who != active_console)
-		return 0;
-
 	return writev(term_fds[term][TERM_FD_OUT], iov, iovcnt);
 }
 
-bool term_readable(int who, int term)
+bool term_readable(int term)
 {
 	struct pollfd pollfd = (struct pollfd) {
 		.fd	= term_fds[term][TERM_FD_IN],
 		.events	= POLLIN,
 		.revents = 0,
 	};
-
-	if (who != active_console)
-		return false;
 
 	return poll(&pollfd, 1, 0) > 0;
 }

@@ -58,7 +58,6 @@ struct kvm_cpu **kvm_cpus;
 __thread struct kvm_cpu *current_kvm_cpu;
 
 static int  kvm_run_wrapper;
-extern int  active_console;
 extern int  debug_iodelay;
 
 bool do_debug_print = false;
@@ -1000,11 +999,11 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 		kvm->cfg.console = DEFAULT_CONSOLE;
 
 	if (!strncmp(kvm->cfg.console, "virtio", 6))
-		active_console  = CONSOLE_VIRTIO;
+		kvm->cfg.active_console  = CONSOLE_VIRTIO;
 	else if (!strncmp(kvm->cfg.console, "serial", 6))
-		active_console  = CONSOLE_8250;
+		kvm->cfg.active_console  = CONSOLE_8250;
 	else if (!strncmp(kvm->cfg.console, "hv", 2))
-		active_console = CONSOLE_HV;
+		kvm->cfg.active_console = CONSOLE_HV;
 	else
 		pr_warning("No console!");
 
@@ -1182,7 +1181,7 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 	}
 
 
-	if (active_console == CONSOLE_VIRTIO)
+	if (kvm->cfg.active_console == CONSOLE_VIRTIO)
 		virtio_console__init(kvm);
 
 	if (kvm->cfg.virtio_rng)

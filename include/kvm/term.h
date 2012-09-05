@@ -8,12 +8,12 @@
 #define CONSOLE_VIRTIO	2
 #define CONSOLE_HV	3
 
-int term_putc_iov(int who, struct iovec *iov, int iovcnt, int term);
-int term_getc_iov(int who, struct iovec *iov, int iovcnt, int term);
-int term_putc(int who, char *addr, int cnt, int term);
-int term_getc(int who, int term);
+int term_putc_iov(struct iovec *iov, int iovcnt, int term);
+int term_getc_iov(struct iovec *iov, int iovcnt, int term);
+int term_putc(char *addr, int cnt, int term);
+int term_getc(int term);
 
-bool term_readable(int who, int term);
+bool term_readable(int term);
 void term_set_tty(int term);
 void term_init(void);
 
