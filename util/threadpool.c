@@ -78,7 +78,7 @@ static void *thread_pool__threadfunc(void *param)
 	pthread_cleanup_push(thread_pool__threadfunc_cleanup, NULL);
 
 	while (running) {
-		struct thread_pool__job *curjob;
+		struct thread_pool__job *curjob = NULL;
 
 		mutex_lock(&job_mutex);
 		while (running && (curjob = thread_pool__job_pop_locked()) == NULL)
