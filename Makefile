@@ -322,18 +322,34 @@ $(OBJS):
 # This rule relaxes the -Werror on libfdt, since for now it still has
 # a bunch of warnings. :(
 ../../scripts/dtc/libfdt/%.o: ../../scripts/dtc/libfdt/%.c
+ifeq ($(C),1)
+	$(E) "  CHECK   " $@
+	$(Q) $(CHECK) -c $(CFLAGS_EASYGOING) $< -o $@
+endif
 	$(E) "  CC      " $@
 	$(Q) $(CC) -c $(CFLAGS_EASYGOING) $< -o $@
 
 util/rbtree.static.o util/rbtree.o: ../../lib/rbtree.c
+ifeq ($(C),1)
+	$(E) "  CHECK   " $@
+	$(Q) $(CHECK) -c $(CFLAGS) $< -o $@
+endif
 	$(E) "  CC      " $@
 	$(Q) $(CC) -c $(CFLAGS) $< -o $@
 
 %.static.o: %.c
+ifeq ($(C),1)
+	$(E) "  CHECK   " $@
+	$(Q) $(CHECK) -c $(CFLAGS) $(CFLAGS_STATOPT) $< -o $@
+endif
 	$(E) "  CC      " $@
 	$(Q) $(CC) -c $(CFLAGS) $(CFLAGS_STATOPT)  $< -o $@
 
 %.o: %.c
+ifeq ($(C),1)
+	$(E) "  CHECK   " $@
+	$(Q) $(CHECK) -c $(CFLAGS) $(CFLAGS_DYNOPT) $< -o $@
+endif
 	$(E) "  CC      " $@
 	$(Q) $(CC) -c $(CFLAGS) $(CFLAGS_DYNOPT) $< -o $@
 
