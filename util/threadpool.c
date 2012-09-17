@@ -1,5 +1,6 @@
 #include "kvm/threadpool.h"
 #include "kvm/mutex.h"
+#include "kvm/kvm.h"
 
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -131,6 +132,7 @@ int thread_pool__init(struct kvm *kvm)
 
 	return i;
 }
+late_init(thread_pool__init);
 
 int thread_pool__exit(struct kvm *kvm)
 {
@@ -151,6 +153,7 @@ int thread_pool__exit(struct kvm *kvm)
 
 	return 0;
 }
+late_exit(thread_pool__exit);
 
 void thread_pool__do_job(struct thread_pool__job *job)
 {

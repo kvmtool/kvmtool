@@ -176,6 +176,7 @@ cleanup:
 
 	return r;
 }
+virtio_dev_init(virtio_rng__init);
 
 int virtio_rng__exit(struct kvm *kvm)
 {
@@ -189,3 +190,4 @@ int virtio_rng__exit(struct kvm *kvm)
 
 	return 0;
 }
+virtio_dev_exit(virtio_rng__exit);

@@ -477,6 +477,7 @@ err_epoll:
 err:
 	return ret;
 }
+base_init(kvm_ipc__init);
 
 int kvm_ipc__exit(struct kvm *kvm)
 {
@@ -494,3 +495,4 @@ int kvm_ipc__exit(struct kvm *kvm)
 
 	return ret;
 }
+base_exit(kvm_ipc__exit);

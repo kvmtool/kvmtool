@@ -293,6 +293,7 @@ int virtio_scsi_init(struct kvm *kvm)
 cleanup:
 	return virtio_scsi_exit(kvm);
 }
+virtio_dev_init(virtio_scsi_init);
 
 int virtio_scsi_exit(struct kvm *kvm)
 {
@@ -305,3 +306,4 @@ int virtio_scsi_exit(struct kvm *kvm)
 
 	return 0;
 }
+virtio_dev_exit(virtio_scsi_exit);

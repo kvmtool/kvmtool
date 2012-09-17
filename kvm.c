@@ -140,6 +140,7 @@ int kvm__exit(struct kvm *kvm)
 
 	return 0;
 }
+core_exit(kvm__exit);
 
 /*
  * Note: KVM_SET_USER_MEMORY_REGION assumes that we don't pass overlapping
@@ -274,6 +275,7 @@ err_free:
 err:
 	return ret;
 }
+core_init(kvm__init);
 
 /* RFC 1952 */
 #define GZIP_ID1		0x1f
@@ -375,6 +377,7 @@ int kvm_timer__init(struct kvm *kvm)
 
 	return 0;
 }
+firmware_init(kvm_timer__init);
 
 int kvm_timer__exit(struct kvm *kvm)
 {
@@ -386,6 +389,7 @@ int kvm_timer__exit(struct kvm *kvm)
 
 	return 0;
 }
+firmware_exit(kvm_timer__exit);
 
 void kvm__dump_mem(struct kvm *kvm, unsigned long addr, unsigned long size)
 {

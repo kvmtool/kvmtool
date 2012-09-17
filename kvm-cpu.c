@@ -212,6 +212,7 @@ fail_alloc:
 		free(kvm->cpus[i]);
 	return -ENOMEM;
 }
+base_init(kvm_cpu__init);
 
 int kvm_cpu__exit(struct kvm *kvm)
 {
@@ -238,3 +239,4 @@ int kvm_cpu__exit(struct kvm *kvm)
 
 	return r;
 }
+late_exit(kvm_cpu__exit);

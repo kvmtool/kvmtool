@@ -15,7 +15,7 @@ int symbol_init(struct kvm *kvm)
 	int ret = 0;
 
 	if (!kvm->vmlinux)
-		return -EINVAL;
+		return 0;
 
 	bfd_init();
 
@@ -38,6 +38,7 @@ int symbol_init(struct kvm *kvm)
 
 	return ret;
 }
+late_init(symbol_init);
 
 static asymbol *lookup(asymbol **symbols, int nr_symbols, const char *symbol_name)
 {
@@ -129,3 +130,4 @@ int symbol_exit(struct kvm *kvm)
 
 	return -EFAULT;
 }
+late_exit(symbol_exit);

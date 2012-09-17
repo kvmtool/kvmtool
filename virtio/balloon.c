@@ -262,8 +262,10 @@ int virtio_bln__init(struct kvm *kvm)
 
 	return 0;
 }
+virtio_dev_init(virtio_bln__init);
 
 int virtio_bln__exit(struct kvm *kvm)
 {
 	return 0;
 }
+virtio_dev_exit(virtio_bln__exit);

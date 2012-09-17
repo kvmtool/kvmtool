@@ -299,6 +299,7 @@ int virtio_blk__init(struct kvm *kvm)
 cleanup:
 	return virtio_blk__exit(kvm);
 }
+virtio_dev_init(virtio_blk__init);
 
 int virtio_blk__exit(struct kvm *kvm)
 {
@@ -311,3 +312,4 @@ int virtio_blk__exit(struct kvm *kvm)
 
 	return 0;
 }
+virtio_dev_exit(virtio_blk__exit);

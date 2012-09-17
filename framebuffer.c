@@ -1,4 +1,5 @@
 #include "kvm/framebuffer.h"
+#include "kvm/kvm.h"
 
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -58,6 +59,7 @@ int fb__init(struct kvm *kvm)
 
 	return 0;
 }
+firmware_init(fb__init);
 
 int fb__exit(struct kvm *kvm)
 {
@@ -75,3 +77,4 @@ int fb__exit(struct kvm *kvm)
 
 	return 0;
 }
+firmware_exit(fb__exit);

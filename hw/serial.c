@@ -432,6 +432,7 @@ cleanup:
 
 	return r;
 }
+dev_init(serial8250__init);
 
 int serial8250__exit(struct kvm *kvm)
 {
@@ -448,3 +449,4 @@ int serial8250__exit(struct kvm *kvm)
 
 	return 0;
 }
+dev_exit(serial8250__exit);

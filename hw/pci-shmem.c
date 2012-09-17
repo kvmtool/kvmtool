@@ -396,8 +396,10 @@ int pci_shmem__init(struct kvm *kvm)
 			  mem);
 	return 0;
 }
+dev_init(pci_shmem__init);
 
 int pci_shmem__exit(struct kvm *kvm)
 {
 	return 0;
 }
+dev_exit(pci_shmem__exit);

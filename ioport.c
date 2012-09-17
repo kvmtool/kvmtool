@@ -188,9 +188,11 @@ int ioport__init(struct kvm *kvm)
 
 	return 0;
 }
+dev_base_init(ioport__init);
 
 int ioport__exit(struct kvm *kvm)
 {
 	ioport__unregister_all();
 	return 0;
 }
+dev_base_exit(ioport__exit);

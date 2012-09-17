@@ -172,6 +172,7 @@ int irq__init(struct kvm *kvm)
 
 	return 0;
 }
+dev_base_init(irq__init);
 
 int irq__exit(struct kvm *kvm)
 {
@@ -195,6 +196,7 @@ int irq__exit(struct kvm *kvm)
 
 	return 0;
 }
+dev_base_exit(irq__exit);
 
 int irq__add_msix_route(struct kvm *kvm, struct msi_msg *msg)
 {

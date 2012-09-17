@@ -194,8 +194,10 @@ int virtio_console__init(struct kvm *kvm)
 
 	return 0;
 }
+virtio_dev_init(virtio_console__init);
 
 int virtio_console__exit(struct kvm *kvm)
 {
 	return 0;
 }
+virtio_dev_exit(virtio_console__exit);

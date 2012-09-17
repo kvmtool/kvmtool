@@ -163,8 +163,10 @@ int term_init(struct kvm *kvm)
 
 	return 0;
 }
+dev_init(term_init);
 
 int term_exit(struct kvm *kvm)
 {
 	return 0;
 }
+dev_exit(term_exit);

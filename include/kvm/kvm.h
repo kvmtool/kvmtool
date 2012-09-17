@@ -3,6 +3,8 @@
 
 #include "kvm/kvm-arch.h"
 #include "kvm/kvm-config.h"
+#include "kvm/util-init.h"
+#include "kvm/kvm.h"
 
 #include <stdbool.h>
 #include <linux/types.h>

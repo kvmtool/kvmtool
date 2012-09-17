@@ -309,8 +309,13 @@ int sdl__init(struct kvm *kvm)
 
 	return fb__attach(fb, &sdl_ops);
 }
+dev_init(sdl__init);
 
 int sdl__exit(struct kvm *kvm)
 {
-	return sdl__stop(NULL);
+	if (kvm->cfg.sdl)
+		return sdl__stop(NULL);
+
+	return 0;
 }
+dev_exit(sdl__exit);

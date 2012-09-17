@@ -84,6 +84,7 @@ OBJS	+= net/uip/buf.o
 OBJS	+= net/uip/csum.o
 OBJS	+= net/uip/dhcp.o
 OBJS	+= kvm-cmd.o
+OBJS	+= util/init.o
 OBJS	+= util/rbtree.o
 OBJS	+= util/threadpool.o
 OBJS	+= util/parse-options.o

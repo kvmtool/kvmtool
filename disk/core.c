@@ -345,8 +345,10 @@ int disk_image__init(struct kvm *kvm)
 
 	return 0;
 }
+dev_base_init(disk_image__init);
 
 int disk_image__exit(struct kvm *kvm)
 {
 	return disk_image__close_all(kvm->disks, kvm->nr_disks);
 }
+dev_base_exit(disk_image__exit);

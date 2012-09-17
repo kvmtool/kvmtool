@@ -93,6 +93,7 @@ cleanup:
 
 	return r;
 }
+base_init(ioeventfd__init);
 
 int ioeventfd__exit(struct kvm *kvm)
 {
@@ -115,6 +116,7 @@ int ioeventfd__exit(struct kvm *kvm)
 
 	return 0;
 }
+base_exit(ioeventfd__exit);
 
 int ioeventfd__add_event(struct ioevent *ioevent, bool is_pio, bool poll_in_userspace)
 {

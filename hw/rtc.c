@@ -126,6 +126,7 @@ int rtc__init(struct kvm *kvm)
 
 	return r;
 }
+dev_init(rtc__init);
 
 int rtc__exit(struct kvm *kvm)
 {
@@ -135,3 +136,4 @@ int rtc__exit(struct kvm *kvm)
 
 	return 0;
 }
+dev_exit(rtc__exit);

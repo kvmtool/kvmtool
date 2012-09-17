@@ -1404,6 +1404,7 @@ int virtio_9p__init(struct kvm *kvm)
 
 	return 0;
 }
+virtio_dev_init(virtio_9p__init);
 
 int virtio_9p__register(struct kvm *kvm, const char *root, const char *tag_name)
 {

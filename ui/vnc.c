@@ -236,8 +236,13 @@ int vnc__init(struct kvm *kvm)
 
 	return fb__attach(fb, &vnc_ops);
 }
+dev_init(vnc__init);
 
 int vnc__exit(struct kvm *kvm)
 {
-	return vnc__stop(NULL);
+	if (kvm->cfg.vnc)
+		return vnc__stop(NULL);
+
+	return 0;
 }
+dev_exit(vnc__exit);

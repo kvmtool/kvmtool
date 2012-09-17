@@ -663,8 +663,10 @@ int virtio_net__init(struct kvm *kvm)
 
 	return 0;
 }
+virtio_dev_init(virtio_net__init);
 
 int virtio_net__exit(struct kvm *kvm)
 {
 	return 0;
 }
+virtio_dev_exit(virtio_net__exit);

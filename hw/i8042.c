@@ -352,3 +352,4 @@ int kbd__init(struct kvm *kvm)
 
 	return 0;
 }
+dev_init(kbd__init);
