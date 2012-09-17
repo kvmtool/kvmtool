@@ -9,11 +9,11 @@ struct framebuffer;
 int sdl__init(struct kvm *kvm);
 int sdl__exit(struct kvm *kvm);
 #else
-static inline void sdl__init(struct kvm *kvm)
+static inline int sdl__init(struct kvm *kvm)
 {
 	die("SDL support not compiled in. (install the SDL-dev[el] package)");
 }
-static inline void sdl__exit(struct kvm *kvm)
+static inline int sdl__exit(struct kvm *kvm)
 {
 	die("SDL support not compiled in. (install the SDL-dev[el] package)");
 }
