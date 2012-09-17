@@ -280,8 +280,10 @@ int mptable__init(struct kvm *kvm)
 
 	return 0;
 }
+firmware_init(mptable__init);
 
 int mptable__exit(struct kvm *kvm)
 {
 	return 0;
 }
+firmware_exit(mptable__exit);

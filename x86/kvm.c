@@ -342,27 +342,17 @@ bool load_bzimage(struct kvm *kvm, int fd_kernel,
  */
 int kvm__arch_setup_firmware(struct kvm *kvm)
 {
-	int r;
-
 	/* standart minimal configuration */
 	setup_bios(kvm);
 
 	/* FIXME: SMP, ACPI and friends here */
 
-	/* MP table */
-	r = mptable__init(kvm);
-
-	return r;
+	return 0;
 }
 
 int kvm__arch_free_firmware(struct kvm *kvm)
 {
-	int r;
-
-	/* MP table */
-	r = mptable__exit(kvm);
-
-	return r;
+	return 0;
 }
 
 void kvm__arch_periodic_poll(struct kvm *kvm)
