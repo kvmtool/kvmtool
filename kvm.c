@@ -358,6 +358,7 @@ int kvm_timer__init(struct kvm *kvm)
 	sev.sigev_value.sival_int	= 0;
 	sev.sigev_notify		= SIGEV_THREAD_ID;
 	sev.sigev_signo			= SIGALRM;
+	sev.sigev_value.sival_ptr	= kvm;
 	sev._sigev_un._tid		= syscall(__NR_gettid);
 
 	r = timer_create(CLOCK_REALTIME, &sev, &kvm->timerid);

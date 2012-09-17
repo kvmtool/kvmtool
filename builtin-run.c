@@ -163,8 +163,10 @@ void kvm_run_set_wrapper_sandbox(void)
 	OPT_END()							\
 	};
 
-static void handle_sigalrm(int sig)
+static void handle_sigalrm(int sig, siginfo_t *si, void *uc)
 {
+	struct kvm *kvm = si->si_value.sival_ptr;
+
 	kvm__arch_periodic_poll(kvm);
 }
 
@@ -476,12 +478,16 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 {
 	static char real_cmdline[2048], default_name[20];
 	unsigned int nr_online_cpus;
+	struct sigaction sa;
 
 	kvm = kvm__new();
 	if (IS_ERR(kvm))
 		return PTR_ERR(kvm);
 
-	signal(SIGALRM, handle_sigalrm);
+	sa.sa_flags = SA_SIGINFO;
+	sa.sa_sigaction = handle_sigalrm;
+	sigemptyset(&sa.sa_mask);
+	sigaction(SIGALRM, &sa, NULL);
 
 	nr_online_cpus = sysconf(_SC_NPROCESSORS_ONLN);
 	kvm->cfg.custom_rootfs_name = "default";
