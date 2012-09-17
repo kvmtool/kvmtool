@@ -321,11 +321,11 @@ static void handle_pause(struct kvm *kvm, int fd, u32 type, u32 len, u8 *msg)
 
 	if (type == KVM_IPC_RESUME && is_paused) {
 		kvm->vm_state = KVM_VMSTATE_RUNNING;
-		kvm__continue();
+		kvm__continue(kvm);
 	} else if (type == KVM_IPC_PAUSE && !is_paused) {
 		kvm->vm_state = KVM_VMSTATE_PAUSED;
 		ioctl(kvm->vm_fd, KVM_KVMCLOCK_CTRL);
-		kvm__pause();
+		kvm__pause(kvm);
 	} else {
 		return;
 	}

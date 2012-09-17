@@ -307,7 +307,7 @@ int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 	vpci->dev = dev;
 	vpci->msix_io_block = pci_get_io_space_block(PCI_IO_SIZE * 2);
 
-	r = ioport__register(IOPORT_EMPTY, &virtio_pci__io_ops, IOPORT_SIZE, vdev);
+	r = ioport__register(kvm, IOPORT_EMPTY, &virtio_pci__io_ops, IOPORT_SIZE, vdev);
 	if (r < 0)
 		return r;
 
@@ -379,7 +379,7 @@ int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 free_mmio:
 	kvm__deregister_mmio(kvm, vpci->msix_io_block);
 free_ioport:
-	ioport__unregister(vpci->base_addr);
+	ioport__unregister(kvm, vpci->base_addr);
 	return r;
 }
 
@@ -389,7 +389,7 @@ int virtio_pci__exit(struct kvm *kvm, struct virtio_device *vdev)
 	int i;
 
 	kvm__deregister_mmio(kvm, vpci->msix_io_block);
-	ioport__unregister(vpci->base_addr);
+	ioport__unregister(kvm, vpci->base_addr);
 
 	for (i = 0; i < VIRTIO_PCI_MAX_VQ; i++)
 		ioeventfd__del_event(vpci->base_addr + VIRTIO_PCI_QUEUE_NOTIFY, i);

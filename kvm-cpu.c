@@ -41,7 +41,7 @@ static void kvm_cpu_signal_handler(int signum)
 	if (signum == SIGKVMEXIT) {
 		if (current_kvm_cpu && current_kvm_cpu->is_running) {
 			current_kvm_cpu->is_running = false;
-			kvm__continue();
+			kvm__continue(current_kvm_cpu->kvm);
 		}
 	} else if (signum == SIGKVMPAUSE) {
 		current_kvm_cpu->paused = 1;

@@ -114,13 +114,13 @@ int rtc__init(struct kvm *kvm)
 	int r = 0;
 
 	/* PORT 0070-007F - CMOS RAM/RTC (REAL TIME CLOCK) */
-	r = ioport__register(0x0070, &cmos_ram_index_ioport_ops, 1, NULL);
+	r = ioport__register(kvm, 0x0070, &cmos_ram_index_ioport_ops, 1, NULL);
 	if (r < 0)
 		return r;
 
-	r = ioport__register(0x0071, &cmos_ram_data_ioport_ops, 1, NULL);
+	r = ioport__register(kvm, 0x0071, &cmos_ram_data_ioport_ops, 1, NULL);
 	if (r < 0) {
-		ioport__unregister(0x0071);
+		ioport__unregister(kvm, 0x0071);
 		return r;
 	}
 
@@ -131,8 +131,8 @@ dev_init(rtc__init);
 int rtc__exit(struct kvm *kvm)
 {
 	/* PORT 0070-007F - CMOS RAM/RTC (REAL TIME CLOCK) */
-	ioport__unregister(0x0070);
-	ioport__unregister(0x0071);
+	ioport__unregister(kvm, 0x0070);
+	ioport__unregister(kvm, 0x0071);
 
 	return 0;
 }

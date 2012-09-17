@@ -29,10 +29,11 @@ struct ioport_operations {
 	bool (*io_out)(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size);
 };
 
-void ioport__setup_arch(void);
+void ioport__setup_arch(struct kvm *kvm);
 
-int ioport__register(u16 port, struct ioport_operations *ops, int count, void *param);
-int ioport__unregister(u16 port);
+int ioport__register(struct kvm *kvm, u16 port, struct ioport_operations *ops,
+			int count, void *param);
+int ioport__unregister(struct kvm *kvm, u16 port);
 int ioport__init(struct kvm *kvm);
 int ioport__exit(struct kvm *kvm);
 

@@ -23,19 +23,19 @@
 
 DECLARE_RWSEM(brlock_sem);
 
-#define br_read_lock()		down_read(&brlock_sem);
-#define br_read_unlock()	up_read(&brlock_sem);
+#define br_read_lock(kvm)	down_read(&brlock_sem);
+#define br_read_unlock(kvm)	up_read(&brlock_sem);
 
-#define br_write_lock()		down_write(&brlock_sem);
-#define br_write_unlock()	up_write(&brlock_sem);
+#define br_write_lock(kvm)	down_write(&brlock_sem);
+#define br_write_unlock(kvm)	up_write(&brlock_sem);
 
 #else
 
-#define br_read_lock()		barrier()
-#define br_read_unlock()	barrier()
+#define br_read_lock(kvm)	barrier()
+#define br_read_unlock(kvm)	barrier()
 
-#define br_write_lock()		kvm__pause()
-#define br_write_unlock()	kvm__continue()
+#define br_write_lock(kvm)	kvm__pause(kvm)
+#define br_write_unlock(kvm)	kvm__continue(kvm)
 #endif
 
 #endif

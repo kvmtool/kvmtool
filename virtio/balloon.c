@@ -48,7 +48,6 @@ struct bln_dev {
 };
 
 static struct bln_dev bdev;
-extern struct kvm *kvm;
 static int compat_id = -1;
 
 static bool virtio_bln_do_io_request(struct kvm *kvm, struct bln_dev *bdev, struct virt_queue *queue)
@@ -125,7 +124,7 @@ static void virtio_bln_do_io(struct kvm *kvm, void *param)
 	}
 }
 
-static int virtio_bln__collect_stats(void)
+static int virtio_bln__collect_stats(struct kvm *kvm)
 {
 	u64 tmp;
 
@@ -146,7 +145,7 @@ static void virtio_bln__print_stats(struct kvm *kvm, int fd, u32 type, u32 len, 
 	if (WARN_ON(type != KVM_IPC_STAT || len))
 		return;
 
-	if (virtio_bln__collect_stats() < 0)
+	if (virtio_bln__collect_stats(kvm) < 0)
 		return;
 
 	r = write(fd, bdev.stats, sizeof(bdev.stats));

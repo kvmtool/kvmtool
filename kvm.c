@@ -55,8 +55,6 @@ const char *kvm_exit_reasons[] = {
 #endif
 };
 
-extern struct kvm *kvm;
-extern struct kvm_cpu **kvm_cpus;
 static int pause_event;
 static DEFINE_MUTEX(pause_lock);
 extern struct kvm_ext kvm_req_ext[];
@@ -413,7 +411,7 @@ void kvm__dump_mem(struct kvm *kvm, unsigned long addr, unsigned long size)
 	}
 }
 
-void kvm__pause(void)
+void kvm__pause(struct kvm *kvm)
 {
 	int i, paused_vcpus = 0;
 
@@ -439,7 +437,7 @@ void kvm__pause(void)
 	close(pause_event);
 }
 
-void kvm__continue(void)
+void kvm__continue(struct kvm *kvm)
 {
 	/* Check if the guest is running */
 	if (!kvm->cpus[0] || kvm->cpus[0]->thread == 0)

@@ -33,8 +33,6 @@
 
 struct net_dev;
 
-extern struct kvm *kvm;
-
 struct net_dev_operations {
 	int (*rx)(struct iovec *iov, u16 in, struct net_dev *ndev);
 	int (*tx)(struct iovec *iov, u16 in, struct net_dev *ndev);
@@ -495,8 +493,8 @@ static inline void str_to_mac(const char *str, char *mac)
 	sscanf(str, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
 		mac, mac+1, mac+2, mac+3, mac+4, mac+5);
 }
-static int set_net_param(struct virtio_net_params *p, const char *param,
-				const char *val)
+static int set_net_param(struct kvm *kvm, struct virtio_net_params *p,
+			const char *param, const char *val)
 {
 	if (strcmp(param, "guest_mac") == 0) {
 		str_to_mac(val, p->guest_mac);
@@ -561,7 +559,7 @@ int netdev_parser(const struct option *opt, const char *arg, int unset)
 		if (on_cmd) {
 			cmd = cur;
 		} else {
-			if (set_net_param(&p, cmd, cur) < 0)
+			if (set_net_param(kvm, &p, cmd, cur) < 0)
 				goto done;
 		}
 		on_cmd = !on_cmd;
@@ -619,10 +617,10 @@ static int virtio_net__init_one(struct virtio_net_params *params)
 	}
 
 	if (params->trans && strcmp(params->trans, "mmio") == 0)
-		virtio_init(kvm, ndev, &ndev->vdev, &net_dev_virtio_ops,
+		virtio_init(params->kvm, ndev, &ndev->vdev, &net_dev_virtio_ops,
 			    VIRTIO_MMIO, PCI_DEVICE_ID_VIRTIO_NET, VIRTIO_ID_NET, PCI_CLASS_NET);
 	else
-		virtio_init(kvm, ndev, &ndev->vdev, &net_dev_virtio_ops,
+		virtio_init(params->kvm, ndev, &ndev->vdev, &net_dev_virtio_ops,
 			    VIRTIO_PCI, PCI_DEVICE_ID_VIRTIO_NET, VIRTIO_ID_NET, PCI_CLASS_NET);
 
 	if (params->vhost)

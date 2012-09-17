@@ -347,8 +347,8 @@ int kbd__init(struct kvm *kvm)
 
 	kbd_reset();
 	state.kvm = kvm;
-	ioport__register(I8042_DATA_REG, &kbd_ops, 2, NULL);
-	ioport__register(I8042_COMMAND_REG, &kbd_ops, 2, NULL);
+	ioport__register(kvm, I8042_DATA_REG, &kbd_ops, 2, NULL);
+	ioport__register(kvm, I8042_COMMAND_REG, &kbd_ops, 2, NULL);
 
 	return 0;
 }

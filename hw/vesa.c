@@ -60,7 +60,7 @@ struct framebuffer *vesa__init(struct kvm *kvm)
 	if (r < 0)
 		return ERR_PTR(r);
 
-	r = ioport__register(IOPORT_EMPTY, &vesa_io_ops, IOPORT_SIZE, NULL);
+	r = ioport__register(kvm, IOPORT_EMPTY, &vesa_io_ops, IOPORT_SIZE, NULL);
 	if (r < 0)
 		return ERR_PTR(r);
 

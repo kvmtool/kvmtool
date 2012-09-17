@@ -55,12 +55,12 @@ static void ioport_remove(struct rb_root *root, struct ioport *data)
 	rb_int_erase(root, &data->node);
 }
 
-int ioport__register(u16 port, struct ioport_operations *ops, int count, void *param)
+int ioport__register(struct kvm *kvm, u16 port, struct ioport_operations *ops, int count, void *param)
 {
 	struct ioport *entry;
 	int r;
 
-	br_write_lock();
+	br_write_lock(kvm);
 	if (port == IOPORT_EMPTY)
 		port = ioport__find_free_port();
 
@@ -83,20 +83,20 @@ int ioport__register(u16 port, struct ioport_operations *ops, int count, void *p
 	r = ioport_insert(&ioport_tree, entry);
 	if (r < 0) {
 		free(entry);
-		br_write_unlock();
+		br_write_unlock(kvm);
 		return r;
 	}
-	br_write_unlock();
+	br_write_unlock(kvm);
 
 	return port;
 }
 
-int ioport__unregister(u16 port)
+int ioport__unregister(struct kvm *kvm, u16 port)
 {
 	struct ioport *entry;
 	int r;
 
-	br_write_lock();
+	br_write_lock(kvm);
 
 	r = -ENOENT;
 	entry = ioport_search(&ioport_tree, port);
@@ -110,7 +110,7 @@ int ioport__unregister(u16 port)
 	r = 0;
 
 done:
-	br_write_unlock();
+	br_write_unlock(kvm);
 
 	return r;
 }
@@ -184,7 +184,7 @@ error:
 
 int ioport__init(struct kvm *kvm)
 {
-	ioport__setup_arch();
+	ioport__setup_arch(kvm);
 
 	return 0;
 }

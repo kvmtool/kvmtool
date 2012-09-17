@@ -195,7 +195,7 @@ static void serial8250__receive(struct kvm *kvm, struct serial8250_device *dev,
 	while (term_readable(dev->id) &&
 	       dev->rxcnt < FIFO_LEN) {
 
-		c = term_getc(dev->id);
+		c = term_getc(kvm, dev->id);
 
 		if (c < 0)
 			break;
@@ -403,7 +403,7 @@ static int serial8250__device_init(struct kvm *kvm, struct serial8250_device *de
 {
 	int r;
 
-	r = ioport__register(dev->iobase, &serial8250_ops, 8, NULL);
+	r = ioport__register(kvm, dev->iobase, &serial8250_ops, 8, NULL);
 	kvm__irq_line(kvm, dev->irq, 0);
 
 	return r;
@@ -427,7 +427,7 @@ cleanup:
 	for (j = 0; j <= i; j++) {
 		struct serial8250_device *dev = &devices[j];
 
-		ioport__unregister(dev->iobase);
+		ioport__unregister(kvm, dev->iobase);
 	}
 
 	return r;
@@ -442,7 +442,7 @@ int serial8250__exit(struct kvm *kvm)
 	for (i = 0; i < ARRAY_SIZE(devices); i++) {
 		struct serial8250_device *dev = &devices[i];
 
-		r = ioport__unregister(dev->iobase);
+		r = ioport__unregister(kvm, dev->iobase);
 		if (r < 0)
 			return r;
 	}

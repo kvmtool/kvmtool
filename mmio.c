@@ -87,9 +87,9 @@ int kvm__register_mmio(struct kvm *kvm, u64 phys_addr, u64 phys_addr_len, bool c
 			return -errno;
 		}
 	}
-	br_write_lock();
+	br_write_lock(kvm);
 	ret = mmio_insert(&mmio_tree, mmio);
-	br_write_unlock();
+	br_write_unlock(kvm);
 
 	return ret;
 }
@@ -99,10 +99,10 @@ bool kvm__deregister_mmio(struct kvm *kvm, u64 phys_addr)
 	struct mmio_mapping *mmio;
 	struct kvm_coalesced_mmio_zone zone;
 
-	br_write_lock();
+	br_write_lock(kvm);
 	mmio = mmio_search_single(&mmio_tree, phys_addr);
 	if (mmio == NULL) {
-		br_write_unlock();
+		br_write_unlock(kvm);
 		return false;
 	}
 
@@ -113,7 +113,7 @@ bool kvm__deregister_mmio(struct kvm *kvm, u64 phys_addr)
 	ioctl(kvm->vm_fd, KVM_UNREGISTER_COALESCED_MMIO, &zone);
 
 	rb_int_erase(&mmio_tree, &mmio->node);
-	br_write_unlock();
+	br_write_unlock(kvm);
 
 	free(mmio);
 	return true;

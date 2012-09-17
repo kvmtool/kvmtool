@@ -17,7 +17,6 @@
 #define TERM_FD_IN      0
 #define TERM_FD_OUT     1
 
-extern struct kvm *kvm;
 static struct termios	orig_term;
 
 int term_escape_char	= 0x01; /* ctrl-a is used for escape */
@@ -25,7 +24,7 @@ bool term_got_escape	= false;
 
 int term_fds[4][2];
 
-int term_getc(int term)
+int term_getc(struct kvm *kvm, int term)
 {
 	unsigned char c;
 
@@ -61,11 +60,11 @@ int term_putc(char *addr, int cnt, int term)
 	return cnt;
 }
 
-int term_getc_iov(struct iovec *iov, int iovcnt, int term)
+int term_getc_iov(struct kvm *kvm, struct iovec *iov, int iovcnt, int term)
 {
 	int c;
 
-	c = term_getc(term);
+	c = term_getc(kvm, term);
 
 	if (c < 0)
 		return 0;

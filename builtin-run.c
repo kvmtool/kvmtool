@@ -53,7 +53,6 @@
 #define KB_SHIFT		(10)
 #define GB_SHIFT		(30)
 
-struct kvm *kvm;
 __thread struct kvm_cpu *current_kvm_cpu;
 
 static int  kvm_run_wrapper;
@@ -339,11 +338,13 @@ static const char *find_vmlinux(void)
 
 void kvm_run_help(void)
 {
+	struct kvm *kvm = NULL;
+
 	BUILD_OPTIONS(options, &kvm->cfg, kvm);
 	usage_with_options(run_usage, options);
 }
 
-static int kvm_setup_guest_init(void)
+static int kvm_setup_guest_init(struct kvm *kvm)
 {
 	const char *rootfs = kvm->cfg.custom_rootfs_name;
 	char tmp[PATH_MAX];
@@ -367,7 +368,7 @@ static int kvm_setup_guest_init(void)
 	return 0;
 }
 
-static int kvm_run_set_sandbox(void)
+static int kvm_run_set_sandbox(struct kvm *kvm)
 {
 	const char *guestfs_name = kvm->cfg.custom_rootfs_name;
 	char path[PATH_MAX], script[PATH_MAX], *tmp;
@@ -439,7 +440,7 @@ static void resolve_program(const char *src, char *dst, size_t len)
 		strncpy(dst, src, len);
 }
 
-static void kvm_run_write_sandbox_cmd(const char **argv, int argc)
+static void kvm_run_write_sandbox_cmd(struct kvm *kvm, const char **argv, int argc)
 {
 	const char script_hdr[] = "#! /bin/bash\n\n";
 	char program[PATH_MAX];
@@ -474,15 +475,15 @@ static void kvm_run_write_sandbox_cmd(const char **argv, int argc)
 	close(fd);
 }
 
-static int kvm_cmd_run_init(int argc, const char **argv)
+static struct kvm *kvm_cmd_run_init(int argc, const char **argv)
 {
 	static char real_cmdline[2048], default_name[20];
 	unsigned int nr_online_cpus;
 	struct sigaction sa;
+	struct kvm *kvm = kvm__new();
 
-	kvm = kvm__new();
 	if (IS_ERR(kvm))
-		return PTR_ERR(kvm);
+		return kvm;
 
 	sa.sa_flags = SA_SIGINFO;
 	sa.sa_sigaction = handle_sigalrm;
@@ -502,7 +503,7 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 			if (strcmp(argv[0], "--") == 0) {
 				if (kvm_run_wrapper == KVM_RUN_SANDBOX) {
 					kvm->cfg.sandbox = DEFAULT_SANDBOX_FILENAME;
-					kvm_run_write_sandbox_cmd(argv+1, argc-1);
+					kvm_run_write_sandbox_cmd(kvm, argv+1, argc-1);
 					break;
 				}
 			}
@@ -513,7 +514,7 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 						"%s\n", argv[0]);
 				usage_with_options(run_usage, options);
 				free(kvm);
-				return -EINVAL;
+				return ERR_PTR(-EINVAL);
 			}
 			if (kvm_run_wrapper == KVM_RUN_SANDBOX) {
 				/*
@@ -521,7 +522,7 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 				 * sandbox command
 				 */
 				kvm->cfg.sandbox = DEFAULT_SANDBOX_FILENAME;
-				kvm_run_write_sandbox_cmd(argv, argc);
+				kvm_run_write_sandbox_cmd(kvm, argv, argc);
 			} else {
 				/*
 				 * first unhandled parameter is treated as a kernel
@@ -542,7 +543,7 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 
 	if (!kvm->cfg.kernel_filename) {
 		kernel_usage_with_options();
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 	}
 
 	kvm->cfg.vmlinux_filename = find_vmlinux();
@@ -633,13 +634,13 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 	if (kvm->cfg.using_rootfs) {
 		strcat(real_cmdline, " root=/dev/root rw rootflags=rw,trans=virtio,version=9p2000.L rootfstype=9p");
 		if (kvm->cfg.custom_rootfs) {
-			kvm_run_set_sandbox();
+			kvm_run_set_sandbox(kvm);
 
 			strcat(real_cmdline, " init=/virt/init");
 
 			if (!kvm->cfg.no_dhcp)
 				strcat(real_cmdline, "  ip=dhcp");
-			if (kvm_setup_guest_init())
+			if (kvm_setup_guest_init(kvm))
 				die("Failed to setup init for guest.");
 		}
 	} else if (!strstr(real_cmdline, "root=")) {
@@ -651,10 +652,12 @@ static int kvm_cmd_run_init(int argc, const char **argv)
 	printf("  # %s run -k %s -m %Lu -c %d --name %s\n", KVM_BINARY_NAME,
 		kvm->cfg.kernel_filename, kvm->cfg.ram_size / 1024 / 1024, kvm->cfg.nrcpus, kvm->cfg.guest_name);
 
-	return init_list__init(kvm);
+	init_list__init(kvm);
+
+	return kvm;
 }
 
-static int kvm_cmd_run_work(void)
+static int kvm_cmd_run_work(struct kvm *kvm)
 {
 	int i;
 	void *ret = NULL;
@@ -668,7 +671,7 @@ static int kvm_cmd_run_work(void)
 	return pthread_join(kvm->cpus[0]->thread, &ret);
 }
 
-static void kvm_cmd_run_exit(int guest_ret)
+static void kvm_cmd_run_exit(struct kvm *kvm, int guest_ret)
 {
 	compat__print_all_messages();
 
@@ -680,14 +683,15 @@ static void kvm_cmd_run_exit(int guest_ret)
 
 int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 {
-	int r, ret = -EFAULT;
+	int ret = -EFAULT;
+	struct kvm *kvm;
 
-	r = kvm_cmd_run_init(argc, argv);
-	if (r < 0)
-		return r;
+	kvm = kvm_cmd_run_init(argc, argv);
+	if (IS_ERR(kvm))
+		return PTR_ERR(kvm);
 
-	ret = kvm_cmd_run_work();
-	kvm_cmd_run_exit(ret);
+	ret = kvm_cmd_run_work(kvm);
+	kvm_cmd_run_exit(kvm, ret);
 
 	return ret;
 }
