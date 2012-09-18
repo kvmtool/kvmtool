@@ -4,15 +4,6 @@
 #define TIMER_FREQ	1193182
 #define TIMER_DIV(x)	((TIMER_FREQ+(x)/2)/(x))
 
-/*
- * hpa noted:
- *
- * 0xe0..0xef are "motherboard specific", but 0xe9 is
- * used for Bochs debugging and 0xed is the Phoenix-reserved
- * delay port
- */
-#define DBG_PORT	0xe0
-
 #define TEST_COUNT	0x0200
 
 	.code16gcc
@@ -82,8 +73,9 @@ test_ok:
 	mov	$(msg2_end-msg2), %cx
 	cs rep/outsb
 
-	/* not a valid port to force exit */
-	outb	%al, $DBG_PORT
+	/* Reboot by using the i8042 reboot line */
+	mov	$0xfe, %al
+	outb	%al, $0x64
 
 timer_isr:
 	cli

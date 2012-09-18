@@ -5,7 +5,7 @@
 
 static bool debug_io_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
 {
-	exit(EXIT_SUCCESS);
+	return 0;
 }
 
 static struct ioport_operations debug_ops = {
