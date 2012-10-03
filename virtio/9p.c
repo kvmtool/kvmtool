@@ -286,10 +286,6 @@ static void virtio_p9_create(struct p9_dev *p9dev,
 	if (ret < 0)
 		goto err_out;
 
-	ret = lchown(full_path, dfid->uid, gid);
-	if (ret < 0)
-		goto err_out;
-
 	sprintf(dfid->path, "%s/%s", dfid->path, name);
 	stat2qid(&st, &qid);
 	virtio_p9_pdu_writef(pdu, "Qd", &qid, 0);
@@ -327,10 +323,6 @@ static void virtio_p9_mkdir(struct p9_dev *p9dev,
 		goto err_out;
 
 	ret = chmod(full_path, mode & 0777);
-	if (ret < 0)
-		goto err_out;
-
-	ret = lchown(full_path, dfid->uid, gid);
 	if (ret < 0)
 		goto err_out;
 
@@ -874,10 +866,6 @@ static void virtio_p9_mknod(struct p9_dev *p9dev,
 	if (ret < 0)
 		goto err_out;
 
-	ret = lchown(full_path, dfid->uid, gid);
-	if (ret < 0)
-		goto err_out;
-
 	stat2qid(&st, &qid);
 	virtio_p9_pdu_writef(pdu, "Q", &qid);
 	free(name);
@@ -934,10 +922,6 @@ static void virtio_p9_symlink(struct p9_dev *p9dev,
 		goto err_out;
 
 	if (lstat(new_name, &st) < 0)
-		goto err_out;
-
-	ret = lchown(new_name, dfid->uid, gid);
-	if (ret < 0)
 		goto err_out;
 
 	stat2qid(&st, &qid);
