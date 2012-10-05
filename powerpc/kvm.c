@@ -286,7 +286,7 @@ static void generate_segment_page_sizes(struct kvm_ppc_smmu_info *info, struct f
  * and whilst most PPC targets will require CPU/memory nodes, others like RTAS
  * should eventually be added separately.
  */
-static void setup_fdt(struct kvm *kvm)
+static int setup_fdt(struct kvm *kvm)
 {
 	uint64_t 	mem_reg_property[] = { 0, cpu_to_be64(kvm->ram_size) };
 	int 		smp_cpus = kvm->nrcpus;
@@ -488,7 +488,10 @@ static void setup_fdt(struct kvm *kvm)
 	_FDT(fdt_pack(fdt_dest));
 
 	free(segment_page_sizes.value);
+
+	return 0;
 }
+firmware_init(setup_fdt);
 
 /**
  * kvm__arch_setup_firmware
@@ -516,9 +519,6 @@ int kvm__arch_setup_firmware(struct kvm *kvm)
 		kvm->arch.rtas_size, kvm->arch.rtas_gra);
 
 	/* Load SLOF */
-
-	/* Init FDT */
-	setup_fdt(kvm);
 
 	return 0;
 }
