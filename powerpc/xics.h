@@ -13,11 +13,6 @@
 
 #define XICS_IPI        0x2
 
-struct kvm_cpu;
-struct icp_state;
-
-struct icp_state *xics_system_init(unsigned int nr_irqs, unsigned int nr_cpus);
-void xics_cpu_register(struct kvm_cpu *vcpu);
 int xics_alloc_irqnum(void);
 
 #endif

@@ -26,8 +26,6 @@
 #include "xics.h"
 #include "spapr_pci.h"
 
-#define XICS_IRQS               1024
-
 /*
  * FIXME: The code in this file assumes an SPAPR guest, using XICS.  Make
  * generic & cope with multiple PPC platform types.
@@ -48,23 +46,6 @@ int irq__register_device(u32 dev, u8 *num, u8 *pin, u8 *line)
 	 * should determine which CPU/XICS IRQ to fire.
 	 */
 	*line = xics_alloc_irqnum();
-	return 0;
-}
-
-int irq__init(struct kvm *kvm)
-{
-	/*
-	 * kvm->nr_cpus is now valid; for /now/, pass
-	 * this to xics_system_init(), which assumes servers
-	 * are numbered 0..nrcpus.  This may not really be true,
-	 * but it is OK currently.
-	 */
-	kvm->arch.icp = xics_system_init(XICS_IRQS, kvm->nrcpus);
-	return 0;
-}
-
-int irq__exit(struct kvm *kvm)
-{
 	return 0;
 }
 

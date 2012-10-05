@@ -93,9 +93,6 @@ struct kvm_cpu *kvm_cpu__arch_init(struct kvm *kvm, unsigned long cpu_id)
 	 */
 	vcpu->is_running = true;
 
-	/* Register with IRQ controller (FIXME, assumes XICS) */
-	xics_cpu_register(vcpu);
-
 	return vcpu;
 }
 

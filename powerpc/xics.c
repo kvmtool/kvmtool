@@ -18,6 +18,8 @@
 #include <stdio.h>
 #include <malloc.h>
 
+#define XICS_NUM_IRQS	1024
+
 
 /* #define DEBUG_XICS yes */
 #ifdef DEBUG_XICS
@@ -441,26 +443,19 @@ static void rtas_int_on(struct kvm_cpu *vcpu, uint32_t token,
 	rtas_st(vcpu->kvm, rets, 0, 0); /* Success */
 }
 
-void xics_cpu_register(struct kvm_cpu *vcpu)
-{
-	if (vcpu->cpu_id < vcpu->kvm->arch.icp->nr_servers)
-		vcpu->kvm->arch.icp->ss[vcpu->cpu_id].cpu = vcpu;
-	else
-		die("Setting invalid server for cpuid %ld\n", vcpu->cpu_id);
-}
-
-struct icp_state *xics_system_init(unsigned int nr_irqs, unsigned int nr_cpus)
+static int xics_init(struct kvm *kvm)
 {
 	int max_server_num;
 	unsigned int i;
 	struct icp_state *icp;
 	struct ics_state *ics;
+	int j;
 
-	max_server_num = nr_cpus;
+	max_server_num = kvm->nrcpus;
 
 	icp = malloc(sizeof(*icp));
 	icp->nr_servers = max_server_num + 1;
-	icp->ss = malloc(icp->nr_servers*sizeof(struct icp_server_state));
+	icp->ss = malloc(icp->nr_servers * sizeof(struct icp_server_state));
 
 	for (i = 0; i < icp->nr_servers; i++) {
 		icp->ss[i].xirr = 0;
@@ -475,14 +470,14 @@ struct icp_state *xics_system_init(unsigned int nr_irqs, unsigned int nr_cpus)
 	 */
 
 	ics = malloc(sizeof(*ics));
-	ics->nr_irqs = nr_irqs;
+	ics->nr_irqs = XICS_NUM_IRQS;
 	ics->offset = XICS_IRQ_OFFSET;
-	ics->irqs = malloc(nr_irqs * sizeof(struct ics_irq_state));
+	ics->irqs = malloc(ics->nr_irqs * sizeof(struct ics_irq_state));
 
 	icp->ics = ics;
 	ics->icp = icp;
 
-	for (i = 0; i < nr_irqs; i++) {
+	for (i = 0; i < ics->nr_irqs; i++) {
 		ics->irqs[i].server = 0;
 		ics->irqs[i].priority = 0xff;
 		ics->irqs[i].saved_priority = 0xff;
@@ -500,8 +495,21 @@ struct icp_state *xics_system_init(unsigned int nr_irqs, unsigned int nr_cpus)
 	spapr_rtas_register("ibm,int-off", rtas_int_off);
 	spapr_rtas_register("ibm,int-on", rtas_int_on);
 
-	return icp;
+	for (j = 0; j < kvm->nrcpus; j++) {
+		struct kvm_cpu *vcpu = kvm->cpus[j];
+
+		if (vcpu->cpu_id >= icp->nr_servers)
+			die("Invalid server number for cpuid %ld\n", vcpu->cpu_id);
+
+		icp->ss[vcpu->cpu_id].cpu = vcpu;
+	}
+
+	kvm->arch.icp = icp;
+
+	return 0;
 }
+base_init(xics_init);
+
 
 void kvm__irq_line(struct kvm *kvm, int irq, int level)
 {
