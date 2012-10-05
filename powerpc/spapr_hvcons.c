@@ -50,7 +50,7 @@ static unsigned long h_put_term_char(struct kvm_cpu *vcpu, unsigned long opcode,
 	do {
 		int ret;
 
-		if (kvm->cfg.active_console == CONSOLE_HV)
+		if (vcpu->kvm->cfg.active_console == CONSOLE_HV)
 			ret = term_putc_iov(&iov, 1, 0);
 		else
 			ret = 0;
@@ -74,14 +74,14 @@ static unsigned long h_get_term_char(struct kvm_cpu *vcpu, unsigned long opcode,
 	union hv_chario data;
 	struct iovec iov;
 
-	if (kvm->cfg.active_console != CONSOLE_HV)
+	if (vcpu->kvm->cfg.active_console != CONSOLE_HV)
 		return H_SUCCESS;
 
 	if (term_readable(0)) {
 		iov.iov_base = data.buf;
 		iov.iov_len = 16;
 
-		*len = term_getc_iov(&iov, 1, 0);
+		*len = term_getc_iov(vcpu->kvm, &iov, 1, 0);
 		*char0_7 = be64_to_cpu(data.a.char0_7);
 		*char8_15 = be64_to_cpu(data.a.char8_15);
 	} else {

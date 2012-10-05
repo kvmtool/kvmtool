@@ -12,7 +12,7 @@
 
 #include <stdlib.h>
 
-void ioport__setup_arch(void)
+void ioport__setup_arch(struct kvm *kvm)
 {
 	/* PPC has no legacy ioports to set up */
 }

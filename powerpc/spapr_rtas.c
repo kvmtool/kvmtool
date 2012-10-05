@@ -41,7 +41,7 @@ static void rtas_display_character(struct kvm_cpu *vcpu,
                                    uint32_t nret, target_ulong rets)
 {
 	char c = rtas_ld(vcpu->kvm, args, 0);
-	term_putc(CONSOLE_HV, &c, 1, 0);
+	term_putc(&c, 1, 0);
 	rtas_st(vcpu->kvm, rets, 0, 0);
 }
 
@@ -52,7 +52,10 @@ static void rtas_put_term_char(struct kvm_cpu *vcpu,
 			       uint32_t nret, target_ulong rets)
 {
 	char c = rtas_ld(vcpu->kvm, args, 0);
-	term_putc(CONSOLE_HV, &c, 1, 0);
+
+	if (vcpu->kvm->cfg.active_console == CONSOLE_HV)
+		term_putc(&c, 1, 0);
+
 	rtas_st(vcpu->kvm, rets, 0, 0);
 }
 
@@ -62,8 +65,9 @@ static void rtas_get_term_char(struct kvm_cpu *vcpu,
 			       uint32_t nret, target_ulong rets)
 {
 	int c;
-	if (term_readable(CONSOLE_HV, 0) &&
-	    (c = term_getc(CONSOLE_HV, 0)) >= 0) {
+
+	if (vcpu->kvm->cfg.active_console == CONSOLE_HV && term_readable(0) &&
+	    (c = term_getc(vcpu->kvm, 0)) >= 0) {
 		rtas_st(vcpu->kvm, rets, 0, 0);
 		rtas_st(vcpu->kvm, rets, 1, c);
 	} else {
@@ -115,7 +119,7 @@ static void rtas_power_off(struct kvm_cpu *vcpu,
 		rtas_st(vcpu->kvm, rets, 0, -3);
 		return;
 	}
-	kvm_cpu__reboot();
+	kvm_cpu__reboot(vcpu->kvm);
 }
 
 static void rtas_query_cpu_stopped_state(struct kvm_cpu *vcpu,
