@@ -96,34 +96,34 @@ void kvm_run_set_wrapper_sandbox(void)
 	OPT_STRING('\0', "name", &(cfg)->guest_name, "guest name",	\
 			"A name for the guest"),			\
 	OPT_INTEGER('c', "cpus", &(cfg)->nrcpus, "Number of CPUs"),	\
-	OPT_U64('m', "mem", &(cfg)->ram_size, "Virtual machine memory size\
-		in MiB."),						\
+	OPT_U64('m', "mem", &(cfg)->ram_size, "Virtual machine memory"	\
+		" size in MiB."),					\
 	OPT_CALLBACK('\0', "shmem", NULL,				\
 		     "[pci:]<addr>:<size>[:handle=<handle>][:create]",	\
 		     "Share host shmem with guest via pci device",	\
 		     shmem_parser, NULL),				\
-	OPT_CALLBACK('d', "disk", kvm, "image or rootfs_dir", "Disk 	\
-			image or rootfs directory", img_name_parser,	\
+	OPT_CALLBACK('d', "disk", kvm, "image or rootfs_dir", "Disk "	\
+			" image or rootfs directory", img_name_parser,	\
 			kvm),						\
-	OPT_BOOLEAN('\0', "balloon", &(cfg)->balloon, "Enable virtio	\
-			balloon"),					\
+	OPT_BOOLEAN('\0', "balloon", &(cfg)->balloon, "Enable virtio"	\
+			" balloon"),					\
 	OPT_BOOLEAN('\0', "vnc", &(cfg)->vnc, "Enable VNC framebuffer"),\
 	OPT_BOOLEAN('\0', "sdl", &(cfg)->sdl, "Enable SDL framebuffer"),\
-	OPT_BOOLEAN('\0', "rng", &(cfg)->virtio_rng, "Enable virtio Random\
-			Number Generator"),				\
+	OPT_BOOLEAN('\0', "rng", &(cfg)->virtio_rng, "Enable virtio"	\
+			" Random Number Generator"),			\
 	OPT_CALLBACK('\0', "9p", NULL, "dir_to_share,tag_name",		\
-		     "Enable virtio 9p to share files between host and	\
-		     guest", virtio_9p_rootdir_parser, kvm),		\
-	OPT_STRING('\0', "console", &(cfg)->console, "serial, virtio or	\
-			hv", "Console to use"),				\
+		     "Enable virtio 9p to share files between host and"	\
+		     " guest", virtio_9p_rootdir_parser, kvm),		\
+	OPT_STRING('\0', "console", &(cfg)->console, "serial, virtio or"\
+			" hv", "Console to use"),			\
 	OPT_STRING('\0', "dev", &(cfg)->dev, "device_file",		\
 			"KVM device file"),				\
 	OPT_CALLBACK('\0', "tty", NULL, "tty id",			\
 		     "Remap guest TTY into a pty on the host",		\
 		     tty_parser, NULL),					\
 	OPT_STRING('\0', "sandbox", &(cfg)->sandbox, "script",		\
-			"Run this script when booting into custom	\
-			rootfs"),					\
+			"Run this script when booting into custom"	\
+			" rootfs"),					\
 	OPT_STRING('\0', "hugetlbfs", &(cfg)->hugetlbfs_path, "path",	\
 			"Hugetlbfs path"),				\
 									\
@@ -141,8 +141,8 @@ void kvm_run_set_wrapper_sandbox(void)
 	OPT_CALLBACK_DEFAULT('n', "network", NULL, "network params",	\
 		     "Create a new guest NIC",				\
 		     netdev_parser, NULL, kvm),				\
-	OPT_BOOLEAN('\0', "no-dhcp", &(cfg)->no_dhcp, "Disable kernel DHCP\
-			in rootfs mode"),				\
+	OPT_BOOLEAN('\0', "no-dhcp", &(cfg)->no_dhcp, "Disable kernel"	\
+			" DHCP in rootfs mode"),			\
 									\
 	OPT_GROUP("BIOS options:"),					\
 	OPT_INTEGER('\0', "vidmode", &(cfg)->vidmode,			\
