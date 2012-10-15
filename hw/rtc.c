@@ -40,6 +40,7 @@ static bool cmos_ram_data_in(struct ioport *ioport, struct kvm *kvm, u16 port, v
 {
 	struct tm *tm;
 	time_t ti;
+	int year;
 
 	time(&ti);
 
@@ -65,7 +66,16 @@ static bool cmos_ram_data_in(struct ioport *ioport, struct kvm *kvm, u16 port, v
 		ioport__write8(data, bin2bcd(tm->tm_mon + 1));
 		break;
 	case RTC_YEAR:
-		ioport__write8(data, bin2bcd(tm->tm_year));
+		/*
+		 * The gmtime() function returns time since 1900. The CMOS
+		 * standard is time since 2000. If the year is < 100, do
+		 * nothing; if it is > 100, subtract 100; this is the best fit
+		 * with the twisted CMOS logic.
+		 */
+		year = tm->tm_year;
+		if (year > 99)
+			year -= 100;
+		ioport__write8(data, bin2bcd(year));
 		break;
 	default:
 		ioport__write8(data, rtc.cmos_data[rtc.cmos_idx]);
