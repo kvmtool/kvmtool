@@ -244,7 +244,7 @@ DEFINES	+= -DKVMTOOLS_VERSION='"$(KVMTOOLS_VERSION)"'
 DEFINES	+= -DBUILD_ARCH='"$(ARCH)"'
 
 KVM_INCLUDE := include
-CFLAGS	+= $(CPPFLAGS) $(DEFINES) -I$(KVM_INCLUDE) -I$(ARCH_INCLUDE) -I$(KINCL_PATH)/include -I$(KINCL_PATH)/arch/$(ARCH)/include/ -O2 -fno-strict-aliasing -g -flto
+CFLAGS	+= $(CPPFLAGS) $(DEFINES) -I$(KVM_INCLUDE) -I$(ARCH_INCLUDE) -I$(KINCL_PATH)/include/uapi -I$(KINCL_PATH)/include -I$(KINCL_PATH)/arch/$(ARCH)/include/ -O2 -fno-strict-aliasing -g -flto
 
 WARNINGS += -Wall
 WARNINGS += -Wcast-align

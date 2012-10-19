@@ -43,7 +43,10 @@ struct rb_int_node *rb_int_search_range(struct rb_root *root, u64 low, u64 high)
 	return range;
 }
 
-static void update_node_max_high(struct rb_node *node, void *arg)
+/*
+ * Update a node after it has been linked into the tree:
+ */
+static void propagate_callback(struct rb_node *node, struct rb_node *stop)
 {
 	struct rb_int_node *i_node = rb_int(node);
 
@@ -55,9 +58,41 @@ static void update_node_max_high(struct rb_node *node, void *arg)
 		i_node->max_high = max(i_node->max_high, rb_int(node->rb_right)->max_high);
 }
 
+/*
+ * Copy the extra data to a new node:
+ */
+static void copy_callback(struct rb_node *node_old, struct rb_node *node_new)
+{
+	struct rb_int_node *i_node_old = rb_int(node_old);
+	struct rb_int_node *i_node_new = rb_int(node_new);
+
+	i_node_new->low		= i_node_old->low;
+	i_node_new->high	= i_node_old->high;
+
+	i_node_new->max_high	= i_node_old->max_high;
+}
+
+/*
+ * Update after tree rotation:
+ */
+static void rotate_callback(struct rb_node *node_old, struct rb_node *node_new)
+{
+	propagate_callback(node_old, NULL);
+	propagate_callback(node_new, NULL);
+}
+
+/*
+ * All augmented rbtree callbacks:
+ */
+struct rb_augment_callbacks callbacks = {
+	.propagate	= propagate_callback,
+	.copy		= copy_callback,
+	.rotate		= rotate_callback,
+};
+
 int rb_int_insert(struct rb_root *root, struct rb_int_node *i_node)
 {
-	struct rb_node **node = &(root->rb_node), *parent = NULL;
+	struct rb_node **node = &root->rb_node, *parent = NULL;
 
 	while (*node) {
 		int result = i_node->low - rb_int(*node)->low;
@@ -72,18 +107,12 @@ int rb_int_insert(struct rb_root *root, struct rb_int_node *i_node)
 	}
 
 	rb_link_node(&i_node->node, parent, node);
-	rb_insert_color(&i_node->node, root);
+	rb_insert_augmented(&i_node->node, root, &callbacks);
 
-	rb_augment_insert(&i_node->node, update_node_max_high, NULL);
 	return 0;
 }
 
 void rb_int_erase(struct rb_root *root, struct rb_int_node *node)
 {
-	struct rb_node *deepest;
-
-	deepest = rb_augment_erase_begin(&node->node);
-	rb_erase(&node->node, root);
-	rb_augment_erase_end(deepest, update_node_max_high, NULL);
-
+	rb_erase_augmented(&node->node, root, &callbacks);
 }

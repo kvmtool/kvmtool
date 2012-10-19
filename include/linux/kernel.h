@@ -36,4 +36,6 @@
 	(void) (&_max1 == &_max2);		\
 	_max1 > _max2 ? _max1 : _max2; })
 
+#define true 1
+
 #endif

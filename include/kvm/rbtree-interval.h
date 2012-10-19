@@ -1,7 +1,7 @@
 #ifndef KVM__INTERVAL_RBTREE_H
 #define KVM__INTERVAL_RBTREE_H
 
-#include <linux/rbtree.h>
+#include <linux/rbtree_augmented.h>
 #include <linux/types.h>
 
 #define RB_INT_INIT(l, h) (struct rb_int_node){.low = l, .high = h}
