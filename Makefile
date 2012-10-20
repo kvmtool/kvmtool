@@ -314,6 +314,9 @@ util/rbtree.d: ../../lib/rbtree.c
 %.d: %.c
 	$(Q) $(CC) -M -MT $(patsubst %.d,%.o,$@) $(CFLAGS) $< -o $@
 
+%.s: %.c
+	$(Q) $(CC) -o $@ -S $(CFLAGS) -fverbose-asm $<
+
 # The header file common-cmds.h is needed for compilation of builtin-help.c.
 builtin-help.d: $(KVM_INCLUDE)/common-cmds.h
 
