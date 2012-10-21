@@ -593,8 +593,16 @@ static struct kvm *kvm_cmd_run_init(int argc, const char **argv)
 	if (!kvm->cfg.script)
 		kvm->cfg.script = DEFAULT_SCRIPT;
 
-	if (!kvm->cfg.vnc && !kvm->cfg.sdl)
+	if (!kvm->cfg.vidmode)
 		kvm->cfg.vidmode = -1;
+
+	/* vidmode should be either specified or set by default */
+	if (kvm->cfg.vnc || kvm->cfg.sdl) {
+		if (kvm->cfg.vidmode == -1)
+			kvm->cfg.vidmode = 0x312;
+	} else {
+		kvm->cfg.vidmode = 0;
+	}
 
 	if (!kvm->cfg.network)
                 kvm->cfg.network = DEFAULT_NETWORK;
