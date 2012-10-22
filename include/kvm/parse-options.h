@@ -83,17 +83,17 @@ typedef int parse_opt_cb(const struct option *, const char *arg, int unset);
  *   CALLBACKS can use it like they want.
  */
 struct option {
-enum parse_opt_type type;
-int short_name;
-const char *long_name;
-void *value;
-const char *argh;
-const char *help;
-void *ptr;
+	enum parse_opt_type type;
+	int short_name;
+	const char *long_name;
+	void *value;
+	const char *argh;
+	const char *help;
+	void *ptr;
 
-int flags;
-parse_opt_cb *callback;
-intptr_t defval;
+	int flags;
+	parse_opt_cb *callback;
+	intptr_t defval;
 };
 
 #define BUILD_BUG_ON_ZERO(e) (sizeof(struct { int:-!!(e); }))
