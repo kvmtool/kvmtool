@@ -27,7 +27,7 @@ static int uip_tcp_socket_close(struct uip_tcp_socket *sk, int how)
 static struct uip_tcp_socket *uip_tcp_socket_find(struct uip_tx_arg *arg, u32 sip, u32 dip, u16 sport, u16 dport)
 {
 	struct list_head *sk_head;
-	pthread_mutex_t *sk_lock;
+	struct mutex *sk_lock;
 	struct uip_tcp_socket *sk;
 
 	sk_head = &arg->info->tcp_socket_head;
@@ -49,7 +49,7 @@ static struct uip_tcp_socket *uip_tcp_socket_alloc(struct uip_tx_arg *arg, u32 s
 {
 	struct list_head *sk_head;
 	struct uip_tcp_socket *sk;
-	pthread_mutex_t *sk_lock;
+	struct mutex *sk_lock;
 	struct uip_tcp *tcp;
 	struct uip_ip *ip;
 	int ret;
@@ -198,7 +198,7 @@ static void *uip_tcp_socket_thread(void *p)
 		while (left > 0) {
 			mutex_lock(sk->lock);
 			while ((len = sk->guest_acked + sk->window_size - sk->seq_server) <= 0)
-				pthread_cond_wait(&sk->cond, sk->lock);
+				pthread_cond_wait(&sk->cond, &sk->lock->mutex);
 			mutex_unlock(sk->lock);
 
 			sk->payload = pos;

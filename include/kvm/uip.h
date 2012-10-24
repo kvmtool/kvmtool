@@ -187,14 +187,14 @@ struct uip_dhcp {
 struct uip_info {
 	struct list_head udp_socket_head;
 	struct list_head tcp_socket_head;
-	pthread_mutex_t udp_socket_lock;
-	pthread_mutex_t tcp_socket_lock;
+	struct mutex udp_socket_lock;
+	struct mutex tcp_socket_lock;
 	struct uip_eth_addr guest_mac;
 	struct uip_eth_addr host_mac;
 	pthread_cond_t buf_free_cond;
 	pthread_cond_t buf_used_cond;
 	struct list_head buf_head;
-	pthread_mutex_t buf_lock;
+	struct mutex buf_lock;
 	pthread_t udp_thread;
 	int udp_epollfd;
 	int buf_free_nr;
@@ -221,7 +221,7 @@ struct uip_buf {
 struct uip_udp_socket {
 	struct sockaddr_in addr;
 	struct list_head list;
-	pthread_mutex_t *lock;
+	struct mutex *lock;
 	u32 dport, sport;
 	u32 dip, sip;
 	int fd;
@@ -232,7 +232,7 @@ struct uip_tcp_socket {
 	struct list_head list;
 	struct uip_info *info;
 	pthread_cond_t	cond;
-	pthread_mutex_t *lock;
+	struct mutex *lock;
 	pthread_t thread;
 	u32 dport, sport;
 	u32 guest_acked;

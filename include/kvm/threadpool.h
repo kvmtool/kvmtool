@@ -15,7 +15,7 @@ struct thread_pool__job {
 	void				*data;
 
 	int				signalcount;
-	pthread_mutex_t			mutex;
+	struct mutex			mutex;
 
 	struct list_head		queue;
 };
@@ -26,7 +26,7 @@ static inline void thread_pool__init_job(struct thread_pool__job *job, struct kv
 		.kvm		= kvm,
 		.callback	= callback,
 		.data		= data,
-		.mutex		= PTHREAD_MUTEX_INITIALIZER,
+		.mutex		= MUTEX_INITIALIZER,
 	};
 }
 

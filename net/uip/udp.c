@@ -14,7 +14,7 @@ static struct uip_udp_socket *uip_udp_socket_find(struct uip_tx_arg *arg, u32 si
 {
 	struct list_head *sk_head;
 	struct uip_udp_socket *sk;
-	pthread_mutex_t *sk_lock;
+	struct mutex *sk_lock;
 	struct epoll_event ev;
 	int flags;
 	int ret;

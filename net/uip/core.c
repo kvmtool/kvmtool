@@ -153,9 +153,9 @@ int uip_init(struct uip_info *info)
 	INIT_LIST_HEAD(tcp_socket_head);
 	INIT_LIST_HEAD(buf_head);
 
-	pthread_mutex_init(&info->udp_socket_lock, NULL);
-	pthread_mutex_init(&info->tcp_socket_lock, NULL);
-	pthread_mutex_init(&info->buf_lock, NULL);
+	mutex_init(&info->udp_socket_lock);
+	mutex_init(&info->tcp_socket_lock);
+	mutex_init(&info->buf_lock);
 
 	pthread_cond_init(&info->buf_used_cond, NULL);
 	pthread_cond_init(&info->buf_free_cond, NULL);

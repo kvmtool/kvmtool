@@ -7,9 +7,9 @@
 #include <pthread.h>
 #include <stdbool.h>
 
-static pthread_mutex_t	job_mutex	= PTHREAD_MUTEX_INITIALIZER;
-static pthread_mutex_t	thread_mutex	= PTHREAD_MUTEX_INITIALIZER;
-static pthread_cond_t	job_cond	= PTHREAD_COND_INITIALIZER;
+static DEFINE_MUTEX(job_mutex);
+static DEFINE_MUTEX(thread_mutex);
+static pthread_cond_t job_cond = PTHREAD_COND_INITIALIZER;
 
 static LIST_HEAD(head);
 
@@ -85,7 +85,7 @@ static void *thread_pool__threadfunc(void *param)
 
 		mutex_lock(&job_mutex);
 		while (running && (curjob = thread_pool__job_pop_locked()) == NULL)
-			pthread_cond_wait(&job_cond, &job_mutex);
+			pthread_cond_wait(&job_cond, &job_mutex.mutex);
 		mutex_unlock(&job_mutex);
 
 		if (running)

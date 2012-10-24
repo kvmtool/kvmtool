@@ -74,7 +74,7 @@ struct qcow_header {
 };
 
 struct qcow {
-	pthread_mutex_t			mutex;
+	struct mutex			mutex;
 	struct qcow_header		*header;
 	struct qcow_l1_table		table;
 	struct qcow_refcount_table	refcount_table;

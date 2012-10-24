@@ -29,7 +29,7 @@
 #define VIRTIO_CONSOLE_TX_QUEUE		1
 
 struct con_dev {
-	pthread_mutex_t			mutex;
+	struct mutex			mutex;
 
 	struct virtio_device		vdev;
 	struct virt_queue		vqs[VIRTIO_CONSOLE_NUM_QUEUES];
@@ -40,7 +40,7 @@ struct con_dev {
 };
 
 static struct con_dev cdev = {
-	.mutex				= PTHREAD_MUTEX_INITIALIZER,
+	.mutex				= MUTEX_INITIALIZER,
 
 	.config = {
 		.cols			= 80,

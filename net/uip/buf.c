@@ -11,7 +11,7 @@ struct uip_buf *uip_buf_get_used(struct uip_info *info)
 	mutex_lock(&info->buf_lock);
 
 	while (!(info->buf_used_nr > 0))
-		pthread_cond_wait(&info->buf_used_cond, &info->buf_lock);
+		pthread_cond_wait(&info->buf_used_cond, &info->buf_lock.mutex);
 
 	list_for_each_entry(buf, &info->buf_head, list) {
 		if (buf->status == UIP_BUF_STATUS_USED) {
@@ -39,7 +39,7 @@ struct uip_buf *uip_buf_get_free(struct uip_info *info)
 	mutex_lock(&info->buf_lock);
 
 	while (!(info->buf_free_nr > 0))
-		pthread_cond_wait(&info->buf_free_cond, &info->buf_lock);
+		pthread_cond_wait(&info->buf_free_cond, &info->buf_lock.mutex);
 
 	list_for_each_entry(buf, &info->buf_head, list) {
 		if (buf->status == UIP_BUF_STATUS_FREE) {

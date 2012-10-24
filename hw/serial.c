@@ -22,7 +22,7 @@
 #define UART_IIR_TYPE_BITS	0xc0
 
 struct serial8250_device {
-	pthread_mutex_t		mutex;
+	struct mutex		mutex;
 	u8			id;
 
 	u16			iobase;
@@ -55,7 +55,7 @@ struct serial8250_device {
 static struct serial8250_device devices[] = {
 	/* ttyS0 */
 	[0]	= {
-		.mutex			= PTHREAD_MUTEX_INITIALIZER,
+		.mutex			= MUTEX_INITIALIZER,
 
 		.id			= 0,
 		.iobase			= 0x3f8,
@@ -65,7 +65,7 @@ static struct serial8250_device devices[] = {
 	},
 	/* ttyS1 */
 	[1]	= {
-		.mutex			= PTHREAD_MUTEX_INITIALIZER,
+		.mutex			= MUTEX_INITIALIZER,
 
 		.id			= 1,
 		.iobase			= 0x2f8,
@@ -75,7 +75,7 @@ static struct serial8250_device devices[] = {
 	},
 	/* ttyS2 */
 	[2]	= {
-		.mutex			= PTHREAD_MUTEX_INITIALIZER,
+		.mutex			= MUTEX_INITIALIZER,
 
 		.id			= 2,
 		.iobase			= 0x3e8,
@@ -85,7 +85,7 @@ static struct serial8250_device devices[] = {
 	},
 	/* ttyS3 */
 	[3]	= {
-		.mutex			= PTHREAD_MUTEX_INITIALIZER,
+		.mutex			= MUTEX_INITIALIZER,
 
 		.id			= 3,
 		.iobase			= 0x2e8,

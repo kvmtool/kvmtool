@@ -39,7 +39,7 @@ struct net_dev_operations {
 };
 
 struct net_dev {
-	pthread_mutex_t			mutex;
+	struct mutex			mutex;
 	struct virtio_device		vdev;
 	struct list_head		list;
 
@@ -48,11 +48,11 @@ struct net_dev {
 	u32				features;
 
 	pthread_t			io_rx_thread;
-	pthread_mutex_t			io_rx_lock;
+	struct mutex			io_rx_lock;
 	pthread_cond_t			io_rx_cond;
 
 	pthread_t			io_tx_thread;
-	pthread_mutex_t			io_tx_lock;
+	struct mutex			io_tx_lock;
 	pthread_cond_t			io_tx_cond;
 
 	int				vhost_fd;
@@ -87,7 +87,7 @@ static void *virtio_net_rx_thread(void *p)
 	while (1) {
 		mutex_lock(&ndev->io_rx_lock);
 		if (!virt_queue__available(vq))
-			pthread_cond_wait(&ndev->io_rx_cond, &ndev->io_rx_lock);
+			pthread_cond_wait(&ndev->io_rx_cond, &ndev->io_rx_lock.mutex);
 		mutex_unlock(&ndev->io_rx_lock);
 
 		while (virt_queue__available(vq)) {
@@ -125,7 +125,7 @@ static void *virtio_net_tx_thread(void *p)
 	while (1) {
 		mutex_lock(&ndev->io_tx_lock);
 		if (!virt_queue__available(vq))
-			pthread_cond_wait(&ndev->io_tx_cond, &ndev->io_tx_lock);
+			pthread_cond_wait(&ndev->io_tx_cond, &ndev->io_tx_lock.mutex);
 		mutex_unlock(&ndev->io_tx_lock);
 
 		while (virt_queue__available(vq)) {
@@ -252,8 +252,8 @@ fail:
 
 static void virtio_net__io_thread_init(struct kvm *kvm, struct net_dev *ndev)
 {
-	pthread_mutex_init(&ndev->io_tx_lock, NULL);
-	pthread_mutex_init(&ndev->io_rx_lock, NULL);
+	mutex_init(&ndev->io_tx_lock);
+	mutex_init(&ndev->io_rx_lock);
 
 	pthread_cond_init(&ndev->io_tx_cond, NULL);
 	pthread_cond_init(&ndev->io_rx_cond, NULL);
