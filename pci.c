@@ -203,7 +203,7 @@ int pci__init(struct kvm *kvm)
 
 	return 0;
 }
-base_init(pci__init);
+dev_base_init(pci__init);
 
 int pci__exit(struct kvm *kvm)
 {
@@ -212,4 +212,4 @@ int pci__exit(struct kvm *kvm)
 
 	return 0;
 }
-base_exit(pci__exit);
+dev_base_exit(pci__exit);
