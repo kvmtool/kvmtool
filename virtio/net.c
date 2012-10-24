@@ -79,6 +79,8 @@ static void *virtio_net_rx_thread(void *p)
 	u16 head;
 	int len;
 
+	kvm__set_thread_name("virtio-net-rx");
+
 	kvm = ndev->kvm;
 	vq = &ndev->vqs[VIRTIO_NET_RX_QUEUE];
 
@@ -114,6 +116,8 @@ static void *virtio_net_tx_thread(void *p)
 	u16 out, in;
 	u16 head;
 	int len;
+
+	kvm__set_thread_name("virtio-net-tx");
 
 	kvm = ndev->kvm;
 	vq = &ndev->vqs[VIRTIO_NET_TX_QUEUE];

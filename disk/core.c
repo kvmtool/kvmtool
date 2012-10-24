@@ -63,6 +63,8 @@ static void *disk_image__thread(void *param)
 	int nr, i;
 	u64 dummy;
 
+	kvm__set_thread_name("disk-image-io");
+
 	while (read(disk->evt, &dummy, sizeof(dummy)) > 0) {
 		nr = io_getevents(disk->ctx, 1, ARRAY_SIZE(event), event, &notime);
 		for (i = 0; i < nr; i++)

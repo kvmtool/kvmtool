@@ -10,6 +10,7 @@
 #include <linux/types.h>
 #include <time.h>
 #include <signal.h>
+#include <sys/prctl.h>
 
 #define SIGKVMEXIT		(SIGRTMIN + 0)
 #define SIGKVMPAUSE		(SIGRTMIN + 1)
@@ -117,5 +118,10 @@ static inline void *guest_flat_to_host(struct kvm *kvm, unsigned long offset)
 }
 
 bool kvm__supports_extension(struct kvm *kvm, unsigned int extension);
+
+static inline void kvm__set_thread_name(const char *name)
+{
+	prctl(PR_SET_NAME, name);
+}
 
 #endif /* KVM__KVM_H */

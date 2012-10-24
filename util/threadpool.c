@@ -78,6 +78,8 @@ static void *thread_pool__threadfunc(void *param)
 {
 	pthread_cleanup_push(thread_pool__threadfunc_cleanup, NULL);
 
+	kvm__set_thread_name("threadpool-worker");
+
 	while (running) {
 		struct thread_pool__job *curjob = NULL;
 

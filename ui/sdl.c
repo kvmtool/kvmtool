@@ -206,6 +206,8 @@ static void *sdl__thread(void *p)
 	SDL_Event ev;
 	Uint32 flags;
 
+	kvm__set_thread_name("kvm-sdl-worker");
+
 	if (SDL_Init(SDL_INIT_VIDEO) != 0)
 		die("Unable to initialize SDL");
 

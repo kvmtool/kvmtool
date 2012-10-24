@@ -171,7 +171,12 @@ static void handle_sigalrm(int sig, siginfo_t *si, void *uc)
 
 static void *kvm_cpu_thread(void *arg)
 {
-	current_kvm_cpu		= arg;
+	char name[16];
+
+	current_kvm_cpu = arg;
+
+	sprintf(name, "kvm-vcpu-%lu", current_kvm_cpu->cpu_id);
+	kvm__set_thread_name(name);
 
 	if (kvm_cpu__start(current_kvm_cpu))
 		goto panic_kvm;

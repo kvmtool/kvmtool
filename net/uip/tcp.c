@@ -1,5 +1,6 @@
 #include "kvm/uip.h"
 
+#include <kvm/kvm.h>
 #include <linux/virtio_net.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -175,6 +176,8 @@ static void *uip_tcp_socket_thread(void *p)
 	struct uip_tcp_socket *sk;
 	int len, left, ret;
 	u8 *payload, *pos;
+
+	kvm__set_thread_name("uip-tcp");
 
 	sk = p;
 

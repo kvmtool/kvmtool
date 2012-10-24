@@ -185,6 +185,8 @@ static void *vnc__thread(void *p)
 	char argv[1][1] = {{0}};
 	int argc = 1;
 
+	kvm__set_thread_name("kvm-vnc-worker");
+
 	server = rfbGetScreen(&argc, (char **) argv, fb->width, fb->height, 8, 3, 4);
 	server->frameBuffer		= fb->mem;
 	server->alwaysShared		= TRUE;

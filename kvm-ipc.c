@@ -260,6 +260,8 @@ static void *kvm_ipc__thread(void *param)
 	struct epoll_event event;
 	struct kvm *kvm = param;
 
+	kvm__set_thread_name("kvm-ipc");
+
 	for (;;) {
 		int nfds;
 

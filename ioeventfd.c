@@ -24,6 +24,8 @@ static void *ioeventfd__thread(void *param)
 {
 	u64 tmp = 1;
 
+	kvm__set_thread_name("ioeventfd-worker");
+
 	for (;;) {
 		int nfds, i;
 

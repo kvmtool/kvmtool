@@ -1,5 +1,6 @@
 #include "kvm/uip.h"
 
+#include <kvm/kvm.h>
 #include <linux/virtio_net.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -159,6 +160,8 @@ static void *uip_udp_socket_thread(void *p)
 	u8 *payload;
 	int nfds;
 	int i;
+
+	kvm__set_thread_name("uip-udp");
 
 	info = p;
 
