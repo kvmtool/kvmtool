@@ -22,8 +22,8 @@ static const struct option balloon_options[] = {
 	OPT_GROUP("Instance options:"),
 	OPT_STRING('n', "name", &instance_name, "name", "Instance name"),
 	OPT_GROUP("Balloon options:"),
-	OPT_U64('i', "inflate", &inflate, "Amount to inflate"),
-	OPT_U64('d', "deflate", &deflate, "Amount to deflate"),
+	OPT_U64('i', "inflate", &inflate, "Amount to inflate (in MB)"),
+	OPT_U64('d', "deflate", &deflate, "Amount to deflate (in MB)"),
 	OPT_END(),
 };
 
