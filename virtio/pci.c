@@ -286,7 +286,7 @@ int virtio_pci__signal_config(struct kvm *kvm, struct virtio_device *vdev)
 		}
 
 		if (vpci->features & VIRTIO_PCI_F_SIGNAL_MSI)
-			virtio_pci__signal_msi(kvm, vpci, vpci->vq_vector[vpci->config_vector]);
+			virtio_pci__signal_msi(kvm, vpci, vpci->config_vector);
 		else
 			kvm__irq_trigger(kvm, vpci->config_gsi);
 	} else {
