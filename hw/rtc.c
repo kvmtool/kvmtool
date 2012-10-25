@@ -18,6 +18,7 @@
 #define RTC_DAY_OF_MONTH		0x07
 #define RTC_MONTH			0x08
 #define RTC_YEAR			0x09
+#define RTC_CENTURY			0x32
 
 #define RTC_REG_A			0x0A
 #define RTC_REG_B			0x0B
@@ -40,7 +41,6 @@ static bool cmos_ram_data_in(struct ioport *ioport, struct kvm *kvm, u16 port, v
 {
 	struct tm *tm;
 	time_t ti;
-	int year;
 
 	time(&ti);
 
@@ -65,18 +65,24 @@ static bool cmos_ram_data_in(struct ioport *ioport, struct kvm *kvm, u16 port, v
 	case RTC_MONTH:
 		ioport__write8(data, bin2bcd(tm->tm_mon + 1));
 		break;
-	case RTC_YEAR:
-		/*
-		 * The gmtime() function returns time since 1900. The CMOS
-		 * standard is time since 2000. If the year is < 100, do
-		 * nothing; if it is > 100, subtract 100; this is the best fit
-		 * with the twisted CMOS logic.
-		 */
-		year = tm->tm_year;
-		if (year > 99)
-			year -= 100;
-		ioport__write8(data, bin2bcd(year));
+	case RTC_YEAR: {
+		int year;
+
+		year = tm->tm_year + 1900;
+
+		ioport__write8(data, bin2bcd(year % 100));
+
 		break;
+	}
+	case RTC_CENTURY: {
+		int year;
+
+		year = tm->tm_year + 1900;
+
+		ioport__write8(data, bin2bcd(year / 100));
+
+		break;
+	}
 	default:
 		ioport__write8(data, rtc.cmos_data[rtc.cmos_idx]);
 		break;
