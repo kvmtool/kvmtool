@@ -146,6 +146,8 @@ static bool virtio_pci__specific_io_out(struct kvm *kvm, struct virtio_device *v
 		switch (offset) {
 		case VIRTIO_MSI_CONFIG_VECTOR:
 			vec = vpci->config_vector = ioport__read16(data);
+			if (vec == VIRTIO_MSI_NO_VECTOR)
+				break;
 
 			gsi = irq__add_msix_route(kvm, &vpci->msix_table[vec].msg);
 
@@ -153,6 +155,9 @@ static bool virtio_pci__specific_io_out(struct kvm *kvm, struct virtio_device *v
 			break;
 		case VIRTIO_MSI_QUEUE_VECTOR:
 			vec = vpci->vq_vector[vpci->queue_selector] = ioport__read16(data);
+
+			if (vec == VIRTIO_MSI_NO_VECTOR)
+				break;
 
 			gsi = irq__add_msix_route(kvm, &vpci->msix_table[vec].msg);
 			vpci->gsis[vpci->queue_selector] = gsi;
@@ -253,7 +258,7 @@ int virtio_pci__signal_vq(struct kvm *kvm, struct virtio_device *vdev, u32 vq)
 	struct virtio_pci *vpci = vdev->virtio;
 	int tbl = vpci->vq_vector[vq];
 
-	if (virtio_pci__msix_enabled(vpci)) {
+	if (virtio_pci__msix_enabled(vpci) && tbl != VIRTIO_MSI_NO_VECTOR) {
 		if (vpci->pci_hdr.msix.ctrl & cpu_to_le16(PCI_MSIX_FLAGS_MASKALL) ||
 		    vpci->msix_table[tbl].ctrl & cpu_to_le16(PCI_MSIX_ENTRY_CTRL_MASKBIT)) {
 
@@ -277,7 +282,7 @@ int virtio_pci__signal_config(struct kvm *kvm, struct virtio_device *vdev)
 	struct virtio_pci *vpci = vdev->virtio;
 	int tbl = vpci->config_vector;
 
-	if (virtio_pci__msix_enabled(vpci)) {
+	if (virtio_pci__msix_enabled(vpci) && tbl != VIRTIO_MSI_NO_VECTOR) {
 		if (vpci->pci_hdr.msix.ctrl & cpu_to_le16(PCI_MSIX_FLAGS_MASKALL) ||
 		    vpci->msix_table[tbl].ctrl & cpu_to_le16(PCI_MSIX_ENTRY_CTRL_MASKBIT)) {
 
@@ -286,7 +291,7 @@ int virtio_pci__signal_config(struct kvm *kvm, struct virtio_device *vdev)
 		}
 
 		if (vpci->features & VIRTIO_PCI_F_SIGNAL_MSI)
-			virtio_pci__signal_msi(kvm, vpci, vpci->config_vector);
+			virtio_pci__signal_msi(kvm, vpci, tbl);
 		else
 			kvm__irq_trigger(kvm, vpci->config_gsi);
 	} else {
