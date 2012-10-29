@@ -48,8 +48,12 @@ struct rb_int_node *rb_int_search_range(struct rb_root *root, u64 low, u64 high)
  */
 static void propagate_callback(struct rb_node *node, struct rb_node *stop)
 {
-	struct rb_int_node *i_node = rb_int(node);
+	struct rb_int_node *i_node;
 
+	if (node == stop)
+		return;
+
+	i_node = rb_int(node);
 	i_node->max_high = i_node->high;
 
 	if (node->rb_left)

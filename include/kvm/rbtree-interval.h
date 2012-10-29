@@ -4,7 +4,8 @@
 #include <linux/rbtree_augmented.h>
 #include <linux/types.h>
 
-#define RB_INT_INIT(l, h) (struct rb_int_node){.low = l, .high = h}
+#define RB_INT_INIT(l, h) \
+	(struct rb_int_node){.low = l, .high = h, .max_high = h}
 #define rb_int(n) rb_entry(n, struct rb_int_node, node)
 
 struct rb_int_node {
