@@ -1390,7 +1390,8 @@ int virtio_9p__init(struct kvm *kvm)
 
 	list_for_each_entry(p9dev, &devs, list) {
 		virtio_init(kvm, p9dev, &p9dev->vdev, &p9_dev_virtio_ops,
-			    VIRTIO_PCI, PCI_DEVICE_ID_VIRTIO_9P, VIRTIO_ID_9P, PCI_CLASS_9P);
+			    VIRTIO_DEFAULT_TRANS, PCI_DEVICE_ID_VIRTIO_9P,
+			    VIRTIO_ID_9P, PCI_CLASS_9P);
 	}
 
 	return 0;

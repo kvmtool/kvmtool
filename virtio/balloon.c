@@ -254,7 +254,8 @@ int virtio_bln__init(struct kvm *kvm)
 	memset(&bdev.config, 0, sizeof(struct virtio_balloon_config));
 
 	virtio_init(kvm, &bdev, &bdev.vdev, &bln_dev_virtio_ops,
-		    VIRTIO_PCI, PCI_DEVICE_ID_VIRTIO_BLN, VIRTIO_ID_BALLOON, PCI_CLASS_BLN);
+		    VIRTIO_DEFAULT_TRANS, PCI_DEVICE_ID_VIRTIO_BLN,
+		    VIRTIO_ID_BALLOON, PCI_CLASS_BLN);
 
 	if (compat_id == -1)
 		compat_id = virtio_compat_add_message("virtio-balloon", "CONFIG_VIRTIO_BALLOON");

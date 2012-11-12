@@ -23,6 +23,8 @@
 #define KVM_PCI_MMIO_AREA	(KVM_MMIO_START + 0x1000000)
 #define KVM_VIRTIO_MMIO_AREA	(KVM_MMIO_START + 0x2000000)
 
+#define VIRTIO_DEFAULT_TRANS	VIRTIO_PCI
+
 struct kvm_arch {
 	u16			boot_selector;
 	u16			boot_ip;

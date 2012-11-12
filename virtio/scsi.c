@@ -251,7 +251,8 @@ static int virtio_scsi_init_one(struct kvm *kvm, struct disk_image *disk)
 	sdev->target.vhost_tpgt = strtol(disk->tpgt, NULL, 0);
 
 	virtio_init(kvm, sdev, &sdev->vdev, &scsi_dev_virtio_ops,
-		    VIRTIO_PCI, PCI_DEVICE_ID_VIRTIO_SCSI, VIRTIO_ID_SCSI, PCI_CLASS_BLK);
+		    VIRTIO_DEFAULT_TRANS, PCI_DEVICE_ID_VIRTIO_SCSI,
+		    VIRTIO_ID_SCSI, PCI_CLASS_BLK);
 
 	list_add_tail(&sdev->list, &sdevs);
 
