@@ -171,11 +171,6 @@ endif
 # both and only build those that link!
 
 FLAGS_BFD := $(CFLAGS) -lbfd
-ifeq ($(call try-cc,$(SOURCE_BFD),$(FLAGS_BFD)),y)
-	CFLAGS_DYNOPT	+= -DCONFIG_HAS_BFD
-	OBJS_DYNOPT	+= symbol.o
-	LIBS_DYNOPT	+= -lbfd
-endif
 ifeq ($(call try-cc,$(SOURCE_BFD),$(FLAGS_BFD) -static),y)
 	CFLAGS_STATOPT	+= -DCONFIG_HAS_BFD
 	OBJS_STATOPT	+= symbol.o
