@@ -230,7 +230,7 @@ int virtio_mmio_init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 	vmmio->hdr = (struct virtio_mmio_hdr) {
 		.magic		= {'v', 'i', 'r', 't'},
 		.version	= 1,
-		.device_id	= device_id - 0x1000 + 1,
+		.device_id	= subsys_id,
 		.vendor_id	= 0x4d564b4c , /* 'LKVM' */
 		.queue_num_max	= 256,
 	};
