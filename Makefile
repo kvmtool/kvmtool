@@ -19,8 +19,8 @@ export E Q KINCL_PATH
 include config/utilities.mak
 include config/feature-tests.mak
 
-CC	:= $(CROSS_COMPILE)$(CC)
-LD	:= $(CROSS_COMPILE)$(LD)
+CC	:= $(CROSS_COMPILE)gcc
+LD	:= $(CROSS_COMPILE)ld
 
 FIND	:= find
 CSCOPE	:= cscope
