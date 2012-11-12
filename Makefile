@@ -247,7 +247,6 @@ KVM_INCLUDE := include
 CFLAGS	+= $(CPPFLAGS) $(DEFINES) -I$(KVM_INCLUDE) -I$(ARCH_INCLUDE) -I$(KINCL_PATH)/include/uapi -I$(KINCL_PATH)/include -I$(KINCL_PATH)/arch/$(ARCH)/include/uapi -I$(KINCL_PATH)/arch/$(ARCH)/include/ -O2 -fno-strict-aliasing -g
 
 WARNINGS += -Wall
-WARNINGS += -Wcast-align
 WARNINGS += -Wformat=2
 WARNINGS += -Winit-self
 WARNINGS += -Wmissing-declarations
