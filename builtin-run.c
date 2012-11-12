@@ -665,7 +665,8 @@ static struct kvm *kvm_cmd_run_init(int argc, const char **argv)
 	printf("  # %s run -k %s -m %Lu -c %d --name %s\n", KVM_BINARY_NAME,
 		kvm->cfg.kernel_filename, kvm->cfg.ram_size / 1024 / 1024, kvm->cfg.nrcpus, kvm->cfg.guest_name);
 
-	init_list__init(kvm);
+	if (init_list__init(kvm) < 0)
+		die ("Initialisation failed");
 
 	return kvm;
 }
