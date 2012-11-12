@@ -15,9 +15,9 @@
 
 #include "spapr.h"
 #include "spapr_pci.h"
+#include "kvm/fdt.h"
 #include "kvm/util.h"
 #include "kvm/pci.h"
-#include "libfdt.h"
 
 #include <linux/pci_regs.h>
 #include <linux/byteorder.h>

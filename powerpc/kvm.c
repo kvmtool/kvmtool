@@ -11,9 +11,9 @@
  * by the Free Software Foundation.
  */
 
+#include "kvm/fdt.h"
 #include "kvm/kvm.h"
 #include "kvm/util.h"
-#include "libfdt.h"
 #include "cpu_info.h"
 
 #include "spapr.h"
