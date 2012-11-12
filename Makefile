@@ -226,6 +226,11 @@ ifeq ($(call try-cc,$(SOURCE_AIO),$(FLAGS_AIO) -static),y)
 	LIBS_STATOPT	+= -laio
 endif
 
+FLAGS_LTO := -flto
+ifeq ($(call try-cc,$(SOURCE_HELLO),$(FLAGS_LTO)),y)
+	CFLAGS		+= $(FLAGS_LTO)
+endif
+
 ifneq ($(call try-build,$(SOURCE_STATIC),-static,),y)
 $(error No static libc found. Please install glibc-static package.)
 endif
@@ -244,7 +249,7 @@ DEFINES	+= -DKVMTOOLS_VERSION='"$(KVMTOOLS_VERSION)"'
 DEFINES	+= -DBUILD_ARCH='"$(ARCH)"'
 
 KVM_INCLUDE := include
-CFLAGS	+= $(CPPFLAGS) $(DEFINES) -I$(KVM_INCLUDE) -I$(ARCH_INCLUDE) -I$(KINCL_PATH)/include/uapi -I$(KINCL_PATH)/include -I$(KINCL_PATH)/arch/$(ARCH)/include/uapi -I$(KINCL_PATH)/arch/$(ARCH)/include/ -O2 -fno-strict-aliasing -g -flto
+CFLAGS	+= $(CPPFLAGS) $(DEFINES) -I$(KVM_INCLUDE) -I$(ARCH_INCLUDE) -I$(KINCL_PATH)/include/uapi -I$(KINCL_PATH)/include -I$(KINCL_PATH)/arch/$(ARCH)/include/uapi -I$(KINCL_PATH)/arch/$(ARCH)/include/ -O2 -fno-strict-aliasing -g
 
 WARNINGS += -Wall
 WARNINGS += -Wcast-align
