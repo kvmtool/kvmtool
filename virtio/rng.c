@@ -61,11 +61,13 @@ static void set_guest_features(struct kvm *kvm, void *dev, u32 features)
 static bool virtio_rng_do_io_request(struct kvm *kvm, struct rng_dev *rdev, struct virt_queue *queue)
 {
 	struct iovec iov[VIRTIO_RNG_QUEUE_SIZE];
-	unsigned int len = 0;
+	ssize_t len = 0;
 	u16 out, in, head;
 
 	head	= virt_queue__get_iov(queue, iov, &out, &in, kvm);
 	len	= readv(rdev->fd, iov, in);
+	if (len < 0 && errno == EAGAIN)
+		len = 0;
 
 	virt_queue__set_used_elem(queue, head, len);
 
@@ -161,7 +163,7 @@ int virtio_rng__init(struct kvm *kvm)
 	if (rdev == NULL)
 		return -ENOMEM;
 
-	rdev->fd = open("/dev/urandom", O_RDONLY);
+	rdev->fd = open("/dev/random", O_RDONLY | O_NONBLOCK);
 	if (rdev->fd < 0) {
 		r = rdev->fd;
 		goto cleanup;
