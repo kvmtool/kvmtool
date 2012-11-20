@@ -221,9 +221,11 @@ ifeq ($(call try-cc,$(SOURCE_AIO),$(FLAGS_AIO) -static),y)
 	LIBS_STATOPT	+= -laio
 endif
 
-FLAGS_LTO := -flto
-ifeq ($(call try-cc,$(SOURCE_HELLO),$(FLAGS_LTO)),y)
-	CFLAGS		+= $(FLAGS_LTO)
+ifeq ($(LTO),1)
+	FLAGS_LTO := -flto
+	ifeq ($(call try-cc,$(SOURCE_HELLO),$(FLAGS_LTO)),y)
+		CFLAGS		+= $(FLAGS_LTO)
+	endif
 endif
 
 ifneq ($(call try-build,$(SOURCE_STATIC),-static,),y)
