@@ -106,6 +106,7 @@ bool kvm__arch_cpu_supports_vm(void);
 void kvm__arch_periodic_poll(struct kvm *kvm);
 
 void *guest_flat_to_host(struct kvm *kvm, u64 offset);
+u64 host_to_guest_flat(struct kvm *kvm, void *ptr);
 
 int load_flat_binary(struct kvm *kvm, int fd_kernel, int fd_initrd, const char *kernel_cmdline);
 bool load_bzimage(struct kvm *kvm, int fd_kernel, int fd_initrd, const char *kernel_cmdline, u16 vidmode);

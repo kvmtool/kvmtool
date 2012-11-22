@@ -201,6 +201,22 @@ void *guest_flat_to_host(struct kvm *kvm, u64 offset)
 	return NULL;
 }
 
+u64 host_to_guest_flat(struct kvm *kvm, void *ptr)
+{
+	struct kvm_mem_bank *bank;
+
+	list_for_each_entry(bank, &kvm->mem_banks, list) {
+		void *bank_start = bank->host_addr;
+		void *bank_end = bank_start + bank->size;
+
+		if (ptr >= bank_start && ptr < bank_end)
+			return bank->guest_phys_addr + (ptr - bank_start);
+	}
+
+	pr_warning("unable to translate host address %p to guest", ptr);
+	return 0;
+}
+
 int kvm__recommended_cpus(struct kvm *kvm)
 {
 	int ret;
