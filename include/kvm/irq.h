@@ -22,7 +22,7 @@ struct pci_dev {
 	struct list_head	lines;
 };
 
-int irq__register_device(u32 dev, u8 *num, u8 *pin, u8 *line);
+int irq__register_device(u32 dev, u8 *pin, u8 *line);
 
 struct rb_node *irq__get_pci_tree(void);
 

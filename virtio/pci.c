@@ -306,7 +306,7 @@ int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 		     int device_id, int subsys_id, int class)
 {
 	struct virtio_pci *vpci = vdev->virtio;
-	u8 pin, line, ndev;
+	u8 pin, line;
 	int r;
 
 	vpci->dev = dev;
@@ -343,6 +343,11 @@ int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 		.bar_size[3]		= PCI_IO_SIZE,
 	};
 
+	vpci->dev_hdr = (struct device_header) {
+		.bus_type		= DEVICE_BUS_PCI,
+		.data			= &vpci->pci_hdr,
+	};
+
 	vpci->pci_hdr.msix.cap = PCI_CAP_ID_MSIX;
 	vpci->pci_hdr.msix.next = 0;
 	/*
@@ -366,7 +371,7 @@ int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 	vpci->pci_hdr.msix.pba_offset = cpu_to_le32(1 | PCI_IO_SIZE); /* Use BAR 3 */
 	vpci->config_vector = 0;
 
-	r = irq__register_device(subsys_id, &ndev, &pin, &line);
+	r = irq__register_device(subsys_id, &pin, &line);
 	if (r < 0)
 		goto free_mmio;
 
@@ -375,7 +380,7 @@ int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 
 	vpci->pci_hdr.irq_pin	= pin;
 	vpci->pci_hdr.irq_line	= line;
-	r = pci__register(&vpci->pci_hdr, ndev);
+	r = device__register(&vpci->dev_hdr);
 	if (r < 0)
 		goto free_ioport;
 

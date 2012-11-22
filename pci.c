@@ -1,3 +1,4 @@
+#include "kvm/devices.h"
 #include "kvm/pci.h"
 #include "kvm/ioport.h"
 #include "kvm/util.h"
@@ -7,8 +8,6 @@
 #include <assert.h>
 
 #define PCI_BAR_OFFSET(b)		(offsetof(struct pci_device_header, bar[b]))
-
-static struct pci_device_header		*pci_devices[PCI_MAX_DEVICES];
 
 static union pci_config_address		pci_config_address;
 
@@ -63,20 +62,13 @@ static struct ioport_operations pci_config_address_ops = {
 
 static bool pci_device_exists(u8 bus_number, u8 device_number, u8 function_number)
 {
-	struct pci_device_header *dev;
-
 	if (pci_config_address.bus_number != bus_number)
 		return false;
 
 	if (pci_config_address.function_number != function_number)
 		return false;
 
-	if (device_number >= PCI_MAX_DEVICES)
-		return false;
-
-	dev = pci_devices[device_number];
-
-	return dev != NULL;
+	return !IS_ERR_OR_NULL(device__find_dev(DEVICE_BUS_PCI, device_number));
 }
 
 static bool pci_config_data_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
@@ -121,12 +113,13 @@ void pci__config_wr(struct kvm *kvm, union pci_config_address addr, void *data, 
 
 		offset = addr.w & 0xff;
 		if (offset < sizeof(struct pci_device_header)) {
-			void *p = pci_devices[dev_num];
+			void *p = device__find_dev(DEVICE_BUS_PCI, dev_num)->data;
+			struct pci_device_header *hdr = p;
 			u8 bar = (offset - PCI_BAR_OFFSET(0)) / (sizeof(u32));
 			u32 sz = PCI_IO_SIZE;
 
-			if (bar < 6 && pci_devices[dev_num]->bar_size[bar])
-				sz = pci_devices[dev_num]->bar_size[bar];
+			if (bar < 6 && hdr->bar_size[bar])
+				sz = hdr->bar_size[bar];
 
 			/*
 			 * If the kernel masks the BAR it would expect to find the
@@ -158,7 +151,7 @@ void pci__config_rd(struct kvm *kvm, union pci_config_address addr, void *data, 
 
 		offset = addr.w & 0xff;
 		if (offset < sizeof(struct pci_device_header)) {
-			void *p = pci_devices[dev_num];
+			void *p = device__find_dev(DEVICE_BUS_PCI, dev_num)->data;
 
 			memcpy(data, p + offset, size);
 		} else {
@@ -169,22 +162,14 @@ void pci__config_rd(struct kvm *kvm, union pci_config_address addr, void *data, 
 	}
 }
 
-int pci__register(struct pci_device_header *dev, u8 dev_num)
-{
-	if (dev_num >= PCI_MAX_DEVICES)
-		return -ENOSPC;
-
-	pci_devices[dev_num] = dev;
-
-	return 0;
-}
-
 struct pci_device_header *pci__find_dev(u8 dev_num)
 {
-	if (dev_num >= PCI_MAX_DEVICES)
-		return ERR_PTR(-EOVERFLOW);
+	struct device_header *hdr = device__find_dev(DEVICE_BUS_PCI, dev_num);
 
-	return pci_devices[dev_num];
+	if (IS_ERR_OR_NULL(hdr))
+		return NULL;
+
+	return hdr->data;
 }
 
 int pci__init(struct kvm *kvm)

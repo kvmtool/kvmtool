@@ -1,5 +1,6 @@
 #include "kvm/vesa.h"
 
+#include "kvm/devices.h"
 #include "kvm/virtio-pci-dev.h"
 #include "kvm/framebuffer.h"
 #include "kvm/kvm-cpu.h"
@@ -44,19 +45,24 @@ static struct pci_device_header vesa_pci_device = {
 	.bar_size[1]		= VESA_MEM_SIZE,
 };
 
+static struct device_header vesa_device = {
+	.bus_type	= DEVICE_BUS_PCI,
+	.data		= &vesa_pci_device,
+};
+
 static struct framebuffer vesafb;
 
 struct framebuffer *vesa__init(struct kvm *kvm)
 {
 	u16 vesa_base_addr;
-	u8 dev, line, pin;
+	u8 line, pin;
 	char *mem;
 	int r;
 
 	if (!kvm->cfg.vnc && !kvm->cfg.sdl)
 		return NULL;
 
-	r = irq__register_device(PCI_DEVICE_ID_VESA, &dev, &pin, &line);
+	r = irq__register_device(PCI_DEVICE_ID_VESA, &pin, &line);
 	if (r < 0)
 		return ERR_PTR(r);
 
@@ -68,7 +74,7 @@ struct framebuffer *vesa__init(struct kvm *kvm)
 	vesa_pci_device.irq_line	= line;
 	vesa_base_addr			= (u16)r;
 	vesa_pci_device.bar[0]		= cpu_to_le32(vesa_base_addr | PCI_BASE_ADDRESS_SPACE_IO);
-	pci__register(&vesa_pci_device, dev);
+	device__register(&vesa_device);
 
 	mem = mmap(NULL, VESA_MEM_SIZE, PROT_RW, MAP_ANON_NORESERVE, -1, 0);
 	if (mem == MAP_FAILED)

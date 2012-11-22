@@ -9,7 +9,6 @@
 #include "kvm/kvm.h"
 #include "kvm/msi.h"
 
-#define PCI_MAX_DEVICES		256
 /*
  * PCI Configuration Mechanism #1 I/O ports. See Section 3.7.4.1.
  * ("Configuration Mechanism #1") of the PCI Local Bus Specification 2.1 for
@@ -86,7 +85,6 @@ struct pci_device_header {
 
 int pci__init(struct kvm *kvm);
 int pci__exit(struct kvm *kvm);
-int pci__register(struct pci_device_header *dev, u8 dev_num);
 struct pci_device_header *pci__find_dev(u8 dev_num);
 u32 pci_get_io_space_block(u32 size);
 void pci__config_wr(struct kvm *kvm, union pci_config_address addr, void *data, int size);

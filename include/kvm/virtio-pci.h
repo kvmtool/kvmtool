@@ -1,6 +1,7 @@
 #ifndef KVM__VIRTIO_PCI_H
 #define KVM__VIRTIO_PCI_H
 
+#include "kvm/devices.h"
 #include "kvm/pci.h"
 
 #include <linux/types.h>
@@ -19,6 +20,7 @@ struct virtio_pci_ioevent_param {
 
 struct virtio_pci {
 	struct pci_device_header pci_hdr;
+	struct device_header	dev_hdr;
 	void			*dev;
 
 	u16			base_addr;

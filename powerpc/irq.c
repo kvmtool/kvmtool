@@ -8,6 +8,7 @@
  * by the Free Software Foundation.
  */
 
+#include "kvm/devices.h"
 #include "kvm/irq.h"
 #include "kvm/kvm.h"
 #include "kvm/util.h"
@@ -31,15 +32,8 @@
  * generic & cope with multiple PPC platform types.
  */
 
-static int pci_devs = 0;
-
-int irq__register_device(u32 dev, u8 *num, u8 *pin, u8 *line)
+int irq__register_device(u32 dev, u8 *pin, u8 *line)
 {
-	if (pci_devs >= PCI_MAX_DEVICES)
-		die("Hit PCI device limit!\n");
-
-	*num = pci_devs++;
-
 	*pin = 1;
 	/*
 	 * Have I said how nasty I find this?  Line should be dontcare... PHB

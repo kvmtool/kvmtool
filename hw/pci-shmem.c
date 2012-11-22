@@ -1,3 +1,4 @@
+#include "kvm/devices.h"
 #include "kvm/pci-shmem.h"
 #include "kvm/virtio-pci-dev.h"
 #include "kvm/irq.h"
@@ -28,6 +29,11 @@ static struct pci_device_header pci_shmem_pci_device = {
 	.msix.ctrl	= cpu_to_le16(1),
 	.msix.table_offset = cpu_to_le32(1),		/* Use BAR 1 */
 	.msix.pba_offset = cpu_to_le32(0x1001),		/* Use BAR 1 */
+};
+
+static struct device_header pci_shmem_device = {
+	.bus_type	= DEVICE_BUS_PCI,
+	.data		= &pci_shmem_pci_device,
 };
 
 /* registers for the Inter-VM shared memory device */
@@ -346,7 +352,7 @@ int shmem_parser(const struct option *opt, const char *arg, int unset)
 
 int pci_shmem__init(struct kvm *kvm)
 {
-	u8 dev, line, pin;
+	u8 line, pin;
 	char *mem;
 	int r;
 
@@ -354,7 +360,7 @@ int pci_shmem__init(struct kvm *kvm)
 		return 0;
 
 	/* Register good old INTx */
-	r = irq__register_device(PCI_DEVICE_ID_PCI_SHMEM, &dev, &pin, &line);
+	r = irq__register_device(PCI_DEVICE_ID_PCI_SHMEM, &pin, &line);
 	if (r < 0)
 		return r;
 
@@ -384,7 +390,7 @@ int pci_shmem__init(struct kvm *kvm)
 	pci_shmem_pci_device.bar[2] = cpu_to_le32(shmem_region->phys_addr | PCI_BASE_ADDRESS_SPACE_MEMORY);
 	pci_shmem_pci_device.bar_size[2] = shmem_region->size;
 
-	pci__register(&pci_shmem_pci_device, dev);
+	device__register(&pci_shmem_device);
 
 	/* Open shared memory and plug it into the guest */
 	mem = setup_shmem(shmem_region->handle, shmem_region->size,

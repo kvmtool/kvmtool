@@ -17,7 +17,6 @@
 #define IRQCHIP_IOAPIC			2
 
 static u8		next_line	= 5;
-static u8		next_dev	= 1;
 static struct rb_root	pci_tree	= RB_ROOT;
 
 /* First 24 GSIs are routed between IRQCHIPs and IOAPICs */
@@ -86,7 +85,7 @@ static int insert(struct rb_root *root, struct pci_dev *data)
 	return 0;
 }
 
-int irq__register_device(u32 dev, u8 *num, u8 *pin, u8 *line)
+int irq__register_device(u32 dev, u8 *pin, u8 *line)
 {
 	struct pci_dev *node;
 	int r;
@@ -128,7 +127,6 @@ int irq__register_device(u32 dev, u8 *num, u8 *pin, u8 *line)
 		new->line	= next_line++;
 		*line		= new->line;
 		*pin		= node->pin;
-		*num		= next_dev++;
 
 		list_add(&new->node, &node->lines);
 
