@@ -199,6 +199,13 @@ void kvm__irq_trigger(struct kvm *kvm, int irq)
 #define BOOT_PROTOCOL_REQUIRED	0x206
 #define LOAD_HIGH		0x01
 
+static inline void *guest_real_to_host(struct kvm *kvm, u16 selector, u16 offset)
+{
+	unsigned long flat = segment_to_flat(selector, offset);
+
+	return guest_flat_to_host(kvm, flat);
+}
+
 int load_flat_binary(struct kvm *kvm, int fd_kernel, int fd_initrd, const char *kernel_cmdline)
 {
 	void *p;

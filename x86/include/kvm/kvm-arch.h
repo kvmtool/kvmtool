@@ -33,13 +33,4 @@ struct kvm_arch {
 	struct interrupt_table	interrupt_table;
 };
 
-static inline void *guest_flat_to_host(struct kvm *kvm, unsigned long offset); /* In kvm.h */
-
-static inline void *guest_real_to_host(struct kvm *kvm, u16 selector, u16 offset)
-{
-	unsigned long flat = segment_to_flat(selector, offset);
-
-	return guest_flat_to_host(kvm, flat);
-}
-
 #endif /* KVM__KVM_ARCH_H */

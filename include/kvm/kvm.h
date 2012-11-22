@@ -105,6 +105,8 @@ int kvm__arch_free_firmware(struct kvm *kvm);
 bool kvm__arch_cpu_supports_vm(void);
 void kvm__arch_periodic_poll(struct kvm *kvm);
 
+void *guest_flat_to_host(struct kvm *kvm, u64 offset);
+
 int load_flat_binary(struct kvm *kvm, int fd_kernel, int fd_initrd, const char *kernel_cmdline);
 bool load_bzimage(struct kvm *kvm, int fd_kernel, int fd_initrd, const char *kernel_cmdline, u16 vidmode);
 
@@ -118,11 +120,6 @@ extern const char *kvm_exit_reasons[];
 static inline bool host_ptr_in_ram(struct kvm *kvm, void *p)
 {
 	return kvm->ram_start <= p && p < (kvm->ram_start + kvm->ram_size);
-}
-
-static inline void *guest_flat_to_host(struct kvm *kvm, unsigned long offset)
-{
-	return kvm->ram_start + offset;
 }
 
 bool kvm__supports_extension(struct kvm *kvm, unsigned int extension);

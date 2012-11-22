@@ -184,6 +184,23 @@ int kvm__register_mem(struct kvm *kvm, u64 guest_phys, u64 size, void *userspace
 	return 0;
 }
 
+void *guest_flat_to_host(struct kvm *kvm, u64 offset)
+{
+	struct kvm_mem_bank *bank;
+
+	list_for_each_entry(bank, &kvm->mem_banks, list) {
+		u64 bank_start = bank->guest_phys_addr;
+		u64 bank_end = bank_start + bank->size;
+
+		if (offset >= bank_start && offset < bank_end)
+			return bank->host_addr + (offset - bank_start);
+	}
+
+	pr_warning("unable to translate guest address 0x%llx to host",
+			(unsigned long long)offset);
+	return NULL;
+}
+
 int kvm__recommended_cpus(struct kvm *kvm)
 {
 	int ret;
