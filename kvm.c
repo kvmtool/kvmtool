@@ -6,7 +6,9 @@
 #include "kvm/kvm-cpu.h"
 #include "kvm/kvm-ipc.h"
 
+#include <linux/kernel.h>
 #include <linux/kvm.h>
+#include <linux/list.h>
 #include <linux/err.h>
 
 #include <sys/un.h>
@@ -133,9 +135,16 @@ struct kvm *kvm__new(void)
 
 int kvm__exit(struct kvm *kvm)
 {
-	kvm__arch_delete_ram(kvm);
-	free(kvm);
+	struct kvm_mem_bank *bank, *tmp;
 
+	kvm__arch_delete_ram(kvm);
+
+	list_for_each_entry_safe(bank, tmp, &kvm->mem_banks, list) {
+		list_del(&bank->list);
+		free(bank);
+	}
+
+	free(kvm);
 	return 0;
 }
 core_exit(kvm__exit);
@@ -148,7 +157,17 @@ core_exit(kvm__exit);
 int kvm__register_mem(struct kvm *kvm, u64 guest_phys, u64 size, void *userspace_addr)
 {
 	struct kvm_userspace_memory_region mem;
+	struct kvm_mem_bank *bank;
 	int ret;
+
+	bank = malloc(sizeof(*bank));
+	if (!bank)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&bank->list);
+	bank->guest_phys_addr		= guest_phys;
+	bank->host_addr			= userspace_addr;
+	bank->size			= size;
 
 	mem = (struct kvm_userspace_memory_region) {
 		.slot			= kvm->mem_slots++,
@@ -161,6 +180,7 @@ int kvm__register_mem(struct kvm *kvm, u64 guest_phys, u64 size, void *userspace
 	if (ret < 0)
 		return -errno;
 
+	list_add(&bank->list, &kvm->mem_banks);
 	return 0;
 }
 
@@ -245,6 +265,7 @@ int kvm__init(struct kvm *kvm)
 
 	kvm__arch_init(kvm, kvm->cfg.hugetlbfs_path, kvm->cfg.ram_size);
 
+	INIT_LIST_HEAD(&kvm->mem_banks);
 	kvm__init_ram(kvm);
 
 	if (!kvm->cfg.firmware_filename) {

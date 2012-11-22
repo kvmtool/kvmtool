@@ -35,6 +35,13 @@ struct kvm_ext {
 	int code;
 };
 
+struct kvm_mem_bank {
+	struct list_head	list;
+	u64			guest_phys_addr;
+	void			*host_addr;
+	u64			size;
+};
+
 struct kvm {
 	struct kvm_arch		arch;
 	struct kvm_config	cfg;
@@ -49,6 +56,7 @@ struct kvm {
 	u64			ram_size;
 	void			*ram_start;
 	u64			ram_pagesize;
+	struct list_head	mem_banks;
 
 	bool			nmi_disabled;
 
