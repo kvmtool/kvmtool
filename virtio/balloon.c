@@ -232,6 +232,12 @@ static int get_size_vq(struct kvm *kvm, void *dev, u32 vq)
 	return VIRTIO_BLN_QUEUE_SIZE;
 }
 
+static int set_size_vq(struct kvm *kvm, void *dev, u32 vq, int size)
+{
+	/* FIXME: dynamic */
+	return size;
+}
+
 struct virtio_ops bln_dev_virtio_ops = (struct virtio_ops) {
 	.get_config		= get_config,
 	.get_host_features	= get_host_features,
@@ -240,6 +246,7 @@ struct virtio_ops bln_dev_virtio_ops = (struct virtio_ops) {
 	.notify_vq		= notify_vq,
 	.get_pfn_vq		= get_pfn_vq,
 	.get_size_vq		= get_size_vq,
+	.set_size_vq            = set_size_vq,
 };
 
 int virtio_bln__init(struct kvm *kvm)
