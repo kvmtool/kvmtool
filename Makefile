@@ -102,7 +102,8 @@ OBJS	+= builtin-sandbox.o
 OBJS	+= virtio/mmio.o
 
 # Translate uname -m into ARCH string
-ARCH ?= $(shell uname -m | sed -e s/i.86/i386/ -e s/ppc.*/powerpc/)
+ARCH ?= $(shell uname -m | sed -e s/i.86/i386/ -e s/ppc.*/powerpc/ \
+	  -e s/armv7.*/arm/)
 
 ifeq ($(ARCH),i386)
 	ARCH         := x86
@@ -155,6 +156,25 @@ ifeq ($(ARCH), powerpc)
 	OTHEROBJS	+= $(LIBFDT_OBJS)
 	ARCH_INCLUDE := powerpc/include
 	CFLAGS 	+= -m64
+endif
+
+# ARM
+OBJS_ARM_COMMON		:= arm/fdt.o arm/gic.o arm/ioport.o arm/irq.o \
+			   arm/kvm.o arm/kvm-cpu.o arm/smp.o
+HDRS_ARM_COMMON		:= arm/include
+ifeq ($(ARCH), arm)
+	DEFINES		+= -DCONFIG_ARM
+	OBJS		+= $(OBJS_ARM_COMMON)
+	OBJS		+= arm/aarch32/cortex-a15.o
+	OBJS		+= arm/aarch32/kvm-cpu.o
+	OBJS       	+= arm/aarch32/smp-pen.o
+	ARCH_INCLUDE	:= $(HDRS_ARM_COMMON)
+	ARCH_INCLUDE	+= -Iarm/aarch32/include
+	ASFLAGS		+= -D__ASSEMBLY__
+	ASFLAGS		+= -I$(ARCH_INCLUDE)
+	CFLAGS		+= -march=armv7-a
+	CFLAGS		+= -I../../scripts/dtc/libfdt
+	OTHEROBJS	+= $(LIBFDT_OBJS)
 endif
 
 ###
