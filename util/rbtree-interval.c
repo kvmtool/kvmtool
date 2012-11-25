@@ -99,13 +99,13 @@ int rb_int_insert(struct rb_root *root, struct rb_int_node *i_node)
 	struct rb_node **node = &root->rb_node, *parent = NULL;
 
 	while (*node) {
-		int result = i_node->low - rb_int(*node)->low;
+		struct rb_int_node *cur = rb_int(*node);
 
 		parent = *node;
-		if (result < 0)
-			node	= &((*node)->rb_left);
-		else if (result > 0)
-			node	= &((*node)->rb_right);
+		if (i_node->high <= cur->low)
+			node = &cur->node.rb_left;
+		else if (cur->high <= i_node->low)
+			node = &cur->node.rb_right;
 		else
 			return -EEXIST;
 	}
