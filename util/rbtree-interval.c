@@ -5,27 +5,19 @@
 struct rb_int_node *rb_int_search_single(struct rb_root *root, u64 point)
 {
 	struct rb_node *node = root->rb_node;
-	struct rb_node *lowest = NULL;
 
 	while (node) {
 		struct rb_int_node *cur = rb_int(node);
 
-		if (node->rb_left && (rb_int(node->rb_left)->max_high > point)) {
+		if (point < cur->low)
 			node = node->rb_left;
-		} else if (cur->low <= point && cur->high > point) {
-			lowest = node;
-			break;
-		} else if (point > cur->low) {
+		else if (cur->high <= point)
 			node = node->rb_right;
-		} else {
-			break;
-		}
+		else
+			return cur;
 	}
 
-	if (lowest == NULL)
-		return NULL;
-
-	return rb_int(lowest);
+	return NULL;
 }
 
 struct rb_int_node *rb_int_search_range(struct rb_root *root, u64 low, u64 high)
