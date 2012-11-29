@@ -61,7 +61,11 @@ int main(int argc, char *argv[])
 		else
 			run_process("/bin/sh");
 	} else {
-		waitpid(child, &status, 0);
+		pid_t corpse;
+
+		do {
+			corpse = waitpid(-1, &status, 0);
+		} while (corpse != child);
 	}
 
 	reboot(LINUX_REBOOT_CMD_RESTART);
