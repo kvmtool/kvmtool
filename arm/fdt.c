@@ -258,8 +258,8 @@ int load_flat_binary(struct kvm *kvm, int fd_kernel, int fd_initrd,
 	return true;
 }
 
-bool load_bzimage(struct kvm *kvm, int fd_kernel,
-		  int fd_initrd, const char *kernel_cmdline, u16 vidmode)
+bool load_bzimage(struct kvm *kvm, int fd_kernel, int fd_initrd,
+		  const char *kernel_cmdline)
 {
 	/* To b or not to b? That is the zImage. */
 	return false;

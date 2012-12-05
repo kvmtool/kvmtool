@@ -303,7 +303,7 @@ int kvm__init(struct kvm *kvm)
 
 	if (!kvm->cfg.firmware_filename) {
 		if (!kvm__load_kernel(kvm, kvm->cfg.kernel_filename,
-				kvm->cfg.initrd_filename, kvm->cfg.real_cmdline, kvm->cfg.vidmode))
+				kvm->cfg.initrd_filename, kvm->cfg.real_cmdline))
 			die("unable to load kernel %s", kvm->cfg.kernel_filename);
 	}
 
@@ -349,7 +349,7 @@ static bool initrd_check(int fd)
 }
 
 bool kvm__load_kernel(struct kvm *kvm, const char *kernel_filename,
-		const char *initrd_filename, const char *kernel_cmdline, u16 vidmode)
+		const char *initrd_filename, const char *kernel_cmdline)
 {
 	bool ret;
 	int fd_kernel = -1, fd_initrd = -1;
@@ -367,7 +367,7 @@ bool kvm__load_kernel(struct kvm *kvm, const char *kernel_filename,
 			die("%s is not an initrd", initrd_filename);
 	}
 
-	ret = load_bzimage(kvm, fd_kernel, fd_initrd, kernel_cmdline, vidmode);
+	ret = load_bzimage(kvm, fd_kernel, fd_initrd, kernel_cmdline);
 
 	if (ret)
 		goto found_kernel;

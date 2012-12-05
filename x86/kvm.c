@@ -235,8 +235,8 @@ int load_flat_binary(struct kvm *kvm, int fd_kernel, int fd_initrd, const char *
 
 static const char *BZIMAGE_MAGIC = "HdrS";
 
-bool load_bzimage(struct kvm *kvm, int fd_kernel,
-		  int fd_initrd, const char *kernel_cmdline, u16 vidmode)
+bool load_bzimage(struct kvm *kvm, int fd_kernel, int fd_initrd,
+		  const char *kernel_cmdline)
 {
 	struct boot_params *kern_boot;
 	unsigned long setup_sects;
@@ -245,6 +245,7 @@ bool load_bzimage(struct kvm *kvm, int fd_kernel,
 	ssize_t setup_size;
 	void *p;
 	int nr;
+	u16 vidmode;
 
 	/*
 	 * See Documentation/x86/boot.txt for details no bzImage on-disk and
@@ -291,6 +292,17 @@ bool load_bzimage(struct kvm *kvm, int fd_kernel,
 
 		memset(p, 0, boot.hdr.cmdline_size);
 		memcpy(p, kernel_cmdline, cmdline_size - 1);
+	}
+
+	if (!kvm->cfg.arch.vidmode)
+		vidmode = -1;
+
+	/* vidmode should be either specified or set by default */
+	if (kvm->cfg.vnc || kvm->cfg.sdl) {
+		if (vidmode == -1)
+			vidmode = 0x312;
+	} else {
+		vidmode = 0;
 	}
 
 	kern_boot	= guest_real_to_host(kvm, BOOT_LOADER_SELECTOR, 0x00);

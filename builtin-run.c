@@ -90,6 +90,10 @@ void kvm_run_set_wrapper_sandbox(void)
 	kvm_run_wrapper = KVM_RUN_SANDBOX;
 }
 
+#ifndef OPT_ARCH_RUN
+#define OPT_ARCH_RUN(...)
+#endif
+
 #define BUILD_OPTIONS(name, cfg, kvm)					\
 	struct option name[] = {					\
 	OPT_GROUP("Basic options:"),					\
@@ -144,10 +148,6 @@ void kvm_run_set_wrapper_sandbox(void)
 	OPT_BOOLEAN('\0', "no-dhcp", &(cfg)->no_dhcp, "Disable kernel"	\
 			" DHCP in rootfs mode"),			\
 									\
-	OPT_GROUP("BIOS options:"),					\
-	OPT_INTEGER('\0', "vidmode", &(cfg)->vidmode,			\
-		    "Video mode"),					\
-									\
 	OPT_GROUP("Debug options:"),					\
 	OPT_BOOLEAN('\0', "debug", &do_debug_print,			\
 			"Enable debug messages"),			\
@@ -159,6 +159,8 @@ void kvm_run_set_wrapper_sandbox(void)
 			"Enable MMIO debugging"),			\
 	OPT_INTEGER('\0', "debug-iodelay", &(cfg)->debug_iodelay,	\
 			"Delay IO by millisecond"),			\
+									\
+	OPT_ARCH(RUN, cfg)						\
 	OPT_END()							\
 	};
 
@@ -597,17 +599,6 @@ static struct kvm *kvm_cmd_run_init(int argc, const char **argv)
 
 	if (!kvm->cfg.script)
 		kvm->cfg.script = DEFAULT_SCRIPT;
-
-	if (!kvm->cfg.vidmode)
-		kvm->cfg.vidmode = -1;
-
-	/* vidmode should be either specified or set by default */
-	if (kvm->cfg.vnc || kvm->cfg.sdl) {
-		if (kvm->cfg.vidmode == -1)
-			kvm->cfg.vidmode = 0x312;
-	} else {
-		kvm->cfg.vidmode = 0;
-	}
 
 	if (!kvm->cfg.network)
                 kvm->cfg.network = DEFAULT_NETWORK;

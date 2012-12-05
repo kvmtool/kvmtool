@@ -191,6 +191,9 @@ struct option {
 
 #define OPT_END() { .type = OPTION_END }
 
+#define OPT_ARCH(cmd, cfg)		    \
+	OPT_ARCH_##cmd(OPT_GROUP("Arch-specific options:"), &(cfg)->arch)
+
 enum {
 	PARSE_OPT_HELP = -1,
 	PARSE_OPT_DONE,
