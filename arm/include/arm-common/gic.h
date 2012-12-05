@@ -19,6 +19,9 @@
 #define GIC_FDT_IRQ_PPI_CPU_MASK	(0xff << GIC_FDT_IRQ_PPI_CPU_SHIFT)
 
 #define GIC_CPUI_CTLR_EN		(1 << 0)
+#define GIC_CPUI_PMR_MIN_PRIO		0xff
+
+#define GIC_CPUI_OFF_PMR		4
 
 #define GIC_MAX_CPUS			8
 #define GIC_MAX_IRQ			255

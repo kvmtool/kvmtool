@@ -17,6 +17,10 @@ smp_pen_start:
 	mov	r1, #GIC_CPUI_CTLR_EN
 	str	r1, [r0]
 
+	@ Set the priority mask to accept any interrupt
+	mov	r1, #GIC_CPUI_PMR_MIN_PRIO
+	str	r1, [r0, #GIC_CPUI_OFF_PMR]
+
 	@ Now wait for the primary to poke us
 	adr	r0, smp_jump_addr
 	ldr	r1, =AARCH32_SMP_BAD_MAGIC
