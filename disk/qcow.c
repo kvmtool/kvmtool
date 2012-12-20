@@ -1361,8 +1361,7 @@ free_header:
 	if (q->header)
 		free(q->header);
 free_qcow:
-	if (q)
-		free(q);
+	free(q);
 
 	return NULL;
 }
@@ -1492,8 +1491,7 @@ free_header:
 	if (q->header)
 		free(q->header);
 free_qcow:
-	if (q)
-		free(q);
+	free(q);
 
 	return NULL;
 }
