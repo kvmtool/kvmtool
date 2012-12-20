@@ -356,7 +356,7 @@ int pci_shmem__init(struct kvm *kvm)
 	char *mem;
 	int r;
 
-	if (shmem_region == 0)
+	if (shmem_region == NULL)
 		return 0;
 
 	/* Register good old INTx */
