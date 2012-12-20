@@ -105,7 +105,7 @@ struct disk_image *disk_image__new(int fd, u64 size,
 	}
 
 #ifdef CONFIG_HAS_AIO
-	if (disk) {
+	{
 		pthread_t thread;
 
 		disk->evt = eventfd(0, 0);
