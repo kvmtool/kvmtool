@@ -1,5 +1,5 @@
-#ifndef KVM__KVM_CPU_ARCH_H
-#define KVM__KVM_CPU_ARCH_H
+#ifndef ARM_COMMON__KVM_CPU_ARCH_H
+#define ARM_COMMON__KVM_CPU_ARCH_H
 
 #include <linux/kvm.h>
 #include <pthread.h>
@@ -43,4 +43,4 @@ static inline bool kvm_cpu__emulate_io(struct kvm *kvm, u16 port, void *data,
 bool kvm_cpu__emulate_mmio(struct kvm *kvm, u64 phys_addr, u8 *data, u32 len,
 			   u8 is_write);
 
-#endif /* KVM__KVM_CPU_ARCH_H */
+#endif /* ARM_COMMON__KVM_CPU_ARCH_H */

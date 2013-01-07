@@ -21,38 +21,33 @@ void kvm_cpu__reset_vcpu(struct kvm_cpu *vcpu)
 	if (ioctl(vcpu->vcpu_fd, KVM_SET_ONE_REG, &reg) < 0)
 		die_perror("KVM_SET_ONE_REG failed (cpsr)");
 
-	if (vcpu->cpu_id == 0) {
-		/* r0 = 0 */
-		data	= 0;
-		reg.id	= ARM_CORE_REG(usr_regs.ARM_r0);
-		if (ioctl(vcpu->vcpu_fd, KVM_SET_ONE_REG, &reg) < 0)
-			die_perror("KVM_SET_ONE_REG failed (r0)");
+	/* Secondary cores are stopped awaiting PSCI wakeup */
+	if (vcpu->cpu_id != 0)
+		return;
 
-		/* r1 = machine type (-1) */
-		data	= -1;
-		reg.id	= ARM_CORE_REG(usr_regs.ARM_r1);
-		if (ioctl(vcpu->vcpu_fd, KVM_SET_ONE_REG, &reg) < 0)
-			die_perror("KVM_SET_ONE_REG failed (r1)");
+	/* r0 = 0 */
+	data	= 0;
+	reg.id	= ARM_CORE_REG(usr_regs.ARM_r0);
+	if (ioctl(vcpu->vcpu_fd, KVM_SET_ONE_REG, &reg) < 0)
+		die_perror("KVM_SET_ONE_REG failed (r0)");
 
-		/* r2 = physical address of the device tree blob */
-		data	= kvm->arch.dtb_guest_start;
-		reg.id	= ARM_CORE_REG(usr_regs.ARM_r2);
-		if (ioctl(vcpu->vcpu_fd, KVM_SET_ONE_REG, &reg) < 0)
-			die_perror("KVM_SET_ONE_REG failed (r2)");
+	/* r1 = machine type (-1) */
+	data	= -1;
+	reg.id	= ARM_CORE_REG(usr_regs.ARM_r1);
+	if (ioctl(vcpu->vcpu_fd, KVM_SET_ONE_REG, &reg) < 0)
+		die_perror("KVM_SET_ONE_REG failed (r1)");
 
-		/* pc = start of kernel image */
-		data	= kvm->arch.kern_guest_start;
-		reg.id	= ARM_CORE_REG(usr_regs.ARM_pc);
-		if (ioctl(vcpu->vcpu_fd, KVM_SET_ONE_REG, &reg) < 0)
-			die_perror("KVM_SET_ONE_REG failed (pc)");
+	/* r2 = physical address of the device tree blob */
+	data	= kvm->arch.dtb_guest_start;
+	reg.id	= ARM_CORE_REG(usr_regs.ARM_r2);
+	if (ioctl(vcpu->vcpu_fd, KVM_SET_ONE_REG, &reg) < 0)
+		die_perror("KVM_SET_ONE_REG failed (r2)");
 
-	} else {
-		/* Simply enter the pen */
-		data	= kvm->arch.smp_pen_guest_start;
-		reg.id	= ARM_CORE_REG(usr_regs.ARM_pc);
-		if (ioctl(vcpu->vcpu_fd, KVM_SET_ONE_REG, &reg) < 0)
-			die_perror("KVM_SET_ONE_REG failed (SMP pc)");
-	}
+	/* pc = start of kernel image */
+	data	= kvm->arch.kern_guest_start;
+	reg.id	= ARM_CORE_REG(usr_regs.ARM_pc);
+	if (ioctl(vcpu->vcpu_fd, KVM_SET_ONE_REG, &reg) < 0)
+		die_perror("KVM_SET_ONE_REG failed (pc)");
 }
 
 void kvm_cpu__show_code(struct kvm_cpu *vcpu)

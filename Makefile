@@ -160,18 +160,15 @@ endif
 
 # ARM
 OBJS_ARM_COMMON		:= arm/fdt.o arm/gic.o arm/ioport.o arm/irq.o \
-			   arm/kvm.o arm/kvm-cpu.o arm/smp.o
+			   arm/kvm.o arm/kvm-cpu.o
 HDRS_ARM_COMMON		:= arm/include
 ifeq ($(ARCH), arm)
 	DEFINES		+= -DCONFIG_ARM
 	OBJS		+= $(OBJS_ARM_COMMON)
 	OBJS		+= arm/aarch32/cortex-a15.o
 	OBJS		+= arm/aarch32/kvm-cpu.o
-	OBJS       	+= arm/aarch32/smp-pen.o
 	ARCH_INCLUDE	:= $(HDRS_ARM_COMMON)
 	ARCH_INCLUDE	+= -Iarm/aarch32/include
-	ASFLAGS		+= -D__ASSEMBLY__
-	ASFLAGS		+= -I$(ARCH_INCLUDE)
 	CFLAGS		+= -march=armv7-a
 	CFLAGS		+= -I../../scripts/dtc/libfdt
 	OTHEROBJS	+= $(LIBFDT_OBJS)

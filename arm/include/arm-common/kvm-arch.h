@@ -3,8 +3,6 @@
 
 #define VIRTIO_DEFAULT_TRANS	VIRTIO_MMIO
 
-#ifndef __ASSEMBLY__
-
 #include <stdbool.h>
 #include <linux/types.h>
 
@@ -26,9 +24,6 @@ struct kvm_arch {
 	u64	initrd_guest_start;
 	u64	initrd_size;
 	u64	dtb_guest_start;
-	u64	smp_pen_guest_start;
-	u64	smp_jump_guest_start;
 };
 
-#endif /* __ASSEMBLY__ */
 #endif /* ARM_COMMON__KVM_ARCH_H */

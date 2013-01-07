@@ -33,7 +33,9 @@ struct kvm_cpu *kvm_cpu__arch_init(struct kvm *kvm, unsigned long cpu_id)
 	struct kvm_cpu *vcpu;
 	int coalesced_offset, mmap_size, err = -1;
 	unsigned int i;
-	struct kvm_vcpu_init vcpu_init = { };
+	struct kvm_vcpu_init vcpu_init = {
+		.features = ARM_VCPU_FEATURE_FLAGS(kvm, cpu_id)
+	};
 
 	vcpu = calloc(1, sizeof(struct kvm_cpu));
 	if (!vcpu)

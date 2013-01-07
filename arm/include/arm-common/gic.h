@@ -26,12 +26,10 @@
 #define GIC_MAX_CPUS			8
 #define GIC_MAX_IRQ			255
 
-#ifndef __ASSEMBLY__
 struct kvm;
 
 int gic__alloc_irqnum(void);
 int gic__init_irqchip(struct kvm *kvm);
 void gic__generate_fdt_nodes(void *fdt, u32 phandle);
 
-#endif /* __ASSEMBLY__ */
 #endif /* ARM_COMMON__GIC_H */

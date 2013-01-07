@@ -31,12 +31,8 @@ static void generate_cpu_nodes(void *fdt, struct kvm *kvm)
 		_FDT(fdt_property_string(fdt, "device_type", "cpu"));
 		_FDT(fdt_property_string(fdt, "compatible", "arm,cortex-a15"));
 
-		if (kvm->nrcpus > 1) {
-			_FDT(fdt_property_string(fdt, "enable-method",
-						 "spin-table"));
-			_FDT(fdt_property_cell(fdt, "cpu-release-addr",
-					       kvm->arch.smp_jump_guest_start));
-		}
+		if (kvm->nrcpus > 1)
+			_FDT(fdt_property_string(fdt, "enable-method", "psci"));
 
 		_FDT(fdt_property_cell(fdt, "reg", cpu));
 		_FDT(fdt_end_node(fdt));

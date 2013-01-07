@@ -82,10 +82,6 @@ static int setup_fdt(struct kvm *kvm)
 
 	/* Create new tree without a reserve map */
 	_FDT(fdt_create(fdt, FDT_MAX_SIZE));
-	if (kvm->nrcpus > 1)
-		_FDT(fdt_add_reservemap_entry(fdt,
-					      kvm->arch.smp_pen_guest_start,
-					      ARM_SMP_PEN_SIZE));
 	_FDT(fdt_finish_reservemap(fdt));
 
 	/* Header */
@@ -129,6 +125,16 @@ static int setup_fdt(struct kvm *kvm)
 		dev_hdr = device__next_dev(dev_hdr);
 	}
 
+	/* PSCI firmware */
+	_FDT(fdt_begin_node(fdt, "psci"));
+	_FDT(fdt_property_string(fdt, "compatible", "arm,psci"));
+	_FDT(fdt_property_string(fdt, "method", "hvc"));
+	_FDT(fdt_property_cell(fdt, "cpu_suspend", KVM_PSCI_FN_CPU_SUSPEND));
+	_FDT(fdt_property_cell(fdt, "cpu_off", KVM_PSCI_FN_CPU_OFF));
+	_FDT(fdt_property_cell(fdt, "cpu_on", KVM_PSCI_FN_CPU_ON));
+	_FDT(fdt_property_cell(fdt, "migrate", KVM_PSCI_FN_MIGRATE));
+	_FDT(fdt_end_node(fdt));
+
 	/* Finalise. */
 	_FDT(fdt_end_node(fdt));
 	_FDT(fdt_finish(fdt));
@@ -157,7 +163,6 @@ static int read_image(int fd, void **pos, void *limit)
 
 #define FDT_ALIGN	SZ_2M
 #define INITRD_ALIGN	4
-#define SMP_PEN_ALIGN	PAGE_SIZE
 int load_flat_binary(struct kvm *kvm, int fd_kernel, int fd_initrd,
 		     const char *kernel_cmdline)
 {
@@ -168,8 +173,8 @@ int load_flat_binary(struct kvm *kvm, int fd_kernel, int fd_initrd,
 		die_perror("lseek");
 
 	/*
-	 * Linux requires the initrd, pen and dtb to be mapped inside
-	 * lowmem, so we can't just place them at the top of memory.
+	 * Linux requires the initrd and dtb to be mapped inside lowmem,
+	 * so we can't just place them at the top of memory.
 	 */
 	limit = kvm->ram_start + min(kvm->ram_size, (u64)SZ_256M) - 1;
 
@@ -186,24 +191,9 @@ int load_flat_binary(struct kvm *kvm, int fd_kernel, int fd_initrd,
 	/*
 	 * Now load backwards from the end of memory so the kernel
 	 * decompressor has plenty of space to work with. First up is
-	 * the SMP pen if we have more than one virtual CPU...
+	 * the device tree blob...
 	 */
 	pos = limit;
-	if (kvm->cfg.nrcpus > 1) {
-		pos -= (ARM_SMP_PEN_SIZE + SMP_PEN_ALIGN);
-		guest_addr = ALIGN(host_to_guest_flat(kvm, pos), SMP_PEN_ALIGN);
-		pos = guest_flat_to_host(kvm, guest_addr);
-		if (pos < kernel_end)
-			die("SMP pen overlaps with kernel image.");
-
-		kvm->arch.smp_pen_guest_start = guest_addr;
-		pr_info("Placing SMP pen at 0x%llx - 0x%llx",
-			kvm->arch.smp_pen_guest_start,
-			host_to_guest_flat(kvm, limit));
-		limit = pos;
-	}
-
-	/* ...now the device tree blob... */
 	pos -= (FDT_MAX_SIZE + FDT_ALIGN);
 	guest_addr = ALIGN(host_to_guest_flat(kvm, pos), FDT_ALIGN);
 	pos = guest_flat_to_host(kvm, guest_addr);

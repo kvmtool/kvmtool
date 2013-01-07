@@ -11,6 +11,7 @@
 struct kvm_ext kvm_req_ext[] = {
 	{ DEFINE_KVM_EXT(KVM_CAP_IRQCHIP) },
 	{ DEFINE_KVM_EXT(KVM_CAP_ONE_REG) },
+	{ DEFINE_KVM_EXT(KVM_CAP_ARM_PSCI) },
 	{ 0, 0 },
 };
 
