@@ -57,7 +57,7 @@ void kvm__arch_set_cmdline(char *cmdline, bool video)
 void kvm__arch_init(struct kvm *kvm, const char *hugetlbfs_path, u64 ram_size)
 {
 	/* Allocate guest memory. */
-	kvm->ram_size = min(ram_size, (u64)ARM_MAX_MEMORY);
+	kvm->ram_size = min(ram_size, (u64)ARM_MAX_MEMORY(kvm));
 	kvm->ram_start = mmap_anon_or_hugetlbfs(kvm, hugetlbfs_path, kvm->ram_size);
 	if (kvm->ram_start == MAP_FAILED)
 		die("Failed to map %lld bytes for guest memory (%d)",

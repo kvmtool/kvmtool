@@ -103,7 +103,7 @@ OBJS	+= virtio/mmio.o
 
 # Translate uname -m into ARCH string
 ARCH ?= $(shell uname -m | sed -e s/i.86/i386/ -e s/ppc.*/powerpc/ \
-	  -e s/armv7.*/arm/)
+	  -e s/armv7.*/arm/ -e s/aarch64.*/arm64/)
 
 ifeq ($(ARCH),i386)
 	ARCH         := x86
@@ -170,6 +170,18 @@ ifeq ($(ARCH), arm)
 	ARCH_INCLUDE	:= $(HDRS_ARM_COMMON)
 	ARCH_INCLUDE	+= -Iarm/aarch32/include
 	CFLAGS		+= -march=armv7-a
+	CFLAGS		+= -I../../scripts/dtc/libfdt
+	OTHEROBJS	+= $(LIBFDT_OBJS)
+endif
+
+# ARM64
+ifeq ($(ARCH), arm64)
+	DEFINES		+= -DCONFIG_ARM64
+	OBJS		+= $(OBJS_ARM_COMMON)
+	OBJS		+= arm/aarch64/cortex-a57.o
+	OBJS		+= arm/aarch64/kvm-cpu.o
+	ARCH_INCLUDE	:= $(HDRS_ARM_COMMON)
+	ARCH_INCLUDE	+= -Iarm/aarch64/include
 	CFLAGS		+= -I../../scripts/dtc/libfdt
 	OTHEROBJS	+= $(LIBFDT_OBJS)
 endif

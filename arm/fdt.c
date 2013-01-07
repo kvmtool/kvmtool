@@ -178,7 +178,7 @@ int load_flat_binary(struct kvm *kvm, int fd_kernel, int fd_initrd,
 	 */
 	limit = kvm->ram_start + min(kvm->ram_size, (u64)SZ_256M) - 1;
 
-	pos = kvm->ram_start + ARM_KERN_OFFSET;
+	pos = kvm->ram_start + ARM_KERN_OFFSET(kvm);
 	kvm->arch.kern_guest_start = host_to_guest_flat(kvm, pos);
 	if (read_image(fd_kernel, &pos, limit) == -ENOMEM)
 		die("kernel image too big to contain in guest memory.");
