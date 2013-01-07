@@ -49,7 +49,8 @@ static void set_guest_features(struct kvm *kvm, void *dev, u32 features)
 	sdev->features = features;
 }
 
-static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 pfn)
+static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 page_size, u32 align,
+		   u32 pfn)
 {
 	struct vhost_vring_state state = { .index = vq };
 	struct vhost_vring_addr addr;
@@ -62,9 +63,9 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 pfn)
 
 	queue		= &sdev->vqs[vq];
 	queue->pfn	= pfn;
-	p		= guest_pfn_to_host(kvm, queue->pfn);
+	p		= guest_flat_to_host(kvm, queue->pfn * page_size);
 
-	vring_init(&queue->vring, VIRTIO_SCSI_QUEUE_SIZE, p, VIRTIO_PCI_VRING_ALIGN);
+	vring_init(&queue->vring, VIRTIO_SCSI_QUEUE_SIZE, p, align);
 
 	if (sdev->vhost_fd == 0)
 		return 0;

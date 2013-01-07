@@ -43,17 +43,6 @@ static inline bool virt_queue__available(struct virt_queue *vq)
 	return vq->vring.avail->idx !=  vq->last_avail_idx;
 }
 
-/*
- * Warning: on 32-bit hosts, shifting pfn left may cause a truncation of pfn values
- * higher than 4GB - thus, pointing to the wrong area in guest virtual memory space
- * and breaking the virt queue which owns this pfn.
- */
-static inline void *guest_pfn_to_host(struct kvm *kvm, u32 pfn)
-{
-	return guest_flat_to_host(kvm, (unsigned long)pfn << VIRTIO_PCI_QUEUE_ADDR_SHIFT);
-}
-
-
 struct vring_used_elem *virt_queue__set_used_elem(struct virt_queue *queue, u32 head, u32 len);
 
 bool virtio_queue__should_signal(struct virt_queue *vq);
@@ -81,7 +70,8 @@ struct virtio_ops {
 	u8 *(*get_config)(struct kvm *kvm, void *dev);
 	u32 (*get_host_features)(struct kvm *kvm, void *dev);
 	void (*set_guest_features)(struct kvm *kvm, void *dev, u32 features);
-	int (*init_vq)(struct kvm *kvm, void *dev, u32 vq, u32 pfn);
+	int (*init_vq)(struct kvm *kvm, void *dev, u32 vq, u32 page_size,
+		       u32 align, u32 pfn);
 	int (*notify_vq)(struct kvm *kvm, void *dev, u32 vq);
 	int (*get_pfn_vq)(struct kvm *kvm, void *dev, u32 vq);
 	int (*get_size_vq)(struct kvm *kvm, void *dev, u32 vq);

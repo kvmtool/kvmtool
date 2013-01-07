@@ -86,7 +86,8 @@ static void virtio_rng_do_io(struct kvm *kvm, void *param)
 	rdev->vdev.ops->signal_vq(kvm, &rdev->vdev, vq - rdev->vqs);
 }
 
-static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 pfn)
+static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 page_size, u32 align,
+		   u32 pfn)
 {
 	struct rng_dev *rdev = dev;
 	struct virt_queue *queue;
@@ -97,11 +98,11 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 pfn)
 
 	queue		= &rdev->vqs[vq];
 	queue->pfn	= pfn;
-	p		= guest_pfn_to_host(kvm, queue->pfn);
+	p		= guest_flat_to_host(kvm, queue->pfn * page_size);
 
 	job = &rdev->jobs[vq];
 
-	vring_init(&queue->vring, VIRTIO_RNG_QUEUE_SIZE, p, VIRTIO_PCI_VRING_ALIGN);
+	vring_init(&queue->vring, VIRTIO_RNG_QUEUE_SIZE, p, align);
 
 	*job = (struct rng_dev_job) {
 		.vq	= queue,

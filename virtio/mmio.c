@@ -163,25 +163,25 @@ static void virtio_mmio_config_out(u64 addr, void *data, u32 len,
 	case VIRTIO_MMIO_GUEST_PAGE_SIZE:
 		val = ioport__read32(data);
 		vmmio->hdr.guest_page_size = val;
-		/* FIXME: set guest page size */
 		break;
 	case VIRTIO_MMIO_QUEUE_NUM:
 		val = ioport__read32(data);
 		vmmio->hdr.queue_num = val;
-		/* FIXME: set vq size */
 		vdev->ops->set_size_vq(vmmio->kvm, vmmio->dev,
 				       vmmio->hdr.queue_sel, val);
 		break;
 	case VIRTIO_MMIO_QUEUE_ALIGN:
 		val = ioport__read32(data);
 		vmmio->hdr.queue_align = val;
-		/* FIXME: set used ring alignment */
 		break;
 	case VIRTIO_MMIO_QUEUE_PFN:
 		val = ioport__read32(data);
 		virtio_mmio_init_ioeventfd(vmmio->kvm, vdev, vmmio->hdr.queue_sel);
 		vdev->ops->init_vq(vmmio->kvm, vmmio->dev,
-				   vmmio->hdr.queue_sel, val);
+				   vmmio->hdr.queue_sel,
+				   vmmio->hdr.guest_page_size,
+				   vmmio->hdr.queue_align,
+				   val);
 		break;
 	case VIRTIO_MMIO_QUEUE_NOTIFY:
 		val = ioport__read32(data);

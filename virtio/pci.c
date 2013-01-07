@@ -197,7 +197,9 @@ static bool virtio_pci__io_out(struct ioport *ioport, struct kvm *kvm, u16 port,
 	case VIRTIO_PCI_QUEUE_PFN:
 		val = ioport__read32(data);
 		virtio_pci__init_ioeventfd(kvm, vdev, vpci->queue_selector);
-		vdev->ops->init_vq(kvm, vpci->dev, vpci->queue_selector, val);
+		vdev->ops->init_vq(kvm, vpci->dev, vpci->queue_selector,
+				   1 << VIRTIO_PCI_QUEUE_ADDR_SHIFT,
+				   VIRTIO_PCI_VRING_ALIGN, val);
 		break;
 	case VIRTIO_PCI_QUEUE_SEL:
 		vpci->queue_selector = ioport__read16(data);
