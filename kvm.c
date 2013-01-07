@@ -291,7 +291,7 @@ int kvm__init(struct kvm *kvm)
 	}
 
 	if (kvm__check_extensions(kvm)) {
-		pr_err("A required KVM extention is not supported by OS");
+		pr_err("A required KVM extension is not supported by OS");
 		ret = -ENOSYS;
 		goto err_vm_fd;
 	}
