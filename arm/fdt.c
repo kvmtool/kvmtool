@@ -13,9 +13,6 @@
 #include <linux/kernel.h>
 #include <linux/sizes.h>
 
-#define DEBUG			0
-#define DEBUG_FDT_DUMP_FILE	"/tmp/kvmtool.dtb"
-
 static char kern_cmdline[COMMAND_LINE_SIZE];
 
 bool kvm__load_firmware(struct kvm *kvm, const char *firmware_filename)
@@ -28,25 +25,21 @@ int kvm__arch_setup_firmware(struct kvm *kvm)
 	return 0;
 }
 
-#if DEBUG
-static void dump_fdt(void *fdt)
+static void dump_fdt(const char *dtb_file, void *fdt)
 {
 	int count, fd;
 
-	fd = open(DEBUG_FDT_DUMP_FILE, O_CREAT | O_TRUNC | O_RDWR, 0666);
+	fd = open(dtb_file, O_CREAT | O_TRUNC | O_RDWR, 0666);
 	if (fd < 0)
-		die("Failed to write dtb to %s", DEBUG_FDT_DUMP_FILE);
+		die("Failed to write dtb to %s", dtb_file);
 
 	count = write(fd, fdt, FDT_MAX_SIZE);
 	if (count < 0)
 		die_perror("Failed to dump dtb");
 
-	pr_info("Wrote %d bytes to dtb %s\n", count, DEBUG_FDT_DUMP_FILE);
+	pr_info("Wrote %d bytes to dtb %s\n", count, dtb_file);
 	close(fd);
 }
-#else
-static void dump_fdt(void *fdt) { }
-#endif
 
 #define DEVICE_NAME_MAX_LEN 32
 static void generate_virtio_mmio_node(void *fdt, struct virtio_mmio *vmmio)
@@ -143,7 +136,8 @@ static int setup_fdt(struct kvm *kvm)
 	_FDT(fdt_open_into(fdt, fdt_dest, FDT_MAX_SIZE));
 	_FDT(fdt_pack(fdt_dest));
 
-	dump_fdt(fdt_dest);
+	if (kvm->cfg.arch.dump_dtb_filename)
+		dump_fdt(kvm->cfg.arch.dump_dtb_filename, fdt_dest);
 	return 0;
 }
 late_init(setup_fdt);
