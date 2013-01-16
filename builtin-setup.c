@@ -159,12 +159,12 @@ static int copy_passwd(const char *guestfs_name)
 		return -1;
 
 	ret = fprintf(file, "root:x:0:0:root:/root:/bin/sh\n");
-	if (ret < 0)
-		return ret;
+	if (ret > 0)
+		ret = 0;
 
 	fclose(file);
 
-	return 0;
+	return ret;
 }
 
 static int make_guestfs_symlink(const char *guestfs_name, const char *path)
