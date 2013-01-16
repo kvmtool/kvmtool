@@ -189,7 +189,7 @@ static u32 kbd_read_data(void)
 		state.mcount--;
 		kvm__irq_line(state.kvm, AUX_IRQ, 0);
 		kbd_update_irq();
-	} else if (state.kcount == 0) {
+	} else {
 		i = state.kread - 1;
 		if (i < 0)
 			i = QUEUE_SIZE;
