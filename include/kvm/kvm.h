@@ -114,7 +114,7 @@ bool load_bzimage(struct kvm *kvm, int fd_kernel, int fd_initrd, const char *ker
 /*
  * Debugging
  */
-void kvm__dump_mem(struct kvm *kvm, unsigned long addr, unsigned long size);
+void kvm__dump_mem(struct kvm *kvm, unsigned long addr, unsigned long size, int debug_fd);
 
 extern const char *kvm_exit_reasons[];
 

@@ -364,7 +364,8 @@ void kvm_cpu__show_code(struct kvm_cpu *vcpu)
 
 	dprintf(debug_fd, "\n Stack:\n");
 	dprintf(debug_fd,   " ------\n");
-	kvm__dump_mem(vcpu->kvm, vcpu->regs.rsp, 32);
+	dprintf(debug_fd, " rsp: [<%016lx>] \n", (unsigned long) vcpu->regs.rsp);
+	kvm__dump_mem(vcpu->kvm, vcpu->regs.rsp, 32, debug_fd);
 }
 
 void kvm_cpu__show_page_tables(struct kvm_cpu *vcpu)
@@ -374,8 +375,12 @@ void kvm_cpu__show_page_tables(struct kvm_cpu *vcpu)
 	u64 *pte3;
 	u64 *pte4;
 
-	if (!is_in_protected_mode(vcpu))
+	if (!is_in_protected_mode(vcpu)) {
+		dprintf(debug_fd, "\n Page Tables:\n");
+		dprintf(debug_fd, " ------\n");
+		dprintf(debug_fd, " Not in protected mode\n");
 		return;
+	}
 
 	if (ioctl(vcpu->vcpu_fd, KVM_GET_SREGS, &vcpu->sregs) < 0)
 		die("KVM_GET_SREGS failed");
@@ -396,7 +401,8 @@ void kvm_cpu__show_page_tables(struct kvm_cpu *vcpu)
 	if (!host_ptr_in_ram(vcpu->kvm, pte1))
 		return;
 
-	dprintf(debug_fd, "Page Tables:\n");
+	dprintf(debug_fd, "\n Page Tables:\n");
+	dprintf(debug_fd, " ------\n");
 	if (*pte2 & (1 << 7))
 		dprintf(debug_fd, " pte4: %016llx   pte3: %016llx"
 			"   pte2: %016llx\n",

@@ -444,7 +444,7 @@ int kvm_timer__exit(struct kvm *kvm)
 }
 firmware_exit(kvm_timer__exit);
 
-void kvm__dump_mem(struct kvm *kvm, unsigned long addr, unsigned long size)
+void kvm__dump_mem(struct kvm *kvm, unsigned long addr, unsigned long size, int debug_fd)
 {
 	unsigned char *p;
 	unsigned long n;
@@ -456,10 +456,11 @@ void kvm__dump_mem(struct kvm *kvm, unsigned long addr, unsigned long size)
 	p = guest_flat_to_host(kvm, addr);
 
 	for (n = 0; n < size; n += 8) {
-		if (!host_ptr_in_ram(kvm, p + n))
-			break;
-
-		printf("  0x%08lx: %02x %02x %02x %02x  %02x %02x %02x %02x\n",
+		if (!host_ptr_in_ram(kvm, p + n)) {
+			dprintf(debug_fd, " 0x%08lx: <unknown>\n", addr + n);
+			continue;
+		}
+		dprintf(debug_fd, " 0x%08lx: %02x %02x %02x %02x  %02x %02x %02x %02x\n",
 			addr + n, p[n + 0], p[n + 1], p[n + 2], p[n + 3],
 				  p[n + 4], p[n + 5], p[n + 6], p[n + 7]);
 	}
