@@ -294,13 +294,13 @@ bool load_bzimage(struct kvm *kvm, int fd_kernel, int fd_initrd,
 		memcpy(p, kernel_cmdline, cmdline_size - 1);
 	}
 
-	if (!kvm->cfg.arch.vidmode)
-		vidmode = -1;
 
 	/* vidmode should be either specified or set by default */
 	if (kvm->cfg.vnc || kvm->cfg.sdl) {
-		if (vidmode == -1)
+		if (!kvm->cfg.arch.vidmode)
 			vidmode = 0x312;
+		else
+			vidmode = kvm->cfg.arch.vidmode;
 	} else {
 		vidmode = 0;
 	}
