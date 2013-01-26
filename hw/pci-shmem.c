@@ -54,7 +54,7 @@ static struct msix_table msix_table[2];
 
 int pci_shmem__register_mem(struct shmem_info *si)
 {
-	if (shmem_region == NULL) {
+	if (!shmem_region) {
 		shmem_region = si;
 	} else {
 		pr_warning("only single shmem currently avail. ignoring.\n");
