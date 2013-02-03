@@ -54,25 +54,24 @@ void kvm_cpu__show_code(struct kvm_cpu *vcpu)
 {
 	struct kvm_one_reg reg;
 	u32 data;
+	int debug_fd = kvm_cpu__get_debug_fd();
 
 	reg.addr = (u64)(unsigned long)&data;
 
-	printf("*pc:\n");
+	dprintf(debug_fd, "\n*pc:\n");
 	reg.id = ARM_CORE_REG(usr_regs.ARM_pc);
 	if (ioctl(vcpu->vcpu_fd, KVM_GET_ONE_REG, &reg) < 0)
 		die("KVM_GET_ONE_REG failed (show_code @ PC)");
 
-	kvm__dump_mem(vcpu->kvm, data, 32);
-	printf("\n");
+	kvm__dump_mem(vcpu->kvm, data, 32, debug_fd);
 
-	printf("*lr (svc):\n");
+	dprintf(debug_fd, "\n*lr (svc):\n");
 	reg.id = ARM_CORE_REG(svc_regs[1]);
 	if (ioctl(vcpu->vcpu_fd, KVM_GET_ONE_REG, &reg) < 0)
 		die("KVM_GET_ONE_REG failed (show_code @ LR_svc)");
 	data &= ~0x1;
 
-	kvm__dump_mem(vcpu->kvm, data, 32);
-	printf("\n");
+	kvm__dump_mem(vcpu->kvm, data, 32, debug_fd);
 }
 
 void kvm_cpu__show_registers(struct kvm_cpu *vcpu)
