@@ -123,7 +123,7 @@ static void parse_setup_options(int argc, const char **argv)
 
 int kvm_cmd_list(int argc, const char **argv, const char *prefix)
 {
-	int r;
+	int status, r;
 
 	parse_setup_options(argc, argv);
 
@@ -133,17 +133,23 @@ int kvm_cmd_list(int argc, const char **argv, const char *prefix)
 	printf("%6s %-20s %s\n", "PID", "NAME", "STATE");
 	printf("------------------------------------\n");
 
+	status = 0;
+
 	if (run) {
 		r = kvm_list_running_instances();
 		if (r < 0)
 			perror("Error listing instances");
+
+		status |= r;
 	}
 
 	if (rootfs) {
 		r = kvm_list_rootfs();
 		if (r < 0)
 			perror("Error listing rootfs");
+
+		status |= r;
 	}
 
-	return 0;
+	return status;
 }
