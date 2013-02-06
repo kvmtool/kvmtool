@@ -389,7 +389,9 @@ static int setup_fdt(struct kvm *kvm)
 		_FDT(fdt_property_cell(fdt, "dcache-block-size", cpu_info->d_bsize));
 		_FDT(fdt_property_cell(fdt, "icache-block-size", cpu_info->i_bsize));
 
-		_FDT(fdt_property_cell(fdt, "timebase-frequency", cpu_info->tb_freq));
+		if (cpu_info->tb_freq)
+			_FDT(fdt_property_cell(fdt, "timebase-frequency", cpu_info->tb_freq));
+
 		/* Lies, but safeish lies! */
 		_FDT(fdt_property_cell(fdt, "clock-frequency", 0xddbab200));
 
