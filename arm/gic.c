@@ -22,15 +22,15 @@ int gic__alloc_irqnum(void)
 int gic__init_irqchip(struct kvm *kvm)
 {
 	int err;
-	struct kvm_device_address gic_addr[] = {
+	struct kvm_arm_device_addr gic_addr[] = {
 		[0] = {
-			.id = (KVM_ARM_DEVICE_VGIC_V2 << KVM_DEVICE_ID_SHIFT) |\
-			       KVM_VGIC_V2_ADDR_TYPE_DIST,
+			.id = KVM_VGIC_V2_ADDR_TYPE_DIST |
+			(KVM_ARM_DEVICE_VGIC_V2 << KVM_ARM_DEVICE_ID_SHIFT),
 			.addr = ARM_GIC_DIST_BASE,
 		},
 		[1] = {
-			.id = (KVM_ARM_DEVICE_VGIC_V2 << KVM_DEVICE_ID_SHIFT) |\
-			       KVM_VGIC_V2_ADDR_TYPE_CPU,
+			.id = KVM_VGIC_V2_ADDR_TYPE_CPU |
+			(KVM_ARM_DEVICE_VGIC_V2 << KVM_ARM_DEVICE_ID_SHIFT),
 			.addr = ARM_GIC_CPUI_BASE,
 		}
 	};
@@ -45,11 +45,11 @@ int gic__init_irqchip(struct kvm *kvm)
 	if (err)
 		return err;
 
-	err = ioctl(kvm->vm_fd, KVM_SET_DEVICE_ADDRESS, &gic_addr[0]);
+	err = ioctl(kvm->vm_fd, KVM_ARM_SET_DEVICE_ADDR, &gic_addr[0]);
 	if (err)
 		return err;
 
-	err = ioctl(kvm->vm_fd, KVM_SET_DEVICE_ADDRESS, &gic_addr[1]);
+	err = ioctl(kvm->vm_fd, KVM_ARM_SET_DEVICE_ADDR, &gic_addr[1]);
 	return err;
 }
 
