@@ -35,6 +35,20 @@ static struct cpu_info cpu_power7_info = {
 	},
 };
 
+/* POWER8 */
+
+static struct cpu_info cpu_power8_info = {
+	.name = "POWER8",
+	.tb_freq = 512000000,
+	.d_bsize = 128,
+	.i_bsize = 128,
+	.flags = CPUINFO_FLAG_DFP | CPUINFO_FLAG_VSX | CPUINFO_FLAG_VMX,
+	.mmu_info = {
+		.flags = KVM_PPC_PAGE_SIZES_REAL | KVM_PPC_1T_SEGMENTS,
+		.slb_size = 32,
+	},
+};
+
 /* PPC970/G5 */
 
 static struct cpu_info cpu_970_info = {
@@ -52,6 +66,7 @@ static struct pvr_info host_pvr_info[] = {
 	{ 0xffffffff, 0x0f000003, &cpu_power7_info },
 	{ 0xffff0000, 0x003f0000, &cpu_power7_info },
 	{ 0xffff0000, 0x004a0000, &cpu_power7_info },
+	{ 0xffff0000, 0x004b0000, &cpu_power8_info },
 	{ 0xffff0000, 0x00390000, &cpu_970_info },
 	{ 0xffff0000, 0x003c0000, &cpu_970_info },
         { 0xffff0000, 0x00440000, &cpu_970_info },
