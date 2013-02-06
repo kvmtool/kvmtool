@@ -48,6 +48,7 @@ struct kvm_config {
 	struct virtio_net_params *net_params;
 	bool single_step;
 	bool vnc;
+	bool gtk;
 	bool sdl;
 	bool balloon;
 	bool using_rootfs;

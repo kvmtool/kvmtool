@@ -175,3 +175,14 @@ int main(void)
 	return 0;
 }
 endef
+
+define SOURCE_GTK3
+#include <gtk/gtk.h>
+
+int main(void)
+{
+	gtk_main();
+
+	return 0;
+}
+endef

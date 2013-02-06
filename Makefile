@@ -207,6 +207,15 @@ ifeq ($(call try-cc,$(SOURCE_BFD),$(FLAGS_BFD) -static),y)
 	LIBS_STATOPT	+= -lbfd
 endif
 
+FLAGS_GTK3 := $(CFLAGS) $(shell pkg-config --libs --cflags gtk+-3.0 2>/dev/null)
+ifeq ($(call try-cc,$(SOURCE_GTK3),$(FLAGS_GTK3)),y)
+	OBJS_DYNOPT	+= ui/gtk3.o
+	CFLAGS_DYNOPT	+= -DCONFIG_HAS_GTK3 $(shell pkg-config --cflags gtk+-3.0 2>/dev/null)
+	LIBS_DYNOPT	+= $(shell pkg-config --libs gtk+-3.0 2>/dev/null)
+else
+    $(warning warning GTK3 not found, disables GTK3 support. Please install gtk3-devel or libgtk3.0-dev)
+endif
+
 FLAGS_VNCSERVER := $(CFLAGS) -lvncserver
 ifeq ($(call try-cc,$(SOURCE_VNCSERVER),$(FLAGS_VNCSERVER)),y)
 	OBJS_DYNOPT	+= ui/vnc.o

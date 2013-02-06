@@ -112,6 +112,7 @@ void kvm_run_set_wrapper_sandbox(void)
 	OPT_BOOLEAN('\0', "balloon", &(cfg)->balloon, "Enable virtio"	\
 			" balloon"),					\
 	OPT_BOOLEAN('\0', "vnc", &(cfg)->vnc, "Enable VNC framebuffer"),\
+	OPT_BOOLEAN('\0', "gtk", &(cfg)->gtk, "Enable GTK framebuffer"),\
 	OPT_BOOLEAN('\0', "sdl", &(cfg)->sdl, "Enable SDL framebuffer"),\
 	OPT_BOOLEAN('\0', "rng", &(cfg)->virtio_rng, "Enable virtio"	\
 			" Random Number Generator"),			\
@@ -604,7 +605,7 @@ static struct kvm *kvm_cmd_run_init(int argc, const char **argv)
                 kvm->cfg.network = DEFAULT_NETWORK;
 
 	memset(real_cmdline, 0, sizeof(real_cmdline));
-	kvm__arch_set_cmdline(real_cmdline, kvm->cfg.vnc || kvm->cfg.sdl);
+	kvm__arch_set_cmdline(real_cmdline, kvm->cfg.vnc || kvm->cfg.sdl || kvm->cfg.gtk);
 
 	if (strlen(real_cmdline) > 0)
 		strcat(real_cmdline, " ");
