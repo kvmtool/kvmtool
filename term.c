@@ -140,6 +140,15 @@ int term_init(struct kvm *kvm)
 	struct termios term;
 	int i, r;
 
+	for (i = 0; i < 4; i++)
+		if (term_fds[i][TERM_FD_IN] == 0) {
+			term_fds[i][TERM_FD_IN] = STDIN_FILENO;
+			term_fds[i][TERM_FD_OUT] = STDOUT_FILENO;
+		}
+
+	if (!isatty(STDIN_FILENO) || !isatty(STDOUT_FILENO))
+		return 0;
+
 	r = tcgetattr(STDIN_FILENO, &orig_term);
 	if (r < 0) {
 		pr_warning("unable to save initial standard input settings");
@@ -150,12 +159,6 @@ int term_init(struct kvm *kvm)
 	term = orig_term;
 	term.c_lflag &= ~(ICANON | ECHO | ISIG);
 	tcsetattr(STDIN_FILENO, TCSANOW, &term);
-
-	for (i = 0; i < 4; i++)
-		if (term_fds[i][TERM_FD_IN] == 0) {
-			term_fds[i][TERM_FD_IN] = STDIN_FILENO;
-			term_fds[i][TERM_FD_OUT] = STDOUT_FILENO;
-		}
 
 	signal(SIGTERM, term_sig_cleanup);
 	atexit(term_cleanup);
