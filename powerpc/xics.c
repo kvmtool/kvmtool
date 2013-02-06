@@ -445,16 +445,13 @@ static void rtas_int_on(struct kvm_cpu *vcpu, uint32_t token,
 
 static int xics_init(struct kvm *kvm)
 {
-	int max_server_num;
 	unsigned int i;
 	struct icp_state *icp;
 	struct ics_state *ics;
 	int j;
 
-	max_server_num = kvm->nrcpus;
-
 	icp = malloc(sizeof(*icp));
-	icp->nr_servers = max_server_num + 1;
+	icp->nr_servers = kvm->nrcpus;
 	icp->ss = malloc(icp->nr_servers * sizeof(struct icp_server_state));
 
 	for (i = 0; i < icp->nr_servers; i++) {
