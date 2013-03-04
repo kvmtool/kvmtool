@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 #include <linux/compiler.h>
+#include <linux/uidgid.h>
 #include <net/9p/9p.h>
 
 static void virtio_p9_pdu_read(struct p9_pdu *pdu, void *data, size_t size)

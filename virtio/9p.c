@@ -18,6 +18,7 @@
 
 #include <linux/virtio_ring.h>
 #include <linux/virtio_9p.h>
+#include <linux/uidgid.h>
 #include <net/9p/9p.h>
 
 static LIST_HEAD(devs);
