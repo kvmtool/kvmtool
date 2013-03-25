@@ -23,7 +23,7 @@ or alternatively, if you already have a kernel source tree:
 
   git remote add kvm-tool git://github.com/penberg/linux-kvm.git
   git remote update
-  git checkout -b kvm-tool/master kvm-tool
+  git checkout kvm-tool/master -b kvm-tool
 
 2. Compile the tool:
 
