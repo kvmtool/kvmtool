@@ -6,7 +6,7 @@
 
 #include <linux/types.h>
 
-#define VIRTIO_PCI_MAX_VQ	3
+#define VIRTIO_PCI_MAX_VQ	32
 #define VIRTIO_PCI_MAX_CONFIG	1
 
 struct kvm;
