@@ -27,9 +27,10 @@
 #include <sys/eventfd.h>
 
 #define VIRTIO_NET_QUEUE_SIZE		256
-#define VIRTIO_NET_NUM_QUEUES		2
+#define VIRTIO_NET_NUM_QUEUES		3
 #define VIRTIO_NET_RX_QUEUE		0
 #define VIRTIO_NET_TX_QUEUE		1
+#define VIRTIO_NET_CTRL_QUEUE		2
 
 struct net_dev;
 
@@ -144,6 +145,31 @@ static void *virtio_net_tx_thread(void *p)
 
 }
 
+static void virtio_net_handle_ctrl(struct kvm *kvm, struct net_dev *ndev)
+{
+	struct iovec iov[VIRTIO_NET_QUEUE_SIZE];
+	u16 out, in, head;
+	struct virtio_net_ctrl_hdr *ctrl;
+	virtio_net_ctrl_ack *ack;
+
+	head = virt_queue__get_iov(&ndev->vqs[VIRTIO_NET_CTRL_QUEUE], iov, &out, &in, kvm);
+	ctrl = iov[0].iov_base;
+	ack = iov[out].iov_base;
+
+	switch (ctrl->class) {
+	default:
+		*ack = VIRTIO_NET_ERR;
+		break;
+	}
+
+	virt_queue__set_used_elem(&ndev->vqs[VIRTIO_NET_CTRL_QUEUE], head, iov[out].iov_len);
+
+	if (virtio_queue__should_signal(&ndev->vqs[VIRTIO_NET_CTRL_QUEUE]))
+		ndev->vdev.ops->signal_vq(kvm, &ndev->vdev, VIRTIO_NET_CTRL_QUEUE);
+
+	return;
+}
+
 static void virtio_net_handle_callback(struct kvm *kvm, struct net_dev *ndev, int queue)
 {
 	switch (queue) {
@@ -156,6 +182,9 @@ static void virtio_net_handle_callback(struct kvm *kvm, struct net_dev *ndev, in
 		mutex_lock(&ndev->io_rx_lock);
 		pthread_cond_signal(&ndev->io_rx_cond);
 		mutex_unlock(&ndev->io_rx_lock);
+		break;
+	case VIRTIO_NET_CTRL_QUEUE:
+		virtio_net_handle_ctrl(kvm, ndev);
 		break;
 	default:
 		pr_warning("Unknown queue index %u", queue);
@@ -310,7 +339,8 @@ static u32 get_host_features(struct kvm *kvm, void *dev)
 		| 1UL << VIRTIO_NET_F_GUEST_TSO4
 		| 1UL << VIRTIO_NET_F_GUEST_TSO6
 		| 1UL << VIRTIO_RING_F_EVENT_IDX
-		| 1UL << VIRTIO_RING_F_INDIRECT_DESC;
+		| 1UL << VIRTIO_RING_F_INDIRECT_DESC
+		| 1UL << VIRTIO_NET_F_CTRL_VQ;
 }
 
 static void set_guest_features(struct kvm *kvm, void *dev, u32 features)
