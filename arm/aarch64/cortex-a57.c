@@ -49,6 +49,22 @@ static int cortex_a57__vcpu_init(struct kvm_cpu *vcpu)
 	return 0;
 }
 
+/*
+ * As far as userspace is concerned, both of these implementations are
+ * extremely similar.
+ */
+static struct kvm_arm_target target_aem_v8 = {
+	.id		= KVM_ARM_TARGET_AEM_V8,
+	.compatible	= "arm,arm-v8",
+	.init		= cortex_a57__vcpu_init,
+};
+
+static struct kvm_arm_target target_foundation_v8 = {
+	.id		= KVM_ARM_TARGET_FOUNDATION_V8,
+	.compatible	= "arm,arm-v8",
+	.init		= cortex_a57__vcpu_init,
+};
+
 static struct kvm_arm_target target_cortex_a57 = {
 	.id		= KVM_ARM_TARGET_CORTEX_A57,
 	.compatible	= "arm,cortex-a57",
@@ -57,6 +73,8 @@ static struct kvm_arm_target target_cortex_a57 = {
 
 static int cortex_a57__core_init(struct kvm *kvm)
 {
-	return kvm_cpu__register_kvm_arm_target(&target_cortex_a57);
+	return (kvm_cpu__register_kvm_arm_target(&target_aem_v8) ||
+		kvm_cpu__register_kvm_arm_target(&target_foundation_v8) ||
+		kvm_cpu__register_kvm_arm_target(&target_cortex_a57));
 }
 core_init(cortex_a57__core_init);
