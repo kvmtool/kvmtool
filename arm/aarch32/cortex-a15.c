@@ -20,16 +20,11 @@ static void generate_cpu_nodes(void *fdt, struct kvm *kvm)
 	for (cpu = 0; cpu < kvm->nrcpus; ++cpu) {
 		char cpu_name[CPU_NAME_MAX_LEN];
 
-		if (kvm->cpus[cpu]->cpu_type != KVM_ARM_TARGET_CORTEX_A15) {
-			pr_warning("Ignoring unknown type for CPU %d\n", cpu);
-			continue;
-		}
-
 		snprintf(cpu_name, CPU_NAME_MAX_LEN, "cpu@%d", cpu);
 
 		_FDT(fdt_begin_node(fdt, cpu_name));
 		_FDT(fdt_property_string(fdt, "device_type", "cpu"));
-		_FDT(fdt_property_string(fdt, "compatible", "arm,cortex-a15"));
+		_FDT(fdt_property_string(fdt, "compatible", kvm->cpus[cpu]->cpu_compatible));
 
 		if (kvm->nrcpus > 1)
 			_FDT(fdt_property_string(fdt, "enable-method", "psci"));
@@ -83,8 +78,9 @@ static int cortex_a15__vcpu_init(struct kvm_cpu *vcpu)
 }
 
 static struct kvm_arm_target target_cortex_a15 = {
-	.id	= KVM_ARM_TARGET_CORTEX_A15,
-	.init	= cortex_a15__vcpu_init,
+	.id		= KVM_ARM_TARGET_CORTEX_A15,
+	.compatible	= "arm,cortex-a15",
+	.init		= cortex_a15__vcpu_init,
 };
 
 static int cortex_a15__core_init(struct kvm *kvm)

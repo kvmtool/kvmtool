@@ -30,6 +30,7 @@ int kvm_cpu__register_kvm_arm_target(struct kvm_arm_target *target)
 
 struct kvm_cpu *kvm_cpu__arch_init(struct kvm *kvm, unsigned long cpu_id)
 {
+	struct kvm_arm_target *target;
 	struct kvm_cpu *vcpu;
 	int coalesced_offset, mmap_size, err = -1;
 	unsigned int i;
@@ -58,13 +59,14 @@ struct kvm_cpu *kvm_cpu__arch_init(struct kvm *kvm, unsigned long cpu_id)
 	for (i = 0; i < ARRAY_SIZE(kvm_arm_targets); ++i) {
 		if (!kvm_arm_targets[i])
 			continue;
-		vcpu_init.target = kvm_arm_targets[i]->id;
+		target = kvm_arm_targets[i];
+		vcpu_init.target = target->id;
 		err = ioctl(vcpu->vcpu_fd, KVM_ARM_VCPU_INIT, &vcpu_init);
 		if (!err)
 			break;
 	}
 
-	if (err || kvm_arm_targets[i]->init(vcpu))
+	if (err || target->init(vcpu))
 		die("Unable to initialise ARM vcpu");
 
 	coalesced_offset = ioctl(kvm->sys_fd, KVM_CHECK_EXTENSION,
@@ -76,7 +78,8 @@ struct kvm_cpu *kvm_cpu__arch_init(struct kvm *kvm, unsigned long cpu_id)
 	/* Populate the vcpu structure. */
 	vcpu->kvm		= kvm;
 	vcpu->cpu_id		= cpu_id;
-	vcpu->cpu_type		= vcpu_init.target;
+	vcpu->cpu_type		= target->id;
+	vcpu->cpu_compatible	= target->compatible;
 	vcpu->is_running	= true;
 	return vcpu;
 }

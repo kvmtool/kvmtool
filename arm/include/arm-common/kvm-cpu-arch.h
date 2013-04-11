@@ -12,6 +12,7 @@ struct kvm_cpu {
 
 	unsigned long	cpu_id;
 	unsigned long	cpu_type;
+	const char	*cpu_compatible;
 
 	struct kvm	*kvm;
 	int		vcpu_fd;
@@ -28,8 +29,9 @@ struct kvm_cpu {
 };
 
 struct kvm_arm_target {
-	u32	id;
-	int	(*init)(struct kvm_cpu *vcpu);
+	u32		id;
+	const char 	*compatible;
+	int		(*init)(struct kvm_cpu *vcpu);
 };
 
 int kvm_cpu__register_kvm_arm_target(struct kvm_arm_target *target);
