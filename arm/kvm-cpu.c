@@ -56,6 +56,8 @@ struct kvm_cpu *kvm_cpu__arch_init(struct kvm *kvm, unsigned long cpu_id)
 
 	/* Find an appropriate target CPU type. */
 	for (i = 0; i < ARRAY_SIZE(kvm_arm_targets); ++i) {
+		if (!kvm_arm_targets[i])
+			continue;
 		vcpu_init.target = kvm_arm_targets[i]->id;
 		err = ioctl(vcpu->vcpu_fd, KVM_ARM_VCPU_INIT, &vcpu_init);
 		if (!err)
