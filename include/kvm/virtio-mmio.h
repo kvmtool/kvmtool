@@ -4,7 +4,7 @@
 #include <linux/types.h>
 #include <linux/virtio_mmio.h>
 
-#define VIRTIO_MMIO_MAX_VQ	3
+#define VIRTIO_MMIO_MAX_VQ	32
 #define VIRTIO_MMIO_MAX_CONFIG	1
 #define VIRTIO_MMIO_IO_SIZE	0x200
 
