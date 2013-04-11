@@ -8,34 +8,6 @@
 #include <linux/byteorder.h>
 #include <linux/types.h>
 
-#define CPU_NAME_MAX_LEN 8
-static void generate_cpu_nodes(void *fdt, struct kvm *kvm)
-{
-	int cpu;
-
-	_FDT(fdt_begin_node(fdt, "cpus"));
-	_FDT(fdt_property_cell(fdt, "#address-cells", 0x1));
-	_FDT(fdt_property_cell(fdt, "#size-cells", 0x0));
-
-	for (cpu = 0; cpu < kvm->nrcpus; ++cpu) {
-		char cpu_name[CPU_NAME_MAX_LEN];
-
-		snprintf(cpu_name, CPU_NAME_MAX_LEN, "cpu@%d", cpu);
-
-		_FDT(fdt_begin_node(fdt, cpu_name));
-		_FDT(fdt_property_string(fdt, "device_type", "cpu"));
-		_FDT(fdt_property_string(fdt, "compatible", kvm->cpus[cpu]->cpu_compatible));
-
-		if (kvm->nrcpus > 1)
-			_FDT(fdt_property_string(fdt, "enable-method", "psci"));
-
-		_FDT(fdt_property_cell(fdt, "reg", cpu));
-		_FDT(fdt_end_node(fdt));
-	}
-
-	_FDT(fdt_end_node(fdt));
-}
-
 static void generate_timer_nodes(void *fdt, struct kvm *kvm)
 {
 	u32 cpu_mask = (((1 << kvm->nrcpus) - 1) << GIC_FDT_IRQ_PPI_CPU_SHIFT) \
@@ -66,7 +38,6 @@ static void generate_timer_nodes(void *fdt, struct kvm *kvm)
 
 static void generate_fdt_nodes(void *fdt, struct kvm *kvm, u32 gic_phandle)
 {
-	generate_cpu_nodes(fdt, kvm);
 	gic__generate_fdt_nodes(fdt, gic_phandle);
 	generate_timer_nodes(fdt, kvm);
 }

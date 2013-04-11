@@ -41,6 +41,34 @@ static void dump_fdt(const char *dtb_file, void *fdt)
 	close(fd);
 }
 
+#define CPU_NAME_MAX_LEN 8
+static void generate_cpu_nodes(void *fdt, struct kvm *kvm)
+{
+	int cpu;
+
+	_FDT(fdt_begin_node(fdt, "cpus"));
+	_FDT(fdt_property_cell(fdt, "#address-cells", 0x1));
+	_FDT(fdt_property_cell(fdt, "#size-cells", 0x0));
+
+	for (cpu = 0; cpu < kvm->nrcpus; ++cpu) {
+		char cpu_name[CPU_NAME_MAX_LEN];
+
+		snprintf(cpu_name, CPU_NAME_MAX_LEN, "cpu@%d", cpu);
+
+		_FDT(fdt_begin_node(fdt, cpu_name));
+		_FDT(fdt_property_string(fdt, "device_type", "cpu"));
+		_FDT(fdt_property_string(fdt, "compatible", kvm->cpus[cpu]->cpu_compatible));
+
+		if (kvm->nrcpus > 1)
+			_FDT(fdt_property_string(fdt, "enable-method", "psci"));
+
+		_FDT(fdt_property_cell(fdt, "reg", cpu));
+		_FDT(fdt_end_node(fdt));
+	}
+
+	_FDT(fdt_end_node(fdt));
+}
+
 #define DEVICE_NAME_MAX_LEN 32
 static void generate_virtio_mmio_node(void *fdt, struct virtio_mmio *vmmio)
 {
@@ -77,7 +105,7 @@ static int setup_fdt(struct kvm *kvm)
 	void *fdt		= staging_fdt;
 	void *fdt_dest		= guest_flat_to_host(kvm,
 						     kvm->arch.dtb_guest_start);
-	void (*generate_cpu_nodes)(void *, struct kvm *, u32)
+	void (*generate_fdt_nodes)(void *, struct kvm *, u32)
 				= kvm->cpus[0]->generate_fdt_nodes;
 
 	/* Create new tree without a reserve map */
@@ -115,8 +143,9 @@ static int setup_fdt(struct kvm *kvm)
 	_FDT(fdt_end_node(fdt));
 
 	/* CPU and peripherals (interrupt controller, timers, etc) */
-	if (generate_cpu_nodes)
-		generate_cpu_nodes(fdt, kvm, gic_phandle);
+	generate_cpu_nodes(fdt, kvm);
+	if (generate_fdt_nodes)
+		generate_fdt_nodes(fdt, kvm, gic_phandle);
 
 	/* Virtio MMIO devices */
 	dev_hdr = device__first_dev(DEVICE_BUS_MMIO);
