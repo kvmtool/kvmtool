@@ -43,7 +43,7 @@ struct net_dev {
 
 	struct virt_queue		vqs[VIRTIO_NET_NUM_QUEUES * 2 + 1];
 	struct virtio_net_config	config;
-	u32				features, rx_vqs, tx_vqs;
+	u32				features, rx_vqs, tx_vqs, queue_pairs;
 
 	pthread_t			io_thread[VIRTIO_NET_NUM_QUEUES * 2 + 1];
 	struct mutex			io_lock[VIRTIO_NET_NUM_QUEUES * 2 + 1];
@@ -159,7 +159,7 @@ static void *virtio_net_ctrl_thread(void *p)
 	u16 out, in, head;
 	struct net_dev *ndev = p;
 	struct kvm *kvm = ndev->kvm;
-	u32 id = ndev->config.max_virtqueue_pairs * 2;
+	u32 id = ndev->queue_pairs * 2;
 	struct virt_queue *vq = &ndev->vqs[id];
 	struct virtio_net_ctrl_hdr *ctrl;
 	virtio_net_ctrl_ack *ack;
@@ -197,7 +197,7 @@ static void *virtio_net_ctrl_thread(void *p)
 
 static void virtio_net_handle_callback(struct kvm *kvm, struct net_dev *ndev, int queue)
 {
-	if (queue >= (ndev->config.max_virtqueue_pairs * 2 + 1)) {
+	if ((u32)queue >= (ndev->queue_pairs * 2 + 1)) {
 		pr_warning("Unknown queue index %u", queue);
 		return;
 	}
@@ -334,6 +334,8 @@ static u8 *get_config(struct kvm *kvm, void *dev)
 
 static u32 get_host_features(struct kvm *kvm, void *dev)
 {
+	struct net_dev *ndev = dev;
+
 	return 1UL << VIRTIO_NET_F_MAC
 		| 1UL << VIRTIO_NET_F_CSUM
 		| 1UL << VIRTIO_NET_F_HOST_UFO
@@ -345,7 +347,7 @@ static u32 get_host_features(struct kvm *kvm, void *dev)
 		| 1UL << VIRTIO_RING_F_EVENT_IDX
 		| 1UL << VIRTIO_RING_F_INDIRECT_DESC
 		| 1UL << VIRTIO_NET_F_CTRL_VQ
-		| 1UL << VIRTIO_NET_F_MQ;
+		| 1UL << (ndev->queue_pairs > 1 ? VIRTIO_NET_F_MQ : 0);
 }
 
 static void set_guest_features(struct kvm *kvm, void *dev, u32 features)
@@ -376,7 +378,7 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 page_size, u32 align,
 	mutex_init(&ndev->io_lock[vq]);
 	pthread_cond_init(&ndev->io_cond[vq], NULL);
 	if (ndev->vhost_fd == 0) {
-		if (vq == (u32)(ndev->config.max_virtqueue_pairs * 2))
+		if (vq == (u32)(ndev->queue_pairs * 2))
 			pthread_create(&ndev->io_thread[vq], NULL, virtio_net_ctrl_thread, ndev);
 		else if (vq & 1)
 			pthread_create(&ndev->io_thread[vq], NULL, virtio_net_tx_thread, ndev);
@@ -574,6 +576,8 @@ static int set_net_param(struct kvm *kvm, struct virtio_net_params *p,
 		p->vhost = atoi(val);
 	} else if (strcmp(param, "fd") == 0) {
 		p->fd = atoi(val);
+	} else if (strcmp(param, "mq") == 0) {
+		p->mq = atoi(val);
 	} else
 		die("Unknown network parameter %s", param);
 
@@ -643,8 +647,11 @@ static int virtio_net__init_one(struct virtio_net_params *params)
 	ndev->kvm = params->kvm;
 
 	mutex_init(&ndev->mutex);
+	ndev->queue_pairs = max(1, min(VIRTIO_NET_NUM_QUEUES, params->mq));
 	ndev->config.status = VIRTIO_NET_S_LINK_UP;
-	ndev->config.max_virtqueue_pairs = VIRTIO_NET_NUM_QUEUES;
+	if (ndev->queue_pairs > 1)
+		ndev->config.max_virtqueue_pairs = ndev->queue_pairs;
+
 	for (i = 0 ; i < 6 ; i++) {
 		ndev->config.mac[i]		= params->guest_mac[i];
 		ndev->info.guest_mac.addr[i]	= params->guest_mac[i];
