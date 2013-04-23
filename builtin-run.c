@@ -563,9 +563,6 @@ static struct kvm *kvm_cmd_run_init(int argc, const char **argv)
 	if (!kvm->cfg.ram_size)
 		kvm->cfg.ram_size = get_ram_size(kvm->cfg.nrcpus);
 
-	if (kvm->cfg.ram_size < MIN_RAM_SIZE_MB)
-		die("Not enough memory specified: %lluMB (min %lluMB)", kvm->cfg.ram_size, MIN_RAM_SIZE_MB);
-
 	if (kvm->cfg.ram_size > host_ram_size())
 		pr_warning("Guest memory size %lluMB exceeds host physical RAM size %lluMB", kvm->cfg.ram_size, host_ram_size());
 
