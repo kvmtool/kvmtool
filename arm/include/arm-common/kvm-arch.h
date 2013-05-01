@@ -5,7 +5,8 @@
 #include <linux/const.h>
 #include <linux/types.h>
 
-#define ARM_MMIO_AREA		_AC(0x0000000000000000, UL)
+#define ARM_IOPORT_AREA		_AC(0x0000000000000000, UL)
+#define ARM_MMIO_AREA		_AC(0x0000000000010000, UL)
 #define ARM_AXI_AREA		_AC(0x0000000040000000, UL)
 #define ARM_MEMORY_AREA		_AC(0x0000000080000000, UL)
 
@@ -16,13 +17,20 @@
 #define ARM_GIC_CPUI_BASE	(ARM_GIC_DIST_BASE - ARM_GIC_CPUI_SIZE)
 #define ARM_GIC_SIZE		(ARM_GIC_DIST_SIZE + ARM_GIC_CPUI_SIZE)
 
-#define ARM_VIRTIO_MMIO_SIZE	(ARM_AXI_AREA - ARM_GIC_SIZE)
+#define ARM_IOPORT_SIZE		(ARM_MMIO_AREA - ARM_IOPORT_AREA)
+#define ARM_VIRTIO_MMIO_SIZE	(ARM_AXI_AREA - (ARM_MMIO_AREA + ARM_GIC_SIZE))
 #define ARM_PCI_MMIO_SIZE	(ARM_MEMORY_AREA - ARM_AXI_AREA)
 
 #define KVM_PCI_MMIO_AREA	ARM_AXI_AREA
 #define KVM_VIRTIO_MMIO_AREA	ARM_MMIO_AREA
 
 #define VIRTIO_DEFAULT_TRANS	VIRTIO_MMIO
+
+static inline bool arm_addr_in_ioport_region(u64 phys_addr)
+{
+	u64 limit = ARM_IOPORT_AREA + ARM_IOPORT_SIZE;
+	return phys_addr >= ARM_IOPORT_AREA && phys_addr < limit;
+}
 
 static inline bool arm_addr_in_virtio_mmio_region(u64 phys_addr)
 {
