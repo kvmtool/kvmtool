@@ -21,6 +21,7 @@
 #define ARM_VIRTIO_MMIO_SIZE	(ARM_AXI_AREA - (ARM_MMIO_AREA + ARM_GIC_SIZE))
 #define ARM_PCI_MMIO_SIZE	(ARM_MEMORY_AREA - ARM_AXI_AREA)
 
+#define KVM_IOPORT_AREA		ARM_IOPORT_AREA
 #define KVM_PCI_MMIO_AREA	ARM_AXI_AREA
 #define KVM_VIRTIO_MMIO_AREA	ARM_MMIO_AREA
 
@@ -28,8 +29,8 @@
 
 static inline bool arm_addr_in_ioport_region(u64 phys_addr)
 {
-	u64 limit = ARM_IOPORT_AREA + ARM_IOPORT_SIZE;
-	return phys_addr >= ARM_IOPORT_AREA && phys_addr < limit;
+	u64 limit = KVM_IOPORT_AREA + ARM_IOPORT_SIZE;
+	return phys_addr >= KVM_IOPORT_AREA && phys_addr < limit;
 }
 
 static inline bool arm_addr_in_virtio_mmio_region(u64 phys_addr)

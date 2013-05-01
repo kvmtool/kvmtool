@@ -37,6 +37,7 @@
  * This is the address that pci_get_io_space_block() starts allocating
  * from.  Note that this is a PCI bus address.
  */
+#define KVM_IOPORT_AREA			0x0
 #define KVM_PCI_MMIO_AREA		0x1000000
 #define KVM_VIRTIO_MMIO_AREA		0x2000000
 
