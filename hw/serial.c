@@ -6,6 +6,7 @@
 #include "kvm/util.h"
 #include "kvm/term.h"
 #include "kvm/kvm.h"
+#include "kvm/fdt.h"
 
 #include <linux/types.h>
 #include <linux/serial_reg.h>
@@ -226,30 +227,13 @@ void serial8250__inject_sysrq(struct kvm *kvm, char sysrq)
 	sysrq_pending = sysrq;
 }
 
-static struct serial8250_device *find_device(u16 port)
-{
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(devices); i++) {
-		struct serial8250_device *dev = &devices[i];
-
-		if (dev->iobase == (port & ~0x7))
-			return dev;
-	}
-	return NULL;
-}
-
 static bool serial8250_out(struct ioport *ioport, struct kvm *kvm, u16 port,
 			   void *data, int size)
 {
-	struct serial8250_device *dev;
+	struct serial8250_device *dev = ioport->priv;
 	u16 offset;
 	bool ret = true;
 	char *addr = data;
-
-	dev = find_device(port);
-	if (!dev)
-		return false;
 
 	mutex_lock(&dev->mutex);
 
@@ -338,13 +322,9 @@ static void serial8250_rx(struct serial8250_device *dev, void *data)
 
 static bool serial8250_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
 {
-	struct serial8250_device *dev;
+	struct serial8250_device *dev = ioport->priv;
 	u16 offset;
 	bool ret = true;
-
-	dev = find_device(port);
-	if (!dev)
-		return false;
 
 	mutex_lock(&dev->mutex);
 
@@ -393,9 +373,32 @@ static bool serial8250_in(struct ioport *ioport, struct kvm *kvm, u16 port, void
 	return ret;
 }
 
+#ifdef CONFIG_HAS_LIBFDT
+static void serial8250_generate_fdt_node(struct ioport *ioport, void *fdt,
+					 void (*generate_irq_prop)(void *fdt,
+								   u8 irq))
+{
+	struct serial8250_device *dev = ioport->priv;
+	u64 reg_prop[] = {
+		cpu_to_fdt64(KVM_IOPORT_AREA + dev->iobase),
+		cpu_to_fdt64(8),
+	};
+
+	_FDT(fdt_begin_node(fdt, "U6_16550A"));
+	_FDT(fdt_property_string(fdt, "compatible", "ns16550a"));
+	_FDT(fdt_property(fdt, "reg", reg_prop, sizeof(reg_prop)));
+	generate_irq_prop(fdt, dev->irq);
+	_FDT(fdt_property_cell(fdt, "clock-frequency", 1843200));
+	_FDT(fdt_end_node(fdt));
+}
+#else
+#define serial8250_generate_fdt_node	NULL
+#endif
+
 static struct ioport_operations serial8250_ops = {
-	.io_in		= serial8250_in,
-	.io_out		= serial8250_out,
+	.io_in			= serial8250_in,
+	.io_out			= serial8250_out,
+	.generate_fdt_node	= serial8250_generate_fdt_node,
 };
 
 static int serial8250__device_init(struct kvm *kvm, struct serial8250_device *dev)
@@ -403,7 +406,7 @@ static int serial8250__device_init(struct kvm *kvm, struct serial8250_device *de
 	int r;
 
 	ioport__map_irq(&dev->irq);
-	r = ioport__register(kvm, dev->iobase, &serial8250_ops, 8, NULL);
+	r = ioport__register(kvm, dev->iobase, &serial8250_ops, 8, dev);
 	kvm__irq_line(kvm, dev->irq, 0);
 
 	return r;
