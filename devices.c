@@ -45,6 +45,12 @@ int device__register(struct device_header *dev)
 	return 0;
 }
 
+void device__unregister(struct device_header *dev)
+{
+	struct device_bus *bus = &device_trees[dev->bus_type];
+	rb_erase(&dev->node, &bus->root);
+}
+
 struct device_header *device__find_dev(enum device_bus_type bus_type, u8 dev_num)
 {
 	struct rb_node *node;

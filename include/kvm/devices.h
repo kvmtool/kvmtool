@@ -7,6 +7,7 @@
 enum device_bus_type {
 	DEVICE_BUS_PCI,
 	DEVICE_BUS_MMIO,
+	DEVICE_BUS_IOPORT,
 	DEVICE_BUS_MAX,
 };
 
@@ -18,6 +19,7 @@ struct device_header {
 };
 
 int device__register(struct device_header *dev);
+void device__unregister(struct device_header *dev);
 struct device_header *device__find_dev(enum device_bus_type bus_type,
 				       u8 dev_num);
 

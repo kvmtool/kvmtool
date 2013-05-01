@@ -1,6 +1,7 @@
 #ifndef KVM__IOPORT_H
 #define KVM__IOPORT_H
 
+#include "kvm/devices.h"
 #include "kvm/rbtree-interval.h"
 
 #include <stdbool.h>
@@ -22,11 +23,14 @@ struct ioport {
 	struct rb_int_node		node;
 	struct ioport_operations	*ops;
 	void				*priv;
+	struct device_header		dev_hdr;
 };
 
 struct ioport_operations {
 	bool (*io_in)(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size);
 	bool (*io_out)(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size);
+	void (*generate_fdt_node)(struct ioport *ioport, void *fdt,
+				  void (*generate_irq_prop)(void *fdt, u8 irq));
 };
 
 void ioport__setup_arch(struct kvm *kvm);
