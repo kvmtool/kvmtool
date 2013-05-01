@@ -1,6 +1,7 @@
 #include "kvm/kvm.h"
 #include "kvm/term.h"
 #include "kvm/util.h"
+#include "kvm/8250-serial.h"
 #include "kvm/virtio-console.h"
 
 #include "arm-common/gic.h"
@@ -47,8 +48,10 @@ void kvm__arch_delete_ram(struct kvm *kvm)
 
 void kvm__arch_periodic_poll(struct kvm *kvm)
 {
-	if (term_readable(0))
+	if (term_readable(0)) {
+		serial8250__update_consoles(kvm);
 		virtio_console__inject_interrupt(kvm);
+	}
 }
 
 void kvm__arch_set_cmdline(char *cmdline, bool video)
