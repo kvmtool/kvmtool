@@ -53,8 +53,7 @@ static void rtas_put_term_char(struct kvm_cpu *vcpu,
 {
 	char c = rtas_ld(vcpu->kvm, args, 0);
 
-	if (vcpu->kvm->cfg.active_console == CONSOLE_HV)
-		term_putc(&c, 1, 0);
+	term_putc(&c, 1, 0);
 
 	rtas_st(vcpu->kvm, rets, 0, 0);
 }

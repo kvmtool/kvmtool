@@ -102,10 +102,7 @@ static void virtio_console_handle_callback(struct kvm *kvm, void *param)
 
 	while (virt_queue__available(vq)) {
 		head = virt_queue__get_iov(vq, iov, &out, &in, kvm);
-		if (kvm->cfg.active_console == CONSOLE_VIRTIO)
-			len = term_putc_iov(iov, out, 0);
-		else
-			len = 0;
+		len = term_putc_iov(iov, out, 0);
 		virt_queue__set_used_elem(vq, head, len);
 	}
 

@@ -100,8 +100,7 @@ static void serial8250_flush_tx(struct kvm *kvm, struct serial8250_device *dev)
 	dev->lsr |= UART_LSR_TEMT | UART_LSR_THRE;
 
 	if (dev->txcnt) {
-		if (kvm->cfg.active_console == CONSOLE_8250)
-			term_putc(dev->txbuf, dev->txcnt, dev->id);
+		term_putc(dev->txbuf, dev->txcnt, dev->id);
 		dev->txcnt = 0;
 	}
 }

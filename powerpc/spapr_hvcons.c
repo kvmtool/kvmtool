@@ -50,10 +50,7 @@ static unsigned long h_put_term_char(struct kvm_cpu *vcpu, unsigned long opcode,
 	do {
 		int ret;
 
-		if (vcpu->kvm->cfg.active_console == CONSOLE_HV)
-			ret = term_putc_iov(&iov, 1, 0);
-		else
-			ret = 0;
+		ret = term_putc_iov(&iov, 1, 0);
 		if (ret < 0) {
 			die("term_putc_iov error %d!\n", errno);
 		}
