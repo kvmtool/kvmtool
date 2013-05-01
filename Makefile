@@ -114,9 +114,6 @@ ifeq ($(ARCH),x86_64)
 	DEFINES      += -DCONFIG_X86_64
 endif
 
-LIBFDT_SRC = fdt.o fdt_ro.o fdt_wip.o fdt_sw.o fdt_rw.o fdt_strerror.o
-LIBFDT_OBJS = $(patsubst %,../../scripts/dtc/libfdt/%,$(LIBFDT_SRC))
-
 ### Arch-specific stuff
 
 #x86
@@ -150,12 +147,10 @@ ifeq ($(ARCH), powerpc)
 	OBJS	+= powerpc/spapr_hvcons.o
 	OBJS	+= powerpc/spapr_pci.o
 	OBJS	+= powerpc/xics.o
-# We use libfdt, but it's sometimes not packaged 64bit.  It's small too,
-# so just build it in:
-	CFLAGS 	+= -I../../scripts/dtc/libfdt
-	OTHEROBJS	+= $(LIBFDT_OBJS)
 	ARCH_INCLUDE := powerpc/include
 	CFLAGS 	+= -m64
+
+	ARCH_WANT_LIBFDT := y
 endif
 
 # ARM
@@ -170,8 +165,8 @@ ifeq ($(ARCH), arm)
 	ARCH_INCLUDE	:= $(HDRS_ARM_COMMON)
 	ARCH_INCLUDE	+= -Iarm/aarch32/include
 	CFLAGS		+= -march=armv7-a
-	CFLAGS		+= -I../../scripts/dtc/libfdt
-	OTHEROBJS	+= $(LIBFDT_OBJS)
+
+	ARCH_WANT_LIBFDT := y
 endif
 
 # ARM64
@@ -182,8 +177,8 @@ ifeq ($(ARCH), arm64)
 	OBJS		+= arm/aarch64/kvm-cpu.o
 	ARCH_INCLUDE	:= $(HDRS_ARM_COMMON)
 	ARCH_INCLUDE	+= -Iarm/aarch64/include
-	CFLAGS		+= -I../../scripts/dtc/libfdt
-	OTHEROBJS	+= $(LIBFDT_OBJS)
+
+	ARCH_WANT_LIBFDT := y
 endif
 
 ###
@@ -192,6 +187,18 @@ ifeq (,$(ARCH_INCLUDE))
 	UNSUPP_ERR = @echo "This architecture is not supported in kvmtool." && exit 1
 else
 	UNSUPP_ERR =
+endif
+
+###
+
+# libfdt support
+
+LIBFDT_SRC = fdt.o fdt_ro.o fdt_wip.o fdt_sw.o fdt_rw.o fdt_strerror.o
+LIBFDT_OBJS = $(patsubst %,../../scripts/dtc/libfdt/%,$(LIBFDT_SRC))
+
+ifeq (y,$(ARCH_WANT_LIBFDT))
+	DEFINES		+= -DCONFIG_HAS_LIBFDT
+	OTHEROBJS	+= $(LIBFDT_OBJS)
 endif
 
 ###
@@ -285,7 +292,7 @@ DEFINES	+= -DKVMTOOLS_VERSION='"$(KVMTOOLS_VERSION)"'
 DEFINES	+= -DBUILD_ARCH='"$(ARCH)"'
 
 KVM_INCLUDE := include
-CFLAGS	+= $(CPPFLAGS) $(DEFINES) -I$(KVM_INCLUDE) -I$(ARCH_INCLUDE) -I$(KINCL_PATH)/include/uapi -I$(KINCL_PATH)/include -I$(KINCL_PATH)/arch/$(ARCH)/include/uapi -I$(KINCL_PATH)/arch/$(ARCH)/include/ -O2 -fno-strict-aliasing -g
+CFLAGS	+= $(CPPFLAGS) $(DEFINES) -I$(KVM_INCLUDE) -I$(ARCH_INCLUDE) -I$(KINCL_PATH)/include/uapi -I$(KINCL_PATH)/include -I$(KINCL_PATH)/arch/$(ARCH)/include/uapi -I$(KINCL_PATH)/arch/$(ARCH)/include/ -I$(KINCL_PATH)/scripts/dtc/libfdt -O2 -fno-strict-aliasing -g
 
 WARNINGS += -Wall
 WARNINGS += -Wformat=2
