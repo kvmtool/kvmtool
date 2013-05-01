@@ -144,6 +144,14 @@ static int setup_fdt(struct kvm *kvm)
 		dev_hdr = device__next_dev(dev_hdr);
 	}
 
+	/* IOPORT devices (!) */
+	dev_hdr = device__first_dev(DEVICE_BUS_IOPORT);
+	while (dev_hdr) {
+		generate_mmio_fdt_nodes = dev_hdr->data;
+		generate_mmio_fdt_nodes(fdt, dev_hdr, generate_irq_prop);
+		dev_hdr = device__next_dev(dev_hdr);
+	}
+
 	/* PSCI firmware */
 	_FDT(fdt_begin_node(fdt, "psci"));
 	_FDT(fdt_property_string(fdt, "compatible", "arm,psci"));
