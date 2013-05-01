@@ -69,28 +69,15 @@ static void generate_cpu_nodes(void *fdt, struct kvm *kvm)
 	_FDT(fdt_end_node(fdt));
 }
 
-#define DEVICE_NAME_MAX_LEN 32
-static void generate_virtio_mmio_node(void *fdt, struct virtio_mmio *vmmio)
+static void generate_irq_prop(void *fdt, u8 irq)
 {
-	char dev_name[DEVICE_NAME_MAX_LEN];
-	u64 addr = vmmio->addr;
-	u64 reg_prop[] = {
-		cpu_to_fdt64(addr),
-		cpu_to_fdt64(VIRTIO_MMIO_IO_SIZE)
-	};
 	u32 irq_prop[] = {
 		cpu_to_fdt32(GIC_FDT_IRQ_TYPE_SPI),
-		cpu_to_fdt32(vmmio->irq - GIC_SPI_IRQ_BASE),
+		cpu_to_fdt32(irq - GIC_SPI_IRQ_BASE),
 		cpu_to_fdt32(GIC_FDT_IRQ_FLAGS_EDGE_LO_HI),
 	};
 
-	snprintf(dev_name, DEVICE_NAME_MAX_LEN, "virtio@%llx", addr);
-
-	_FDT(fdt_begin_node(fdt, dev_name));
-	_FDT(fdt_property_string(fdt, "compatible", "virtio,mmio"));
-	_FDT(fdt_property(fdt, "reg", reg_prop, sizeof(reg_prop)));
 	_FDT(fdt_property(fdt, "interrupts", irq_prop, sizeof(irq_prop)));
-	_FDT(fdt_end_node(fdt));
 }
 
 static int setup_fdt(struct kvm *kvm)
@@ -105,8 +92,10 @@ static int setup_fdt(struct kvm *kvm)
 	void *fdt		= staging_fdt;
 	void *fdt_dest		= guest_flat_to_host(kvm,
 						     kvm->arch.dtb_guest_start);
-	void (*generate_fdt_nodes)(void *, struct kvm *, u32)
-				= kvm->cpus[0]->generate_fdt_nodes;
+	void (*generate_mmio_fdt_nodes)(void *, struct device_header *,
+					void (*)(void *, u8));
+	void (*generate_cpu_peripheral_fdt_nodes)(void *, struct kvm *, u32)
+					= kvm->cpus[0]->generate_fdt_nodes;
 
 	/* Create new tree without a reserve map */
 	_FDT(fdt_create(fdt, FDT_MAX_SIZE));
@@ -144,13 +133,14 @@ static int setup_fdt(struct kvm *kvm)
 
 	/* CPU and peripherals (interrupt controller, timers, etc) */
 	generate_cpu_nodes(fdt, kvm);
-	if (generate_fdt_nodes)
-		generate_fdt_nodes(fdt, kvm, gic_phandle);
+	if (generate_cpu_peripheral_fdt_nodes)
+		generate_cpu_peripheral_fdt_nodes(fdt, kvm, gic_phandle);
 
 	/* Virtio MMIO devices */
 	dev_hdr = device__first_dev(DEVICE_BUS_MMIO);
 	while (dev_hdr) {
-		generate_virtio_mmio_node(fdt, dev_hdr->data);
+		generate_mmio_fdt_nodes = dev_hdr->data;
+		generate_mmio_fdt_nodes(fdt, dev_hdr, generate_irq_prop);
 		dev_hdr = device__next_dev(dev_hdr);
 	}
 
