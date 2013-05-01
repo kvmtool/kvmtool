@@ -374,17 +374,22 @@ static bool serial8250_in(struct ioport *ioport, struct kvm *kvm, u16 port, void
 }
 
 #ifdef CONFIG_HAS_LIBFDT
+#define DEVICE_NAME_MAX_LEN 32
 static void serial8250_generate_fdt_node(struct ioport *ioport, void *fdt,
 					 void (*generate_irq_prop)(void *fdt,
 								   u8 irq))
 {
+	char dev_name[DEVICE_NAME_MAX_LEN];
 	struct serial8250_device *dev = ioport->priv;
+	u64 addr = KVM_IOPORT_AREA + dev->iobase;
 	u64 reg_prop[] = {
-		cpu_to_fdt64(KVM_IOPORT_AREA + dev->iobase),
+		cpu_to_fdt64(addr),
 		cpu_to_fdt64(8),
 	};
 
-	_FDT(fdt_begin_node(fdt, "U6_16550A"));
+	snprintf(dev_name, DEVICE_NAME_MAX_LEN, "U6_16550A@%llx", addr);
+
+	_FDT(fdt_begin_node(fdt, dev_name));
 	_FDT(fdt_property_string(fdt, "compatible", "ns16550a"));
 	_FDT(fdt_property(fdt, "reg", reg_prop, sizeof(reg_prop)));
 	generate_irq_prop(fdt, dev->irq);
