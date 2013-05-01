@@ -30,6 +30,7 @@ struct ioport_operations {
 };
 
 void ioport__setup_arch(struct kvm *kvm);
+void ioport__map_irq(u8 *irq);
 
 int ioport__register(struct kvm *kvm, u16 port, struct ioport_operations *ops,
 			int count, void *param);

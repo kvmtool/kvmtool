@@ -16,3 +16,7 @@ void ioport__setup_arch(struct kvm *kvm)
 {
 	/* PPC has no legacy ioports to set up */
 }
+
+void ioport__map_irq(u8 *irq)
+{
+}

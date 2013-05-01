@@ -65,6 +65,10 @@ static struct ioport_operations ps2_control_a_ops = {
 	.io_out		= dummy_io_out,
 };
 
+void ioport__map_irq(u8 *irq)
+{
+}
+
 void ioport__setup_arch(struct kvm *kvm)
 {
 	/* Legacy ioport setup */
