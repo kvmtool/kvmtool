@@ -357,6 +357,11 @@ static void set_guest_features(struct kvm *kvm, void *dev, u32 features)
 	ndev->features = features;
 }
 
+static bool is_ctrl_vq(struct net_dev *ndev, u32 vq)
+{
+	return vq == (u32)(ndev->queue_pairs * 2);
+}
+
 static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 page_size, u32 align,
 		   u32 pfn)
 {
@@ -377,10 +382,12 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 page_size, u32 align,
 
 	mutex_init(&ndev->io_lock[vq]);
 	pthread_cond_init(&ndev->io_cond[vq], NULL);
-	if (ndev->vhost_fd == 0) {
-		if (vq == (u32)(ndev->queue_pairs * 2))
-			pthread_create(&ndev->io_thread[vq], NULL, virtio_net_ctrl_thread, ndev);
-		else if (vq & 1)
+	if (is_ctrl_vq(ndev, vq)) {
+		pthread_create(&ndev->io_thread[vq], NULL, virtio_net_ctrl_thread, ndev);
+
+		return 0;
+	} else if (ndev->vhost_fd == 0 ) {
+		if (vq & 1)
 			pthread_create(&ndev->io_thread[vq], NULL, virtio_net_tx_thread, ndev);
 		else
 			pthread_create(&ndev->io_thread[vq], NULL, virtio_net_rx_thread, ndev);
@@ -453,7 +460,7 @@ static void notify_vq_eventfd(struct kvm *kvm, void *dev, u32 vq, u32 efd)
 	};
 	int r;
 
-	if (ndev->vhost_fd == 0)
+	if (ndev->vhost_fd == 0 || is_ctrl_vq(ndev, vq))
 		return;
 
 	r = ioctl(ndev->vhost_fd, VHOST_SET_VRING_KICK, &file);
