@@ -142,7 +142,7 @@ int uip_udp_make_pkg(struct uip_info *info, struct uip_udp_socket *sk, struct ui
 	/*
 	 * virtio_net_hdr
 	 */
-	buf->vnet_len	= sizeof(struct virtio_net_hdr);
+	buf->vnet_len	= info->vnet_hdr_len;
 	memset(buf->vnet, 0, buf->vnet_len);
 
 	buf->eth_len	= ntohs(ip2->len) + uip_eth_hdrlen(&ip2->eth);

@@ -153,7 +153,7 @@ static int uip_tcp_payload_send(struct uip_tcp_socket *sk, u8 flag, u16 payload_
 	/*
 	 * virtio_net_hdr
 	 */
-	buf->vnet_len	= sizeof(struct virtio_net_hdr);
+	buf->vnet_len	= info->vnet_hdr_len;
 	memset(buf->vnet, 0, buf->vnet_len);
 
 	buf->eth_len	= ntohs(ip2->len) + uip_eth_hdrlen(&ip2->eth);

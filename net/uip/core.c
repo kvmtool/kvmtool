@@ -172,10 +172,10 @@ int uip_init(struct uip_info *info)
 	}
 
 	list_for_each_entry(buf, buf_head, list) {
-		buf->vnet	= malloc(sizeof(struct virtio_net_hdr));
-		buf->vnet_len	= sizeof(struct virtio_net_hdr);
-		buf->eth	= malloc(1024*64 + sizeof(struct uip_pseudo_hdr));
-		buf->eth_len	= 1024*64 + sizeof(struct uip_pseudo_hdr);
+		buf->vnet_len   = info->vnet_hdr_len;
+		buf->vnet	= malloc(buf->vnet_len);
+		buf->eth_len    = 1024*64 + sizeof(struct uip_pseudo_hdr);
+		buf->eth	= malloc(buf->eth_len);
 
 		memset(buf->vnet, 0, buf->vnet_len);
 		memset(buf->eth, 0, buf->eth_len);

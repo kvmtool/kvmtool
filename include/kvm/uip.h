@@ -205,6 +205,7 @@ struct uip_info {
 	u32 dns_ip[UIP_DHCP_MAX_DNS_SERVER_NR];
 	char *domain_name;
 	u32 buf_nr;
+	u32 vnet_hdr_len;
 };
 
 struct uip_buf {

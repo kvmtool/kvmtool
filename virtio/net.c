@@ -668,6 +668,7 @@ static int virtio_net__init_one(struct virtio_net_params *params)
 		ndev->info.guest_ip		= ntohl(inet_addr(params->guest_ip));
 		ndev->info.guest_netmask	= ntohl(inet_addr("255.255.255.0"));
 		ndev->info.buf_nr		= 20,
+		ndev->info.vnet_hdr_len		= sizeof(struct virtio_net_hdr);
 		uip_init(&ndev->info);
 		ndev->ops = &uip_ops;
 	}
