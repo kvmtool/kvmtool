@@ -210,6 +210,8 @@ static bool virtio_pci__io_out(struct ioport *ioport, struct kvm *kvm, u16 port,
 		break;
 	case VIRTIO_PCI_STATUS:
 		vpci->status = ioport__read8(data);
+		if (vdev->ops->notify_status)
+			vdev->ops->notify_status(kvm, vpci->dev, vpci->status);
 		break;
 	default:
 		ret = virtio_pci__specific_io_out(kvm, vdev, port, data, size, offset);

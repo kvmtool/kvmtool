@@ -80,6 +80,7 @@ struct virtio_ops {
 	void (*notify_vq_eventfd)(struct kvm *kvm, void *dev, u32 vq, u32 efd);
 	int (*signal_vq)(struct kvm *kvm, struct virtio_device *vdev, u32 queueid);
 	int (*signal_config)(struct kvm *kvm, struct virtio_device *vdev);
+	void (*notify_status)(struct kvm *kvm, void *dev, u8 status);
 	int (*init)(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 		    int device_id, int subsys_id, int class);
 	int (*exit)(struct kvm *kvm, struct virtio_device *vdev);
