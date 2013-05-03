@@ -8,7 +8,7 @@
 
 int uip_tx(struct iovec *iov, u16 out, struct uip_info *info)
 {
-	struct virtio_net_hdr *vnet;
+	void *vnet;
 	struct uip_tx_arg arg;
 	int eth_len, vnet_len;
 	struct uip_eth *eth;

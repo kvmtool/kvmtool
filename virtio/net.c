@@ -8,6 +8,7 @@
 #include "kvm/irq.h"
 #include "kvm/uip.h"
 #include "kvm/guest_compat.h"
+#include "kvm/iovec.h"
 
 #include <linux/vhost.h>
 #include <linux/virtio_net.h>
@@ -65,6 +66,13 @@ struct net_dev {
 static LIST_HEAD(ndevs);
 static int compat_id = -1;
 
+#define MAX_PACKET_SIZE 65550
+
+static bool has_virtio_feature(struct net_dev *ndev, u32 feature)
+{
+	return ndev->features & (1 << feature);
+}
+
 static void *virtio_net_rx_thread(void *p)
 {
 	struct iovec iov[VIRTIO_NET_QUEUE_SIZE];
@@ -73,7 +81,7 @@ static void *virtio_net_rx_thread(void *p)
 	struct net_dev *ndev = p;
 	u16 out, in;
 	u16 head;
-	int len;
+	size_t len, copied;
 	u32 id;
 
 	mutex_lock(&ndev->mutex);
@@ -92,10 +100,31 @@ static void *virtio_net_rx_thread(void *p)
 		mutex_unlock(&ndev->io_lock[id]);
 
 		while (virt_queue__available(vq)) {
-			head = virt_queue__get_iov(vq, iov, &out, &in, kvm);
-			len = ndev->ops->rx(iov, in, ndev);
-			virt_queue__set_used_elem(vq, head, len);
+			unsigned char buffer[MAX_PACKET_SIZE + sizeof(struct virtio_net_hdr_mrg_rxbuf)];
+			struct iovec dummy_iov = {
+				.iov_base = buffer,
+				.iov_len  = sizeof(buffer),
+			};
+			struct virtio_net_hdr_mrg_rxbuf *hdr;
 
+			len = ndev->ops->rx(&dummy_iov, 1, ndev);
+			copied = 0;
+			head = virt_queue__get_iov(vq, iov, &out, &in, kvm);
+			hdr = (void *)iov[0].iov_base;
+			while (copied < len) {
+				size_t iovsize = min(len - copied, iov_size(iov, in));
+
+				memcpy_toiovecend(iov, buffer, copied, iovsize);
+				copied += iovsize;
+				if (has_virtio_feature(ndev, VIRTIO_NET_F_MRG_RXBUF))
+					hdr->num_buffers++;
+				virt_queue__set_used_elem(vq, head, iovsize);
+				if (copied == len)
+					break;
+				while (!virt_queue__available(vq))
+					sleep(0);
+				head = virt_queue__get_iov(vq, iov, &out, &in, kvm);
+			}
 			/* We should interrupt guest right now, otherwise latency is huge. */
 			if (virtio_queue__should_signal(vq))
 				ndev->vdev.ops->signal_vq(kvm, &ndev->vdev, id);
@@ -243,7 +272,7 @@ static bool virtio_net__tap_init(struct net_dev *ndev)
 		goto fail;
 	}
 
-	hdr_len = (ndev->features & (1 << VIRTIO_NET_F_MRG_RXBUF)) ?
+	hdr_len = has_virtio_feature(ndev, VIRTIO_NET_F_MRG_RXBUF) ?
 			sizeof(struct virtio_net_hdr_mrg_rxbuf) :
 			sizeof(struct virtio_net_hdr);
 	if (ioctl(ndev->tap_fd, TUNSETVNETHDRSZ, &hdr_len) < 0)
@@ -351,6 +380,7 @@ static u32 get_host_features(struct kvm *kvm, void *dev)
 		| 1UL << VIRTIO_RING_F_EVENT_IDX
 		| 1UL << VIRTIO_RING_F_INDIRECT_DESC
 		| 1UL << VIRTIO_NET_F_CTRL_VQ
+		| 1UL << VIRTIO_NET_F_MRG_RXBUF
 		| 1UL << (ndev->queue_pairs > 1 ? VIRTIO_NET_F_MQ : 0);
 }
 
@@ -711,7 +741,7 @@ static void notify_status(struct kvm *kvm, void *dev, u8 status)
 		if (!virtio_net__tap_init(ndev))
 			die_perror("You have requested a TAP device, but creation of one has failed because");
 	} else {
-		ndev->info.vnet_hdr_len = (ndev->features & (1 << VIRTIO_NET_F_MRG_RXBUF)) ?
+		ndev->info.vnet_hdr_len = has_virtio_feature(ndev, VIRTIO_NET_F_MRG_RXBUF) ?
 						sizeof(struct virtio_net_hdr_mrg_rxbuf) :
 						sizeof(struct virtio_net_hdr);
 		uip_init(&ndev->info);

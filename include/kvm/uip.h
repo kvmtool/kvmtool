@@ -253,7 +253,7 @@ struct uip_tcp_socket {
 };
 
 struct uip_tx_arg {
-	struct virtio_net_hdr *vnet;
+	void *vnet;
 	struct uip_info *info;
 	struct uip_eth *eth;
 	int vnet_len;
