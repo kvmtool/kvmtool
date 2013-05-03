@@ -214,8 +214,8 @@ struct uip_buf {
 	int vnet_len;
 	int eth_len;
 	int status;
-	char *vnet;
-	char *eth;
+	unsigned char *vnet;
+	unsigned char *eth;
 	int id;
 };
 

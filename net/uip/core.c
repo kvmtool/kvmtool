@@ -4,6 +4,7 @@
 #include <linux/virtio_net.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
+#include <kvm/iovec.h>
 
 int uip_tx(struct iovec *iov, u16 out, struct uip_info *info)
 {
@@ -76,61 +77,19 @@ int uip_tx(struct iovec *iov, u16 out, struct uip_info *info)
 
 int uip_rx(struct iovec *iov, u16 in, struct uip_info *info)
 {
-	struct virtio_net_hdr *vnet;
-	struct uip_eth *eth;
 	struct uip_buf *buf;
-	int vnet_len;
-	int eth_len;
-	char *p;
 	int len;
-	int cnt;
-	int i;
 
 	/*
 	 * Sleep until there is a buffer for guest
 	 */
 	buf = uip_buf_get_used(info);
 
-	/*
-	 * Fill device to guest buffer, vnet hdr fisrt
-	 */
-	vnet_len = iov[0].iov_len;
-	vnet = iov[0].iov_base;
-	if (buf->vnet_len > vnet_len) {
-		len = -1;
-		goto out;
-	}
-	memcpy(vnet, buf->vnet, buf->vnet_len);
-
-	/*
-	 * Then, the real eth data
-	 * Note: Be sure buf->eth_len is not bigger than the buffer len that guest provides
-	 */
-	cnt = buf->eth_len;
-	p = buf->eth;
-	for (i = 1; i < in; i++) {
-		eth_len = iov[i].iov_len;
-		eth = iov[i].iov_base;
-		if (cnt > eth_len) {
-			memcpy(eth, p, eth_len);
-			cnt -= eth_len;
-			p += eth_len;
-		} else {
-			memcpy(eth, p, cnt);
-			cnt -= cnt;
-			break;
-		}
-	}
-
-	if (cnt) {
-		pr_warning("uip_rx error");
-		len = -1;
-		goto out;
-	}
+	memcpy_toiovecend(iov, buf->vnet, 0, buf->vnet_len);
+	memcpy_toiovecend(iov, buf->eth, buf->vnet_len, buf->eth_len);
 
 	len = buf->vnet_len + buf->eth_len;
 
-out:
 	uip_buf_set_free(info, buf);
 	return len;
 }
