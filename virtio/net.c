@@ -243,7 +243,9 @@ static bool virtio_net__tap_init(struct net_dev *ndev)
 		goto fail;
 	}
 
-	hdr_len = sizeof(struct virtio_net_hdr);
+	hdr_len = (ndev->features & (1 << VIRTIO_NET_F_MRG_RXBUF)) ?
+			sizeof(struct virtio_net_hdr_mrg_rxbuf) :
+			sizeof(struct virtio_net_hdr);
 	if (ioctl(ndev->tap_fd, TUNSETVNETHDRSZ, &hdr_len) < 0)
 		pr_warning("Config tap device TUNSETVNETHDRSZ error");
 
@@ -679,7 +681,6 @@ static int virtio_net__init_one(struct virtio_net_params *params)
 		ndev->info.guest_ip		= ntohl(inet_addr(params->guest_ip));
 		ndev->info.guest_netmask	= ntohl(inet_addr("255.255.255.0"));
 		ndev->info.buf_nr		= 20,
-		ndev->info.vnet_hdr_len		= sizeof(struct virtio_net_hdr);
 		ndev->ops = &uip_ops;
 	}
 
@@ -710,6 +711,9 @@ static void notify_status(struct kvm *kvm, void *dev, u8 status)
 		if (!virtio_net__tap_init(ndev))
 			die_perror("You have requested a TAP device, but creation of one has failed because");
 	} else {
+		ndev->info.vnet_hdr_len = (ndev->features & (1 << VIRTIO_NET_F_MRG_RXBUF)) ?
+						sizeof(struct virtio_net_hdr_mrg_rxbuf) :
+						sizeof(struct virtio_net_hdr);
 		uip_init(&ndev->info);
 	}
 }
