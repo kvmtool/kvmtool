@@ -144,15 +144,20 @@ static void virtio_mmio_config_out(u64 addr, void *data, u32 len,
 				   struct virtio_device *vdev)
 {
 	struct virtio_mmio *vmmio = vdev->virtio;
+	struct kvm *kvm = vmmio->kvm;
 	u32 val = 0;
 
 	switch (addr) {
 	case VIRTIO_MMIO_HOST_FEATURES_SEL:
 	case VIRTIO_MMIO_GUEST_FEATURES_SEL:
 	case VIRTIO_MMIO_QUEUE_SEL:
-	case VIRTIO_MMIO_STATUS:
 		val = ioport__read32(data);
 		*(u32 *)(((void *)&vmmio->hdr) + addr) = val;
+		break;
+	case VIRTIO_MMIO_STATUS:
+		vmmio->hdr.status = ioport__read32(data);
+		if (vdev->ops->notify_status)
+			vdev->ops->notify_status(kvm, vmmio->dev, vmmio->hdr.status);
 		break;
 	case VIRTIO_MMIO_GUEST_FEATURES:
 		if (vmmio->hdr.guest_features_sel == 0) {
