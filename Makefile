@@ -324,10 +324,6 @@ all: arch_support_check $(PROGRAM) $(PROGRAM_ALIAS) $(GUEST_INIT)
 arch_support_check:
 	$(UNSUPP_ERR)
 
-KVMTOOLS-VERSION-FILE:
-	@$(SHELL_PATH) util/KVMTOOLS-VERSION-GEN $(OUTPUT)
--include $(OUTPUT)KVMTOOLS-VERSION-FILE
-
 # When building -static all objects are built with appropriate flags, which
 # may differ between static & dynamic .o.  The objects are separated into
 # .o and .static.o.  See the %.o: %.c rules below.
@@ -504,5 +500,12 @@ cscope:
 	$(Q) $(CSCOPE) -bkqu
 .PHONY: cscope
 
-# Deps
+#
+# Escape redundant work on cleaning up
+ifneq ($(MAKECMDGOALS),clean)
 -include $(DEPS)
+
+KVMTOOLS-VERSION-FILE:
+	@$(SHELL_PATH) util/KVMTOOLS-VERSION-GEN $(OUTPUT)
+-include $(OUTPUT)KVMTOOLS-VERSION-FILE
+endif
