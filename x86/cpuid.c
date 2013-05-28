@@ -12,6 +12,7 @@
 
 static void filter_cpuid(struct kvm_cpuid2 *kvm_cpuid)
 {
+	unsigned int signature[3];
 	unsigned int i;
 
 	/*
@@ -21,6 +22,13 @@ static void filter_cpuid(struct kvm_cpuid2 *kvm_cpuid)
 		struct kvm_cpuid_entry2 *entry = &kvm_cpuid->entries[i];
 
 		switch (entry->function) {
+		case 0:
+			/* Vendor name */
+			memcpy(signature, "LKVMLKVMLKVM", 12);
+			entry->ebx = signature[0];
+			entry->ecx = signature[1];
+			entry->edx = signature[2];
+			break;
 		case 1:
 			/* Set X86_FEATURE_HYPERVISOR */
 			if (entry->index == 0)
