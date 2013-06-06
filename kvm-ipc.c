@@ -112,14 +112,38 @@ int kvm__get_sock_by_instance(const char *name)
 	return s;
 }
 
+static bool is_socket(const char *base_path, const struct dirent *dent)
+{
+	switch (dent->d_type) {
+	case DT_SOCK:
+		return true;
+
+	case DT_UNKNOWN: {
+		char path[PATH_MAX];
+		struct stat st;
+
+		sprintf(path, "%s/%s", base_path, dent->d_name);
+		if (stat(path, &st))
+			return false;
+
+		return S_ISSOCK(st.st_mode);
+	}
+	default:
+		return false;
+	}
+}
+
 int kvm__enumerate_instances(int (*callback)(const char *name, int fd))
 {
 	int sock;
 	DIR *dir;
 	struct dirent entry, *result;
 	int ret = 0;
+	const char *path;
 
-	dir = opendir(kvm__get_dir());
+	path = kvm__get_dir();
+
+	dir = opendir(path);
 	if (!dir)
 		return -errno;
 
@@ -127,7 +151,7 @@ int kvm__enumerate_instances(int (*callback)(const char *name, int fd))
 		readdir_r(dir, &entry, &result);
 		if (result == NULL)
 			break;
-		if (entry.d_type == DT_SOCK) {
+		if (is_socket(path, &entry)) {
 			ssize_t name_len = strlen(entry.d_name);
 			char *p;
 
