@@ -90,4 +90,10 @@ int virtio_init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 		struct virtio_ops *ops, enum virtio_trans trans,
 		int device_id, int subsys_id, int class);
 int virtio_compat_add_message(const char *device, const char *config);
+
+static inline void *virtio_get_vq(struct kvm *kvm, u32 pfn, u32 page_size)
+{
+	return guest_flat_to_host(kvm, (u64)pfn * page_size);
+}
+
 #endif /* KVM__VIRTIO_H */

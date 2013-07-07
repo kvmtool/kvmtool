@@ -1267,7 +1267,7 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 page_size, u32 align,
 
 	queue		= &p9dev->vqs[vq];
 	queue->pfn	= pfn;
-	p		= guest_flat_to_host(kvm, queue->pfn * page_size);
+	p		= virtio_get_vq(kvm, queue->pfn, page_size);
 	job		= &p9dev->jobs[vq];
 
 	vring_init(&queue->vring, VIRTQUEUE_NUM, p, align);
