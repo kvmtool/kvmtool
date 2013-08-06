@@ -712,6 +712,7 @@ static int virtio_net__init_one(struct virtio_net_params *params)
 		ndev->info.guest_netmask	= ntohl(inet_addr("255.255.255.0"));
 		ndev->info.buf_nr		= 20,
 		ndev->ops = &uip_ops;
+		uip_static_init(&ndev->info);
 	}
 
 	if (params->trans && strcmp(params->trans, "mmio") == 0)

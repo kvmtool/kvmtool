@@ -334,6 +334,7 @@ static inline u16 uip_eth_hdrlen(struct uip_eth *eth)
 
 int uip_tx(struct iovec *iov, u16 out, struct uip_info *info);
 int uip_rx(struct iovec *iov, u16 in, struct uip_info *info);
+void uip_static_init(struct uip_info *info);
 int uip_init(struct uip_info *info);
 
 int uip_tx_do_ipv4_udp_dhcp(struct uip_tx_arg *arg);

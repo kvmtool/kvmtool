@@ -94,19 +94,15 @@ int uip_rx(struct iovec *iov, u16 in, struct uip_info *info)
 	return len;
 }
 
-int uip_init(struct uip_info *info)
+void uip_static_init(struct uip_info *info)
 {
 	struct list_head *udp_socket_head;
 	struct list_head *tcp_socket_head;
 	struct list_head *buf_head;
-	struct uip_buf *buf;
-	int buf_nr;
-	int i;
 
 	udp_socket_head	= &info->udp_socket_head;
 	tcp_socket_head	= &info->tcp_socket_head;
 	buf_head	= &info->buf_head;
-	buf_nr		= info->buf_nr;
 
 	INIT_LIST_HEAD(udp_socket_head);
 	INIT_LIST_HEAD(tcp_socket_head);
@@ -119,6 +115,18 @@ int uip_init(struct uip_info *info)
 	pthread_cond_init(&info->buf_used_cond, NULL);
 	pthread_cond_init(&info->buf_free_cond, NULL);
 
+	info->buf_used_nr = 0;
+}
+
+int uip_init(struct uip_info *info)
+{
+	struct list_head *buf_head;
+	struct uip_buf *buf;
+	int buf_nr;
+	int i;
+
+	buf_head	= &info->buf_head;
+	buf_nr		= info->buf_nr;
 
 	for (i = 0; i < buf_nr; i++) {
 		buf = malloc(sizeof(*buf));
@@ -141,7 +149,6 @@ int uip_init(struct uip_info *info)
 	}
 
 	info->buf_free_nr = buf_nr;
-	info->buf_used_nr = 0;
 
 	uip_dhcp_get_dns(info);
 
