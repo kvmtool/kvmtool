@@ -150,6 +150,7 @@ ifeq ($(ARCH), powerpc)
 	OBJS	+= powerpc/xics.o
 	ARCH_INCLUDE := powerpc/include
 	CFLAGS 	+= -m64
+	LDFLAGS += -m elf64ppc
 
 	ARCH_WANT_LIBFDT := y
 endif
@@ -348,7 +349,7 @@ $(PROGRAM_ALIAS): $(PROGRAM)
 $(GUEST_INIT): guest/init.c
 	$(E) "  LINK    " $@
 	$(Q) $(CC) -static guest/init.c -o $@
-	$(Q) $(LD) -r -b binary -o guest/guest_init.o $(GUEST_INIT)
+	$(Q) $(LD) $(LDFLAGS) -r -b binary -o guest/guest_init.o $(GUEST_INIT)
 
 $(DEPS):
 
