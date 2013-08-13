@@ -121,6 +121,19 @@ static void rtas_power_off(struct kvm_cpu *vcpu,
 	kvm_cpu__reboot(vcpu->kvm);
 }
 
+static void rtas_system_reboot(struct kvm_cpu *vcpu,
+                           uint32_t token, uint32_t nargs, target_ulong args,
+                           uint32_t nret, target_ulong rets)
+{
+	if (nargs != 0 || nret != 1) {
+		rtas_st(vcpu->kvm, rets, 0, -3);
+		return;
+	}
+
+	/* NB this actually halts the VM */
+	kvm_cpu__reboot(vcpu->kvm);
+}
+
 static void rtas_query_cpu_stopped_state(struct kvm_cpu *vcpu,
                                          uint32_t token, uint32_t nargs,
                                          target_ulong args,
@@ -221,6 +234,7 @@ void register_core_rtas(void)
 	spapr_rtas_register("get-time-of-day", rtas_get_time_of_day);
 	spapr_rtas_register("set-time-of-day", rtas_set_time_of_day);
 	spapr_rtas_register("power-off", rtas_power_off);
+	spapr_rtas_register("system-reboot", rtas_system_reboot);
 	spapr_rtas_register("query-cpu-stopped-state",
 			    rtas_query_cpu_stopped_state);
 	spapr_rtas_register("start-cpu", rtas_start_cpu);
