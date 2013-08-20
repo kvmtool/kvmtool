@@ -505,7 +505,7 @@ static int xics_init(struct kvm *kvm)
 
 	return 0;
 }
-base_init(xics_init);
+dev_base_init(xics_init);
 
 
 void kvm__irq_line(struct kvm *kvm, int irq, int level)
