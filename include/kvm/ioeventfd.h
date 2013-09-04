@@ -20,9 +20,12 @@ struct ioevent {
 	struct list_head	list;
 };
 
+#define IOEVENTFD_FLAG_PIO		(1 << 0)
+#define IOEVENTFD_FLAG_USER_POLL	(1 << 1)
+
 int ioeventfd__init(struct kvm *kvm);
 int ioeventfd__exit(struct kvm *kvm);
-int ioeventfd__add_event(struct ioevent *ioevent, bool is_pio, bool poll_in_userspace);
+int ioeventfd__add_event(struct ioevent *ioevent, int flags);
 int ioeventfd__del_event(u64 addr, u64 datamatch);
 
 #endif

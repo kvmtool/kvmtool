@@ -46,10 +46,11 @@ static int virtio_pci__init_ioeventfd(struct kvm *kvm, struct virtio_device *vde
 		 * Vhost will poll the eventfd in host kernel side,
 		 * no need to poll in userspace.
 		 */
-		r = ioeventfd__add_event(&ioevent, true, false);
+		r = ioeventfd__add_event(&ioevent, IOEVENTFD_FLAG_PIO);
 	else
 		/* Need to poll in userspace. */
-		r = ioeventfd__add_event(&ioevent, true, true);
+		r = ioeventfd__add_event(&ioevent, IOEVENTFD_FLAG_PIO |
+						   IOEVENTFD_FLAG_USER_POLL);
 	if (r)
 		return r;
 
