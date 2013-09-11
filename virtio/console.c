@@ -36,11 +36,16 @@ struct con_dev {
 	struct virtio_console_config	config;
 	u32				features;
 
+	pthread_cond_t			poll_cond;
+	int				vq_ready;
+
 	struct thread_pool__job		jobs[VIRTIO_CONSOLE_NUM_QUEUES];
 };
 
 static struct con_dev cdev = {
 	.mutex				= MUTEX_INITIALIZER,
+
+	.vq_ready			= 0,
 
 	.config = {
 		.cols			= 80,
@@ -69,6 +74,9 @@ static void virtio_console__inject_interrupt_callback(struct kvm *kvm, void *par
 
 	vq = param;
 
+	if (!cdev.vq_ready)
+		pthread_cond_wait(&cdev.poll_cond, &cdev.mutex.mutex);
+
 	if (term_readable(0) && virt_queue__available(vq)) {
 		head = virt_queue__get_iov(vq, iov, &out, &in, kvm);
 		len = term_getc_iov(kvm, iov, in, 0);
@@ -81,7 +89,8 @@ static void virtio_console__inject_interrupt_callback(struct kvm *kvm, void *par
 
 void virtio_console__inject_interrupt(struct kvm *kvm)
 {
-	thread_pool__do_job(&cdev.jobs[VIRTIO_CONSOLE_RX_QUEUE]);
+	virtio_console__inject_interrupt_callback(kvm,
+					&cdev.vqs[VIRTIO_CONSOLE_RX_QUEUE]);
 }
 
 static void virtio_console_handle_callback(struct kvm *kvm, void *param)
@@ -141,10 +150,16 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 page_size, u32 align,
 
 	vring_init(&queue->vring, VIRTIO_CONSOLE_QUEUE_SIZE, p, align);
 
-	if (vq == VIRTIO_CONSOLE_TX_QUEUE)
+	if (vq == VIRTIO_CONSOLE_TX_QUEUE) {
 		thread_pool__init_job(&cdev.jobs[vq], kvm, virtio_console_handle_callback, queue);
-	else if (vq == VIRTIO_CONSOLE_RX_QUEUE)
+	} else if (vq == VIRTIO_CONSOLE_RX_QUEUE) {
 		thread_pool__init_job(&cdev.jobs[vq], kvm, virtio_console__inject_interrupt_callback, queue);
+		/* Tell the waiting poll thread that we're ready to go */
+		mutex_lock(&cdev.mutex);
+		cdev.vq_ready = 1;
+		pthread_cond_signal(&cdev.poll_cond);
+		mutex_unlock(&cdev.mutex);
+	}
 
 	return 0;
 }
@@ -191,6 +206,8 @@ int virtio_console__init(struct kvm *kvm)
 {
 	if (kvm->cfg.active_console != CONSOLE_VIRTIO)
 		return 0;
+
+	pthread_cond_init(&cdev.poll_cond, NULL);
 
 	virtio_init(kvm, &cdev, &cdev.vdev, &con_dev_virtio_ops,
 		    VIRTIO_DEFAULT_TRANS, PCI_DEVICE_ID_VIRTIO_CONSOLE,
