@@ -374,7 +374,7 @@ int kvm__arch_free_firmware(struct kvm *kvm)
 	return 0;
 }
 
-void kvm__arch_periodic_poll(struct kvm *kvm)
+void kvm__arch_read_term(struct kvm *kvm)
 {
 	serial8250__update_consoles(kvm);
 	virtio_console__inject_interrupt(kvm);

@@ -169,15 +169,6 @@ static void serial8250__receive(struct kvm *kvm, struct serial8250_device *dev,
 {
 	int c;
 
-	/*
-	 * If the guest transmitted a full fifo, we clear the
-	 * TEMT/THRE bits to let the kernel escape from the 8250
-	 * interrupt handler. We come here only once a ms, so that
-	 * should give the kernel the desired pause. That also flushes
-	 * the tx fifo to the terminal.
-	 */
-	serial8250_flush_tx(kvm, dev);
-
 	if (dev->mcr & UART_MCR_LOOP)
 		return;
 
@@ -260,6 +251,7 @@ static bool serial8250_out(struct ioport *ioport, struct kvm *kvm, u16 port,
 			dev->lsr &= ~UART_LSR_TEMT;
 			if (dev->txcnt == FIFO_LEN / 2)
 				dev->lsr &= ~UART_LSR_THRE;
+			serial8250_flush_tx(kvm, dev);
 		} else {
 			/* Should never happpen */
 			dev->lsr &= ~(UART_LSR_TEMT | UART_LSR_THRE);

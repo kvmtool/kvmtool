@@ -393,56 +393,6 @@ found_kernel:
 	return ret;
 }
 
-#define TIMER_INTERVAL_NS 1000000	/* 1 msec */
-
-/*
- * This function sets up a timer that's used to inject interrupts from the
- * userspace hypervisor into the guest at periodical intervals. Please note
- * that clock interrupt, for example, is not handled here.
- */
-int kvm_timer__init(struct kvm *kvm)
-{
-	struct itimerspec its;
-	struct sigevent sev;
-	int r;
-
-	memset(&sev, 0, sizeof(struct sigevent));
-	sev.sigev_value.sival_int	= 0;
-	sev.sigev_notify		= SIGEV_THREAD_ID;
-	sev.sigev_signo			= SIGALRM;
-	sev.sigev_value.sival_ptr	= kvm;
-	sev._sigev_un._tid		= syscall(__NR_gettid);
-
-	r = timer_create(CLOCK_REALTIME, &sev, &kvm->timerid);
-	if (r < 0)
-		return r;
-
-	its.it_value.tv_sec		= TIMER_INTERVAL_NS / 1000000000;
-	its.it_value.tv_nsec		= TIMER_INTERVAL_NS % 1000000000;
-	its.it_interval.tv_sec		= its.it_value.tv_sec;
-	its.it_interval.tv_nsec		= its.it_value.tv_nsec;
-
-	r = timer_settime(kvm->timerid, 0, &its, NULL);
-	if (r < 0) {
-		timer_delete(kvm->timerid);
-		return r;
-	}
-
-	return 0;
-}
-firmware_init(kvm_timer__init);
-
-int kvm_timer__exit(struct kvm *kvm)
-{
-	if (kvm->timerid)
-		if (timer_delete(kvm->timerid) < 0)
-			die("timer_delete()");
-
-	kvm->timerid = 0;
-
-	return 0;
-}
-firmware_exit(kvm_timer__exit);
 
 void kvm__dump_mem(struct kvm *kvm, unsigned long addr, unsigned long size, int debug_fd)
 {

@@ -46,7 +46,7 @@ void kvm__arch_delete_ram(struct kvm *kvm)
 	munmap(kvm->arch.ram_alloc_start, kvm->arch.ram_alloc_size);
 }
 
-void kvm__arch_periodic_poll(struct kvm *kvm)
+void kvm__arch_read_term(struct kvm *kvm)
 {
 	if (term_readable(0)) {
 		serial8250__update_consoles(kvm);

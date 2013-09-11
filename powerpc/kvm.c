@@ -151,7 +151,7 @@ void kvm__irq_trigger(struct kvm *kvm, int irq)
 	kvm__irq_line(kvm, irq, 0);
 }
 
-void kvm__arch_periodic_poll(struct kvm *kvm)
+void kvm__arch_read_term(struct kvm *kvm)
 {
 	/* FIXME: Should register callbacks to platform-specific polls */
 	spapr_hvcons_poll(kvm);
