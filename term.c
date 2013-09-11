@@ -16,13 +16,14 @@
 
 #define TERM_FD_IN      0
 #define TERM_FD_OUT     1
+#define TERM_MAX_DEVS	4
 
 static struct termios	orig_term;
 
 int term_escape_char	= 0x01; /* ctrl-a is used for escape */
 bool term_got_escape	= false;
 
-int term_fds[4][2];
+int term_fds[TERM_MAX_DEVS][2];
 
 int term_getc(struct kvm *kvm, int term)
 {
@@ -94,7 +95,7 @@ static void term_cleanup(void)
 {
 	int i;
 
-	for (i = 0; i < 4; i++)
+	for (i = 0; i < TERM_MAX_DEVS; i++)
 		tcsetattr(term_fds[i][TERM_FD_IN], TCSANOW, &orig_term);
 }
 
@@ -140,7 +141,7 @@ int term_init(struct kvm *kvm)
 	struct termios term;
 	int i, r;
 
-	for (i = 0; i < 4; i++)
+	for (i = 0; i < TERM_MAX_DEVS; i++)
 		if (term_fds[i][TERM_FD_IN] == 0) {
 			term_fds[i][TERM_FD_IN] = STDIN_FILENO;
 			term_fds[i][TERM_FD_OUT] = STDOUT_FILENO;
