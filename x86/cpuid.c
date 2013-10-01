@@ -6,8 +6,6 @@
 #include <sys/ioctl.h>
 #include <stdlib.h>
 
-#define CPUID_FUNC_PERFMON		0x0A
-
 #define	MAX_KVM_CPUID_ENTRIES		100
 
 static void filter_cpuid(struct kvm_cpuid2 *kvm_cpuid)
@@ -38,9 +36,32 @@ static void filter_cpuid(struct kvm_cpuid2 *kvm_cpuid)
 			/* Clear X86_FEATURE_EPB */
 			entry->ecx = entry->ecx & ~(1 << 3);
 			break;
-		case CPUID_FUNC_PERFMON:
-			entry->eax = 0x00; /* disable it */
+		case 10: { /* Architectural Performance Monitoring */
+			union cpuid10_eax {
+				struct {
+					unsigned int version_id		:8;
+					unsigned int num_counters	:8;
+					unsigned int bit_width		:8;
+					unsigned int mask_length	:8;
+				} split;
+				unsigned int full;
+			} eax;
+
+			/*
+			 * If the host has perf system running,
+			 * but no architectural events available
+			 * through kvm pmu -- disable perf support,
+			 * thus guest won't even try to access msr
+			 * registers.
+			 */
+			if (entry->eax) {
+				eax.full = entry->eax;
+				if (eax.split.version_id != 2 ||
+				    !eax.split.num_counters)
+					entry->eax = 0;
+			}
 			break;
+		}
 		default:
 			/* Keep the CPUID function as -is */
 			break;
