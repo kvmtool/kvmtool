@@ -114,7 +114,7 @@ static void *virtio_net_rx_thread(void *p)
 			while (copied < len) {
 				size_t iovsize = min(len - copied, iov_size(iov, in));
 
-				memcpy_toiovecend(iov, buffer, copied, iovsize);
+				memcpy_toiovec(iov, buffer + copied, iovsize);
 				copied += iovsize;
 				if (has_virtio_feature(ndev, VIRTIO_NET_F_MRG_RXBUF))
 					hdr->num_buffers++;
