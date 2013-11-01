@@ -389,6 +389,16 @@ static void set_guest_features(struct kvm *kvm, void *dev, u32 features)
 	struct net_dev *ndev = dev;
 
 	ndev->features = features;
+
+	if (ndev->mode == NET_MODE_TAP) {
+		if (!virtio_net__tap_init(ndev))
+			die_perror("You have requested a TAP device, but creation of one has failed because");
+	} else {
+		ndev->info.vnet_hdr_len = has_virtio_feature(ndev, VIRTIO_NET_F_MRG_RXBUF) ?
+						sizeof(struct virtio_net_hdr_mrg_rxbuf) :
+						sizeof(struct virtio_net_hdr);
+		uip_init(&ndev->info);
+	}
 }
 
 static bool is_ctrl_vq(struct net_dev *ndev, u32 vq)
@@ -530,8 +540,6 @@ static int set_size_vq(struct kvm *kvm, void *dev, u32 vq, int size)
 	return size;
 }
 
-static void notify_status(struct kvm *kvm, void *dev, u8 status);
-
 static struct virtio_ops net_dev_virtio_ops = (struct virtio_ops) {
 	.get_config		= get_config,
 	.get_host_features	= get_host_features,
@@ -543,7 +551,6 @@ static struct virtio_ops net_dev_virtio_ops = (struct virtio_ops) {
 	.notify_vq		= notify_vq,
 	.notify_vq_gsi		= notify_vq_gsi,
 	.notify_vq_eventfd	= notify_vq_eventfd,
-	.notify_status		= notify_status,
 };
 
 static void virtio_net__vhost_init(struct kvm *kvm, struct net_dev *ndev)
@@ -729,24 +736,6 @@ static int virtio_net__init_one(struct virtio_net_params *params)
 		compat_id = virtio_compat_add_message("virtio-net", "CONFIG_VIRTIO_NET");
 
 	return 0;
-}
-
-static void notify_status(struct kvm *kvm, void *dev, u8 status)
-{
-	struct net_dev *ndev = dev;
-
-	if (!(status & VIRTIO_CONFIG_S_DRIVER_OK))
-		return;
-
-	if (ndev->mode == NET_MODE_TAP) {
-		if (!virtio_net__tap_init(ndev))
-			die_perror("You have requested a TAP device, but creation of one has failed because");
-	} else {
-		ndev->info.vnet_hdr_len = has_virtio_feature(ndev, VIRTIO_NET_F_MRG_RXBUF) ?
-						sizeof(struct virtio_net_hdr_mrg_rxbuf) :
-						sizeof(struct virtio_net_hdr);
-		uip_init(&ndev->info);
-	}
 }
 
 int virtio_net__init(struct kvm *kvm)
