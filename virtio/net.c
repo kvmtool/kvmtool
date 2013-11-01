@@ -384,6 +384,22 @@ static u32 get_host_features(struct kvm *kvm, void *dev)
 		| 1UL << (ndev->queue_pairs > 1 ? VIRTIO_NET_F_MQ : 0);
 }
 
+static int virtio_net__vhost_set_features(struct net_dev *ndev)
+{
+	u64 features = 1UL << VIRTIO_RING_F_EVENT_IDX;
+	u64 vhost_features;
+
+	if (ioctl(ndev->vhost_fd, VHOST_GET_FEATURES, &vhost_features) != 0)
+		die_perror("VHOST_GET_FEATURES failed");
+
+	/* make sure both side support mergable rx buffers */
+	if (vhost_features & 1UL << VIRTIO_NET_F_MRG_RXBUF &&
+			has_virtio_feature(ndev, VIRTIO_NET_F_MRG_RXBUF))
+		features |= 1UL << VIRTIO_NET_F_MRG_RXBUF;
+
+	return ioctl(ndev->vhost_fd, VHOST_SET_FEATURES, &features);
+}
+
 static void set_guest_features(struct kvm *kvm, void *dev, u32 features)
 {
 	struct net_dev *ndev = dev;
@@ -393,6 +409,9 @@ static void set_guest_features(struct kvm *kvm, void *dev, u32 features)
 	if (ndev->mode == NET_MODE_TAP) {
 		if (!virtio_net__tap_init(ndev))
 			die_perror("You have requested a TAP device, but creation of one has failed because");
+		if (ndev->vhost_fd &&
+				virtio_net__vhost_set_features(ndev) != 0)
+			die_perror("VHOST_SET_FEATURES failed");
 	} else {
 		ndev->info.vnet_hdr_len = has_virtio_feature(ndev, VIRTIO_NET_F_MRG_RXBUF) ?
 						sizeof(struct virtio_net_hdr_mrg_rxbuf) :
@@ -555,7 +574,6 @@ static struct virtio_ops net_dev_virtio_ops = (struct virtio_ops) {
 
 static void virtio_net__vhost_init(struct kvm *kvm, struct net_dev *ndev)
 {
-	u64 features = 1UL << VIRTIO_RING_F_EVENT_IDX;
 	struct vhost_memory *mem;
 	int r;
 
@@ -578,9 +596,6 @@ static void virtio_net__vhost_init(struct kvm *kvm, struct net_dev *ndev)
 	if (r != 0)
 		die_perror("VHOST_SET_OWNER failed");
 
-	r = ioctl(ndev->vhost_fd, VHOST_SET_FEATURES, &features);
-	if (r != 0)
-		die_perror("VHOST_SET_FEATURES failed");
 	r = ioctl(ndev->vhost_fd, VHOST_SET_MEM_TABLE, mem);
 	if (r != 0)
 		die_perror("VHOST_SET_MEM_TABLE failed");
