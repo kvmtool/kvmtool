@@ -109,6 +109,15 @@ struct option {
 	.help = (h)                         \
 }
 
+#define OPT_UINTEGER(s, l, v, h)            \
+{                                           \
+	.type = OPTION_UINTEGER,            \
+	.short_name = (s),                  \
+	.long_name = (l),                   \
+	.value = check_vtype(v, unsigned int *), \
+	.help = (h)                         \
+}
+
 #define OPT_U64(s, l, v, h)                 \
 {                                           \
 	.type = OPTION_U64,                 \
