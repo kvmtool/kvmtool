@@ -33,5 +33,8 @@ void timer__generate_fdt_nodes(void *fdt, struct kvm *kvm, int *irqs)
 	_FDT(fdt_begin_node(fdt, "timer"));
 	_FDT(fdt_property(fdt, "compatible", compatible, sizeof(compatible)));
 	_FDT(fdt_property(fdt, "interrupts", irq_prop, sizeof(irq_prop)));
+	if (kvm->cfg.arch.force_cntfrq > 0)
+		_FDT(fdt_property_cell(fdt, "clock-frequency", kvm->cfg.arch.force_cntfrq));
 	_FDT(fdt_end_node(fdt));
 }
+
