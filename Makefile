@@ -157,12 +157,12 @@ endif
 
 # ARM
 OBJS_ARM_COMMON		:= arm/fdt.o arm/gic.o arm/ioport.o arm/irq.o \
-			   arm/kvm.o arm/kvm-cpu.o
+			   arm/kvm.o arm/kvm-cpu.o arm/timer.o
 HDRS_ARM_COMMON		:= arm/include
 ifeq ($(ARCH), arm)
 	DEFINES		+= -DCONFIG_ARM
 	OBJS		+= $(OBJS_ARM_COMMON)
-	OBJS		+= arm/aarch32/cortex-a15.o
+	OBJS		+= arm/aarch32/arm-cpu.o
 	OBJS		+= arm/aarch32/kvm-cpu.o
 	ARCH_INCLUDE	:= $(HDRS_ARM_COMMON)
 	ARCH_INCLUDE	+= -Iarm/aarch32/include
@@ -175,7 +175,7 @@ endif
 ifeq ($(ARCH), arm64)
 	DEFINES		+= -DCONFIG_ARM64
 	OBJS		+= $(OBJS_ARM_COMMON)
-	OBJS		+= arm/aarch64/cortex-a57.o
+	OBJS		+= arm/aarch64/arm-cpu.o
 	OBJS		+= arm/aarch64/kvm-cpu.o
 	ARCH_INCLUDE	:= $(HDRS_ARM_COMMON)
 	ARCH_INCLUDE	+= -Iarm/aarch64/include
