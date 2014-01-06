@@ -28,8 +28,15 @@ static struct kvm_arm_target target_cortex_a15 = {
 	.init		= arm_cpu__vcpu_init,
 };
 
+static struct kvm_arm_target target_cortex_a7 = {
+	.id		= KVM_ARM_TARGET_CORTEX_A7,
+	.compatible	= "arm,cortex-a7",
+	.init		= arm_cpu__vcpu_init,
+};
+
 static int arm_cpu__core_init(struct kvm *kvm)
 {
-	return kvm_cpu__register_kvm_arm_target(&target_cortex_a15);
+	return (kvm_cpu__register_kvm_arm_target(&target_cortex_a15) ||
+		kvm_cpu__register_kvm_arm_target(&target_cortex_a7));
 }
 core_init(arm_cpu__core_init);
