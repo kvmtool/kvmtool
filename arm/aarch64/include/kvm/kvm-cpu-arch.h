@@ -10,4 +10,8 @@
 	       (!!(kvm)->cfg.arch.aarch32_guest << KVM_ARM_VCPU_EL1_32BIT))	\
 }
 
+#define ARM_MPIDR_HWID_BITMASK	0xFF00FFFFFFUL
+#define ARM_CPU_ID		3, 0, 0, 0
+#define ARM_CPU_ID_MPIDR	5
+
 #endif /* KVM__KVM_CPU_ARCH_H */

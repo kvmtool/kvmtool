@@ -45,4 +45,6 @@ static inline bool kvm_cpu__emulate_io(struct kvm *kvm, u16 port, void *data,
 bool kvm_cpu__emulate_mmio(struct kvm *kvm, u64 phys_addr, u8 *data, u32 len,
 			   u8 is_write);
 
+unsigned long kvm_cpu__get_vcpu_mpidr(struct kvm_cpu *vcpu);
+
 #endif /* ARM_COMMON__KVM_CPU_ARCH_H */

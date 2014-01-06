@@ -52,17 +52,20 @@ static void generate_cpu_nodes(void *fdt, struct kvm *kvm)
 
 	for (cpu = 0; cpu < kvm->nrcpus; ++cpu) {
 		char cpu_name[CPU_NAME_MAX_LEN];
+		struct kvm_cpu *vcpu = kvm->cpus[cpu];
+		unsigned long mpidr = kvm_cpu__get_vcpu_mpidr(vcpu);
 
-		snprintf(cpu_name, CPU_NAME_MAX_LEN, "cpu@%d", cpu);
+		mpidr &= ARM_MPIDR_HWID_BITMASK;
+		snprintf(cpu_name, CPU_NAME_MAX_LEN, "cpu@%lx", mpidr);
 
 		_FDT(fdt_begin_node(fdt, cpu_name));
 		_FDT(fdt_property_string(fdt, "device_type", "cpu"));
-		_FDT(fdt_property_string(fdt, "compatible", kvm->cpus[cpu]->cpu_compatible));
+		_FDT(fdt_property_string(fdt, "compatible", vcpu->cpu_compatible));
 
 		if (kvm->nrcpus > 1)
 			_FDT(fdt_property_string(fdt, "enable-method", "psci"));
 
-		_FDT(fdt_property_cell(fdt, "reg", cpu));
+		_FDT(fdt_property_cell(fdt, "reg", mpidr));
 		_FDT(fdt_end_node(fdt));
 	}
 
