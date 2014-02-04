@@ -36,7 +36,7 @@ int uip_tx(struct iovec *iov, u16 out, struct uip_info *info)
 
 		buf = malloc(eth_len);
 		if (!buf)
-			return -1;
+			return -ENOMEM;
 
 		eth = (struct uip_eth *)buf;
 		for (i = 1; i < out; i++) {

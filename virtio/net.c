@@ -81,7 +81,7 @@ static void *virtio_net_rx_thread(void *p)
 	struct net_dev *ndev = p;
 	u16 out, in;
 	u16 head;
-	size_t len, copied;
+	int len, copied;
 	u32 id;
 
 	mutex_lock(&ndev->mutex);
@@ -108,11 +108,17 @@ static void *virtio_net_rx_thread(void *p)
 			struct virtio_net_hdr_mrg_rxbuf *hdr;
 
 			len = ndev->ops->rx(&dummy_iov, 1, ndev);
+			if (len < 0) {
+				pr_warning("%s: rx on vq %u failed (%d), exiting thread\n",
+						__func__, id, len);
+				goto out_err;
+			}
+
 			copied = 0;
 			head = virt_queue__get_iov(vq, iov, &out, &in, kvm);
 			hdr = (void *)iov[0].iov_base;
 			while (copied < len) {
-				size_t iovsize = min(len - copied, iov_size(iov, in));
+				size_t iovsize = min_t(size_t, len - copied, iov_size(iov, in));
 
 				memcpy_toiovec(iov, buffer + copied, iovsize);
 				copied += iovsize;
@@ -131,6 +137,7 @@ static void *virtio_net_rx_thread(void *p)
 		}
 	}
 
+out_err:
 	pthread_exit(NULL);
 	return NULL;
 
@@ -165,6 +172,12 @@ static void *virtio_net_tx_thread(void *p)
 		while (virt_queue__available(vq)) {
 			head = virt_queue__get_iov(vq, iov, &out, &in, kvm);
 			len = ndev->ops->tx(iov, out, ndev);
+			if (len < 0) {
+				pr_warning("%s: tx on vq %u failed (%d)\n",
+						__func__, id, len);
+				goto out_err;
+			}
+
 			virt_queue__set_used_elem(vq, head, len);
 		}
 
@@ -172,10 +185,9 @@ static void *virtio_net_tx_thread(void *p)
 			ndev->vdev.ops->signal_vq(kvm, &ndev->vdev, id);
 	}
 
+out_err:
 	pthread_exit(NULL);
-
 	return NULL;
-
 }
 
 static virtio_net_ctrl_ack virtio_net_handle_mq(struct kvm* kvm, struct net_dev *ndev, struct virtio_net_ctrl_hdr *ctrl)
