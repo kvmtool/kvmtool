@@ -5,6 +5,7 @@
 #include "kvm/virtio-mmio.h"
 
 #include "arm-common/gic.h"
+#include "arm-common/pci.h"
 
 #include <stdbool.h>
 
@@ -154,6 +155,9 @@ static int setup_fdt(struct kvm *kvm)
 		generate_mmio_fdt_nodes(fdt, dev_hdr, generate_irq_prop);
 		dev_hdr = device__next_dev(dev_hdr);
 	}
+
+	/* PCI host controller */
+	pci__generate_fdt_nodes(fdt, gic_phandle);
 
 	/* PSCI firmware */
 	_FDT(fdt_begin_node(fdt, "psci"));
