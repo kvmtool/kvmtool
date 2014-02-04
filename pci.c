@@ -18,11 +18,13 @@ static union pci_config_address		pci_config_address;
  */
 static u32 io_space_blocks		= KVM_PCI_MMIO_AREA;
 
+/*
+ * BARs must be naturally aligned, so enforce this in the allocator.
+ */
 u32 pci_get_io_space_block(u32 size)
 {
-	u32 block = io_space_blocks;
-	io_space_blocks += size;
-
+	u32 block = ALIGN(io_space_blocks, size);
+	io_space_blocks = block + size;
 	return block;
 }
 
