@@ -352,7 +352,7 @@ int shmem_parser(const struct option *opt, const char *arg, int unset)
 
 int pci_shmem__init(struct kvm *kvm)
 {
-	u8 line, pin;
+	u8 line;
 	char *mem;
 	int r;
 
@@ -360,11 +360,11 @@ int pci_shmem__init(struct kvm *kvm)
 		return 0;
 
 	/* Register good old INTx */
-	r = irq__register_device(PCI_DEVICE_ID_PCI_SHMEM, &pin, &line);
+	r = irq__register_device(PCI_DEVICE_ID_PCI_SHMEM, &line);
 	if (r < 0)
 		return r;
 
-	pci_shmem_pci_device.irq_pin = pin;
+	pci_shmem_pci_device.irq_pin = 1;
 	pci_shmem_pci_device.irq_line = line;
 
 	/* Register MMIO space for MSI-X */

@@ -4,7 +4,7 @@
 
 #include "arm-common/gic.h"
 
-int irq__register_device(u32 dev, u8 *pin, u8 *line)
+int irq__register_device(u32 dev, u8 *line)
 {
 	*line = gic__alloc_irqnum();
 	return 0;

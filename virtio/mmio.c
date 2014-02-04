@@ -260,7 +260,7 @@ int virtio_mmio_init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 		     int device_id, int subsys_id, int class)
 {
 	struct virtio_mmio *vmmio = vdev->virtio;
-	u8 pin, line;
+	u8 line;
 
 	vmmio->addr	= virtio_mmio_get_io_space_block(VIRTIO_MMIO_IO_SIZE);
 	vmmio->kvm	= kvm;
@@ -277,7 +277,7 @@ int virtio_mmio_init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 		.queue_num_max	= 256,
 	};
 
-	if (irq__register_device(subsys_id, &pin, &line) < 0)
+	if (irq__register_device(subsys_id, &line) < 0)
 		return -1;
 	vmmio->irq = line;
 	vmmio->dev_hdr = (struct device_header) {

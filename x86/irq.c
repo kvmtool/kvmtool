@@ -85,7 +85,7 @@ static int insert(struct rb_root *root, struct pci_dev *data)
 	return 0;
 }
 
-int irq__register_device(u32 dev, u8 *pin, u8 *line)
+int irq__register_device(u32 dev, u8 *line)
 {
 	struct pci_dev *node;
 	int r;
@@ -100,13 +100,6 @@ int irq__register_device(u32 dev, u8 *pin, u8 *line)
 
 		*node = (struct pci_dev) {
 			.id	= dev,
-			/*
-			 * PCI supports only INTA#,B#,C#,D# per device.
-			 * A#,B#,C#,D# are allowed for multifunctional
-			 * devices so stick with A# for our single
-			 * function devices.
-			 */
-			.pin	= 1,
 		};
 
 		INIT_LIST_HEAD(&node->lines);
@@ -126,7 +119,6 @@ int irq__register_device(u32 dev, u8 *pin, u8 *line)
 
 		new->line	= next_line++;
 		*line		= new->line;
-		*pin		= node->pin;
 
 		list_add(&new->node, &node->lines);
 

@@ -32,9 +32,8 @@
  * generic & cope with multiple PPC platform types.
  */
 
-int irq__register_device(u32 dev, u8 *pin, u8 *line)
+int irq__register_device(u32 dev, u8 *line)
 {
-	*pin = 1;
 	/*
 	 * Have I said how nasty I find this?  Line should be dontcare... PHB
 	 * should determine which CPU/XICS IRQ to fire.

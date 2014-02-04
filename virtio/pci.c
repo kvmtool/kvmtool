@@ -335,7 +335,7 @@ int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 		     int device_id, int subsys_id, int class)
 {
 	struct virtio_pci *vpci = vdev->virtio;
-	u8 pin, line;
+	u8 line;
 	int r;
 
 	vpci->kvm = kvm;
@@ -406,14 +406,14 @@ int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 	vpci->pci_hdr.msix.pba_offset = cpu_to_le32(2 | PCI_IO_SIZE);
 	vpci->config_vector = 0;
 
-	r = irq__register_device(subsys_id, &pin, &line);
+	r = irq__register_device(subsys_id, &line);
 	if (r < 0)
 		goto free_msix_mmio;
 
 	if (kvm__supports_extension(kvm, KVM_CAP_SIGNAL_MSI))
 		vpci->features |= VIRTIO_PCI_F_SIGNAL_MSI;
 
-	vpci->pci_hdr.irq_pin	= pin;
+	vpci->pci_hdr.irq_pin	= 1;
 	vpci->pci_hdr.irq_line	= line;
 	r = device__register(&vpci->dev_hdr);
 	if (r < 0)
