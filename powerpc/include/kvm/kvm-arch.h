@@ -42,6 +42,8 @@
 #define KVM_PCI_MMIO_AREA		0x2000000
 #define KVM_VIRTIO_MMIO_AREA		0x3000000
 
+#define KVM_IRQ_OFFSET			16
+
 #define VIRTIO_DEFAULT_TRANS	VIRTIO_PCI
 
 struct spapr_phb;

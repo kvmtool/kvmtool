@@ -5,6 +5,8 @@
 #include <linux/const.h>
 #include <linux/types.h>
 
+#include "arm-common/gic.h"
+
 #define ARM_IOPORT_AREA		_AC(0x0000000000000000, UL)
 #define ARM_MMIO_AREA		_AC(0x0000000000010000, UL)
 #define ARM_AXI_AREA		_AC(0x0000000040000000, UL)
@@ -27,6 +29,8 @@
 #define KVM_PCI_CFG_AREA	ARM_AXI_AREA
 #define KVM_PCI_MMIO_AREA	(KVM_PCI_CFG_AREA + ARM_PCI_CFG_SIZE)
 #define KVM_VIRTIO_MMIO_AREA	ARM_MMIO_AREA
+
+#define KVM_IRQ_OFFSET		GIC_SPI_IRQ_BASE
 
 #define VIRTIO_DEFAULT_TRANS	VIRTIO_MMIO
 

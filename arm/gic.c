@@ -7,18 +7,6 @@
 #include <linux/byteorder.h>
 #include <linux/kvm.h>
 
-static int irq_ids;
-
-int gic__alloc_irqnum(void)
-{
-	int irq = GIC_SPI_IRQ_BASE + irq_ids++;
-
-	if (irq > GIC_MAX_IRQ)
-		die("GIC IRQ limit %d reached!", GIC_MAX_IRQ);
-
-	return irq;
-}
-
 int gic__init_irqchip(struct kvm *kvm)
 {
 	int err;

@@ -14,6 +14,7 @@
 #include "spapr.h"
 #include "xics.h"
 #include "kvm/util.h"
+#include "kvm/kvm.h"
 
 #include <stdio.h>
 #include <malloc.h>
@@ -41,7 +42,7 @@ struct icp_server_state {
 	struct kvm_cpu *cpu;
 };
 
-#define XICS_IRQ_OFFSET 16
+#define XICS_IRQ_OFFSET KVM_IRQ_OFFSET
 #define XISR_MASK	0x00ffffff
 #define CPPR_MASK	0xff000000
 
@@ -272,31 +273,6 @@ static void ics_eoi(struct ics_state *ics, int nr)
 /*
  * Exported functions
  */
-
-static int allocated_irqnum = XICS_IRQ_OFFSET;
-
-/*
- * xics_alloc_irqnum(): This is hacky.  The problem boils down to the PCI device
- * code which just calls kvm__irq_line( .. pcidev->pci_hdr.irq_line ..) at will.
- * Each PCI device's IRQ line is allocated by irq__alloc_line() (which
- * allocates an IRQ AND allocates a.. PCI device num..).
- *
- * In future I'd like to at least mimic some kind of 'upstream IRQ controller'
- * whereby PCI devices let their PHB know when they want to IRQ, and that
- * percolates up.
- *
- * For now, allocate a REAL xics irq number and (via irq__alloc_line) push
- * that into the config space.	8 bits only though!
- */
-int xics_alloc_irqnum(void)
-{
-	int irq = allocated_irqnum++;
-
-	if (irq > 255)
-		die("Huge numbers of IRQs aren't supported with the daft kvmtool IRQ system.");
-
-	return irq;
-}
 
 static target_ulong h_cppr(struct kvm_cpu *vcpu,
 			   target_ulong opcode, target_ulong *args)

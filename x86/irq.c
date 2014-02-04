@@ -16,8 +16,6 @@
 #define IRQCHIP_SLAVE			1
 #define IRQCHIP_IOAPIC			2
 
-static u8		next_line	= 5;
-
 /* First 24 GSIs are routed between IRQCHIPs and IOAPICs */
 static u32 gsi = 24;
 
@@ -37,11 +35,6 @@ static int irq__add_routing(u32 gsi, u32 type, u32 irqchip, u32 pin)
 		};
 
 	return 0;
-}
-
-int irq__alloc_line(void)
-{
-	return next_line++;
 }
 
 int irq__init(struct kvm *kvm)
