@@ -713,12 +713,19 @@ done:
 
 static int virtio_net__init_one(struct virtio_net_params *params)
 {
-	int i;
+	int i, err;
 	struct net_dev *ndev;
+	struct virtio_ops *ops;
 
 	ndev = calloc(1, sizeof(struct net_dev));
 	if (ndev == NULL)
 		return -ENOMEM;
+
+	ops = malloc(sizeof(*ops));
+	if (ops == NULL) {
+		err = -ENOMEM;
+		goto err_free_ndev;
+	}
 
 	list_add_tail(&ndev->list, &ndevs);
 
@@ -749,12 +756,13 @@ static int virtio_net__init_one(struct virtio_net_params *params)
 		uip_static_init(&ndev->info);
 	}
 
+	*ops = net_dev_virtio_ops;
 	if (params->trans && strcmp(params->trans, "mmio") == 0)
-		virtio_init(params->kvm, ndev, &ndev->vdev, &net_dev_virtio_ops,
-			    VIRTIO_MMIO, PCI_DEVICE_ID_VIRTIO_NET, VIRTIO_ID_NET, PCI_CLASS_NET);
+		virtio_init(params->kvm, ndev, &ndev->vdev, ops, VIRTIO_MMIO,
+			    PCI_DEVICE_ID_VIRTIO_NET, VIRTIO_ID_NET, PCI_CLASS_NET);
 	else
-		virtio_init(params->kvm, ndev, &ndev->vdev, &net_dev_virtio_ops,
-			    VIRTIO_PCI, PCI_DEVICE_ID_VIRTIO_NET, VIRTIO_ID_NET, PCI_CLASS_NET);
+		virtio_init(params->kvm, ndev, &ndev->vdev, ops, VIRTIO_PCI,
+			    PCI_DEVICE_ID_VIRTIO_NET, VIRTIO_ID_NET, PCI_CLASS_NET);
 
 	if (params->vhost)
 		virtio_net__vhost_init(params->kvm, ndev);
@@ -763,6 +771,10 @@ static int virtio_net__init_one(struct virtio_net_params *params)
 		compat_id = virtio_compat_add_message("virtio-net", "CONFIG_VIRTIO_NET");
 
 	return 0;
+
+err_free_ndev:
+	free(ndev);
+	return err;
 }
 
 int virtio_net__init(struct kvm *kvm)
