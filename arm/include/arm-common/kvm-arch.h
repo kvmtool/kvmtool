@@ -46,10 +46,10 @@ static inline bool arm_addr_in_virtio_mmio_region(u64 phys_addr)
 	return phys_addr >= KVM_VIRTIO_MMIO_AREA && phys_addr < limit;
 }
 
-static inline bool arm_addr_in_pci_mmio_region(u64 phys_addr)
+static inline bool arm_addr_in_pci_region(u64 phys_addr)
 {
-	u64 limit = KVM_PCI_MMIO_AREA + ARM_PCI_MMIO_SIZE;
-	return phys_addr >= KVM_PCI_MMIO_AREA && phys_addr < limit;
+	u64 limit = KVM_PCI_CFG_AREA + ARM_PCI_CFG_SIZE + ARM_PCI_MMIO_SIZE;
+	return phys_addr >= KVM_PCI_CFG_AREA && phys_addr < limit;
 }
 
 struct kvm_arch {
