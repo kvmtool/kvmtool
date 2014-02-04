@@ -360,7 +360,7 @@ int pci_shmem__init(struct kvm *kvm)
 
 	/* Register good old INTx */
 	pci_shmem_pci_device.irq_pin = 1;
-	pci_shmem_pci_device.irq_line = irq__register_device();
+	pci_shmem_pci_device.irq_line = irq__alloc_line();
 
 	/* Register MMIO space for MSI-X */
 	r = ioport__register(kvm, IOPORT_EMPTY, &shmem_pci__io_ops, IOPORT_SIZE, NULL);

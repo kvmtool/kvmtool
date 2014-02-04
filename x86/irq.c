@@ -39,7 +39,7 @@ static int irq__add_routing(u32 gsi, u32 type, u32 irqchip, u32 pin)
 	return 0;
 }
 
-int irq__register_device(void)
+int irq__alloc_line(void)
 {
 	return next_line++;
 }

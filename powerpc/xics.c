@@ -278,14 +278,14 @@ static int allocated_irqnum = XICS_IRQ_OFFSET;
 /*
  * xics_alloc_irqnum(): This is hacky.  The problem boils down to the PCI device
  * code which just calls kvm__irq_line( .. pcidev->pci_hdr.irq_line ..) at will.
- * Each PCI device's IRQ line is allocated by irq__register_device() (which
+ * Each PCI device's IRQ line is allocated by irq__alloc_line() (which
  * allocates an IRQ AND allocates a.. PCI device num..).
  *
  * In future I'd like to at least mimic some kind of 'upstream IRQ controller'
  * whereby PCI devices let their PHB know when they want to IRQ, and that
  * percolates up.
  *
- * For now, allocate a REAL xics irq number and (via irq__register_device) push
+ * For now, allocate a REAL xics irq number and (via irq__alloc_line) push
  * that into the config space.	8 bits only though!
  */
 int xics_alloc_irqnum(void)

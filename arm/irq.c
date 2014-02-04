@@ -4,7 +4,7 @@
 
 #include "arm-common/gic.h"
 
-int irq__register_device(void)
+int irq__alloc_line(void)
 {
 	return gic__alloc_irqnum();
 }

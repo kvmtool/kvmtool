@@ -32,7 +32,7 @@
  * generic & cope with multiple PPC platform types.
  */
 
-int irq__register_device(void)
+int irq__alloc_line(void)
 {
 	/*
 	 * Have I said how nasty I find this?  Line should be dontcare... PHB
