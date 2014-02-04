@@ -162,6 +162,20 @@ void pci__config_rd(struct kvm *kvm, union pci_config_address addr, void *data, 
 	}
 }
 
+static void pci_config_mmio_access(u64 addr, u8 *data, u32 len, u8 is_write, void *kvm)
+{
+	union pci_config_address cfg_addr;
+
+	addr			-= KVM_PCI_CFG_AREA;
+	cfg_addr.w		= (u32)addr;
+	cfg_addr.enable_bit	= 1;
+
+	if (is_write)
+		pci__config_wr(kvm, cfg_addr, data, len);
+	else
+		pci__config_rd(kvm, cfg_addr, data, len);
+}
+
 struct pci_device_header *pci__find_dev(u8 dev_num)
 {
 	struct device_header *hdr = device__find_dev(DEVICE_BUS_PCI, dev_num);
@@ -181,12 +195,21 @@ int pci__init(struct kvm *kvm)
 		return r;
 
 	r = ioport__register(kvm, PCI_CONFIG_ADDRESS + 0, &pci_config_address_ops, 4, NULL);
-	if (r < 0) {
-		ioport__unregister(kvm, PCI_CONFIG_DATA);
-		return r;
-	}
+	if (r < 0)
+		goto err_unregister_data;
+
+	r = kvm__register_mmio(kvm, KVM_PCI_CFG_AREA, PCI_CFG_SIZE, false,
+			       pci_config_mmio_access, kvm);
+	if (r < 0)
+		goto err_unregister_addr;
 
 	return 0;
+
+err_unregister_addr:
+	ioport__unregister(kvm, PCI_CONFIG_ADDRESS);
+err_unregister_data:
+	ioport__unregister(kvm, PCI_CONFIG_DATA);
+	return r;
 }
 dev_base_init(pci__init);
 

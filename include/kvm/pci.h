@@ -18,6 +18,7 @@
 #define PCI_CONFIG_DATA		0xcfc
 #define PCI_CONFIG_BUS_FORWARD	0xcfa
 #define PCI_IO_SIZE		0x100
+#define PCI_CFG_SIZE		(1ULL << 24)
 
 union pci_config_address {
 	struct {
