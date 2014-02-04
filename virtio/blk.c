@@ -260,7 +260,7 @@ static int virtio_blk__init_one(struct kvm *kvm, struct disk_image *disk)
 	};
 
 	virtio_init(kvm, bdev, &bdev->vdev, &blk_dev_virtio_ops,
-		    VIRTIO_DEFAULT_TRANS, PCI_DEVICE_ID_VIRTIO_BLK,
+		    VIRTIO_DEFAULT_TRANS(kvm), PCI_DEVICE_ID_VIRTIO_BLK,
 		    VIRTIO_ID_BLOCK, PCI_CLASS_BLK);
 
 	list_add_tail(&bdev->list, &bdevs);

@@ -210,7 +210,7 @@ int virtio_console__init(struct kvm *kvm)
 	pthread_cond_init(&cdev.poll_cond, NULL);
 
 	virtio_init(kvm, &cdev, &cdev.vdev, &con_dev_virtio_ops,
-		    VIRTIO_DEFAULT_TRANS, PCI_DEVICE_ID_VIRTIO_CONSOLE,
+		    VIRTIO_DEFAULT_TRANS(kvm), PCI_DEVICE_ID_VIRTIO_CONSOLE,
 		    VIRTIO_ID_CONSOLE, PCI_CLASS_CONSOLE);
 	if (compat_id == -1)
 		compat_id = virtio_compat_add_message("virtio-console", "CONFIG_VIRTIO_CONSOLE");

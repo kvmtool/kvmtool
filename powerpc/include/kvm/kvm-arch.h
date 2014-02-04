@@ -44,7 +44,7 @@
 
 #define KVM_IRQ_OFFSET			16
 
-#define VIRTIO_DEFAULT_TRANS	VIRTIO_PCI
+#define VIRTIO_DEFAULT_TRANS(kvm)	VIRTIO_PCI
 
 struct spapr_phb;
 

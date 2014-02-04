@@ -27,7 +27,7 @@
 
 #define KVM_IRQ_OFFSET		5
 
-#define VIRTIO_DEFAULT_TRANS	VIRTIO_PCI
+#define VIRTIO_DEFAULT_TRANS(kvm)	VIRTIO_PCI
 
 struct kvm_arch {
 	u16			boot_selector;

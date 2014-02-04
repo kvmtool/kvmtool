@@ -32,7 +32,8 @@
 
 #define KVM_IRQ_OFFSET		GIC_SPI_IRQ_BASE
 
-#define VIRTIO_DEFAULT_TRANS	VIRTIO_MMIO
+#define VIRTIO_DEFAULT_TRANS(kvm)	\
+	((kvm)->cfg.arch.virtio_trans_pci ? VIRTIO_PCI : VIRTIO_MMIO)
 
 static inline bool arm_addr_in_ioport_region(u64 phys_addr)
 {
