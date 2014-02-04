@@ -322,7 +322,7 @@ int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 		return r;
 
 	vpci->base_addr = (u16)r;
-	r = kvm__register_mmio(kvm, vpci->msix_io_block, PCI_IO_SIZE, false,
+	r = kvm__register_mmio(kvm, vpci->msix_io_block, PCI_IO_SIZE * 2, false,
 			       virtio_pci__mmio_callback, vpci);
 	if (r < 0)
 		goto free_ioport;
@@ -344,7 +344,7 @@ int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 		.status			= cpu_to_le16(PCI_STATUS_CAP_LIST),
 		.capabilities		= (void *)&vpci->pci_hdr.msix - (void *)&vpci->pci_hdr,
 		.bar_size[0]		= IOPORT_SIZE,
-		.bar_size[1]		= PCI_IO_SIZE,
+		.bar_size[1]		= PCI_IO_SIZE * 2,
 		.bar_size[3]		= PCI_IO_SIZE,
 	};
 
