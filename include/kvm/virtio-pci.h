@@ -22,8 +22,10 @@ struct virtio_pci {
 	struct pci_device_header pci_hdr;
 	struct device_header	dev_hdr;
 	void			*dev;
+	struct kvm		*kvm;
 
-	u16			base_addr;
+	u16			port_addr;
+	u32			mmio_addr;
 	u8			status;
 	u8			isr;
 	u32			features;

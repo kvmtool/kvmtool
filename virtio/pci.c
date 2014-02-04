@@ -24,7 +24,8 @@ static int virtio_pci__init_ioeventfd(struct kvm *kvm, struct virtio_device *vde
 {
 	struct ioevent ioevent;
 	struct virtio_pci *vpci = vdev->virtio;
-	int r;
+	int i, r, flags = IOEVENTFD_FLAG_PIO;
+	int fds[2];
 
 	vpci->ioeventfds[vq] = (struct virtio_pci_ioevent_param) {
 		.vdev		= vdev,
@@ -32,32 +33,44 @@ static int virtio_pci__init_ioeventfd(struct kvm *kvm, struct virtio_device *vde
 	};
 
 	ioevent = (struct ioevent) {
-		.io_addr	= vpci->base_addr + VIRTIO_PCI_QUEUE_NOTIFY,
-		.io_len		= sizeof(u16),
 		.fn		= virtio_pci__ioevent_callback,
 		.fn_ptr		= &vpci->ioeventfds[vq],
 		.datamatch	= vq,
 		.fn_kvm		= kvm,
-		.fd		= eventfd(0, 0),
 	};
 
-	if (vdev->use_vhost)
-		/*
-		 * Vhost will poll the eventfd in host kernel side,
-		 * no need to poll in userspace.
-		 */
-		r = ioeventfd__add_event(&ioevent, IOEVENTFD_FLAG_PIO);
-	else
-		/* Need to poll in userspace. */
-		r = ioeventfd__add_event(&ioevent, IOEVENTFD_FLAG_PIO |
-						   IOEVENTFD_FLAG_USER_POLL);
+	/*
+	 * Vhost will poll the eventfd in host kernel side, otherwise we
+	 * need to poll in userspace.
+	 */
+	if (!vdev->use_vhost)
+		flags |= IOEVENTFD_FLAG_USER_POLL;
+
+	/* ioport */
+	ioevent.io_addr	= vpci->port_addr + VIRTIO_PCI_QUEUE_NOTIFY;
+	ioevent.io_len	= sizeof(u16);
+	ioevent.fd	= fds[0] = eventfd(0, 0);
+	r = ioeventfd__add_event(&ioevent, flags);
 	if (r)
 		return r;
 
-	if (vdev->ops->notify_vq_eventfd)
-		vdev->ops->notify_vq_eventfd(kvm, vpci->dev, vq, ioevent.fd);
+	/* mmio */
+	ioevent.io_addr	= vpci->mmio_addr + VIRTIO_PCI_QUEUE_NOTIFY;
+	ioevent.io_len	= sizeof(u32);
+	ioevent.fd	= fds[1] = eventfd(0, 0);
+	r = ioeventfd__add_event(&ioevent, flags);
+	if (r)
+		goto free_ioport_evt;
 
+	if (vdev->ops->notify_vq_eventfd)
+		for (i = 0; i < 2; ++i)
+			vdev->ops->notify_vq_eventfd(kvm, vpci->dev, vq,
+						     fds[i]);
 	return 0;
+
+free_ioport_evt:
+	ioeventfd__del_event(vpci->port_addr + VIRTIO_PCI_QUEUE_NOTIFY, vq);
+	return r;
 }
 
 static inline bool virtio_pci__msix_enabled(struct virtio_pci *vpci)
@@ -105,7 +118,7 @@ static bool virtio_pci__io_in(struct ioport *ioport, struct kvm *kvm, u16 port, 
 
 	vdev = ioport->priv;
 	vpci = vdev->virtio;
-	offset = port - vpci->base_addr;
+	offset = port - vpci->port_addr;
 
 	switch (offset) {
 	case VIRTIO_PCI_HOST_FEATURES:
@@ -188,7 +201,7 @@ static bool virtio_pci__io_out(struct ioport *ioport, struct kvm *kvm, u16 port,
 
 	vdev = ioport->priv;
 	vpci = vdev->virtio;
-	offset = port - vpci->base_addr;
+	offset = port - vpci->port_addr;
 
 	switch (offset) {
 	case VIRTIO_PCI_GUEST_FEATURES:
@@ -227,7 +240,8 @@ static struct ioport_operations virtio_pci__io_ops = {
 	.io_out	= virtio_pci__io_out,
 };
 
-static void virtio_pci__mmio_callback(u64 addr, u8 *data, u32 len, u8 is_write, void *ptr)
+static void virtio_pci__msix_mmio_callback(u64 addr, u8 *data, u32 len,
+					   u8 is_write, void *ptr)
 {
 	struct virtio_pci *vpci = ptr;
 	void *table;
@@ -307,6 +321,16 @@ int virtio_pci__signal_config(struct kvm *kvm, struct virtio_device *vdev)
 	return 0;
 }
 
+static void virtio_pci__io_mmio_callback(u64 addr, u8 *data, u32 len,
+					 u8 is_write, void *ptr)
+{
+	struct virtio_pci *vpci = ptr;
+	int direction = is_write ? KVM_EXIT_IO_OUT : KVM_EXIT_IO_IN;
+	u16 port = vpci->port_addr + (addr & (IOPORT_SIZE - 1));
+
+	kvm__emulate_io(vpci->kvm, port, data, direction, len, 1);
+}
+
 int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 		     int device_id, int subsys_id, int class)
 {
@@ -314,18 +338,25 @@ int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 	u8 pin, line;
 	int r;
 
+	vpci->kvm = kvm;
 	vpci->dev = dev;
-	vpci->msix_io_block = pci_get_io_space_block(PCI_IO_SIZE * 2);
 
 	r = ioport__register(kvm, IOPORT_EMPTY, &virtio_pci__io_ops, IOPORT_SIZE, vdev);
 	if (r < 0)
 		return r;
+	vpci->port_addr = (u16)r;
 
-	vpci->base_addr = (u16)r;
-	r = kvm__register_mmio(kvm, vpci->msix_io_block, PCI_IO_SIZE * 2, false,
-			       virtio_pci__mmio_callback, vpci);
+	vpci->mmio_addr = pci_get_io_space_block(IOPORT_SIZE);
+	r = kvm__register_mmio(kvm, vpci->mmio_addr, IOPORT_SIZE, false,
+			       virtio_pci__io_mmio_callback, vpci);
 	if (r < 0)
 		goto free_ioport;
+
+	vpci->msix_io_block = pci_get_io_space_block(PCI_IO_SIZE * 2);
+	r = kvm__register_mmio(kvm, vpci->msix_io_block, PCI_IO_SIZE * 2, false,
+			       virtio_pci__msix_mmio_callback, vpci);
+	if (r < 0)
+		goto free_mmio;
 
 	vpci->pci_hdr = (struct pci_device_header) {
 		.vendor_id		= cpu_to_le16(PCI_VENDOR_ID_REDHAT_QUMRANET),
@@ -337,14 +368,17 @@ int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 		.class[2]		= (class >> 16) & 0xff,
 		.subsys_vendor_id	= cpu_to_le16(PCI_SUBSYSTEM_VENDOR_ID_REDHAT_QUMRANET),
 		.subsys_id		= cpu_to_le16(subsys_id),
-		.bar[0]			= cpu_to_le32(vpci->base_addr
+		.bar[0]			= cpu_to_le32(vpci->mmio_addr
+							| PCI_BASE_ADDRESS_SPACE_MEMORY),
+		.bar[1]			= cpu_to_le32(vpci->port_addr
 							| PCI_BASE_ADDRESS_SPACE_IO),
-		.bar[1]			= cpu_to_le32(vpci->msix_io_block
+		.bar[2]			= cpu_to_le32(vpci->msix_io_block
 							| PCI_BASE_ADDRESS_SPACE_MEMORY),
 		.status			= cpu_to_le16(PCI_STATUS_CAP_LIST),
 		.capabilities		= (void *)&vpci->pci_hdr.msix - (void *)&vpci->pci_hdr,
 		.bar_size[0]		= IOPORT_SIZE,
-		.bar_size[1]		= PCI_IO_SIZE * 2,
+		.bar_size[1]		= IOPORT_SIZE,
+		.bar_size[2]		= PCI_IO_SIZE * 2,
 	};
 
 	vpci->dev_hdr = (struct device_header) {
@@ -367,14 +401,14 @@ int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 	 */
 	vpci->pci_hdr.msix.ctrl = cpu_to_le16(VIRTIO_PCI_MAX_VQ + VIRTIO_PCI_MAX_CONFIG - 1);
 
-	/* Both table and PBA are mapped to the same BAR (1) */
-	vpci->pci_hdr.msix.table_offset = cpu_to_le32(1);
-	vpci->pci_hdr.msix.pba_offset = cpu_to_le32(1 | PCI_IO_SIZE);
+	/* Both table and PBA are mapped to the same BAR (2) */
+	vpci->pci_hdr.msix.table_offset = cpu_to_le32(2);
+	vpci->pci_hdr.msix.pba_offset = cpu_to_le32(2 | PCI_IO_SIZE);
 	vpci->config_vector = 0;
 
 	r = irq__register_device(subsys_id, &pin, &line);
 	if (r < 0)
-		goto free_mmio;
+		goto free_msix_mmio;
 
 	if (kvm__supports_extension(kvm, KVM_CAP_SIGNAL_MSI))
 		vpci->features |= VIRTIO_PCI_F_SIGNAL_MSI;
@@ -383,14 +417,16 @@ int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 	vpci->pci_hdr.irq_line	= line;
 	r = device__register(&vpci->dev_hdr);
 	if (r < 0)
-		goto free_ioport;
+		goto free_msix_mmio;
 
 	return 0;
 
-free_mmio:
+free_msix_mmio:
 	kvm__deregister_mmio(kvm, vpci->msix_io_block);
+free_mmio:
+	kvm__deregister_mmio(kvm, vpci->mmio_addr);
 free_ioport:
-	ioport__unregister(kvm, vpci->base_addr);
+	ioport__unregister(kvm, vpci->port_addr);
 	return r;
 }
 
@@ -399,11 +435,14 @@ int virtio_pci__exit(struct kvm *kvm, struct virtio_device *vdev)
 	struct virtio_pci *vpci = vdev->virtio;
 	int i;
 
+	kvm__deregister_mmio(kvm, vpci->mmio_addr);
 	kvm__deregister_mmio(kvm, vpci->msix_io_block);
-	ioport__unregister(kvm, vpci->base_addr);
+	ioport__unregister(kvm, vpci->port_addr);
 
-	for (i = 0; i < VIRTIO_PCI_MAX_VQ; i++)
-		ioeventfd__del_event(vpci->base_addr + VIRTIO_PCI_QUEUE_NOTIFY, i);
+	for (i = 0; i < VIRTIO_PCI_MAX_VQ; i++) {
+		ioeventfd__del_event(vpci->port_addr + VIRTIO_PCI_QUEUE_NOTIFY, i);
+		ioeventfd__del_event(vpci->mmio_addr + VIRTIO_PCI_QUEUE_NOTIFY, i);
+	}
 
 	return 0;
 }
