@@ -3,7 +3,8 @@
 #include "kvm/apic.h"
 #include "kvm/mptable.h"
 #include "kvm/util.h"
-#include "kvm/irq.h"
+#include "kvm/devices.h"
+#include "kvm/pci.h"
 
 #include <linux/kernel.h>
 #include <string.h>
@@ -80,7 +81,7 @@ int mptable__init(struct kvm *kvm)
 	struct mpc_bus *mpc_bus;
 	struct mpc_ioapic *mpc_ioapic;
 	struct mpc_intsrc *mpc_intsrc;
-	struct rb_node *pci_tree;
+	struct device_header *dev_hdr;
 
 	const int pcibusid = 0;
 	const int isabusid = 1;
@@ -171,31 +172,21 @@ int mptable__init(struct kvm *kvm)
 
 	/*
 	 * IRQ sources.
-	 *
-	 * FIXME: Same issue as with buses. We definitely
-	 * need kind of collector routine which enumerate
-	 * resources used first and pass them here.
-	 * At moment we know we have only virtio block device
-	 * and virtio console but this is g00berfish.
-	 *
 	 * Also note we use PCI irqs here, no for ISA bus yet.
 	 */
 
-	for (pci_tree = irq__get_pci_tree(); pci_tree; pci_tree = rb_next(pci_tree)) {
-		struct pci_dev *dev = rb_entry(pci_tree, struct pci_dev, node);
-		struct irq_line *irq_line;
+	dev_hdr = device__first_dev(DEVICE_BUS_PCI);
+	while (dev_hdr) {
+		unsigned char srcbusirq;
+		struct pci_device_header *pci_hdr = dev_hdr->data;
 
-		list_for_each_entry(irq_line, &dev->lines, node) {
-			unsigned char srcbusirq;
+		srcbusirq = (pci_hdr->subsys_id << 2) | (pci_hdr->irq_pin - 1);
+		mpc_intsrc = last_addr;
+		mptable_add_irq_src(mpc_intsrc, pcibusid, srcbusirq, ioapicid, pci_hdr->irq_line);
 
-			srcbusirq = (dev->id << 2) | (dev->pin - 1);
-
-			mpc_intsrc = last_addr;
-
-			mptable_add_irq_src(mpc_intsrc, pcibusid, srcbusirq, ioapicid, irq_line->line);
-			last_addr = (void *)&mpc_intsrc[1];
-			nentries++;
-		}
+		last_addr = (void *)&mpc_intsrc[dev_hdr->dev_num];
+		nentries++;
+		dev_hdr = device__next_dev(dev_hdr);
 	}
 
 	/*
