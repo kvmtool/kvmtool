@@ -18,6 +18,7 @@
 #include "kvm/devices.h"
 #include "kvm/fdt.h"
 #include "kvm/util.h"
+#include "kvm/of_pci.h"
 #include "kvm/pci.h"
 
 #include <linux/pci_regs.h>
@@ -42,25 +43,7 @@ static const uint32_t bars[] = {
 
 #define PCI_NUM_REGIONS		7
 
-/* Macros to operate with address in OF binding to PCI */
-#define b_x(x, p, l)	(((x) & ((1<<(l))-1)) << (p))
-#define b_n(x)		b_x((x), 31, 1) /* 0 if relocatable */
-#define b_p(x)		b_x((x), 30, 1) /* 1 if prefetchable */
-#define b_t(x)		b_x((x), 29, 1) /* 1 if the address is aliased */
-#define b_ss(x)		b_x((x), 24, 2) /* the space code */
-#define b_bbbbbbbb(x)	b_x((x), 16, 8) /* bus number */
-#define b_ddddd(x)	b_x((x), 11, 5) /* device number */
-#define b_fff(x)	b_x((x), 8, 3)	/* function number */
-#define b_rrrrrrrr(x)	b_x((x), 0, 8)	/* register number */
-
-#define SS_M64		3
-#define SS_M32		2
-#define SS_IO		1
-#define SS_CONFIG	0
-
-
 static struct spapr_phb phb;
-
 
 static void rtas_ibm_read_pci_config(struct kvm_cpu *vcpu,
 				     uint32_t token, uint32_t nargs,
@@ -228,11 +211,11 @@ static uint32_t bar_to_ss(unsigned long bar)
 {
 	if ((bar & PCI_BASE_ADDRESS_SPACE) ==
 	    PCI_BASE_ADDRESS_SPACE_IO)
-		return SS_IO;
+		return OF_PCI_SS_IO;
 	else if (bar & PCI_BASE_ADDRESS_MEM_TYPE_64)
-		return SS_M64;
+		return OF_PCI_SS_M64;
 	else
-		return SS_M32;
+		return OF_PCI_SS_M32;
 }
 
 static unsigned long bar_to_addr(unsigned long bar)
@@ -251,33 +234,32 @@ int spapr_populate_pci_devices(struct kvm *kvm,
 	int bus_off, node_off = 0, devid, fn, i, n, devices;
 	struct device_header *dev_hdr;
 	char nodename[256];
-	struct {
-		uint32_t hi;
-		uint64_t addr;
-		uint64_t size;
-	} __attribute__((packed)) reg[PCI_NUM_REGIONS + 1],
-		  assigned_addresses[PCI_NUM_REGIONS];
+	struct of_pci_unit_address reg[PCI_NUM_REGIONS + 1],
+				   assigned_addresses[PCI_NUM_REGIONS];
 	uint32_t bus_range[] = { cpu_to_be32(0), cpu_to_be32(0xff) };
-	struct {
-		uint32_t hi;
-		uint64_t child;
-		uint64_t parent;
-		uint64_t size;
-	} __attribute__((packed)) ranges[] = {
+	struct of_pci_ranges_entry ranges[] = {
 		{
-			cpu_to_be32(b_ss(1)), cpu_to_be64(0),
+			{
+				cpu_to_be32(of_pci_b_ss(1)),
+				cpu_to_be32(0),
+				cpu_to_be32(0),
+			},
 			cpu_to_be64(phb.io_addr),
 			cpu_to_be64(phb.io_size),
 		},
 		{
-			cpu_to_be32(b_ss(2)), cpu_to_be64(0),
+			{
+				cpu_to_be32(of_pci_b_ss(2)),
+				cpu_to_be32(0),
+				cpu_to_be32(0),
+			},
 			cpu_to_be64(phb.mem_addr),
 			cpu_to_be64(phb.mem_size),
 		},
 	};
 	uint64_t bus_reg[] = { cpu_to_be64(phb.buid), 0 };
 	uint32_t interrupt_map_mask[] = {
-		cpu_to_be32(b_ddddd(-1)|b_fff(-1)), 0x0, 0x0, 0x0};
+		cpu_to_be32(of_pci_b_ddddd(-1)|of_pci_b_fff(-1)), 0x0, 0x0, 0x0};
 	uint32_t interrupt_map[SPAPR_PCI_NUM_LSI][7];
 
 	/* Start populating the FDT */
@@ -321,7 +303,7 @@ int spapr_populate_pci_devices(struct kvm *kvm,
 			die("Unexpected behaviour in spapr_populate_pci_devices,"
 			    "wrong devid %u\n", devid);
 		}
-		irqmap[0] = cpu_to_be32(b_ddddd(devid)|b_fff(fn));
+		irqmap[0] = cpu_to_be32(of_pci_b_ddddd(devid)|of_pci_b_fff(fn));
 		irqmap[1] = 0;
 		irqmap[2] = 0;
 		irqmap[3] = 0;
@@ -358,15 +340,15 @@ int spapr_populate_pci_devices(struct kvm *kvm,
 
 		/* Config space region comes first */
 		reg[0].hi = cpu_to_be32(
-			b_n(0) |
-			b_p(0) |
-			b_t(0) |
-			b_ss(SS_CONFIG) |
-			b_bbbbbbbb(0) |
-			b_ddddd(devid) |
-			b_fff(fn));
-		reg[0].addr = 0;
-		reg[0].size = 0;
+			of_pci_b_n(0) |
+			of_pci_b_p(0) |
+			of_pci_b_t(0) |
+			of_pci_b_ss(OF_PCI_SS_CONFIG) |
+			of_pci_b_bbbbbbbb(0) |
+			of_pci_b_ddddd(devid) |
+			of_pci_b_fff(fn));
+		reg[0].mid = 0;
+		reg[0].lo = 0;
 
 		n = 0;
 		/* Six BARs, no ROM supported, addresses are 32bit */
@@ -376,33 +358,33 @@ int spapr_populate_pci_devices(struct kvm *kvm,
 			}
 
 			reg[n+1].hi = cpu_to_be32(
-				b_n(0) |
-				b_p(0) |
-				b_t(0) |
-				b_ss(bar_to_ss(le32_to_cpu(hdr->bar[i]))) |
-				b_bbbbbbbb(0) |
-				b_ddddd(devid) |
-				b_fff(fn) |
-				b_rrrrrrrr(bars[i]));
-			reg[n+1].addr = 0;
-			reg[n+1].size = cpu_to_be64(hdr->bar_size[i]);
+				of_pci_b_n(0) |
+				of_pci_b_p(0) |
+				of_pci_b_t(0) |
+				of_pci_b_ss(bar_to_ss(le32_to_cpu(hdr->bar[i]))) |
+				of_pci_b_bbbbbbbb(0) |
+				of_pci_b_ddddd(devid) |
+				of_pci_b_fff(fn) |
+				of_pci_b_rrrrrrrr(bars[i]));
+			reg[n+1].mid = 0;
+			reg[n+1].lo = cpu_to_be64(hdr->bar_size[i]);
 
 			assigned_addresses[n].hi = cpu_to_be32(
-				b_n(1) |
-				b_p(0) |
-				b_t(0) |
-				b_ss(bar_to_ss(le32_to_cpu(hdr->bar[i]))) |
-				b_bbbbbbbb(0) |
-				b_ddddd(devid) |
-				b_fff(fn) |
-				b_rrrrrrrr(bars[i]));
+				of_pci_b_n(1) |
+				of_pci_b_p(0) |
+				of_pci_b_t(0) |
+				of_pci_b_ss(bar_to_ss(le32_to_cpu(hdr->bar[i]))) |
+				of_pci_b_bbbbbbbb(0) |
+				of_pci_b_ddddd(devid) |
+				of_pci_b_fff(fn) |
+				of_pci_b_rrrrrrrr(bars[i]));
 
 			/*
 			 * Writing zeroes to assigned_addresses causes the guest kernel to
 			 * reassign BARs
 			 */
-			assigned_addresses[n].addr = cpu_to_be64(bar_to_addr(le32_to_cpu(hdr->bar[i])));
-			assigned_addresses[n].size = reg[n+1].size;
+			assigned_addresses[n].mid = cpu_to_be64(bar_to_addr(le32_to_cpu(hdr->bar[i])));
+			assigned_addresses[n].lo = reg[n+1].lo;
 
 			++n;
 		}
