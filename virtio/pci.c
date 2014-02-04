@@ -345,7 +345,6 @@ int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 		.capabilities		= (void *)&vpci->pci_hdr.msix - (void *)&vpci->pci_hdr,
 		.bar_size[0]		= IOPORT_SIZE,
 		.bar_size[1]		= PCI_IO_SIZE * 2,
-		.bar_size[3]		= PCI_IO_SIZE,
 	};
 
 	vpci->dev_hdr = (struct device_header) {
@@ -368,12 +367,9 @@ int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 	 */
 	vpci->pci_hdr.msix.ctrl = cpu_to_le16(VIRTIO_PCI_MAX_VQ + VIRTIO_PCI_MAX_CONFIG - 1);
 
-	/*
-	 * Both table and PBA could be mapped on the same BAR, but for now
-	 * we're not in short of BARs
-	 */
-	vpci->pci_hdr.msix.table_offset = cpu_to_le32(1); /* Use BAR 1 */
-	vpci->pci_hdr.msix.pba_offset = cpu_to_le32(1 | PCI_IO_SIZE); /* Use BAR 3 */
+	/* Both table and PBA are mapped to the same BAR (1) */
+	vpci->pci_hdr.msix.table_offset = cpu_to_le32(1);
+	vpci->pci_hdr.msix.pba_offset = cpu_to_le32(1 | PCI_IO_SIZE);
 	vpci->config_vector = 0;
 
 	r = irq__register_device(subsys_id, &pin, &line);
