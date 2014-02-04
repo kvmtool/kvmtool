@@ -256,6 +256,14 @@ static void generate_virtio_mmio_fdt_node(void *fdt,
 }
 #endif
 
+void virtio_mmio_assign_irq(struct device_header *dev_hdr)
+{
+	struct virtio_mmio *vmmio = container_of(dev_hdr,
+						 struct virtio_mmio,
+						 dev_hdr);
+	vmmio->irq = irq__alloc_line();
+}
+
 int virtio_mmio_init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 		     int device_id, int subsys_id, int class)
 {
@@ -276,7 +284,6 @@ int virtio_mmio_init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 		.queue_num_max	= 256,
 	};
 
-	vmmio->irq = irq__alloc_line();
 	vmmio->dev_hdr = (struct device_header) {
 		.bus_type	= DEVICE_BUS_MMIO,
 		.data		= generate_virtio_mmio_fdt_node,

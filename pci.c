@@ -1,6 +1,7 @@
 #include "kvm/devices.h"
 #include "kvm/pci.h"
 #include "kvm/ioport.h"
+#include "kvm/irq.h"
 #include "kvm/util.h"
 #include "kvm/kvm.h"
 
@@ -26,6 +27,20 @@ u32 pci_get_io_space_block(u32 size)
 	u32 block = ALIGN(io_space_blocks, size);
 	io_space_blocks = block + size;
 	return block;
+}
+
+void pci__assign_irq(struct device_header *dev_hdr)
+{
+	struct pci_device_header *pci_hdr = dev_hdr->data;
+
+	/*
+	 * PCI supports only INTA#,B#,C#,D# per device.
+	 *
+	 * A#,B#,C#,D# are allowed for multifunctional devices so stick
+	 * with A# for our single function devices.
+	 */
+	pci_hdr->irq_pin	= 1;
+	pci_hdr->irq_line	= irq__alloc_line();
 }
 
 static void *pci_config_address_ptr(u16 port)

@@ -408,8 +408,6 @@ int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 	if (kvm__supports_extension(kvm, KVM_CAP_SIGNAL_MSI))
 		vpci->features |= VIRTIO_PCI_F_SIGNAL_MSI;
 
-	vpci->pci_hdr.irq_pin	= 1;
-	vpci->pci_hdr.irq_line	= irq__alloc_line();
 	r = device__register(&vpci->dev_hdr);
 	if (r < 0)
 		goto free_msix_mmio;
