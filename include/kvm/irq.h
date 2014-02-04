@@ -10,7 +10,7 @@
 
 struct kvm;
 
-int irq__register_device(u32 dev, u8 *line);
+int irq__register_device(void);
 
 int irq__init(struct kvm *kvm);
 int irq__exit(struct kvm *kvm);

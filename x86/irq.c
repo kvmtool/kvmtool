@@ -39,10 +39,9 @@ static int irq__add_routing(u32 gsi, u32 type, u32 irqchip, u32 pin)
 	return 0;
 }
 
-int irq__register_device(u32 dev, u8 *line)
+int irq__register_device(void)
 {
-	*line = next_line++;
-	return 0;
+	return next_line++;
 }
 
 int irq__init(struct kvm *kvm)

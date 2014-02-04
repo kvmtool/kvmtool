@@ -32,14 +32,13 @@
  * generic & cope with multiple PPC platform types.
  */
 
-int irq__register_device(u32 dev, u8 *line)
+int irq__register_device(void)
 {
 	/*
 	 * Have I said how nasty I find this?  Line should be dontcare... PHB
 	 * should determine which CPU/XICS IRQ to fire.
 	 */
-	*line = xics_alloc_irqnum();
-	return 0;
+	return xics_alloc_irqnum();
 }
 
 int irq__add_msix_route(struct kvm *kvm, struct msi_msg *msg)

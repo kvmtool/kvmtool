@@ -4,10 +4,9 @@
 
 #include "arm-common/gic.h"
 
-int irq__register_device(u32 dev, u8 *line)
+int irq__register_device(void)
 {
-	*line = gic__alloc_irqnum();
-	return 0;
+	return gic__alloc_irqnum();
 }
 
 int irq__add_msix_route(struct kvm *kvm, struct msi_msg *msg)

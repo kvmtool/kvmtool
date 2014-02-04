@@ -55,23 +55,18 @@ static struct framebuffer vesafb;
 struct framebuffer *vesa__init(struct kvm *kvm)
 {
 	u16 vesa_base_addr;
-	u8 line;
 	char *mem;
 	int r;
 
 	if (!kvm->cfg.vnc && !kvm->cfg.sdl && !kvm->cfg.gtk)
 		return NULL;
 
-	r = irq__register_device(PCI_DEVICE_ID_VESA, &line);
-	if (r < 0)
-		return ERR_PTR(r);
-
 	r = ioport__register(kvm, IOPORT_EMPTY, &vesa_io_ops, IOPORT_SIZE, NULL);
 	if (r < 0)
 		return ERR_PTR(r);
 
 	vesa_pci_device.irq_pin		= 1;
-	vesa_pci_device.irq_line	= line;
+	vesa_pci_device.irq_line	= irq__register_device();
 	vesa_base_addr			= (u16)r;
 	vesa_pci_device.bar[0]		= cpu_to_le32(vesa_base_addr | PCI_BASE_ADDRESS_SPACE_IO);
 	device__register(&vesa_device);
