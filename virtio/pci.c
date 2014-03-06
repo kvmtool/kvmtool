@@ -360,6 +360,7 @@ int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 	vpci->pci_hdr = (struct pci_device_header) {
 		.vendor_id		= cpu_to_le16(PCI_VENDOR_ID_REDHAT_QUMRANET),
 		.device_id		= cpu_to_le16(device_id),
+		.command		= PCI_COMMAND_IO | PCI_COMMAND_MEMORY,
 		.header_type		= PCI_HEADER_TYPE_NORMAL,
 		.revision_id		= 0,
 		.class[0]		= class & 0xff,
