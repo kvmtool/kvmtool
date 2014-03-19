@@ -129,7 +129,9 @@ static int virtio_p9_decode(struct p9_pdu *pdu, const char *fmt, va_list ap)
 		{
 			struct p9_wstat *stbuf = va_arg(ap, struct p9_wstat *);
 			memset(stbuf, 0, sizeof(struct p9_wstat));
-			stbuf->n_uid = stbuf->n_gid = stbuf->n_muid = -1;
+			stbuf->n_uid = KUIDT_INIT(-1);
+			stbuf->n_gid = KGIDT_INIT(-1);
+			stbuf->n_muid = KUIDT_INIT(-1);
 			retval = virtio_p9_pdu_readf(pdu, "wwdQdddqssss",
 						&stbuf->size, &stbuf->type,
 						&stbuf->dev, &stbuf->qid,

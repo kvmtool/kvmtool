@@ -441,8 +441,8 @@ static void virtio_p9_fill_stat(struct p9_dev *p9dev,
 	memset(statl, 0, sizeof(*statl));
 	statl->st_mode		= st->st_mode;
 	statl->st_nlink		= st->st_nlink;
-	statl->st_uid		= st->st_uid;
-	statl->st_gid		= st->st_gid;
+	statl->st_uid		= KUIDT_INIT(st->st_uid);
+	statl->st_gid		= KGIDT_INIT(st->st_gid);
 	statl->st_rdev		= st->st_rdev;
 	statl->st_size		= st->st_size;
 	statl->st_blksize	= st->st_blksize;
@@ -668,12 +668,13 @@ static void virtio_p9_setattr(struct p9_dev *p9dev,
 	    ((p9attr.valid & ATTR_CTIME)
 	     && !((p9attr.valid & ATTR_MASK) & ~ATTR_CTIME))) {
 		if (!(p9attr.valid & ATTR_UID))
-			p9attr.uid = -1;
+			p9attr.uid = KUIDT_INIT(-1);
 
 		if (!(p9attr.valid & ATTR_GID))
-			p9attr.gid = -1;
+			p9attr.gid = KGIDT_INIT(-1);
 
-		ret = lchown(fid->abs_path, p9attr.uid, p9attr.gid);
+		ret = lchown(fid->abs_path, __kuid_val(p9attr.uid),
+				__kgid_val(p9attr.gid));
 		if (ret < 0)
 			goto err_out;
 	}
