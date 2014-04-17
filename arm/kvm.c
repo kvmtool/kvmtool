@@ -56,11 +56,6 @@ void kvm__arch_read_term(struct kvm *kvm)
 
 void kvm__arch_set_cmdline(char *cmdline, bool video)
 {
-	/*
-	 * We don't support movable BARs, so force the guest to use what
-	 * we tell it.
-	 */
-	strcpy(cmdline, "pci=firmware");
 }
 
 void kvm__arch_init(struct kvm *kvm, const char *hugetlbfs_path, u64 ram_size)

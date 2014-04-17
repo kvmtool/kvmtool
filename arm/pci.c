@@ -26,17 +26,13 @@ void pci__generate_fdt_nodes(void *fdt, u32 gic_phandle)
 	struct device_header *dev_hdr;
 	struct of_interrupt_map_entry irq_map[OF_PCI_IRQ_MAP_MAX];
 	unsigned nentries = 0;
-	/* Describe the memory ranges (config and memory) */
+	/* Bus range */
+	u32 bus_range[] = { cpu_to_fdt32(0), cpu_to_fdt32(1), };
+	/* Configuration Space */
+	u64 cfg_reg_prop[] = { cpu_to_fdt64(KVM_PCI_CFG_AREA),
+			       cpu_to_fdt64(ARM_PCI_CFG_SIZE), };
+	/* Describe the memory ranges */
 	struct of_pci_ranges_entry ranges[] = {
-		{
-			.pci_addr = {
-				.hi	= cpu_to_fdt32(of_pci_b_ss(OF_PCI_SS_CONFIG)),
-				.mid	= 0,
-				.lo	= 0,
-			},
-			.cpu_addr	= cpu_to_fdt64(KVM_PCI_CFG_AREA),
-			.length		= cpu_to_fdt64(ARM_PCI_CFG_SIZE),
-		},
 		{
 			.pci_addr = {
 				.hi	= cpu_to_fdt32(of_pci_b_ss(OF_PCI_SS_IO)),
@@ -49,8 +45,8 @@ void pci__generate_fdt_nodes(void *fdt, u32 gic_phandle)
 		{
 			.pci_addr = {
 				.hi	= cpu_to_fdt32(of_pci_b_ss(OF_PCI_SS_M32)),
-				.mid	= 0,
-				.lo	= 0,
+				.mid	= cpu_to_fdt32(KVM_PCI_MMIO_AREA >> 32),
+				.lo	= cpu_to_fdt32(KVM_PCI_MMIO_AREA),
 			},
 			.cpu_addr	= cpu_to_fdt64(KVM_PCI_MMIO_AREA),
 			.length		= cpu_to_fdt64(ARM_PCI_MMIO_SIZE),
@@ -59,11 +55,14 @@ void pci__generate_fdt_nodes(void *fdt, u32 gic_phandle)
 
 	/* Boilerplate PCI properties */
 	_FDT(fdt_begin_node(fdt, "pci"));
+	_FDT(fdt_property_string(fdt, "device_type", "pci"));
 	_FDT(fdt_property_cell(fdt, "#address-cells", 0x3));
 	_FDT(fdt_property_cell(fdt, "#size-cells", 0x2));
 	_FDT(fdt_property_cell(fdt, "#interrupt-cells", 0x1));
-	_FDT(fdt_property_string(fdt, "compatible", "linux,pci-virt"));
+	_FDT(fdt_property_string(fdt, "compatible", "pci-host-cam-generic"));
 
+	_FDT(fdt_property(fdt, "bus-range", bus_range, sizeof(bus_range)));
+	_FDT(fdt_property(fdt, "reg", &cfg_reg_prop, sizeof(cfg_reg_prop)));
 	_FDT(fdt_property(fdt, "ranges", ranges, sizeof(ranges)));
 
 	/* Generate the interrupt map ... */
