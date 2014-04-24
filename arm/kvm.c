@@ -79,7 +79,7 @@ void kvm__arch_init(struct kvm *kvm, const char *hugetlbfs_path, u64 ram_size)
 					SZ_2M);
 
 	madvise(kvm->arch.ram_alloc_start, kvm->arch.ram_alloc_size,
-		MADV_MERGEABLE);
+		MADV_MERGEABLE | MADV_HUGEPAGE);
 
 	/* Initialise the virtual GIC. */
 	if (gic__init_irqchip(kvm))
