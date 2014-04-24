@@ -257,6 +257,7 @@ static bool virtio_net__tap_init(struct net_dev *ndev)
 	struct sockaddr_in sin = {0};
 	struct ifreq ifr;
 	const struct virtio_net_params *params = ndev->params;
+	bool skipconf = !!params->tapif;
 
 	/* Did the user already gave us the FD? */
 	if (params->fd) {
@@ -272,6 +273,8 @@ static bool virtio_net__tap_init(struct net_dev *ndev)
 
 	memset(&ifr, 0, sizeof(ifr));
 	ifr.ifr_flags = IFF_TAP | IFF_NO_PI | IFF_VNET_HDR;
+	if (params->tapif)
+		strncpy(ifr.ifr_name, params->tapif, sizeof(ifr.ifr_name));
 	if (ioctl(ndev->tap_fd, TUNSETIFF, &ifr) < 0) {
 		pr_warning("Config tap device error. Are you root?");
 		goto fail;
@@ -308,7 +311,7 @@ static bool virtio_net__tap_init(struct net_dev *ndev)
 				goto fail;
 			}
 		}
-	} else {
+	} else if (!skipconf) {
 		memset(&ifr, 0, sizeof(ifr));
 		strncpy(ifr.ifr_name, ndev->tap_name, sizeof(ndev->tap_name));
 		sin.sin_addr.s_addr = inet_addr(params->host_ip);
@@ -320,12 +323,14 @@ static bool virtio_net__tap_init(struct net_dev *ndev)
 		}
 	}
 
-	memset(&ifr, 0, sizeof(ifr));
-	strncpy(ifr.ifr_name, ndev->tap_name, sizeof(ndev->tap_name));
-	ioctl(sock, SIOCGIFFLAGS, &ifr);
-	ifr.ifr_flags |= IFF_UP | IFF_RUNNING;
-	if (ioctl(sock, SIOCSIFFLAGS, &ifr) < 0)
-		pr_warning("Could not bring tap device up");
+	if (!skipconf) {
+		memset(&ifr, 0, sizeof(ifr));
+		strncpy(ifr.ifr_name, ndev->tap_name, sizeof(ndev->tap_name));
+		ioctl(sock, SIOCGIFFLAGS, &ifr);
+		ifr.ifr_flags |= IFF_UP | IFF_RUNNING;
+		if (ioctl(sock, SIOCSIFFLAGS, &ifr) < 0)
+			pr_warning("Could not bring tap device up");
+	}
 
 	close(sock);
 
@@ -650,6 +655,8 @@ static int set_net_param(struct kvm *kvm, struct virtio_net_params *p,
 		p->host_ip = strdup(val);
 	} else if (strcmp(param, "trans") == 0) {
 		p->trans = strdup(val);
+	} else if (strcmp(param, "tapif") == 0) {
+		p->tapif = strdup(val);
 	} else if (strcmp(param, "vhost") == 0) {
 		p->vhost = atoi(val);
 	} else if (strcmp(param, "fd") == 0) {

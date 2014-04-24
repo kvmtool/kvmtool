@@ -10,6 +10,7 @@ struct virtio_net_params {
 	const char *host_ip;
 	const char *script;
 	const char *trans;
+	const char *tapif;
 	char guest_mac[6];
 	char host_mac[6];
 	struct kvm *kvm;
