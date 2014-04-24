@@ -89,8 +89,10 @@ bool term_readable(int term)
 		.events	= POLLIN,
 		.revents = 0,
 	};
+	int err;
 
-	return poll(&pollfd, 1, 0) > 0;
+	err = poll(&pollfd, 1, 0);
+	return (err > 0 && (pollfd.revents & POLLIN));
 }
 
 static void *term_poll_thread_loop(void *param)
