@@ -35,6 +35,8 @@
 #define VIRTIO_DEFAULT_TRANS(kvm)	\
 	((kvm)->cfg.arch.virtio_trans_pci ? VIRTIO_PCI : VIRTIO_MMIO)
 
+#define VIRTIO_RING_ENDIAN	(VIRTIO_ENDIAN_LE | VIRTIO_ENDIAN_BE)
+
 static inline bool arm_addr_in_ioport_region(u64 phys_addr)
 {
 	u64 limit = KVM_IOPORT_AREA + ARM_IOPORT_SIZE;

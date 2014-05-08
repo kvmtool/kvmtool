@@ -13,5 +13,7 @@
 #define ARM_MPIDR_HWID_BITMASK	0xFF00FFFFFFUL
 #define ARM_CPU_ID		3, 0, 0, 0
 #define ARM_CPU_ID_MPIDR	5
+#define ARM_CPU_CTRL		3, 0, 1, 0
+#define ARM_CPU_CTRL_SCTLR_EL1	0
 
 #endif /* KVM__KVM_CPU_ARCH_H */
