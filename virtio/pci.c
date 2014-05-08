@@ -240,7 +240,8 @@ static struct ioport_operations virtio_pci__io_ops = {
 	.io_out	= virtio_pci__io_out,
 };
 
-static void virtio_pci__msix_mmio_callback(u64 addr, u8 *data, u32 len,
+static void virtio_pci__msix_mmio_callback(struct kvm_cpu *vcpu,
+					   u64 addr, u8 *data, u32 len,
 					   u8 is_write, void *ptr)
 {
 	struct virtio_pci *vpci = ptr;
@@ -321,7 +322,8 @@ int virtio_pci__signal_config(struct kvm *kvm, struct virtio_device *vdev)
 	return 0;
 }
 
-static void virtio_pci__io_mmio_callback(u64 addr, u8 *data, u32 len,
+static void virtio_pci__io_mmio_callback(struct kvm_cpu *vcpu,
+					 u64 addr, u8 *data, u32 len,
 					 u8 is_write, void *ptr)
 {
 	struct virtio_pci *vpci = ptr;

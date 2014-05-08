@@ -88,7 +88,8 @@ int virtio_mmio_signal_config(struct kvm *kvm, struct virtio_device *vdev)
 	return 0;
 }
 
-static void virtio_mmio_device_specific(u64 addr, u8 *data, u32 len,
+static void virtio_mmio_device_specific(struct kvm_cpu *vcpu,
+					u64 addr, u8 *data, u32 len,
 					u8 is_write, struct virtio_device *vdev)
 {
 	struct virtio_mmio *vmmio = vdev->virtio;
@@ -104,7 +105,8 @@ static void virtio_mmio_device_specific(u64 addr, u8 *data, u32 len,
 	}
 }
 
-static void virtio_mmio_config_in(u64 addr, void *data, u32 len,
+static void virtio_mmio_config_in(struct kvm_cpu *vcpu,
+				  u64 addr, void *data, u32 len,
 				  struct virtio_device *vdev)
 {
 	struct virtio_mmio *vmmio = vdev->virtio;
@@ -140,7 +142,8 @@ static void virtio_mmio_config_in(u64 addr, void *data, u32 len,
 	}
 }
 
-static void virtio_mmio_config_out(u64 addr, void *data, u32 len,
+static void virtio_mmio_config_out(struct kvm_cpu *vcpu,
+				   u64 addr, void *data, u32 len,
 				   struct virtio_device *vdev)
 {
 	struct virtio_mmio *vmmio = vdev->virtio;
@@ -202,7 +205,8 @@ static void virtio_mmio_config_out(u64 addr, void *data, u32 len,
 	};
 }
 
-static void virtio_mmio_mmio_callback(u64 addr, u8 *data, u32 len,
+static void virtio_mmio_mmio_callback(struct kvm_cpu *vcpu,
+				      u64 addr, u8 *data, u32 len,
 				      u8 is_write, void *ptr)
 {
 	struct virtio_device *vdev = ptr;
@@ -211,14 +215,14 @@ static void virtio_mmio_mmio_callback(u64 addr, u8 *data, u32 len,
 
 	if (offset >= VIRTIO_MMIO_CONFIG) {
 		offset -= VIRTIO_MMIO_CONFIG;
-		virtio_mmio_device_specific(offset, data, len, is_write, ptr);
+		virtio_mmio_device_specific(vcpu, offset, data, len, is_write, ptr);
 		return;
 	}
 
 	if (is_write)
-		virtio_mmio_config_out(offset, data, len, ptr);
+		virtio_mmio_config_out(vcpu, offset, data, len, ptr);
 	else
-		virtio_mmio_config_in(offset, data, len, ptr);
+		virtio_mmio_config_in(vcpu, offset, data, len, ptr);
 }
 
 #ifdef CONFIG_HAS_LIBFDT

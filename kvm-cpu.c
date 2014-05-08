@@ -54,7 +54,7 @@ static void kvm_cpu__handle_coalesced_mmio(struct kvm_cpu *cpu)
 		while (cpu->ring->first != cpu->ring->last) {
 			struct kvm_coalesced_mmio *m;
 			m = &cpu->ring->coalesced_mmio[cpu->ring->first];
-			kvm_cpu__emulate_mmio(cpu->kvm,
+			kvm_cpu__emulate_mmio(cpu,
 					      m->phys_addr,
 					      m->data,
 					      m->len,
@@ -138,7 +138,7 @@ int kvm_cpu__start(struct kvm_cpu *cpu)
 			 */
 			kvm_cpu__handle_coalesced_mmio(cpu);
 
-			ret = kvm_cpu__emulate_mmio(cpu->kvm,
+			ret = kvm_cpu__emulate_mmio(cpu,
 						    cpu->kvm_run->mmio.phys_addr,
 						    cpu->kvm_run->mmio.data,
 						    cpu->kvm_run->mmio.len,

@@ -179,7 +179,8 @@ void pci__config_rd(struct kvm *kvm, union pci_config_address addr, void *data, 
 	}
 }
 
-static void pci_config_mmio_access(u64 addr, u8 *data, u32 len, u8 is_write, void *kvm)
+static void pci_config_mmio_access(struct kvm_cpu *vcpu, u64 addr, u8 *data,
+				   u32 len, u8 is_write, void *kvm)
 {
 	union pci_config_address cfg_addr;
 

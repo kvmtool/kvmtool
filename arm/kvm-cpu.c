@@ -98,17 +98,17 @@ bool kvm_cpu__handle_exit(struct kvm_cpu *vcpu)
 	return false;
 }
 
-bool kvm_cpu__emulate_mmio(struct kvm *kvm, u64 phys_addr, u8 *data, u32 len,
-			   u8 is_write)
+bool kvm_cpu__emulate_mmio(struct kvm_cpu *vcpu, u64 phys_addr, u8 *data,
+			   u32 len, u8 is_write)
 {
 	if (arm_addr_in_virtio_mmio_region(phys_addr)) {
-		return kvm__emulate_mmio(kvm, phys_addr, data, len, is_write);
+		return kvm__emulate_mmio(vcpu, phys_addr, data, len, is_write);
 	} else if (arm_addr_in_ioport_region(phys_addr)) {
 		int direction = is_write ? KVM_EXIT_IO_OUT : KVM_EXIT_IO_IN;
 		u16 port = (phys_addr - KVM_IOPORT_AREA) & USHRT_MAX;
-		return kvm__emulate_io(kvm, port, data, direction, len, 1);
+		return kvm__emulate_io(vcpu->kvm, port, data, direction, len, 1);
 	} else if (arm_addr_in_pci_region(phys_addr)) {
-		return kvm__emulate_mmio(kvm, phys_addr, data, len, is_write);
+		return kvm__emulate_mmio(vcpu, phys_addr, data, len, is_write);
 	}
 
 	return false;

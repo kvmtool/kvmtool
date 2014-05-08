@@ -193,7 +193,7 @@ bool kvm_cpu__handle_exit(struct kvm_cpu *vcpu)
 	return ret;
 }
 
-bool kvm_cpu__emulate_mmio(struct kvm *kvm, u64 phys_addr, u8 *data, u32 len, u8 is_write)
+bool kvm_cpu__emulate_mmio(struct kvm_cpu *vcpu, u64 phys_addr, u8 *data, u32 len, u8 is_write)
 {
 	/*
 	 * FIXME: This function will need to be split in order to support
@@ -204,7 +204,7 @@ bool kvm_cpu__emulate_mmio(struct kvm *kvm, u64 phys_addr, u8 *data, u32 len, u8
 
 	if ((phys_addr >= SPAPR_PCI_WIN_START) &&
 	    (phys_addr < SPAPR_PCI_WIN_END)) {
-		ret = spapr_phb_mmio(kvm, phys_addr, data, len, is_write);
+		ret = spapr_phb_mmio(vcpu, phys_addr, data, len, is_write);
 	} else {
 		pr_warning("MMIO %s unknown address %llx (size %d)!\n",
 			   is_write ? "write to" : "read from",

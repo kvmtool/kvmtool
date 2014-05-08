@@ -1,4 +1,5 @@
 #include "kvm/kvm.h"
+#include "kvm/kvm-cpu.h"
 #include "kvm/rbtree-interval.h"
 #include "kvm/brlock.h"
 
@@ -16,7 +17,7 @@
 
 struct mmio_mapping {
 	struct rb_int_node	node;
-	void			(*mmio_fn)(u64 addr, u8 *data, u32 len, u8 is_write, void *ptr);
+	void			(*mmio_fn)(struct kvm_cpu *vcpu, u64 addr, u8 *data, u32 len, u8 is_write, void *ptr);
 	void			*ptr;
 };
 
@@ -59,7 +60,7 @@ static const char *to_direction(u8 is_write)
 }
 
 int kvm__register_mmio(struct kvm *kvm, u64 phys_addr, u64 phys_addr_len, bool coalesce,
-			void (*mmio_fn)(u64 addr, u8 *data, u32 len, u8 is_write, void *ptr),
+		       void (*mmio_fn)(struct kvm_cpu *vcpu, u64 addr, u8 *data, u32 len, u8 is_write, void *ptr),
 			void *ptr)
 {
 	struct mmio_mapping *mmio;
@@ -119,7 +120,7 @@ bool kvm__deregister_mmio(struct kvm *kvm, u64 phys_addr)
 	return true;
 }
 
-bool kvm__emulate_mmio(struct kvm *kvm, u64 phys_addr, u8 *data, u32 len, u8 is_write)
+bool kvm__emulate_mmio(struct kvm_cpu *vcpu, u64 phys_addr, u8 *data, u32 len, u8 is_write)
 {
 	struct mmio_mapping *mmio;
 
@@ -127,9 +128,9 @@ bool kvm__emulate_mmio(struct kvm *kvm, u64 phys_addr, u8 *data, u32 len, u8 is_
 	mmio = mmio_search(&mmio_tree, phys_addr, len);
 
 	if (mmio)
-		mmio->mmio_fn(phys_addr, data, len, is_write, mmio->ptr);
+		mmio->mmio_fn(vcpu, phys_addr, data, len, is_write, mmio->ptr);
 	else {
-		if (kvm->cfg.mmio_debug)
+		if (vcpu->kvm->cfg.mmio_debug)
 			fprintf(stderr, "Warning: Ignoring MMIO %s at %016llx (length %u)\n",
 				to_direction(is_write), phys_addr, len);
 	}

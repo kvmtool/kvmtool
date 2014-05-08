@@ -41,9 +41,9 @@ static inline bool kvm_cpu__emulate_io(struct kvm *kvm, u16 port, void *data, in
 	return kvm__emulate_io(kvm, port, data, direction, size, count);
 }
 
-static inline bool kvm_cpu__emulate_mmio(struct kvm *kvm, u64 phys_addr, u8 *data, u32 len, u8 is_write)
+static inline bool kvm_cpu__emulate_mmio(struct kvm_cpu *vcpu, u64 phys_addr, u8 *data, u32 len, u8 is_write)
 {
-	return kvm__emulate_mmio(kvm, phys_addr, data, len, is_write);
+	return kvm__emulate_mmio(vcpu, phys_addr, data, len, is_write);
 }
 
 #endif /* KVM__KVM_CPU_ARCH_H */
