@@ -28,6 +28,7 @@ struct virt_queue {
 	   It's where we assume the next request index is at.  */
 	u16		last_avail_idx;
 	u16		last_used_signalled;
+	u16		endian;
 };
 
 /*
@@ -163,6 +164,12 @@ int virtio_compat_add_message(const char *device, const char *config);
 static inline void *virtio_get_vq(struct kvm *kvm, u32 pfn, u32 page_size)
 {
 	return guest_flat_to_host(kvm, (u64)pfn * page_size);
+}
+
+static inline void virtio_init_device_vq(struct virtio_device *vdev,
+					 struct virt_queue *vq)
+{
+	vq->endian = vdev->endian;
 }
 
 #endif /* KVM__VIRTIO_H */
