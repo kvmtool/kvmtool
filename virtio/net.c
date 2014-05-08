@@ -73,6 +73,24 @@ static bool has_virtio_feature(struct net_dev *ndev, u32 feature)
 	return ndev->features & (1 << feature);
 }
 
+static void virtio_net_fix_tx_hdr(struct virtio_net_hdr *hdr, struct net_dev *ndev)
+{
+	hdr->hdr_len		= virtio_guest_to_host_u16(&ndev->vdev, hdr->hdr_len);
+	hdr->gso_size		= virtio_guest_to_host_u16(&ndev->vdev, hdr->gso_size);
+	hdr->csum_start		= virtio_guest_to_host_u16(&ndev->vdev, hdr->csum_start);
+	hdr->csum_offset	= virtio_guest_to_host_u16(&ndev->vdev, hdr->csum_offset);
+}
+
+static void virtio_net_fix_rx_hdr(struct virtio_net_hdr_mrg_rxbuf *hdr, struct net_dev *ndev)
+{
+	hdr->hdr.hdr_len	= virtio_host_to_guest_u16(&ndev->vdev, hdr->hdr.hdr_len);
+	hdr->hdr.gso_size	= virtio_host_to_guest_u16(&ndev->vdev, hdr->hdr.gso_size);
+	hdr->hdr.csum_start	= virtio_host_to_guest_u16(&ndev->vdev, hdr->hdr.csum_start);
+	hdr->hdr.csum_offset	= virtio_host_to_guest_u16(&ndev->vdev, hdr->hdr.csum_offset);
+	if (has_virtio_feature(ndev, VIRTIO_NET_F_MRG_RXBUF))
+		hdr->num_buffers	= virtio_host_to_guest_u16(&ndev->vdev, hdr->num_buffers);
+}
+
 static void *virtio_net_rx_thread(void *p)
 {
 	struct iovec iov[VIRTIO_NET_QUEUE_SIZE];
@@ -106,6 +124,7 @@ static void *virtio_net_rx_thread(void *p)
 				.iov_len  = sizeof(buffer),
 			};
 			struct virtio_net_hdr_mrg_rxbuf *hdr;
+			int i;
 
 			len = ndev->ops->rx(&dummy_iov, 1, ndev);
 			if (len < 0) {
@@ -114,16 +133,20 @@ static void *virtio_net_rx_thread(void *p)
 				goto out_err;
 			}
 
-			copied = 0;
+			copied = i = 0;
 			head = virt_queue__get_iov(vq, iov, &out, &in, kvm);
-			hdr = (void *)iov[0].iov_base;
+			hdr = iov[0].iov_base;
 			while (copied < len) {
 				size_t iovsize = min_t(size_t, len - copied, iov_size(iov, in));
 
 				memcpy_toiovec(iov, buffer + copied, iovsize);
 				copied += iovsize;
-				if (has_virtio_feature(ndev, VIRTIO_NET_F_MRG_RXBUF))
-					hdr->num_buffers++;
+				if (i++ == 0)
+					virtio_net_fix_rx_hdr(hdr, ndev);
+				if (has_virtio_feature(ndev, VIRTIO_NET_F_MRG_RXBUF)) {
+					u16 num_buffers = virtio_guest_to_host_u16(vq, hdr->num_buffers);
+					hdr->num_buffers = virtio_host_to_guest_u16(vq, num_buffers + 1);
+				}
 				virt_queue__set_used_elem(vq, head, iovsize);
 				if (copied == len)
 					break;
@@ -170,11 +193,14 @@ static void *virtio_net_tx_thread(void *p)
 		mutex_unlock(&ndev->io_lock[id]);
 
 		while (virt_queue__available(vq)) {
+			struct virtio_net_hdr *hdr;
 			head = virt_queue__get_iov(vq, iov, &out, &in, kvm);
+			hdr = iov[0].iov_base;
+			virtio_net_fix_tx_hdr(hdr, ndev);
 			len = ndev->ops->tx(iov, out, ndev);
 			if (len < 0) {
 				pr_warning("%s: tx on vq %u failed (%d)\n",
-						__func__, id, len);
+						__func__, id, errno);
 				goto out_err;
 			}
 
@@ -420,8 +446,13 @@ static int virtio_net__vhost_set_features(struct net_dev *ndev)
 static void set_guest_features(struct kvm *kvm, void *dev, u32 features)
 {
 	struct net_dev *ndev = dev;
+	struct virtio_net_config *conf = &ndev->config;
 
 	ndev->features = features;
+
+	conf->status = virtio_host_to_guest_u16(&ndev->vdev, conf->status);
+	conf->max_virtqueue_pairs = virtio_host_to_guest_u16(&ndev->vdev,
+							     conf->max_virtqueue_pairs);
 
 	if (ndev->mode == NET_MODE_TAP) {
 		if (!virtio_net__tap_init(ndev))
@@ -459,6 +490,7 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 page_size, u32 align,
 	p		= virtio_get_vq(kvm, queue->pfn, page_size);
 
 	vring_init(&queue->vring, VIRTIO_NET_QUEUE_SIZE, p, align);
+	virtio_init_device_vq(&ndev->vdev, queue);
 
 	mutex_init(&ndev->io_lock[vq]);
 	pthread_cond_init(&ndev->io_cond[vq], NULL);
@@ -474,6 +506,9 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 page_size, u32 align,
 
 		return 0;
 	}
+
+	if (queue->endian != VIRTIO_ENDIAN_HOST)
+		die_perror("VHOST requires VIRTIO_ENDIAN_HOST");
 
 	state.num = queue->vring.num;
 	r = ioctl(ndev->vhost_fd, VHOST_SET_VRING_NUM, &state);
