@@ -15,10 +15,11 @@
 struct vring_used_elem *virt_queue__set_used_elem(struct virt_queue *queue, u32 head, u32 len)
 {
 	struct vring_used_elem *used_elem;
+	u16 idx = virtio_guest_to_host_u16(queue, queue->vring.used->idx);
 
-	used_elem	= &queue->vring.used->ring[queue->vring.used->idx % queue->vring.num];
-	used_elem->id	= head;
-	used_elem->len	= len;
+	used_elem	= &queue->vring.used->ring[idx % queue->vring.num];
+	used_elem->id	= virtio_host_to_guest_u32(queue, head);
+	used_elem->len	= virtio_host_to_guest_u32(queue, len);
 
 	/*
 	 * Use wmb to assure that used elem was updated with head and len.
@@ -26,7 +27,8 @@ struct vring_used_elem *virt_queue__set_used_elem(struct virt_queue *queue, u32 
 	 * to pass the used element to the guest.
 	 */
 	wmb();
-	queue->vring.used->idx++;
+	idx++;
+	queue->vring.used->idx = virtio_host_to_guest_u16(queue, idx);
 
 	/*
 	 * Use wmb to assure used idx has been increased before we signal the guest.
@@ -38,22 +40,28 @@ struct vring_used_elem *virt_queue__set_used_elem(struct virt_queue *queue, u32 
 	return used_elem;
 }
 
+static inline bool virt_desc__test_flag(struct virt_queue *vq,
+					struct vring_desc *desc, u16 flag)
+{
+	return !!(virtio_guest_to_host_u16(vq, desc->flags) & flag);
+}
+
 /*
  * Each buffer in the virtqueues is actually a chain of descriptors.  This
  * function returns the next descriptor in the chain, or vq->vring.num if we're
  * at the end.
  */
-static unsigned next_desc(struct vring_desc *desc,
+static unsigned next_desc(struct virt_queue *vq, struct vring_desc *desc,
 			  unsigned int i, unsigned int max)
 {
 	unsigned int next;
 
 	/* If this descriptor says it doesn't chain, we're done. */
-	if (!(desc[i].flags & VRING_DESC_F_NEXT))
+	if (!virt_desc__test_flag(vq, &desc[i], VRING_DESC_F_NEXT))
 		return max;
 
 	/* Check they're not leading us off end of descriptors. */
-	next = desc[i].next;
+	next = virtio_guest_to_host_u16(vq, desc[i].next);
 	/* Make sure compiler knows to grab that: we don't want it changing! */
 	wmb();
 
@@ -71,22 +79,23 @@ u16 virt_queue__get_head_iov(struct virt_queue *vq, struct iovec iov[], u16 *out
 	max = vq->vring.num;
 	desc = vq->vring.desc;
 
-	if (desc[idx].flags & VRING_DESC_F_INDIRECT) {
-		max = desc[idx].len / sizeof(struct vring_desc);
-		desc = guest_flat_to_host(kvm, desc[idx].addr);
+	if (virt_desc__test_flag(vq, &desc[idx], VRING_DESC_F_INDIRECT)) {
+		max = virtio_guest_to_host_u32(vq, desc[idx].len) / sizeof(struct vring_desc);
+		desc = guest_flat_to_host(kvm, virtio_guest_to_host_u64(vq, desc[idx].addr));
 		idx = 0;
 	}
 
 	do {
 		/* Grab the first descriptor, and check it's OK. */
-		iov[*out + *in].iov_len = desc[idx].len;
-		iov[*out + *in].iov_base = guest_flat_to_host(kvm, desc[idx].addr);
+		iov[*out + *in].iov_len = virtio_guest_to_host_u32(vq, desc[idx].len);
+		iov[*out + *in].iov_base = guest_flat_to_host(kvm,
+							      virtio_guest_to_host_u64(vq, desc[idx].addr));
 		/* If this is an input descriptor, increment that count. */
-		if (desc[idx].flags & VRING_DESC_F_WRITE)
+		if (virt_desc__test_flag(vq, &desc[idx], VRING_DESC_F_WRITE))
 			(*in)++;
 		else
 			(*out)++;
-	} while ((idx = next_desc(desc, idx, max)) != max);
+	} while ((idx = next_desc(vq, desc, idx, max)) != max);
 
 	return head;
 }
@@ -111,20 +120,20 @@ u16 virt_queue__get_inout_iov(struct kvm *kvm, struct virt_queue *queue,
 	idx = head = virt_queue__pop(queue);
 	*out = *in = 0;
 	do {
+		u64 addr;
 		desc = virt_queue__get_desc(queue, idx);
-		if (desc->flags & VRING_DESC_F_WRITE) {
-			in_iov[*in].iov_base = guest_flat_to_host(kvm,
-								  desc->addr);
-			in_iov[*in].iov_len = desc->len;
+		addr = virtio_guest_to_host_u64(queue, desc->addr);
+		if (virt_desc__test_flag(queue, desc, VRING_DESC_F_WRITE)) {
+			in_iov[*in].iov_base = guest_flat_to_host(kvm, addr);
+			in_iov[*in].iov_len = virtio_guest_to_host_u32(queue, desc->len);
 			(*in)++;
 		} else {
-			out_iov[*out].iov_base = guest_flat_to_host(kvm,
-								    desc->addr);
-			out_iov[*out].iov_len = desc->len;
+			out_iov[*out].iov_base = guest_flat_to_host(kvm, addr);
+			out_iov[*out].iov_len = virtio_guest_to_host_u32(queue, desc->len);
 			(*out)++;
 		}
-		if (desc->flags & VRING_DESC_F_NEXT)
-			idx = desc->next;
+		if (virt_desc__test_flag(queue, desc, VRING_DESC_F_NEXT))
+			idx = virtio_guest_to_host_u16(queue, desc->next);
 		else
 			break;
 	} while (1);
@@ -151,8 +160,8 @@ bool virtio_queue__should_signal(struct virt_queue *vq)
 	u16 old_idx, new_idx, event_idx;
 
 	old_idx		= vq->last_used_signalled;
-	new_idx		= vq->vring.used->idx;
-	event_idx	= vring_used_event(&vq->vring);
+	new_idx		= virtio_guest_to_host_u16(vq, vq->vring.used->idx);
+	event_idx	= virtio_guest_to_host_u16(vq, vring_used_event(&vq->vring));
 
 	if (vring_need_event(event_idx, new_idx, old_idx)) {
 		vq->last_used_signalled = new_idx;

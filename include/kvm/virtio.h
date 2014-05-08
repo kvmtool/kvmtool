@@ -1,6 +1,8 @@
 #ifndef KVM__VIRTIO_H
 #define KVM__VIRTIO_H
 
+#include <endian.h>
+
 #include <linux/virtio_ring.h>
 #include <linux/virtio_pci.h>
 
@@ -15,6 +17,10 @@
 #define VIRTIO_PCI_O_CONFIG	0
 #define VIRTIO_PCI_O_MSIX	1
 
+#define VIRTIO_ENDIAN_HOST	0
+#define VIRTIO_ENDIAN_LE	(1 << 0)
+#define VIRTIO_ENDIAN_BE	(1 << 1)
+
 struct virt_queue {
 	struct vring	vring;
 	u32		pfn;
@@ -24,9 +30,71 @@ struct virt_queue {
 	u16		last_used_signalled;
 };
 
+/*
+ * The default policy is not to cope with the guest endianness.
+ * It also helps not breaking archs that do not care about supporting
+ * such a configuration.
+ */
+#ifndef VIRTIO_RING_ENDIAN
+#define VIRTIO_RING_ENDIAN VIRTIO_ENDIAN_HOST
+#endif
+
+#if (VIRTIO_RING_ENDIAN & (VIRTIO_ENDIAN_LE | VIRTIO_ENDIAN_BE))
+
+static inline __u16 __virtio_g2h_u16(u16 endian, __u16 val)
+{
+	return (endian == VIRTIO_ENDIAN_LE) ? le16toh(val) : be16toh(val);
+}
+
+static inline __u16 __virtio_h2g_u16(u16 endian, __u16 val)
+{
+	return (endian == VIRTIO_ENDIAN_LE) ? htole16(val) : htobe16(val);
+}
+
+static inline __u32 __virtio_g2h_u32(u16 endian, __u32 val)
+{
+	return (endian == VIRTIO_ENDIAN_LE) ? le32toh(val) : be32toh(val);
+}
+
+static inline __u32 __virtio_h2g_u32(u16 endian, __u32 val)
+{
+	return (endian == VIRTIO_ENDIAN_LE) ? htole32(val) : htobe32(val);
+}
+
+static inline __u64 __virtio_g2h_u64(u16 endian, __u64 val)
+{
+	return (endian == VIRTIO_ENDIAN_LE) ? le64toh(val) : be64toh(val);
+}
+
+static inline __u64 __virtio_h2g_u64(u16 endian, __u64 val)
+{
+	return (endian == VIRTIO_ENDIAN_LE) ? htole64(val) : htobe64(val);
+}
+
+#define virtio_guest_to_host_u16(x, v)	__virtio_g2h_u16((x)->endian, (v))
+#define virtio_host_to_guest_u16(x, v)	__virtio_h2g_u16((x)->endian, (v))
+#define virtio_guest_to_host_u32(x, v)	__virtio_g2h_u32((x)->endian, (v))
+#define virtio_host_to_guest_u32(x, v)	__virtio_h2g_u32((x)->endian, (v))
+#define virtio_guest_to_host_u64(x, v)	__virtio_g2h_u64((x)->endian, (v))
+#define virtio_host_to_guest_u64(x, v)	__virtio_h2g_u64((x)->endian, (v))
+
+#else
+
+#define virtio_guest_to_host_u16(x, v)	(v)
+#define virtio_host_to_guest_u16(x, v)	(v)
+#define virtio_guest_to_host_u32(x, v)	(v)
+#define virtio_host_to_guest_u32(x, v)	(v)
+#define virtio_guest_to_host_u64(x, v)	(v)
+#define virtio_host_to_guest_u64(x, v)	(v)
+
+#endif
+
 static inline u16 virt_queue__pop(struct virt_queue *queue)
 {
-	return queue->vring.avail->ring[queue->last_avail_idx++ % queue->vring.num];
+	__u16 guest_idx;
+
+	guest_idx = queue->vring.avail->ring[queue->last_avail_idx++ % queue->vring.num];
+	return virtio_guest_to_host_u16(queue, guest_idx);
 }
 
 static inline struct vring_desc *virt_queue__get_desc(struct virt_queue *queue, u16 desc_ndx)
@@ -39,8 +107,8 @@ static inline bool virt_queue__available(struct virt_queue *vq)
 	if (!vq->vring.avail)
 		return 0;
 
-	vring_avail_event(&vq->vring) = vq->last_avail_idx;
-	return vq->vring.avail->idx !=  vq->last_avail_idx;
+	vring_avail_event(&vq->vring) = virtio_host_to_guest_u16(vq, vq->last_avail_idx);
+	return virtio_guest_to_host_u16(vq, vq->vring.avail->idx) != vq->last_avail_idx;
 }
 
 struct vring_used_elem *virt_queue__set_used_elem(struct virt_queue *queue, u32 head, u32 len);
