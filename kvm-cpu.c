@@ -3,6 +3,7 @@
 #include "kvm/symbol.h"
 #include "kvm/util.h"
 #include "kvm/kvm.h"
+#include "kvm/virtio.h"
 
 #include <sys/ioctl.h>
 #include <sys/mman.h>
@@ -13,6 +14,11 @@
 #include <stdio.h>
 
 extern __thread struct kvm_cpu *current_kvm_cpu;
+
+int __attribute__((weak)) kvm_cpu__get_endianness(struct kvm_cpu *vcpu)
+{
+	return VIRTIO_ENDIAN_HOST;
+}
 
 void kvm_cpu__enable_singlestep(struct kvm_cpu *vcpu)
 {

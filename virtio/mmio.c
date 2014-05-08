@@ -4,6 +4,7 @@
 #include "kvm/ioport.h"
 #include "kvm/virtio.h"
 #include "kvm/kvm.h"
+#include "kvm/kvm-cpu.h"
 #include "kvm/irq.h"
 #include "kvm/fdt.h"
 
@@ -159,6 +160,8 @@ static void virtio_mmio_config_out(struct kvm_cpu *vcpu,
 		break;
 	case VIRTIO_MMIO_STATUS:
 		vmmio->hdr.status = ioport__read32(data);
+		if (!vmmio->hdr.status) /* Sample endianness on reset */
+			vdev->endian = kvm_cpu__get_endianness(vcpu);
 		if (vdev->ops->notify_status)
 			vdev->ops->notify_status(kvm, vmmio->dev, vmmio->hdr.status);
 		break;

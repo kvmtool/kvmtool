@@ -132,6 +132,7 @@ struct virtio_device {
 	bool			use_vhost;
 	void			*virtio;
 	struct virtio_ops	*ops;
+	u16			endian;
 };
 
 struct virtio_ops {

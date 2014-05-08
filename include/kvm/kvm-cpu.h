@@ -15,6 +15,7 @@ void kvm_cpu__run(struct kvm_cpu *vcpu);
 void kvm_cpu__reboot(struct kvm *kvm);
 int kvm_cpu__start(struct kvm_cpu *cpu);
 bool kvm_cpu__handle_exit(struct kvm_cpu *vcpu);
+int kvm_cpu__get_endianness(struct kvm_cpu *vcpu);
 
 int kvm_cpu__get_debug_fd(void);
 void kvm_cpu__set_debug_fd(int fd);
