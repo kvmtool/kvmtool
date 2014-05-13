@@ -15,21 +15,6 @@
 #define ARM64_CORE_REG(x)	(KVM_REG_ARM64 | KVM_REG_SIZE_U64 | \
 				 KVM_REG_ARM_CORE | KVM_REG_ARM_CORE_REG(x))
 
-#define ARM64_SYS_REG_SHIFT_MASK(x,n)				\
-	(((x) << KVM_REG_ARM64_SYSREG_ ## n ## _SHIFT) &	\
-	 KVM_REG_ARM64_SYSREG_ ## n ## _MASK)
-
-#define __ARM64_SYS_REG(op0,op1,crn,crm,op2)			\
-	(KVM_REG_ARM64 | KVM_REG_SIZE_U64		|	\
-	 KVM_REG_ARM64_SYSREG				|	\
-	 ARM64_SYS_REG_SHIFT_MASK(op0, OP0)		|	\
-	 ARM64_SYS_REG_SHIFT_MASK(op1, OP1)		|	\
-	 ARM64_SYS_REG_SHIFT_MASK(crn, CRN)		|	\
-	 ARM64_SYS_REG_SHIFT_MASK(crm, CRM)		|	\
-	 ARM64_SYS_REG_SHIFT_MASK(op2, OP2))
-
-#define ARM64_SYS_REG(...)	__ARM64_SYS_REG(__VA_ARGS__)
-
 unsigned long kvm_cpu__get_vcpu_mpidr(struct kvm_cpu *vcpu)
 {
 	struct kvm_one_reg reg;
