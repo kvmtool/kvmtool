@@ -66,7 +66,7 @@ struct kvm_cpu {
 void kvm_cpu__irq(struct kvm_cpu *vcpu, int pin, int level);
 
 /* This is never actually called on PPC. */
-static inline bool kvm_cpu__emulate_io(struct kvm *kvm, u16 port, void *data, int direction, int size, u32 count)
+static inline bool kvm_cpu__emulate_io(struct kvm_cpu *vcpu, u16 port, void *data, int direction, int size, u32 count)
 {
 	return false;
 }

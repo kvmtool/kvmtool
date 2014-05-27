@@ -123,7 +123,7 @@ int kvm_cpu__start(struct kvm_cpu *cpu)
 		case KVM_EXIT_IO: {
 			bool ret;
 
-			ret = kvm_cpu__emulate_io(cpu->kvm,
+			ret = kvm_cpu__emulate_io(cpu,
 						  cpu->kvm_run->io.port,
 						  (u8 *)cpu->kvm_run +
 						  cpu->kvm_run->io.data_offset,

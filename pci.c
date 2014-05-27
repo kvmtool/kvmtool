@@ -54,7 +54,7 @@ static void *pci_config_address_ptr(u16 port)
 	return base + offset;
 }
 
-static bool pci_config_address_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
+static bool pci_config_address_out(struct ioport *ioport, struct kvm_cpu *vcpu, u16 port, void *data, int size)
 {
 	void *p = pci_config_address_ptr(port);
 
@@ -63,7 +63,7 @@ static bool pci_config_address_out(struct ioport *ioport, struct kvm *kvm, u16 p
 	return true;
 }
 
-static bool pci_config_address_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
+static bool pci_config_address_in(struct ioport *ioport, struct kvm_cpu *vcpu, u16 port, void *data, int size)
 {
 	void *p = pci_config_address_ptr(port);
 
@@ -88,7 +88,7 @@ static bool pci_device_exists(u8 bus_number, u8 device_number, u8 function_numbe
 	return !IS_ERR_OR_NULL(device__find_dev(DEVICE_BUS_PCI, device_number));
 }
 
-static bool pci_config_data_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
+static bool pci_config_data_out(struct ioport *ioport, struct kvm_cpu *vcpu, u16 port, void *data, int size)
 {
 	/*
 	 * If someone accesses PCI configuration space offsets that are not
@@ -96,12 +96,12 @@ static bool pci_config_data_out(struct ioport *ioport, struct kvm *kvm, u16 port
 	 */
 	pci_config_address.reg_offset = port - PCI_CONFIG_DATA;
 
-	pci__config_wr(kvm, pci_config_address, data, size);
+	pci__config_wr(vcpu->kvm, pci_config_address, data, size);
 
 	return true;
 }
 
-static bool pci_config_data_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
+static bool pci_config_data_in(struct ioport *ioport, struct kvm_cpu *vcpu, u16 port, void *data, int size)
 {
 	/*
 	 * If someone accesses PCI configuration space offsets that are not
@@ -109,7 +109,7 @@ static bool pci_config_data_in(struct ioport *ioport, struct kvm *kvm, u16 port,
 	 */
 	pci_config_address.reg_offset = port - PCI_CONFIG_DATA;
 
-	pci__config_rd(kvm, pci_config_address, data, size);
+	pci__config_rd(vcpu->kvm, pci_config_address, data, size);
 
 	return true;
 }

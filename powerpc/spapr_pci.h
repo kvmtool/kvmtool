@@ -41,7 +41,7 @@ static inline bool spapr_phb_mmio(struct kvm_cpu *vcpu, u64 phys_addr, u8 *data,
 	if ((phys_addr >= SPAPR_PCI_IO_WIN_ADDR) &&
 	    (phys_addr < SPAPR_PCI_IO_WIN_ADDR +
 	     SPAPR_PCI_IO_WIN_SIZE)) {
-		return kvm__emulate_io(vcpu->kvm, phys_addr - SPAPR_PCI_IO_WIN_ADDR,
+		return kvm__emulate_io(vcpu, phys_addr - SPAPR_PCI_IO_WIN_ADDR,
 				       data, is_write ? KVM_EXIT_IO_OUT :
 				       KVM_EXIT_IO_IN,
 				       len, 1);

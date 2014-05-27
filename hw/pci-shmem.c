@@ -63,7 +63,7 @@ int pci_shmem__register_mem(struct shmem_info *si)
 	return 0;
 }
 
-static bool shmem_pci__io_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
+static bool shmem_pci__io_in(struct ioport *ioport, struct kvm_cpu *vcpu, u16 port, void *data, int size)
 {
 	u16 offset = port - ivshmem_registers;
 
@@ -82,7 +82,7 @@ static bool shmem_pci__io_in(struct ioport *ioport, struct kvm *kvm, u16 port, v
 	return true;
 }
 
-static bool shmem_pci__io_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
+static bool shmem_pci__io_out(struct ioport *ioport, struct kvm_cpu *vcpu, u16 port, void *data, int size)
 {
 	u16 offset = port - ivshmem_registers;
 

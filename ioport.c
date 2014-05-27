@@ -172,12 +172,13 @@ static void ioport_error(u16 port, void *data, int direction, int size, u32 coun
 	fprintf(stderr, "IO error: %s port=%x, size=%d, count=%u\n", to_direction(direction), port, size, count);
 }
 
-bool kvm__emulate_io(struct kvm *kvm, u16 port, void *data, int direction, int size, u32 count)
+bool kvm__emulate_io(struct kvm_cpu *vcpu, u16 port, void *data, int direction, int size, u32 count)
 {
 	struct ioport_operations *ops;
 	bool ret = false;
 	struct ioport *entry;
 	void *ptr = data;
+	struct kvm *kvm = vcpu->kvm;
 
 	br_read_lock();
 	entry = ioport_search(&ioport_tree, port);
@@ -188,9 +189,9 @@ bool kvm__emulate_io(struct kvm *kvm, u16 port, void *data, int direction, int s
 
 	while (count--) {
 		if (direction == KVM_EXIT_IO_IN && ops->io_in)
-				ret = ops->io_in(entry, kvm, port, ptr, size);
+				ret = ops->io_in(entry, vcpu, port, ptr, size);
 		else if (ops->io_out)
-				ret = ops->io_out(entry, kvm, port, ptr, size);
+				ret = ops->io_out(entry, vcpu, port, ptr, size);
 
 		ptr += size;
 	}

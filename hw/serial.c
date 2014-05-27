@@ -218,7 +218,7 @@ void serial8250__inject_sysrq(struct kvm *kvm, char sysrq)
 	sysrq_pending = sysrq;
 }
 
-static bool serial8250_out(struct ioport *ioport, struct kvm *kvm, u16 port,
+static bool serial8250_out(struct ioport *ioport, struct kvm_cpu *vcpu, u16 port,
 			   void *data, int size)
 {
 	struct serial8250_device *dev = ioport->priv;
@@ -251,7 +251,7 @@ static bool serial8250_out(struct ioport *ioport, struct kvm *kvm, u16 port,
 			dev->lsr &= ~UART_LSR_TEMT;
 			if (dev->txcnt == FIFO_LEN / 2)
 				dev->lsr &= ~UART_LSR_THRE;
-			serial8250_flush_tx(kvm, dev);
+			serial8250_flush_tx(vcpu->kvm, dev);
 		} else {
 			/* Should never happpen */
 			dev->lsr &= ~(UART_LSR_TEMT | UART_LSR_THRE);
@@ -286,7 +286,7 @@ static bool serial8250_out(struct ioport *ioport, struct kvm *kvm, u16 port,
 		break;
 	}
 
-	serial8250_update_irq(kvm, dev);
+	serial8250_update_irq(vcpu->kvm, dev);
 
 	mutex_unlock(&dev->mutex);
 
@@ -312,7 +312,7 @@ static void serial8250_rx(struct serial8250_device *dev, void *data)
 	}
 }
 
-static bool serial8250_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
+static bool serial8250_in(struct ioport *ioport, struct kvm_cpu *vcpu, u16 port, void *data, int size)
 {
 	struct serial8250_device *dev = ioport->priv;
 	u16 offset;
@@ -358,7 +358,7 @@ static bool serial8250_in(struct ioport *ioport, struct kvm *kvm, u16 port, void
 		break;
 	}
 
-	serial8250_update_irq(kvm, dev);
+	serial8250_update_irq(vcpu->kvm, dev);
 
 	mutex_unlock(&dev->mutex);
 

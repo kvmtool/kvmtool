@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-static bool debug_io_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
+static bool debug_io_out(struct ioport *ioport, struct kvm_cpu *vcpu, u16 port, void *data, int size)
 {
 	return 0;
 }
@@ -12,7 +12,7 @@ static struct ioport_operations debug_ops = {
 	.io_out		= debug_io_out,
 };
 
-static bool seabios_debug_io_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
+static bool seabios_debug_io_out(struct ioport *ioport, struct kvm_cpu *vcpu, u16 port, void *data, int size)
 {
 	char ch;
 
@@ -27,12 +27,12 @@ static struct ioport_operations seabios_debug_ops = {
 	.io_out		= seabios_debug_io_out,
 };
 
-static bool dummy_io_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
+static bool dummy_io_in(struct ioport *ioport, struct kvm_cpu *vcpu, u16 port, void *data, int size)
 {
 	return true;
 }
 
-static bool dummy_io_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
+static bool dummy_io_out(struct ioport *ioport, struct kvm_cpu *vcpu, u16 port, void *data, int size)
 {
 	return true;
 }
@@ -50,7 +50,7 @@ static struct ioport_operations dummy_write_only_ioport_ops = {
  * The "fast A20 gate"
  */
 
-static bool ps2_control_a_io_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
+static bool ps2_control_a_io_in(struct ioport *ioport, struct kvm_cpu *vcpu, u16 port, void *data, int size)
 {
 	/*
 	 * A20 is always enabled.

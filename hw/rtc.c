@@ -37,7 +37,7 @@ static inline unsigned char bin2bcd(unsigned val)
 	return ((val / 10) << 4) + val % 10;
 }
 
-static bool cmos_ram_data_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
+static bool cmos_ram_data_in(struct ioport *ioport, struct kvm_cpu *vcpu, u16 port, void *data, int size)
 {
 	struct tm *tm;
 	time_t ti;
@@ -91,7 +91,7 @@ static bool cmos_ram_data_in(struct ioport *ioport, struct kvm *kvm, u16 port, v
 	return true;
 }
 
-static bool cmos_ram_data_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
+static bool cmos_ram_data_out(struct ioport *ioport, struct kvm_cpu *vcpu, u16 port, void *data, int size)
 {
 	switch (rtc.cmos_idx) {
 	case RTC_REG_C:
@@ -111,11 +111,11 @@ static struct ioport_operations cmos_ram_data_ioport_ops = {
 	.io_in		= cmos_ram_data_in,
 };
 
-static bool cmos_ram_index_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
+static bool cmos_ram_index_out(struct ioport *ioport, struct kvm_cpu *vcpu, u16 port, void *data, int size)
 {
 	u8 value = ioport__read8(data);
 
-	kvm->nmi_disabled	= value & (1UL << 7);
+	vcpu->kvm->nmi_disabled	= value & (1UL << 7);
 	rtc.cmos_idx		= value & ~(1UL << 7);
 
 	return true;

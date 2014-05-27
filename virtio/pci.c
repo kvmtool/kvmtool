@@ -2,6 +2,7 @@
 
 #include "kvm/ioport.h"
 #include "kvm/kvm.h"
+#include "kvm/kvm-cpu.h"
 #include "kvm/virtio-pci-dev.h"
 #include "kvm/irq.h"
 #include "kvm/virtio.h"
@@ -108,14 +109,16 @@ static bool virtio_pci__specific_io_in(struct kvm *kvm, struct virtio_device *vd
 	return false;
 }
 
-static bool virtio_pci__io_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
+static bool virtio_pci__io_in(struct ioport *ioport, struct kvm_cpu *vcpu, u16 port, void *data, int size)
 {
 	unsigned long offset;
 	bool ret = true;
 	struct virtio_device *vdev;
 	struct virtio_pci *vpci;
+	struct kvm *kvm;
 	u32 val;
 
+	kvm = vcpu->kvm;
 	vdev = ioport->priv;
 	vpci = vdev->virtio;
 	offset = port - vpci->port_addr;
@@ -191,14 +194,16 @@ static bool virtio_pci__specific_io_out(struct kvm *kvm, struct virtio_device *v
 	return false;
 }
 
-static bool virtio_pci__io_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
+static bool virtio_pci__io_out(struct ioport *ioport, struct kvm_cpu *vcpu, u16 port, void *data, int size)
 {
 	unsigned long offset;
 	bool ret = true;
 	struct virtio_device *vdev;
 	struct virtio_pci *vpci;
+	struct kvm *kvm;
 	u32 val;
 
+	kvm = vcpu->kvm;
 	vdev = ioport->priv;
 	vpci = vdev->virtio;
 	offset = port - vpci->port_addr;
@@ -224,6 +229,8 @@ static bool virtio_pci__io_out(struct ioport *ioport, struct kvm *kvm, u16 port,
 		break;
 	case VIRTIO_PCI_STATUS:
 		vpci->status = ioport__read8(data);
+		if (!vpci->status) /* Sample endianness on reset */
+			vdev->endian = kvm_cpu__get_endianness(vcpu);
 		if (vdev->ops->notify_status)
 			vdev->ops->notify_status(kvm, vpci->dev, vpci->status);
 		break;
@@ -330,7 +337,7 @@ static void virtio_pci__io_mmio_callback(struct kvm_cpu *vcpu,
 	int direction = is_write ? KVM_EXIT_IO_OUT : KVM_EXIT_IO_IN;
 	u16 port = vpci->port_addr + (addr & (IOPORT_SIZE - 1));
 
-	kvm__emulate_io(vpci->kvm, port, data, direction, len, 1);
+	kvm__emulate_io(vcpu, port, data, direction, len, 1);
 }
 
 int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
