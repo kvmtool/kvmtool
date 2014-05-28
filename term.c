@@ -52,11 +52,14 @@ int term_getc(struct kvm *kvm, int term)
 int term_putc(char *addr, int cnt, int term)
 {
 	int ret;
+	int num_remaining = cnt;
 
-	while (cnt--) {
-		ret = write(term_fds[term][TERM_FD_OUT], addr++, 1);
+	while (num_remaining) {
+		ret = write(term_fds[term][TERM_FD_OUT], addr, num_remaining);
 		if (ret < 0)
 			return 0;
+		num_remaining -= ret;
+		addr += ret;
 	}
 
 	return cnt;
