@@ -385,9 +385,9 @@ int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 							| PCI_BASE_ADDRESS_SPACE_MEMORY),
 		.status			= cpu_to_le16(PCI_STATUS_CAP_LIST),
 		.capabilities		= (void *)&vpci->pci_hdr.msix - (void *)&vpci->pci_hdr,
-		.bar_size[0]		= IOPORT_SIZE,
-		.bar_size[1]		= IOPORT_SIZE,
-		.bar_size[2]		= PCI_IO_SIZE * 2,
+		.bar_size[0]		= cpu_to_le32(IOPORT_SIZE),
+		.bar_size[1]		= cpu_to_le32(IOPORT_SIZE),
+		.bar_size[2]		= cpu_to_le32(PCI_IO_SIZE*2),
 	};
 
 	vpci->dev_hdr = (struct device_header) {

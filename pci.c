@@ -10,7 +10,7 @@
 
 #define PCI_BAR_OFFSET(b)		(offsetof(struct pci_device_header, bar[b]))
 
-static union pci_config_address		pci_config_address;
+static u32 pci_config_address_bits;
 
 /* This is within our PCI gap - in an unused area.
  * Note this is a PCI *bus address*, is used to assign BARs etc.!
@@ -49,7 +49,7 @@ static void *pci_config_address_ptr(u16 port)
 	void *base;
 
 	offset	= port - PCI_CONFIG_ADDRESS;
-	base	= &pci_config_address;
+	base	= &pci_config_address_bits;
 
 	return base + offset;
 }
@@ -79,6 +79,10 @@ static struct ioport_operations pci_config_address_ops = {
 
 static bool pci_device_exists(u8 bus_number, u8 device_number, u8 function_number)
 {
+	union pci_config_address pci_config_address;
+
+	pci_config_address.w = ioport__read32(&pci_config_address_bits);
+
 	if (pci_config_address.bus_number != bus_number)
 		return false;
 
@@ -90,6 +94,9 @@ static bool pci_device_exists(u8 bus_number, u8 device_number, u8 function_numbe
 
 static bool pci_config_data_out(struct ioport *ioport, struct kvm_cpu *vcpu, u16 port, void *data, int size)
 {
+	union pci_config_address pci_config_address;
+
+	pci_config_address.w = ioport__read32(&pci_config_address_bits);
 	/*
 	 * If someone accesses PCI configuration space offsets that are not
 	 * aligned to 4 bytes, it uses ioports to signify that.
@@ -103,6 +110,9 @@ static bool pci_config_data_out(struct ioport *ioport, struct kvm_cpu *vcpu, u16
 
 static bool pci_config_data_in(struct ioport *ioport, struct kvm_cpu *vcpu, u16 port, void *data, int size)
 {
+	union pci_config_address pci_config_address;
+
+	pci_config_address.w = ioport__read32(&pci_config_address_bits);
 	/*
 	 * If someone accesses PCI configuration space offsets that are not
 	 * aligned to 4 bytes, it uses ioports to signify that.
@@ -133,7 +143,7 @@ void pci__config_wr(struct kvm *kvm, union pci_config_address addr, void *data, 
 			void *p = device__find_dev(DEVICE_BUS_PCI, dev_num)->data;
 			struct pci_device_header *hdr = p;
 			u8 bar = (offset - PCI_BAR_OFFSET(0)) / (sizeof(u32));
-			u32 sz = PCI_IO_SIZE;
+			u32 sz = cpu_to_le32(PCI_IO_SIZE);
 
 			if (bar < 6 && hdr->bar_size[bar])
 				sz = hdr->bar_size[bar];
