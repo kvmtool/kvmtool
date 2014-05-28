@@ -349,6 +349,12 @@ static bool initrd_check(int fd)
 		!memcmp(id, CPIO_MAGIC, 4);
 }
 
+int __attribute__((__weak__)) load_elf_binary(struct kvm *kvm, int fd_kernel,
+				int fd_initrd, const char *kernel_cmdline)
+{
+	return false;
+}
+
 bool kvm__load_kernel(struct kvm *kvm, const char *kernel_filename,
 		const char *initrd_filename, const char *kernel_cmdline)
 {
@@ -374,6 +380,11 @@ bool kvm__load_kernel(struct kvm *kvm, const char *kernel_filename,
 		goto found_kernel;
 
 	pr_warning("%s is not a bzImage. Trying to load it as a flat binary...", kernel_filename);
+
+	ret = load_elf_binary(kvm, fd_kernel, fd_initrd, kernel_cmdline);
+
+	if (ret)
+		goto found_kernel;
 
 	ret = load_flat_binary(kvm, fd_kernel, fd_initrd, kernel_cmdline);
 
