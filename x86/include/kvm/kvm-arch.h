@@ -27,6 +27,8 @@
 
 #define KVM_IRQ_OFFSET		5
 
+#define KVM_VM_TYPE		0
+
 #define VIRTIO_DEFAULT_TRANS(kvm)	VIRTIO_PCI
 
 struct kvm_arch {

@@ -32,6 +32,8 @@
 
 #define KVM_IRQ_OFFSET		GIC_SPI_IRQ_BASE
 
+#define KVM_VM_TYPE		0
+
 #define VIRTIO_DEFAULT_TRANS(kvm)	\
 	((kvm)->cfg.arch.virtio_trans_pci ? VIRTIO_PCI : VIRTIO_MMIO)
 

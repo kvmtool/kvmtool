@@ -17,6 +17,11 @@
 
 #define KVM_IRQ_OFFSET		1
 
+/*
+ * MIPS-VZ (trap and emulate is 0)
+ */
+#define KVM_VM_TYPE		1
+
 #define VIRTIO_DEFAULT_TRANS(kvm)	VIRTIO_PCI
 
 #include <stdbool.h>
