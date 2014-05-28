@@ -184,8 +184,8 @@ panic_kvm:
 		current_kvm_cpu->kvm_run->exit_reason,
 		kvm_exit_reasons[current_kvm_cpu->kvm_run->exit_reason]);
 	if (current_kvm_cpu->kvm_run->exit_reason == KVM_EXIT_UNKNOWN)
-		fprintf(stderr, "KVM exit code: 0x%Lu\n",
-			current_kvm_cpu->kvm_run->hw.hardware_exit_reason);
+		fprintf(stderr, "KVM exit code: 0x%llu\n",
+			(unsigned long long)current_kvm_cpu->kvm_run->hw.hardware_exit_reason);
 
 	kvm_cpu__set_debug_fd(STDOUT_FILENO);
 	kvm_cpu__show_registers(current_kvm_cpu);
@@ -551,7 +551,9 @@ static struct kvm *kvm_cmd_run_init(int argc, const char **argv)
 		kvm->cfg.ram_size = get_ram_size(kvm->cfg.nrcpus);
 
 	if (kvm->cfg.ram_size > host_ram_size())
-		pr_warning("Guest memory size %lluMB exceeds host physical RAM size %lluMB", kvm->cfg.ram_size, host_ram_size());
+		pr_warning("Guest memory size %lluMB exceeds host physical RAM size %lluMB",
+			(unsigned long long)kvm->cfg.ram_size,
+			(unsigned long long)host_ram_size());
 
 	kvm->cfg.ram_size <<= MB_SHIFT;
 
@@ -639,7 +641,9 @@ static struct kvm *kvm_cmd_run_init(int argc, const char **argv)
 	kvm->cfg.real_cmdline = real_cmdline;
 
 	printf("  # %s run -k %s -m %Lu -c %d --name %s\n", KVM_BINARY_NAME,
-		kvm->cfg.kernel_filename, kvm->cfg.ram_size / 1024 / 1024, kvm->cfg.nrcpus, kvm->cfg.guest_name);
+		kvm->cfg.kernel_filename,
+		(unsigned long long)kvm->cfg.ram_size / 1024 / 1024,
+		kvm->cfg.nrcpus, kvm->cfg.guest_name);
 
 	if (init_list__init(kvm) < 0)
 		die ("Initialisation failed");

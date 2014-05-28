@@ -98,7 +98,7 @@ void *mmap_hugetlbfs(struct kvm *kvm, const char *htlbfs_path, u64 size)
 	blk_size = (unsigned long)sfs.f_bsize;
 	if (sfs.f_bsize == 0 || blk_size > size) {
 		die("Can't use hugetlbfs pagesize %ld for mem size %lld\n",
-		    blk_size, size);
+			blk_size, (unsigned long long)size);
 	}
 
 	kvm->ram_pagesize = blk_size;
@@ -110,7 +110,7 @@ void *mmap_hugetlbfs(struct kvm *kvm, const char *htlbfs_path, u64 size)
 	unlink(mpath);
 	if (ftruncate(fd, size) < 0)
 		die("Can't ftruncate for mem mapping size %lld\n",
-		    size);
+			(unsigned long long)size);
 	addr = mmap(NULL, size, PROT_RW, MAP_PRIVATE, fd, 0);
 	close(fd);
 

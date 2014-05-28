@@ -336,8 +336,9 @@ int shmem_parser(const struct option *opt, const char *arg, int unset)
 		strcpy(handle, default_handle);
 	}
 	if (verbose) {
-		pr_info("shmem: phys_addr = %llx", phys_addr);
-		pr_info("shmem: size      = %llx", size);
+		pr_info("shmem: phys_addr = %llx",
+			(unsigned long long)phys_addr);
+		pr_info("shmem: size      = %llx", (unsigned long long)size);
 		pr_info("shmem: handle    = %s", handle);
 		pr_info("shmem: create    = %d", create);
 	}

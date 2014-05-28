@@ -131,8 +131,9 @@ bool kvm__emulate_mmio(struct kvm_cpu *vcpu, u64 phys_addr, u8 *data, u32 len, u
 		mmio->mmio_fn(vcpu, phys_addr, data, len, is_write, mmio->ptr);
 	else {
 		if (vcpu->kvm->cfg.mmio_debug)
-			fprintf(stderr, "Warning: Ignoring MMIO %s at %016llx (length %u)\n",
-				to_direction(is_write), phys_addr, len);
+			fprintf(stderr,	"Warning: Ignoring MMIO %s at %016llx (length %u)\n",
+				to_direction(is_write),
+				(unsigned long long)phys_addr, len);
 	}
 	br_read_unlock();
 

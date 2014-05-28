@@ -90,7 +90,7 @@ static int do_memstat(const char *name, int sock)
 			printf("The total amount of memory available (in bytes):");
 			break;
 		}
-		printf("%llu\n", stats[i].val);
+		printf("%llu\n", (unsigned long long)stats[i].val);
 	}
 	printf("\n");
 

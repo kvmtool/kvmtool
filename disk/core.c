@@ -327,7 +327,9 @@ ssize_t disk_image__get_serial(struct disk_image *disk, void *buffer, ssize_t *l
 		return r;
 
 	*len = snprintf(buffer, *len, "%llu%llu%llu",
-			(u64)st.st_dev, (u64)st.st_rdev, (u64)st.st_ino);
+			(unsigned long long)st.st_dev,
+			(unsigned long long)st.st_rdev,
+			(unsigned long long)st.st_ino);
 	return *len;
 }
 
