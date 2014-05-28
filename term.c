@@ -57,7 +57,7 @@ int term_putc(char *addr, int cnt, int term)
 	while (num_remaining) {
 		ret = write(term_fds[term][TERM_FD_OUT], addr, num_remaining);
 		if (ret < 0)
-			return 0;
+			return cnt - num_remaining;
 		num_remaining -= ret;
 		addr += ret;
 	}
