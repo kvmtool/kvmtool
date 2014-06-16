@@ -29,9 +29,9 @@ struct kvm_cpu {
  * As these are such simple wrappers, let's have them in the header so they'll
  * be cheaper to call:
  */
-static inline bool kvm_cpu__emulate_io(struct kvm *kvm, u16 port, void *data, int direction, int size, u32 count)
+static inline bool kvm_cpu__emulate_io(struct kvm_cpu *vcpu, u16 port, void *data, int direction, int size, u32 count)
 {
-	return kvm__emulate_io(kvm, port, data, direction, size, count);
+	return kvm__emulate_io(vcpu, port, data, direction, size, count);
 }
 
 static inline bool kvm_cpu__emulate_mmio(struct kvm_cpu *vcpu, u64 phys_addr, u8 *data, u32 len, u8 is_write)
