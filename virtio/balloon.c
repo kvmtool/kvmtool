@@ -64,7 +64,7 @@ static bool virtio_bln_do_io_request(struct kvm *kvm, struct bln_dev *bdev, stru
 	for (i = 0 ; i < len ; i++) {
 		void *guest_ptr;
 
-		guest_ptr = guest_flat_to_host(kvm, ptrs[i] << VIRTIO_BALLOON_PFN_SHIFT);
+		guest_ptr = guest_flat_to_host(kvm, (u64)ptrs[i] << VIRTIO_BALLOON_PFN_SHIFT);
 		if (queue == &bdev->vqs[VIRTIO_BLN_INFLATE]) {
 			madvise(guest_ptr, 1 << VIRTIO_BALLOON_PFN_SHIFT, MADV_DONTNEED);
 			bdev->config.actual++;
