@@ -63,6 +63,11 @@ struct kvm_cpu *kvm_cpu__arch_init(struct kvm *kvm, unsigned long cpu_id)
 	if (vcpu->kvm_run == MAP_FAILED)
 		die("unable to mmap vcpu fd");
 
+	/* Set KVM_ARM_VCPU_PSCI_0_2 if available */
+	if (kvm__supports_extension(kvm, KVM_CAP_ARM_PSCI_0_2)) {
+		vcpu_init.features[0] |= (1UL << KVM_ARM_VCPU_PSCI_0_2);
+	}
+
 	/*
 	 * If the preferred target ioctl is successful then
 	 * use preferred target else try each and every target type

@@ -13,6 +13,7 @@
 #include <linux/byteorder.h>
 #include <linux/kernel.h>
 #include <linux/sizes.h>
+#include <linux/psci.h>
 
 static char kern_cmdline[COMMAND_LINE_SIZE];
 
@@ -84,6 +85,34 @@ static void generate_irq_prop(void *fdt, u8 irq)
 	_FDT(fdt_property(fdt, "interrupts", irq_prop, sizeof(irq_prop)));
 }
 
+struct psci_fns {
+	u32 cpu_suspend;
+	u32 cpu_off;
+	u32 cpu_on;
+	u32 migrate;
+};
+
+static struct psci_fns psci_0_1_fns = {
+	.cpu_suspend = KVM_PSCI_FN_CPU_SUSPEND,
+	.cpu_off = KVM_PSCI_FN_CPU_OFF,
+	.cpu_on = KVM_PSCI_FN_CPU_ON,
+	.migrate = KVM_PSCI_FN_MIGRATE,
+};
+
+static struct psci_fns psci_0_2_aarch32_fns = {
+	.cpu_suspend = PSCI_0_2_FN_CPU_SUSPEND,
+	.cpu_off = PSCI_0_2_FN_CPU_OFF,
+	.cpu_on = PSCI_0_2_FN_CPU_ON,
+	.migrate = PSCI_0_2_FN_MIGRATE,
+};
+
+static struct psci_fns psci_0_2_aarch64_fns = {
+	.cpu_suspend = PSCI_0_2_FN64_CPU_SUSPEND,
+	.cpu_off = PSCI_0_2_FN_CPU_OFF,
+	.cpu_on = PSCI_0_2_FN64_CPU_ON,
+	.migrate = PSCI_0_2_FN64_MIGRATE,
+};
+
 static int setup_fdt(struct kvm *kvm)
 {
 	struct device_header *dev_hdr;
@@ -93,6 +122,7 @@ static int setup_fdt(struct kvm *kvm)
 		cpu_to_fdt64(kvm->arch.memory_guest_start),
 		cpu_to_fdt64(kvm->ram_size),
 	};
+	struct psci_fns *fns;
 	void *fdt		= staging_fdt;
 	void *fdt_dest		= guest_flat_to_host(kvm,
 						     kvm->arch.dtb_guest_start);
@@ -162,12 +192,23 @@ static int setup_fdt(struct kvm *kvm)
 
 	/* PSCI firmware */
 	_FDT(fdt_begin_node(fdt, "psci"));
-	_FDT(fdt_property_string(fdt, "compatible", "arm,psci"));
+	if (kvm__supports_extension(kvm, KVM_CAP_ARM_PSCI_0_2)) {
+		const char compatible[] = "arm,psci-0.2\0arm,psci";
+		_FDT(fdt_property(fdt, "compatible",
+				  compatible, sizeof(compatible)));
+		if (kvm->cfg.arch.aarch32_guest)
+			fns = &psci_0_2_aarch32_fns;
+		else
+			fns = &psci_0_2_aarch64_fns;
+	} else {
+		_FDT(fdt_property_string(fdt, "compatible", "arm,psci"));
+		fns = &psci_0_1_fns;
+	}
 	_FDT(fdt_property_string(fdt, "method", "hvc"));
-	_FDT(fdt_property_cell(fdt, "cpu_suspend", KVM_PSCI_FN_CPU_SUSPEND));
-	_FDT(fdt_property_cell(fdt, "cpu_off", KVM_PSCI_FN_CPU_OFF));
-	_FDT(fdt_property_cell(fdt, "cpu_on", KVM_PSCI_FN_CPU_ON));
-	_FDT(fdt_property_cell(fdt, "migrate", KVM_PSCI_FN_MIGRATE));
+	_FDT(fdt_property_cell(fdt, "cpu_suspend", fns->cpu_suspend));
+	_FDT(fdt_property_cell(fdt, "cpu_off", fns->cpu_off));
+	_FDT(fdt_property_cell(fdt, "cpu_on", fns->cpu_on));
+	_FDT(fdt_property_cell(fdt, "migrate", fns->migrate));
 	_FDT(fdt_end_node(fdt));
 
 	/* Finalise. */
