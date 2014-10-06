@@ -46,12 +46,24 @@ static struct kvm_arm_target target_cortex_a57 = {
 	.init		= arm_cpu__vcpu_init,
 };
 
+/*
+ * We really don't need to register a target for every
+ * new CPU. The target for Potenza CPU is only registered
+ * to enable compatibility with older host kernels.
+ */
+static struct kvm_arm_target target_potenza = {
+	.id		= KVM_ARM_TARGET_XGENE_POTENZA,
+	.compatible	= "arm,arm-v8",
+	.init		= arm_cpu__vcpu_init,
+};
+
 static int arm_cpu__core_init(struct kvm *kvm)
 {
 	kvm_cpu__set_kvm_arm_generic_target(&target_generic_v8);
 
 	return (kvm_cpu__register_kvm_arm_target(&target_aem_v8) ||
 		kvm_cpu__register_kvm_arm_target(&target_foundation_v8) ||
-		kvm_cpu__register_kvm_arm_target(&target_cortex_a57));
+		kvm_cpu__register_kvm_arm_target(&target_cortex_a57) ||
+		kvm_cpu__register_kvm_arm_target(&target_potenza));
 }
 core_init(arm_cpu__core_init);
