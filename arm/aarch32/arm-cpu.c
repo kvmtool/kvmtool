@@ -22,6 +22,12 @@ static int arm_cpu__vcpu_init(struct kvm_cpu *vcpu)
 	return 0;
 }
 
+static struct kvm_arm_target target_generic_v7 = {
+	.id		= UINT_MAX,
+	.compatible	= "arm,arm-v7",
+	.init		= arm_cpu__vcpu_init,
+};
+
 static struct kvm_arm_target target_cortex_a15 = {
 	.id		= KVM_ARM_TARGET_CORTEX_A15,
 	.compatible	= "arm,cortex-a15",
@@ -36,6 +42,8 @@ static struct kvm_arm_target target_cortex_a7 = {
 
 static int arm_cpu__core_init(struct kvm *kvm)
 {
+	kvm_cpu__set_kvm_arm_generic_target(&target_generic_v7);
+
 	return (kvm_cpu__register_kvm_arm_target(&target_cortex_a15) ||
 		kvm_cpu__register_kvm_arm_target(&target_cortex_a7));
 }

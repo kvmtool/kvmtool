@@ -34,6 +34,8 @@ struct kvm_arm_target {
 	int		(*init)(struct kvm_cpu *vcpu);
 };
 
+void kvm_cpu__set_kvm_arm_generic_target(struct kvm_arm_target *target);
+
 int kvm_cpu__register_kvm_arm_target(struct kvm_arm_target *target);
 
 static inline bool kvm_cpu__emulate_io(struct kvm_cpu *vcpu, u16 port, void *data,

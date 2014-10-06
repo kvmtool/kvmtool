@@ -13,7 +13,14 @@ int kvm_cpu__get_debug_fd(void)
 	return debug_fd;
 }
 
+static struct kvm_arm_target *kvm_arm_generic_target;
 static struct kvm_arm_target *kvm_arm_targets[KVM_ARM_NUM_TARGETS];
+
+void kvm_cpu__set_kvm_arm_generic_target(struct kvm_arm_target *target)
+{
+	kvm_arm_generic_target = target;
+}
+
 int kvm_cpu__register_kvm_arm_target(struct kvm_arm_target *target)
 {
 	unsigned int i = 0;
@@ -34,6 +41,7 @@ struct kvm_cpu *kvm_cpu__arch_init(struct kvm *kvm, unsigned long cpu_id)
 	struct kvm_cpu *vcpu;
 	int coalesced_offset, mmap_size, err = -1;
 	unsigned int i;
+	struct kvm_vcpu_init preferred_init;
 	struct kvm_vcpu_init vcpu_init = {
 		.features = ARM_VCPU_FEATURE_FLAGS(kvm, cpu_id)
 	};
@@ -55,19 +63,46 @@ struct kvm_cpu *kvm_cpu__arch_init(struct kvm *kvm, unsigned long cpu_id)
 	if (vcpu->kvm_run == MAP_FAILED)
 		die("unable to mmap vcpu fd");
 
-	/* Find an appropriate target CPU type. */
-	for (i = 0; i < ARRAY_SIZE(kvm_arm_targets); ++i) {
-		if (!kvm_arm_targets[i])
-			continue;
-		target = kvm_arm_targets[i];
-		vcpu_init.target = target->id;
+	/*
+	 * If the preferred target ioctl is successful then
+	 * use preferred target else try each and every target type
+	 */
+	err = ioctl(kvm->vm_fd, KVM_ARM_PREFERRED_TARGET, &preferred_init);
+	if (!err) {
+		/* Match preferred target CPU type. */
+		target = NULL;
+		for (i = 0; i < ARRAY_SIZE(kvm_arm_targets); ++i) {
+			if (!kvm_arm_targets[i])
+				continue;
+			if (kvm_arm_targets[i]->id == preferred_init.target) {
+				target = kvm_arm_targets[i];
+				break;
+			}
+		}
+		if (!target) {
+			target = kvm_arm_generic_target;
+			vcpu_init.target = preferred_init.target;
+		} else {
+			vcpu_init.target = target->id;
+		}
 		err = ioctl(vcpu->vcpu_fd, KVM_ARM_VCPU_INIT, &vcpu_init);
-		if (!err)
-			break;
+	} else {
+		/* Find an appropriate target CPU type. */
+		for (i = 0; i < ARRAY_SIZE(kvm_arm_targets); ++i) {
+			if (!kvm_arm_targets[i])
+				continue;
+			target = kvm_arm_targets[i];
+			vcpu_init.target = target->id;
+			err = ioctl(vcpu->vcpu_fd, KVM_ARM_VCPU_INIT, &vcpu_init);
+			if (!err)
+				break;
+		}
+		if (err)
+			die("Unable to find matching target");
 	}
 
 	if (err || target->init(vcpu))
-		die("Unable to initialise ARM vcpu");
+		die("Unable to initialise vcpu");
 
 	coalesced_offset = ioctl(kvm->sys_fd, KVM_CHECK_EXTENSION,
 				 KVM_CAP_COALESCED_MMIO);
@@ -78,9 +113,10 @@ struct kvm_cpu *kvm_cpu__arch_init(struct kvm *kvm, unsigned long cpu_id)
 	/* Populate the vcpu structure. */
 	vcpu->kvm		= kvm;
 	vcpu->cpu_id		= cpu_id;
-	vcpu->cpu_type		= target->id;
+	vcpu->cpu_type		= vcpu_init.target;
 	vcpu->cpu_compatible	= target->compatible;
 	vcpu->is_running	= true;
+
 	return vcpu;
 }
 

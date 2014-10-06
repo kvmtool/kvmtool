@@ -16,12 +16,17 @@ static void generate_fdt_nodes(void *fdt, struct kvm *kvm, u32 gic_phandle)
 	timer__generate_fdt_nodes(fdt, kvm, timer_interrupts);
 }
 
-
 static int arm_cpu__vcpu_init(struct kvm_cpu *vcpu)
 {
 	vcpu->generate_fdt_nodes = generate_fdt_nodes;
 	return 0;
 }
+
+static struct kvm_arm_target target_generic_v8 = {
+	.id		= UINT_MAX,
+	.compatible	= "arm,arm-v8",
+	.init		= arm_cpu__vcpu_init,
+};
 
 static struct kvm_arm_target target_aem_v8 = {
 	.id		= KVM_ARM_TARGET_AEM_V8,
@@ -43,6 +48,8 @@ static struct kvm_arm_target target_cortex_a57 = {
 
 static int arm_cpu__core_init(struct kvm *kvm)
 {
+	kvm_cpu__set_kvm_arm_generic_target(&target_generic_v8);
+
 	return (kvm_cpu__register_kvm_arm_target(&target_aem_v8) ||
 		kvm_cpu__register_kvm_arm_target(&target_foundation_v8) ||
 		kvm_cpu__register_kvm_arm_target(&target_cortex_a57));
