@@ -160,6 +160,22 @@ int kvm_cpu__start(struct kvm_cpu *cpu)
 			goto exit_kvm;
 		case KVM_EXIT_SHUTDOWN:
 			goto exit_kvm;
+		case KVM_EXIT_SYSTEM_EVENT:
+			/*
+			 * Print the type of system event and
+			 * treat all system events as shutdown request.
+			 */
+			switch (cpu->kvm_run->system_event.type) {
+			case KVM_SYSTEM_EVENT_RESET:
+				/* Fall through for now */
+			case KVM_SYSTEM_EVENT_SHUTDOWN:
+				goto exit_kvm;
+			default:
+				pr_warning("unknown system event type %d",
+					   cpu->kvm_run->system_event.type);
+				goto exit_kvm;
+			};
+			break;
 		default: {
 			bool ret;
 
