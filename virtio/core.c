@@ -12,6 +12,15 @@
 #include "kvm/kvm.h"
 
 
+const char* virtio_trans_name(enum virtio_trans trans)
+{
+	if (trans == VIRTIO_PCI)
+		return "pci";
+	else if (trans == VIRTIO_MMIO)
+		return "mmio";
+	return "unknown";
+}
+
 struct vring_used_elem *virt_queue__set_used_elem(struct virt_queue *queue, u32 head, u32 len)
 {
 	struct vring_used_elem *used_elem;

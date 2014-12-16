@@ -758,6 +758,7 @@ static int virtio_net__init_one(struct virtio_net_params *params)
 	int i, err;
 	struct net_dev *ndev;
 	struct virtio_ops *ops;
+	enum virtio_trans trans = VIRTIO_DEFAULT_TRANS(params->kvm);
 
 	ndev = calloc(1, sizeof(struct net_dev));
 	if (ndev == NULL)
@@ -799,12 +800,20 @@ static int virtio_net__init_one(struct virtio_net_params *params)
 	}
 
 	*ops = net_dev_virtio_ops;
-	if (params->trans && strcmp(params->trans, "mmio") == 0)
-		virtio_init(params->kvm, ndev, &ndev->vdev, ops, VIRTIO_MMIO,
-			    PCI_DEVICE_ID_VIRTIO_NET, VIRTIO_ID_NET, PCI_CLASS_NET);
-	else
-		virtio_init(params->kvm, ndev, &ndev->vdev, ops, VIRTIO_PCI,
-			    PCI_DEVICE_ID_VIRTIO_NET, VIRTIO_ID_NET, PCI_CLASS_NET);
+
+	if (params->trans) {
+		if (strcmp(params->trans, "mmio") == 0)
+			trans = VIRTIO_MMIO;
+		else if (strcmp(params->trans, "pci") == 0)
+			trans = VIRTIO_PCI;
+		else
+			pr_warning("virtio-net: Unknown transport method : %s, "
+				   "falling back to %s.", params->trans,
+				   virtio_trans_name(trans));
+	}
+
+	virtio_init(params->kvm, ndev, &ndev->vdev, ops, trans,
+		    PCI_DEVICE_ID_VIRTIO_NET, VIRTIO_ID_NET, PCI_CLASS_NET);
 
 	if (params->vhost)
 		virtio_net__vhost_init(params->kvm, ndev);

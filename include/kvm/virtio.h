@@ -160,6 +160,7 @@ int virtio_init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 		struct virtio_ops *ops, enum virtio_trans trans,
 		int device_id, int subsys_id, int class);
 int virtio_compat_add_message(const char *device, const char *config);
+const char* virtio_trans_name(enum virtio_trans trans);
 
 static inline void *virtio_get_vq(struct kvm *kvm, u32 pfn, u32 page_size)
 {
