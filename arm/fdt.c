@@ -149,8 +149,8 @@ static int setup_fdt(struct kvm *kvm)
 
 	/* Initrd */
 	if (kvm->arch.initrd_size != 0) {
-		u32 ird_st_prop = cpu_to_fdt64(kvm->arch.initrd_guest_start);
-		u32 ird_end_prop = cpu_to_fdt64(kvm->arch.initrd_guest_start +
+		u64 ird_st_prop = cpu_to_fdt64(kvm->arch.initrd_guest_start);
+		u64 ird_end_prop = cpu_to_fdt64(kvm->arch.initrd_guest_start +
 					       kvm->arch.initrd_size);
 
 		_FDT(fdt_property(fdt, "linux,initrd-start",
