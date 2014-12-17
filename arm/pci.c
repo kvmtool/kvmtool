@@ -87,7 +87,7 @@ void pci__generate_fdt_nodes(void *fdt, u32 gic_phandle)
 			.gic_irq = {
 				.type	= cpu_to_fdt32(GIC_FDT_IRQ_TYPE_SPI),
 				.num	= cpu_to_fdt32(irq - GIC_SPI_IRQ_BASE),
-				.flags	= cpu_to_fdt32(GIC_FDT_IRQ_FLAGS_EDGE_LO_HI),
+				.flags	= cpu_to_fdt32(IRQ_TYPE_EDGE_RISING),
 			},
 		};
 

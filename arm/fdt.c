@@ -79,7 +79,7 @@ static void generate_irq_prop(void *fdt, u8 irq)
 	u32 irq_prop[] = {
 		cpu_to_fdt32(GIC_FDT_IRQ_TYPE_SPI),
 		cpu_to_fdt32(irq - GIC_SPI_IRQ_BASE),
-		cpu_to_fdt32(GIC_FDT_IRQ_FLAGS_EDGE_LO_HI),
+		cpu_to_fdt32(IRQ_TYPE_EDGE_RISING),
 	};
 
 	_FDT(fdt_property(fdt, "interrupts", irq_prop, sizeof(irq_prop)));

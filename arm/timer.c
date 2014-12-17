@@ -15,19 +15,19 @@ void timer__generate_fdt_nodes(void *fdt, struct kvm *kvm, int *irqs)
 	u32 irq_prop[] = {
 		cpu_to_fdt32(GIC_FDT_IRQ_TYPE_PPI),
 		cpu_to_fdt32(irqs[0]),
-		cpu_to_fdt32(cpu_mask | GIC_FDT_IRQ_FLAGS_EDGE_LO_HI),
+		cpu_to_fdt32(cpu_mask | IRQ_TYPE_EDGE_RISING),
 
 		cpu_to_fdt32(GIC_FDT_IRQ_TYPE_PPI),
 		cpu_to_fdt32(irqs[1]),
-		cpu_to_fdt32(cpu_mask | GIC_FDT_IRQ_FLAGS_EDGE_LO_HI),
+		cpu_to_fdt32(cpu_mask | IRQ_TYPE_EDGE_RISING),
 
 		cpu_to_fdt32(GIC_FDT_IRQ_TYPE_PPI),
 		cpu_to_fdt32(irqs[2]),
-		cpu_to_fdt32(cpu_mask | GIC_FDT_IRQ_FLAGS_EDGE_LO_HI),
+		cpu_to_fdt32(cpu_mask | IRQ_TYPE_EDGE_RISING),
 
 		cpu_to_fdt32(GIC_FDT_IRQ_TYPE_PPI),
 		cpu_to_fdt32(irqs[3]),
-		cpu_to_fdt32(cpu_mask | GIC_FDT_IRQ_FLAGS_EDGE_LO_HI),
+		cpu_to_fdt32(cpu_mask | IRQ_TYPE_EDGE_RISING),
 	};
 
 	_FDT(fdt_begin_node(fdt, "timer"));
