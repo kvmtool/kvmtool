@@ -380,12 +380,14 @@ bool kvm__load_kernel(struct kvm *kvm, const char *kernel_filename,
 			die("%s is not an initrd", initrd_filename);
 	}
 
+#ifdef CONFIG_X86
 	ret = load_bzimage(kvm, fd_kernel, fd_initrd, kernel_cmdline);
 
 	if (ret)
 		goto found_kernel;
 
 	pr_warning("%s is not a bzImage. Trying to load it as a flat binary...", kernel_filename);
+#endif
 
 	ret = load_elf_binary(kvm, fd_kernel, fd_initrd, kernel_cmdline);
 
