@@ -4,6 +4,7 @@
 #include "kvm/devices.h"
 #include "kvm/kvm-cpu.h"
 #include "kvm/rbtree-interval.h"
+#include "kvm/fdt.h"
 
 #include <stdbool.h>
 #include <limits.h>
@@ -31,7 +32,9 @@ struct ioport_operations {
 	bool (*io_in)(struct ioport *ioport, struct kvm_cpu *vcpu, u16 port, void *data, int size);
 	bool (*io_out)(struct ioport *ioport, struct kvm_cpu *vcpu, u16 port, void *data, int size);
 	void (*generate_fdt_node)(struct ioport *ioport, void *fdt,
-				  void (*generate_irq_prop)(void *fdt, u8 irq));
+				  void (*generate_irq_prop)(void *fdt,
+							    u8 irq,
+							    enum irq_type));
 };
 
 void ioport__setup_arch(struct kvm *kvm);

@@ -74,12 +74,12 @@ static void generate_cpu_nodes(void *fdt, struct kvm *kvm)
 	_FDT(fdt_end_node(fdt));
 }
 
-static void generate_irq_prop(void *fdt, u8 irq)
+static void generate_irq_prop(void *fdt, u8 irq, enum irq_type irq_type)
 {
 	u32 irq_prop[] = {
 		cpu_to_fdt32(GIC_FDT_IRQ_TYPE_SPI),
 		cpu_to_fdt32(irq - GIC_SPI_IRQ_BASE),
-		cpu_to_fdt32(IRQ_TYPE_EDGE_RISING),
+		cpu_to_fdt32(irq_type)
 	};
 
 	_FDT(fdt_property(fdt, "interrupts", irq_prop, sizeof(irq_prop)));
@@ -127,7 +127,7 @@ static int setup_fdt(struct kvm *kvm)
 	void *fdt_dest		= guest_flat_to_host(kvm,
 						     kvm->arch.dtb_guest_start);
 	void (*generate_mmio_fdt_nodes)(void *, struct device_header *,
-					void (*)(void *, u8));
+					void (*)(void *, u8, enum irq_type));
 	void (*generate_cpu_peripheral_fdt_nodes)(void *, struct kvm *, u32)
 					= kvm->cpus[0]->generate_fdt_nodes;
 

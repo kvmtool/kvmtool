@@ -59,7 +59,8 @@ static void ioport_remove(struct rb_root *root, struct ioport *data)
 static void generate_ioport_fdt_node(void *fdt,
 				     struct device_header *dev_hdr,
 				     void (*generate_irq_prop)(void *fdt,
-							       u8 irq))
+							       u8 irq,
+							       enum irq_type))
 {
 	struct ioport *ioport = container_of(dev_hdr, struct ioport, dev_hdr);
 	struct ioport_operations *ops = ioport->ops;
@@ -71,7 +72,8 @@ static void generate_ioport_fdt_node(void *fdt,
 static void generate_ioport_fdt_node(void *fdt,
 				     struct device_header *dev_hdr,
 				     void (*generate_irq_prop)(void *fdt,
-							       u8 irq))
+							       u8 irq,
+							       enum irq_type))
 {
 	die("Unable to generate device tree nodes without libfdt\n");
 }

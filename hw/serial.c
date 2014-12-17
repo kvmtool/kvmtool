@@ -367,9 +367,11 @@ static bool serial8250_in(struct ioport *ioport, struct kvm_cpu *vcpu, u16 port,
 
 #ifdef CONFIG_HAS_LIBFDT
 #define DEVICE_NAME_MAX_LEN 32
-static void serial8250_generate_fdt_node(struct ioport *ioport, void *fdt,
-					 void (*generate_irq_prop)(void *fdt,
-								   u8 irq))
+static
+void serial8250_generate_fdt_node(struct ioport *ioport, void *fdt,
+				  void (*generate_irq_prop)(void *fdt,
+							    u8 irq,
+							    enum irq_type))
 {
 	char dev_name[DEVICE_NAME_MAX_LEN];
 	struct serial8250_device *dev = ioport->priv;
@@ -384,7 +386,7 @@ static void serial8250_generate_fdt_node(struct ioport *ioport, void *fdt,
 	_FDT(fdt_begin_node(fdt, dev_name));
 	_FDT(fdt_property_string(fdt, "compatible", "ns16550a"));
 	_FDT(fdt_property(fdt, "reg", reg_prop, sizeof(reg_prop)));
-	generate_irq_prop(fdt, dev->irq);
+	generate_irq_prop(fdt, dev->irq, IRQ_TYPE_EDGE_RISING);
 	_FDT(fdt_property_cell(fdt, "clock-frequency", 1843200));
 	_FDT(fdt_end_node(fdt));
 }

@@ -230,10 +230,12 @@ static void virtio_mmio_mmio_callback(struct kvm_cpu *vcpu,
 
 #ifdef CONFIG_HAS_LIBFDT
 #define DEVICE_NAME_MAX_LEN 32
-static void generate_virtio_mmio_fdt_node(void *fdt,
-					  struct device_header *dev_hdr,
-					  void (*generate_irq_prop)(void *fdt,
-								    u8 irq))
+static
+void generate_virtio_mmio_fdt_node(void *fdt,
+				   struct device_header *dev_hdr,
+				   void (*generate_irq_prop)(void *fdt,
+							     u8 irq,
+							     enum irq_type))
 {
 	char dev_name[DEVICE_NAME_MAX_LEN];
 	struct virtio_mmio *vmmio = container_of(dev_hdr,
@@ -250,7 +252,7 @@ static void generate_virtio_mmio_fdt_node(void *fdt,
 	_FDT(fdt_begin_node(fdt, dev_name));
 	_FDT(fdt_property_string(fdt, "compatible", "virtio,mmio"));
 	_FDT(fdt_property(fdt, "reg", reg_prop, sizeof(reg_prop)));
-	generate_irq_prop(fdt, vmmio->irq);
+	generate_irq_prop(fdt, vmmio->irq, IRQ_TYPE_EDGE_RISING);
 	_FDT(fdt_end_node(fdt));
 }
 #else
