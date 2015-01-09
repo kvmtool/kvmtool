@@ -406,7 +406,6 @@ static int serial8250__device_init(struct kvm *kvm, struct serial8250_device *de
 
 	ioport__map_irq(&dev->irq);
 	r = ioport__register(kvm, dev->iobase, &serial8250_ops, 8, dev);
-	kvm__irq_line(kvm, dev->irq, 0);
 
 	return r;
 }
