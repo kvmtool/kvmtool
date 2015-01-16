@@ -152,6 +152,10 @@ static void virtio_p9_error_reply(struct p9_dev *p9dev,
 {
 	u16 tag;
 
+	/* EMFILE at server implies ENFILE for the VM */
+	if (err == EMFILE)
+		err = ENFILE;
+
 	pdu->write_offset = VIRTIO_9P_HDR_LEN;
 	virtio_p9_pdu_writef(pdu, "d", err);
 	*outlen = pdu->write_offset;
