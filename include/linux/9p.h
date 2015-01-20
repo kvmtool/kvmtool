@@ -27,6 +27,29 @@
 #ifndef NET_9P_H
 #define NET_9P_H
 
+/* These definitions are from Linux include/linux/uidgid.h */
+typedef struct {
+	uid_t val;
+} kuid_t;
+
+typedef struct {
+	gid_t val;
+} kgid_t;
+
+#define KUIDT_INIT(value) (kuid_t){ value }
+#define KGIDT_INIT(value) (kgid_t){ value }
+
+static inline uid_t __kuid_val(kuid_t uid)
+{
+	return uid.val;
+}
+
+static inline gid_t __kgid_val(kgid_t gid)
+{
+	return gid.val;
+}
+
+
 /**
  * enum p9_debug_flags - bits for mount time debug parameter
  * @P9_DEBUG_ERROR: more verbose error messages including original error string
