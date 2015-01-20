@@ -356,7 +356,7 @@ $(GUEST_INIT): guest/init.c
 
 $(DEPS):
 
-util/rbtree.d: ../../lib/rbtree.c
+util/rbtree.d: util/rbtree.c
 	$(Q) $(CC) -M -MT util/rbtree.o $(CFLAGS) $< -o $@
 
 %.d: %.c
@@ -380,7 +380,7 @@ endif
 	$(E) "  CC      " $@
 	$(Q) $(CC) -c $(CFLAGS_EASYGOING) $< -o $@
 
-util/rbtree.static.o util/rbtree.o: ../../lib/rbtree.c
+util/rbtree.static.o util/rbtree.o: util/rbtree.c
 ifeq ($(C),1)
 	$(E) "  CHECK   " $@
 	$(Q) $(CHECK) -c $(CFLAGS) $< -o $@
