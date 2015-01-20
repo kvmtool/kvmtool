@@ -9,12 +9,7 @@ else
 	E = @\#
 	Q =
 endif
-ifneq ($(I), )
-	KINCL_PATH=$(I)
-else
-	KINCL_PATH=../..
-endif
-export E Q KINCL_PATH
+export E Q
 
 include config/utilities.mak
 include config/feature-tests.mak
@@ -302,7 +297,7 @@ DEFINES	+= -DKVMTOOLS_VERSION='"$(KVMTOOLS_VERSION)"'
 DEFINES	+= -DBUILD_ARCH='"$(ARCH)"'
 
 KVM_INCLUDE := include
-CFLAGS	+= $(CPPFLAGS) $(DEFINES) -I$(KVM_INCLUDE) -I$(ARCH_INCLUDE) -I$(KINCL_PATH)/include/uapi -I$(KINCL_PATH)/include -I$(KINCL_PATH)/arch/$(ARCH)/include/uapi -I$(KINCL_PATH)/arch/$(ARCH)/include/ -I$(KINCL_PATH)/scripts/dtc/libfdt -O2 -fno-strict-aliasing -g
+CFLAGS	+= $(CPPFLAGS) $(DEFINES) -I$(KVM_INCLUDE) -I$(ARCH_INCLUDE) -O2 -fno-strict-aliasing -g
 
 WARNINGS += -Wall
 WARNINGS += -Wformat=2
@@ -424,7 +419,6 @@ BIOS_CFLAGS += -march=i386
 BIOS_CFLAGS += -mregparm=3
 
 BIOS_CFLAGS += -fno-stack-protector
-BIOS_CFLAGS += -I../../arch/$(ARCH)
 
 x86/bios.o: x86/bios/bios.bin x86/bios/bios-rom.h
 

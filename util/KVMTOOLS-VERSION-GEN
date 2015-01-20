@@ -11,7 +11,7 @@ LF='
 
 # First check if there is a .git to get the version from git describe
 # otherwise try to get the version from the kernel makefile
-if test -d ../../.git -o -f ../../.git &&
+if test -d .git -o -f .git &&
 	VN=$(git describe --abbrev=4 HEAD 2>/dev/null) &&
 	case "$VN" in
 	*$LF*) (exit 1) ;;
@@ -23,7 +23,7 @@ if test -d ../../.git -o -f ../../.git &&
 then
 	VN=$(echo "$VN" | sed -e 's/-/./g');
 else
-	VN=$(MAKEFLAGS= make -sC ../.. kernelversion)
+	VN=3.18.0
 fi
 
 VN=$(expr "$VN" : v*'\(.*\)')
