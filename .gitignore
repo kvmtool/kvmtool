@@ -10,3 +10,5 @@ tests/boot/rootfs/
 guest/init
 guest/init_stage2
 KVMTOOLS-VERSION-FILE
+/x86/bios/bios.bin
+/x86/bios/bios.bin.elf

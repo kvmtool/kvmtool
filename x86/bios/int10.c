@@ -4,7 +4,7 @@
 
 #include "bios/memcpy.h"
 
-#include <boot/vesa.h>
+#include "asm/bios/vesa.h"
 
 static far_ptr gen_far_ptr(unsigned int pa)
 {
