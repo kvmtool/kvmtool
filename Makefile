@@ -198,12 +198,10 @@ endif
 
 # libfdt support
 
-LIBFDT_SRC = fdt.o fdt_ro.o fdt_wip.o fdt_sw.o fdt_rw.o fdt_strerror.o
-LIBFDT_OBJS = $(patsubst %,../../scripts/dtc/libfdt/%,$(LIBFDT_SRC))
-
 ifeq (y,$(ARCH_WANT_LIBFDT))
 	DEFINES		+= -DCONFIG_HAS_LIBFDT
-	OTHEROBJS	+= $(LIBFDT_OBJS)
+	LIBS_DYNOPT	+= -lfdt
+	LIBS_STATOPT	+= -lfdt
 endif
 
 ###
@@ -365,16 +363,6 @@ util/rbtree.d: util/rbtree.c
 builtin-help.d: $(KVM_INCLUDE)/common-cmds.h
 
 $(OBJS):
-
-# This rule relaxes the -Werror on libfdt, since for now it still has
-# a bunch of warnings. :(
-../../scripts/dtc/libfdt/%.o: ../../scripts/dtc/libfdt/%.c
-ifeq ($(C),1)
-	$(E) "  CHECK   " $@
-	$(Q) $(CHECK) -c $(CFLAGS_EASYGOING) $< -o $@
-endif
-	$(E) "  CC      " $@
-	$(Q) $(CC) -c $(CFLAGS_EASYGOING) $< -o $@
 
 util/rbtree.static.o util/rbtree.o: util/rbtree.c
 ifeq ($(C),1)

@@ -15,10 +15,10 @@
 #include "kvm/kvm-cpu.h"
 #include "kvm/util.h"
 #include "kvm/term.h"
-#include "libfdt.h"
 
 #include "spapr.h"
 
+#include <libfdt.h>
 #include <stdio.h>
 #include <assert.h>
 

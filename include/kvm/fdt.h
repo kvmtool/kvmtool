@@ -1,7 +1,9 @@
 #ifndef KVM__FDT_H
 #define KVM__FDT_H
 
-#include "libfdt.h"
+#ifdef CONFIG_HAS_LIBFDT
+#include <libfdt.h>
+#endif
 
 #include <linux/types.h>
 
