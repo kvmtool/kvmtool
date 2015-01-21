@@ -1,0 +1,99 @@
+ Installation instructions for kvmtool
+---------------------------------------
+
+==========================================================================
+For the impatient:
+Just typing "make" should do the trick most of the times.
+You will get a binary called "lkvm" which is self-contained.
+No extra libraries or files need to be installed.
+==========================================================================
+
+"make install" will copy the compiled file into $HOME/bin, this can be
+changed by providing "prefix=" on the make command-line. DESTDIR will be
+honoured.
+
+Prerequisites
+--------------
+For compilation you will need a recent GNU tool chain (binutils, gcc, make),
+also the standard C library.
+
+For deb based systems:
+	$ sudo apt-get install build-essential
+	On x86-64 systems you have to add the 32-bit compat headers:
+	$ sudo apt-get install libc6-dev-i386
+For Fedora based systems:
+	# yum install glibc-static
+For OpenSUSE based systems:
+	# zypper install glibc-devel-static
+
+Architectures which require device tree (PowerPC, ARM, ARM64) also require
+libfdt.
+	deb: $ sudo apt-get install libfdt-dev
+	Fedora: # yum install libfdt-devel
+	OpenSUSE: # zypper install libfdt1-devel
+Also see "Cross compiling" below.
+
+Optional libraries
+-------------------
+By running "make" some checks are invoked that determine the availability
+of certain optional libraries. Those are:
+- libbfd: enable symbol look-up support in debug mode
+- gtk3: enable support for displaying the guest framebuffer in a GTK+-3 window
+- vncserver: enable support for exporting the guest framebuffer in a VNC session
+- SDL: enable support for displaying the guest framebuffer in a SDL window
+- zlib: enable support for compressed QCOW images
+- aio: enable support for asynchronous I/O
+(Note that a guest framebuffer is currently only supported on x86.)
+So for the full glory you would need:
+(on a .deb based system):
+$ sudo apt-get install binutils-dev libgtk-3-dev libvncserver-dev libsdl2-dev \
+		       zlib1g-dev libaio-dev
+(on RPM based systems):
+# $TOOL install binutils-devel gtk3-devel libvncserver-devel SDL-devel \
+	      zlib-devel libaio-devel
+$TOOL is "yum" for Fedora and "zypper" for OpenSUSE.
+
+Cross compiling
+----------------
+The Makefile will honour the CROSS_COMPILE environment variable when calling
+the compiler and the linker binary. To trigger cross compilation, also set ARCH
+to the Linux name of the architecture. Architectures supported:
+- i386
+- x86_64
+- powerpc
+- arm
+- arm64
+- mips
+If ARCH is not provided, the target architecture will be automatically
+determined by running "uname -m" on your host, resulting in a native build.
+
+To cross-compile to ARM for instance, install a cross-compiler, put the
+required libraries in the cross-compiler's SYSROOT and type:
+$ make CROSS_COMPILE=arm-linux-gnueabihf- ARCH=arm
+
+Missing libraries when cross-compiling
+---------------------------------------
+The cross-compiler will look for target libraries in its SYSROOT directory,
+so you need to put the header and library files (.so) there.
+While most cross compiler packages come with the target's glibc already
+installed, optional libraries (or libfdt) maybe not.
+On multiarch system you should be able to install those be appending
+the architecture name after the package (example for ARM64):
+$ sudo apt-get install libfdt-dev:arm64
+
+PowerPC and ARM/ARM64 require libfdt to be installed. If you cannot use
+precompiled mulitarch packages, you could either copy the required header and
+library files from an installed target system into the SYSROOT (you will need
+/usr/include/*fdt*.h and /usr/lib64/libfdt-v.v.v.so and its symlinks), or you
+can cross-compile the libfdt library yourself:
+
+$ git clone git://git.kernel.org/pub/scm/utils/dtc/dtc.git
+$ cd dtc
+$ export CC=${CROSS_COMPILE}gcc
+$ TRIPLET=$($CC -dumpmachine)
+$ SYSROOT=$($CC -print-sysroot)
+$ make libfdt
+$ sudo make DESTDIR=$SYSROOT PREFIX=/usr LIBDIR=/usr/lib/$TRIPLET install-lib install-includes
+
+This assumes a multiarch-enabled system, if there is no per-arch directory for
+libraries, replace the LIBDIR paths above with LIBDIR=/usr/lib or /usr/lib64.

@@ -1,5 +1,12 @@
 Native Linux KVM tool
 =====================
+
+kvmtool is a lightweight tool for hosting KVM guests. As a pure virtualization
+tool it only supports guests using the same architecture, though it supports
+running 32-bit guests on those 64-bit architectures that allow this.
+
+From the original announcement email:
+-------------------------------------------------------
 The goal of this tool is to provide a clean, from-scratch, lightweight
 KVM host tool implementation that can boot Linux guest images (just a
 hobby, won't be big and professional like QEMU) with no BIOS
@@ -14,20 +21,17 @@ Right now it can boot a Linux image and provide you output via a serial
 console, over the host terminal, i.e. you can use it to boot a guest
 Linux image in a terminal or over ssh and log into the guest without
 much guest or host side setup work needed.
+--------------------------
 
-1. To try out the tool, clone the git repository:
+This is the stand-alone version which does not live inside a Linux
+kernel tree.
+1. To check it out, clone the main git repository:
 
-  git clone git://github.com/penberg/linux-kvm.git
+  git clone git://git.kernel.org/pub/scm/linux/kernel/git/will/kvmtool.git
 
-or alternatively, if you already have a kernel source tree:
+2. Compile the tool (for more elaborate instructions see INSTALL):
 
-  git remote add kvm-tool git://github.com/penberg/linux-kvm.git
-  git remote update
-  git checkout kvm-tool/master -b kvm-tool
-
-2. Compile the tool:
-
-  cd tools/kvm && make
+  cd kvmtool && make
 
 3. Download a raw userspace image:
 
@@ -92,21 +96,3 @@ See the following thread for original discussion for motivation of this
 project:
 
 http://thread.gmane.org/gmane.linux.kernel/962051/focus=962620
-
-Build dependencies
-=====================
-For deb based systems:
-32-bit:
-sudo apt-get install build-essential
-64-bit:
-sudo apt-get install build-essential libc6-dev-i386
-
-For rpm based systems:
-32-bit:
-yum install glibc-devel
-64-bit:
-yum install glibc-devel glibc-static
-
-On 64-bit Arch Linux make sure the multilib repository is enabled in your
-/etc/pacman.conf and run
-pacman -Sy lib32-glibc
