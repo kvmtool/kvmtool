@@ -186,3 +186,13 @@ int main(void)
 	return 0;
 }
 endef
+
+define SOURCE_LIBFDT
+#include <libfdt.h>
+
+int main(void)
+{
+	fdt_check_header(NULL);
+	return 0;
+}
+endef
