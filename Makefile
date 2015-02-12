@@ -212,75 +212,71 @@ endif
 # On a given system, some libs may link statically, some may not; so, check
 # both and only build those that link!
 
-FLAGS_BFD := $(CFLAGS) -lbfd
-ifeq ($(call try-cc,$(SOURCE_BFD),$(FLAGS_BFD) -static),y)
+ifeq ($(call try-build,$(SOURCE_BFD),$(CFLAGS),-lbfd -static),y)
 	CFLAGS_STATOPT	+= -DCONFIG_HAS_BFD
 	OBJS_STATOPT	+= symbol.o
 	LIBS_STATOPT	+= -lbfd
 endif
 
-FLAGS_GTK3 := $(CFLAGS) $(shell pkg-config --libs --cflags gtk+-3.0 2>/dev/null)
-ifeq ($(call try-cc,$(SOURCE_GTK3),$(FLAGS_GTK3)),y)
+CFLAGS_GTK3 := $(shell pkg-config --cflags gtk+-3.0 2>/dev/null)
+LDFLAGS_GTK3 := $(shell pkg-config --libs gtk+-3.0 2>/dev/null)
+ifeq ($(call try-build,$(SOURCE_GTK3),$(CFLAGS) $(CFLAGS_GTK3),$(LDFLAGS_GTK3)),y)
 	OBJS_DYNOPT	+= ui/gtk3.o
-	CFLAGS_DYNOPT	+= -DCONFIG_HAS_GTK3 $(shell pkg-config --cflags gtk+-3.0 2>/dev/null)
-	LIBS_DYNOPT	+= $(shell pkg-config --libs gtk+-3.0 2>/dev/null)
+	CFLAGS_DYNOPT	+= -DCONFIG_HAS_GTK3 $(CFLAGS_GTK3)
+	LIBS_DYNOPT	+= $(LDFLAGS_GTK3)
 else
     $(warning warning GTK3 not found, disables GTK3 support. Please install gtk3-devel or libgtk3.0-dev)
 endif
 
-FLAGS_VNCSERVER := $(CFLAGS) -lvncserver
-ifeq ($(call try-cc,$(SOURCE_VNCSERVER),$(FLAGS_VNCSERVER)),y)
+ifeq ($(call try-build,$(SOURCE_VNCSERVER),$(CFLAGS),-lvncserver),y)
 	OBJS_DYNOPT	+= ui/vnc.o
 	CFLAGS_DYNOPT	+= -DCONFIG_HAS_VNCSERVER
 	LIBS_DYNOPT	+= -lvncserver
 endif
-ifeq ($(call try-cc,$(SOURCE_VNCSERVER),$(FLAGS_VNCSERVER) -static),y)
+ifeq ($(call try-build,$(SOURCE_VNCSERVER),$(CFLAGS),-lvncserver -static),y)
 	OBJS_STATOPT	+= ui/vnc.o
 	CFLAGS_STATOPT	+= -DCONFIG_HAS_VNCSERVER
 	LIBS_STATOPT	+= -lvncserver
 endif
 
-FLAGS_SDL := $(CFLAGS) -lSDL
-ifeq ($(call try-cc,$(SOURCE_SDL),$(FLAGS_SDL)),y)
+ifeq ($(call try-build,$(SOURCE_SDL),$(CFLAGS),-lSDL),y)
 	OBJS_DYNOPT	+= ui/sdl.o
 	CFLAGS_DYNOPT	+= -DCONFIG_HAS_SDL
 	LIBS_DYNOPT	+= -lSDL
 endif
-ifeq ($(call try-cc,$(SOURCE_SDL),$(FLAGS_SDL) -static), y)
+ifeq ($(call try-build,$(SOURCE_SDL),$(CFLAGS),-lSDL -static), y)
 	OBJS_STATOPT	+= ui/sdl.o
 	CFLAGS_STATOPT	+= -DCONFIG_HAS_SDL
 	LIBS_STATOPT	+= -lSDL
 endif
 
-FLAGS_ZLIB := $(CFLAGS) -lz
-ifeq ($(call try-cc,$(SOURCE_ZLIB),$(FLAGS_ZLIB)),y)
+ifeq ($(call try-build,$(SOURCE_ZLIB),$(CFLAGS),-lz),y)
 	CFLAGS_DYNOPT	+= -DCONFIG_HAS_ZLIB
 	LIBS_DYNOPT	+= -lz
 endif
-ifeq ($(call try-cc,$(SOURCE_ZLIB),$(FLAGS_ZLIB) -static),y)
+ifeq ($(call try-build,$(SOURCE_ZLIB),$(CFLAGS),-lz -static),y)
 	CFLAGS_STATOPT	+= -DCONFIG_HAS_ZLIB
 	LIBS_STATOPT	+= -lz
 endif
 
-FLAGS_AIO := $(CFLAGS) -laio
-ifeq ($(call try-cc,$(SOURCE_AIO),$(FLAGS_AIO)),y)
+ifeq ($(call try-build,$(SOURCE_AIO),$(CFLAGS),-laio),y)
 	CFLAGS_DYNOPT	+= -DCONFIG_HAS_AIO
 	LIBS_DYNOPT	+= -laio
 endif
-ifeq ($(call try-cc,$(SOURCE_AIO),$(FLAGS_AIO) -static),y)
+ifeq ($(call try-build,$(SOURCE_AIO),$(CFLAGS),-laio -static),y)
 	CFLAGS_STATOPT	+= -DCONFIG_HAS_AIO
 	LIBS_STATOPT	+= -laio
 endif
 
 ifeq ($(LTO),1)
 	FLAGS_LTO := -flto
-	ifeq ($(call try-cc,$(SOURCE_HELLO),$(FLAGS_LTO)),y)
+	ifeq ($(call try-build,$(SOURCE_HELLO),$(CFLAGS),$(FLAGS_LTO)),y)
 		CFLAGS		+= $(FLAGS_LTO)
 	endif
 endif
 
-ifneq ($(call try-build,$(SOURCE_STATIC),-static,),y)
-$(error No static libc found. Please install glibc-static package.)
+ifneq ($(call try-build,$(SOURCE_STATIC),,-static),y)
+        $(error No static libc found. Please install glibc-static package.)
 endif
 ###
 
