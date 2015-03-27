@@ -276,6 +276,23 @@ static void virtio_net_handle_callback(struct kvm *kvm, struct net_dev *ndev, in
 	mutex_unlock(&ndev->io_lock[queue]);
 }
 
+static int virtio_net_request_tap(struct net_dev *ndev, struct ifreq *ifr,
+				  const char *tapname)
+{
+	int ret;
+
+	memset(ifr, 0, sizeof(*ifr));
+	ifr->ifr_flags = IFF_TAP | IFF_NO_PI | IFF_VNET_HDR;
+	if (tapname)
+		strncpy(ifr->ifr_name, tapname, sizeof(ifr->ifr_name));
+
+	ret = ioctl(ndev->tap_fd, TUNSETIFF, &ifr);
+
+	if (ret >= 0)
+		strncpy(ndev->tap_name, ifr->ifr_name, sizeof(ndev->tap_name));
+	return ret;
+}
+
 static bool virtio_net__tap_init(struct net_dev *ndev)
 {
 	int sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -284,6 +301,8 @@ static bool virtio_net__tap_init(struct net_dev *ndev)
 	struct ifreq ifr;
 	const struct virtio_net_params *params = ndev->params;
 	bool skipconf = !!params->tapif;
+	bool macvtap = skipconf && (params->tapif[0] == '/');
+	const char *tap_file = "/dev/net/tun";
 
 	/* Did the user already gave us the FD? */
 	if (params->fd) {
@@ -291,25 +310,18 @@ static bool virtio_net__tap_init(struct net_dev *ndev)
 		return 1;
 	}
 
-	ndev->tap_fd = open("/dev/net/tun", O_RDWR);
+	if (macvtap)
+		tap_file = params->tapif;
+
+	ndev->tap_fd = open(tap_file, O_RDWR);
 	if (ndev->tap_fd < 0) {
-		pr_warning("Unable to open /dev/net/tun");
+		pr_warning("Unable to open %s", tap_file);
 		goto fail;
 	}
 
-	memset(&ifr, 0, sizeof(ifr));
-	ifr.ifr_flags = IFF_TAP | IFF_NO_PI | IFF_VNET_HDR;
-	if (params->tapif)
-		strncpy(ifr.ifr_name, params->tapif, sizeof(ifr.ifr_name));
-	if (ioctl(ndev->tap_fd, TUNSETIFF, &ifr) < 0) {
+	if (!macvtap &&
+	    virtio_net_request_tap(ndev, &ifr, params->tapif) < 0) {
 		pr_warning("Config tap device error. Are you root?");
-		goto fail;
-	}
-
-	strncpy(ndev->tap_name, ifr.ifr_name, sizeof(ndev->tap_name));
-
-	if (ioctl(ndev->tap_fd, TUNSETNOCSUM, 1) < 0) {
-		pr_warning("Config tap device TUNSETNOCSUM error");
 		goto fail;
 	}
 
