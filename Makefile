@@ -204,6 +204,8 @@ ifeq ($(call try-build,$(SOURCE_BFD),$(CFLAGS),-lbfd -static),y)
 	CFLAGS_STATOPT	+= -DCONFIG_HAS_BFD
 	OBJS_STATOPT	+= symbol.o
 	LIBS_STATOPT	+= -lbfd
+else
+	NOTFOUND	+= bfd
 endif
 
 CFLAGS_GTK3 := $(shell pkg-config --cflags gtk+-3.0 2>/dev/null)
@@ -213,13 +215,15 @@ ifeq ($(call try-build,$(SOURCE_GTK3),$(CFLAGS) $(CFLAGS_GTK3),$(LDFLAGS_GTK3)),
 	CFLAGS_DYNOPT	+= -DCONFIG_HAS_GTK3 $(CFLAGS_GTK3)
 	LIBS_DYNOPT	+= $(LDFLAGS_GTK3)
 else
-    $(warning warning GTK3 not found, disables GTK3 support. Please install gtk3-devel or libgtk3.0-dev)
+	NOTFOUND	+= GTK3
 endif
 
 ifeq ($(call try-build,$(SOURCE_VNCSERVER),$(CFLAGS),-lvncserver),y)
 	OBJS_DYNOPT	+= ui/vnc.o
 	CFLAGS_DYNOPT	+= -DCONFIG_HAS_VNCSERVER
 	LIBS_DYNOPT	+= -lvncserver
+else
+	NOTFOUND	+= vncserver
 endif
 ifeq ($(call try-build,$(SOURCE_VNCSERVER),$(CFLAGS),-lvncserver -static),y)
 	OBJS_STATOPT	+= ui/vnc.o
@@ -231,6 +235,8 @@ ifeq ($(call try-build,$(SOURCE_SDL),$(CFLAGS),-lSDL),y)
 	OBJS_DYNOPT	+= ui/sdl.o
 	CFLAGS_DYNOPT	+= -DCONFIG_HAS_SDL
 	LIBS_DYNOPT	+= -lSDL
+else
+	NOTFOUND	+= SDL
 endif
 ifeq ($(call try-build,$(SOURCE_SDL),$(CFLAGS),-lSDL -static), y)
 	OBJS_STATOPT	+= ui/sdl.o
@@ -241,6 +247,8 @@ endif
 ifeq ($(call try-build,$(SOURCE_ZLIB),$(CFLAGS),-lz),y)
 	CFLAGS_DYNOPT	+= -DCONFIG_HAS_ZLIB
 	LIBS_DYNOPT	+= -lz
+else
+	NOTFOUND	+= zlib
 endif
 ifeq ($(call try-build,$(SOURCE_ZLIB),$(CFLAGS),-lz -static),y)
 	CFLAGS_STATOPT	+= -DCONFIG_HAS_ZLIB
@@ -250,6 +258,8 @@ endif
 ifeq ($(call try-build,$(SOURCE_AIO),$(CFLAGS),-laio),y)
 	CFLAGS_DYNOPT	+= -DCONFIG_HAS_AIO
 	LIBS_DYNOPT	+= -laio
+else
+	NOTFOUND	+= aio
 endif
 ifeq ($(call try-build,$(SOURCE_AIO),$(CFLAGS),-laio -static),y)
 	CFLAGS_STATOPT	+= -DCONFIG_HAS_AIO
@@ -277,6 +287,11 @@ ifeq (y,$(ARCH_WANT_LIBFDT))
 		LIBS_STATOPT	+= -lfdt
 	endif
 endif
+
+ifneq ($(NOTFOUND),)
+        $(warning Skipping optional libraries: $(NOTFOUND))
+endif
+
 ###
 
 LIBS	+= -lrt
