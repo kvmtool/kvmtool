@@ -112,6 +112,8 @@ static inline bool virt_queue__available(struct virt_queue *vq)
 	return virtio_guest_to_host_u16(vq, vq->vring.avail->idx) != vq->last_avail_idx;
 }
 
+void virt_queue__used_idx_advance(struct virt_queue *queue, u16 jump);
+struct vring_used_elem * virt_queue__set_used_elem_no_update(struct virt_queue *queue, u32 head, u32 len, u16 offset);
 struct vring_used_elem *virt_queue__set_used_elem(struct virt_queue *queue, u32 head, u32 len);
 
 bool virtio_queue__should_signal(struct virt_queue *vq);

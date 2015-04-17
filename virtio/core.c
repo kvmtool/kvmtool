@@ -21,14 +21,9 @@ const char* virtio_trans_name(enum virtio_trans trans)
 	return "unknown";
 }
 
-struct vring_used_elem *virt_queue__set_used_elem(struct virt_queue *queue, u32 head, u32 len)
+void virt_queue__used_idx_advance(struct virt_queue *queue, u16 jump)
 {
-	struct vring_used_elem *used_elem;
 	u16 idx = virtio_guest_to_host_u16(queue, queue->vring.used->idx);
-
-	used_elem	= &queue->vring.used->ring[idx % queue->vring.num];
-	used_elem->id	= virtio_host_to_guest_u32(queue, head);
-	used_elem->len	= virtio_host_to_guest_u32(queue, len);
 
 	/*
 	 * Use wmb to assure that used elem was updated with head and len.
@@ -36,7 +31,7 @@ struct vring_used_elem *virt_queue__set_used_elem(struct virt_queue *queue, u32 
 	 * to pass the used element to the guest.
 	 */
 	wmb();
-	idx++;
+	idx += jump;
 	queue->vring.used->idx = virtio_host_to_guest_u16(queue, idx);
 
 	/*
@@ -45,6 +40,29 @@ struct vring_used_elem *virt_queue__set_used_elem(struct virt_queue *queue, u32 
 	 * an updated idx.
 	 */
 	wmb();
+}
+
+struct vring_used_elem *
+virt_queue__set_used_elem_no_update(struct virt_queue *queue, u32 head,
+				    u32 len, u16 offset)
+{
+	struct vring_used_elem *used_elem;
+	u16 idx = virtio_guest_to_host_u16(queue, queue->vring.used->idx);
+
+	idx += offset;
+	used_elem	= &queue->vring.used->ring[idx % queue->vring.num];
+	used_elem->id	= virtio_host_to_guest_u32(queue, head);
+	used_elem->len	= virtio_host_to_guest_u32(queue, len);
+
+	return used_elem;
+}
+
+struct vring_used_elem *virt_queue__set_used_elem(struct virt_queue *queue, u32 head, u32 len)
+{
+	struct vring_used_elem *used_elem;
+
+	used_elem = virt_queue__set_used_elem_no_update(queue, head, len, 0);
+	virt_queue__used_idx_advance(queue, 1);
 
 	return used_elem;
 }

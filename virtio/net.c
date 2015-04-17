@@ -80,14 +80,12 @@ static void virtio_net_fix_tx_hdr(struct virtio_net_hdr *hdr, struct net_dev *nd
 	hdr->csum_offset	= virtio_guest_to_host_u16(&ndev->vdev, hdr->csum_offset);
 }
 
-static void virtio_net_fix_rx_hdr(struct virtio_net_hdr_mrg_rxbuf *hdr, struct net_dev *ndev)
+static void virtio_net_fix_rx_hdr(struct virtio_net_hdr *hdr, struct net_dev *ndev)
 {
-	hdr->hdr.hdr_len	= virtio_host_to_guest_u16(&ndev->vdev, hdr->hdr.hdr_len);
-	hdr->hdr.gso_size	= virtio_host_to_guest_u16(&ndev->vdev, hdr->hdr.gso_size);
-	hdr->hdr.csum_start	= virtio_host_to_guest_u16(&ndev->vdev, hdr->hdr.csum_start);
-	hdr->hdr.csum_offset	= virtio_host_to_guest_u16(&ndev->vdev, hdr->hdr.csum_offset);
-	if (has_virtio_feature(ndev, VIRTIO_NET_F_MRG_RXBUF))
-		hdr->num_buffers	= virtio_host_to_guest_u16(&ndev->vdev, hdr->num_buffers);
+	hdr->hdr_len		= virtio_host_to_guest_u16(&ndev->vdev, hdr->hdr_len);
+	hdr->gso_size		= virtio_host_to_guest_u16(&ndev->vdev, hdr->gso_size);
+	hdr->csum_start		= virtio_host_to_guest_u16(&ndev->vdev, hdr->csum_start);
+	hdr->csum_offset	= virtio_host_to_guest_u16(&ndev->vdev, hdr->csum_offset);
 }
 
 static void *virtio_net_rx_thread(void *p)
@@ -123,7 +121,7 @@ static void *virtio_net_rx_thread(void *p)
 				.iov_len  = sizeof(buffer),
 			};
 			struct virtio_net_hdr_mrg_rxbuf *hdr;
-			int i;
+			u16 num_buffers;
 
 			len = ndev->ops->rx(&dummy_iov, 1, ndev);
 			if (len < 0) {
@@ -132,7 +130,7 @@ static void *virtio_net_rx_thread(void *p)
 				goto out_err;
 			}
 
-			copied = i = 0;
+			copied = num_buffers = 0;
 			head = virt_queue__get_iov(vq, iov, &out, &in, kvm);
 			hdr = iov[0].iov_base;
 			while (copied < len) {
@@ -140,19 +138,20 @@ static void *virtio_net_rx_thread(void *p)
 
 				memcpy_toiovec(iov, buffer + copied, iovsize);
 				copied += iovsize;
-				if (i++ == 0)
-					virtio_net_fix_rx_hdr(hdr, ndev);
-				if (has_virtio_feature(ndev, VIRTIO_NET_F_MRG_RXBUF)) {
-					u16 num_buffers = virtio_guest_to_host_u16(vq, hdr->num_buffers);
-					hdr->num_buffers = virtio_host_to_guest_u16(vq, num_buffers + 1);
-				}
-				virt_queue__set_used_elem(vq, head, iovsize);
+				virt_queue__set_used_elem_no_update(vq, head, iovsize, num_buffers++);
 				if (copied == len)
 					break;
 				while (!virt_queue__available(vq))
 					sleep(0);
 				head = virt_queue__get_iov(vq, iov, &out, &in, kvm);
 			}
+
+			virtio_net_fix_rx_hdr(&hdr->hdr, ndev);
+			if (has_virtio_feature(ndev, VIRTIO_NET_F_MRG_RXBUF))
+				hdr->num_buffers = virtio_host_to_guest_u16(vq, num_buffers);
+
+			virt_queue__used_idx_advance(vq, num_buffers);
+
 			/* We should interrupt guest right now, otherwise latency is huge. */
 			if (virtio_queue__should_signal(vq))
 				ndev->vdev.ops->signal_vq(kvm, &ndev->vdev, id);
