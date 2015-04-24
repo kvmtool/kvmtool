@@ -232,6 +232,8 @@ static void *virtio_net_ctrl_thread(void *p)
 	struct virtio_net_ctrl_hdr *ctrl;
 	virtio_net_ctrl_ack *ack;
 
+	kvm__set_thread_name("virtio-net-ctrl");
+
 	while (1) {
 		mutex_lock(&ndev->io_lock[id]);
 		if (!virt_queue__available(vq))
