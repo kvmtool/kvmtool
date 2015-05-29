@@ -299,7 +299,13 @@ LIBS	+= -lpthread
 LIBS	+= -lutil
 
 
-DEPS	:= $(patsubst %.o,%.d,$(OBJS))
+comma = ,
+
+# The dependency file for the current target
+depfile = $(subst $(comma),_,$(dir $@).$(notdir $@).d)
+
+DEPS	:= $(foreach obj,$(OBJS),\
+		$(subst $(comma),_,$(dir $(obj)).$(notdir $(obj)).d))
 
 DEFINES	+= -D_FILE_OFFSET_BITS=64
 DEFINES	+= -D_GNU_SOURCE
@@ -338,6 +344,10 @@ all: arch_support_check $(PROGRAM) $(PROGRAM_ALIAS) $(GUEST_INIT)
 arch_support_check:
 	$(UNSUPP_ERR)
 
+# CFLAGS used when building objects
+# This is intentionally not assigned using :=
+c_flags	= -Wp,-MD,$(depfile) $(CFLAGS)
+
 # When building -static all objects are built with appropriate flags, which
 # may differ between static & dynamic .o.  The objects are separated into
 # .o and .static.o.  See the %.o: %.c rules below.
@@ -347,11 +357,11 @@ arch_support_check:
 STATIC_OBJS = $(patsubst %.o,%.static.o,$(OBJS) $(OBJS_STATOPT))
 GUEST_OBJS = guest/guest_init.o
 
-$(PROGRAM)-static:  $(DEPS) $(STATIC_OBJS) $(OTHEROBJS) $(GUEST_INIT)
+$(PROGRAM)-static:  $(STATIC_OBJS) $(OTHEROBJS) $(GUEST_INIT)
 	$(E) "  LINK    " $@
 	$(Q) $(CC) -static $(CFLAGS) $(STATIC_OBJS) $(OTHEROBJS) $(GUEST_OBJS) $(LIBS) $(LIBS_STATOPT) -o $@
 
-$(PROGRAM): $(DEPS) $(OBJS) $(OBJS_DYNOPT) $(OTHEROBJS) $(GUEST_INIT)
+$(PROGRAM): $(OBJS) $(OBJS_DYNOPT) $(OTHEROBJS) $(GUEST_INIT)
 	$(E) "  LINK    " $@
 	$(Q) $(CC) $(CFLAGS) $(OBJS) $(OBJS_DYNOPT) $(OTHEROBJS) $(GUEST_OBJS) $(LIBS) $(LIBS_DYNOPT) -o $@
 
@@ -364,19 +374,11 @@ $(GUEST_INIT): guest/init.c
 	$(Q) $(CC) -static guest/init.c -o $@
 	$(Q) $(LD) $(LDFLAGS) -r -b binary -o guest/guest_init.o $(GUEST_INIT)
 
-$(DEPS):
-
-util/rbtree.d: util/rbtree.c
-	$(Q) $(CC) -M -MT util/rbtree.o $(CFLAGS) $< -o $@
-
-%.d: %.c
-	$(Q) $(CC) -M -MT $(patsubst %.d,%.o,$@) $(CFLAGS) $< -o $@
-
 %.s: %.c
 	$(Q) $(CC) -o $@ -S $(CFLAGS) -fverbose-asm $<
 
 # The header file common-cmds.h is needed for compilation of builtin-help.c.
-builtin-help.d: $(KVM_INCLUDE)/common-cmds.h
+builtin-help.static.o builtin-help.o: $(KVM_INCLUDE)/common-cmds.h
 
 $(OBJS):
 
@@ -386,7 +388,7 @@ ifeq ($(C),1)
 	$(Q) $(CHECK) -c $(CFLAGS) $< -o $@
 endif
 	$(E) "  CC      " $@
-	$(Q) $(CC) -c $(CFLAGS) $< -o $@
+	$(Q) $(CC) -c $(c_flags) $< -o $@
 
 %.static.o: %.c
 ifeq ($(C),1)
@@ -394,7 +396,7 @@ ifeq ($(C),1)
 	$(Q) $(CHECK) -c $(CFLAGS) $(CFLAGS_STATOPT) $< -o $@
 endif
 	$(E) "  CC      " $@
-	$(Q) $(CC) -c $(CFLAGS) $(CFLAGS_STATOPT)  $< -o $@
+	$(Q) $(CC) -c $(c_flags) $(CFLAGS_STATOPT)  $< -o $@
 
 %.o: %.c
 ifeq ($(C),1)
@@ -402,7 +404,7 @@ ifeq ($(C),1)
 	$(Q) $(CHECK) -c $(CFLAGS) $(CFLAGS_DYNOPT) $< -o $@
 endif
 	$(E) "  CC      " $@
-	$(Q) $(CC) -c $(CFLAGS) $(CFLAGS_DYNOPT) $< -o $@
+	$(Q) $(CC) -c $(c_flags) $(CFLAGS_DYNOPT) $< -o $@
 
 
 $(KVM_INCLUDE)/common-cmds.h: util/generate-cmdlist.sh command-list.txt
