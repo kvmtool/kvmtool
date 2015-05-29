@@ -886,17 +886,22 @@ err_out:
 static void virtio_p9_fsync(struct p9_dev *p9dev,
 			    struct p9_pdu *pdu, u32 *outlen)
 {
-	int ret;
+	int ret, fd;
 	struct p9_fid *fid;
 	u32 fid_val, datasync;
 
 	virtio_p9_pdu_readf(pdu, "dd", &fid_val, &datasync);
 	fid = get_fid(p9dev, fid_val);
 
-	if (datasync)
-		ret = fdatasync(fid->fd);
+	if (fid->dir)
+		fd = dirfd(fid->dir);
 	else
-		ret = fsync(fid->fd);
+		fd = fid->fd;
+
+	if (datasync)
+		ret = fdatasync(fd);
+	else
+		ret = fsync(fd);
 	if (ret < 0)
 		goto err_out;
 	*outlen = pdu->write_offset;
