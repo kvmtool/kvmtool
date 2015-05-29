@@ -2,6 +2,7 @@
 /vm
 *.o
 *.d
+*.swp
 .cscope
 tags
 include/common-cmds.h
