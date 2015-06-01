@@ -5,7 +5,6 @@
 #include "kvm/util.h"
 
 #include <string.h>
-#include <asm/e820.h>
 
 #include "bios/bios-rom.h"
 

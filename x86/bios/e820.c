@@ -4,7 +4,6 @@
 #include "kvm/bios.h"
 
 #include <asm/processor-flags.h>
-#include <asm/e820.h>
 
 static inline void set_fs(u16 seg)
 {
