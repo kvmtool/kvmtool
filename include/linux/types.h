@@ -3,7 +3,7 @@
 
 #include <kvm/compiler.h>
 #define __SANE_USERSPACE_TYPES__	/* For PPC64, to get LL64 types */
-#include <asm/types.h>
+#include <asm-generic/types.h>
 
 typedef __u64 u64;
 typedef __s64 s64;

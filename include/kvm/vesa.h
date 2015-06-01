@@ -1,8 +1,6 @@
 #ifndef KVM__VESA_H
 #define KVM__VESA_H
 
-#include <linux/types.h>
-
 #define VESA_WIDTH	640
 #define VESA_HEIGHT	480
 

@@ -67,7 +67,7 @@
 
 #ifndef __ASSEMBLER__
 
-#include <linux/types.h>
+#include <asm/bios/types.h>
 
 struct biosregs {
 	u32			eax;
