@@ -1,9 +1,19 @@
+#include "asm/bios/types.h"
 #include "kvm/e820.h"
 
-#include "kvm/segment.h"
 #include "kvm/bios.h"
 
 #include <asm/processor-flags.h>
+
+static inline u16 flat_to_seg16(u32 address)
+{
+	return address >> 4;
+}
+
+static inline u16 flat_to_off16(u32 address, u32 segment)
+{
+	return address - (segment << 4);
+}
 
 static inline void set_fs(u16 seg)
 {

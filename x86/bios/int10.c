@@ -1,4 +1,3 @@
-#include "kvm/segment.h"
 #include "kvm/bios.h"
 #include "kvm/vesa.h"
 

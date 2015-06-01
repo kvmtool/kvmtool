@@ -201,7 +201,7 @@ void kvm__irq_trigger(struct kvm *kvm, int irq)
 
 static inline void *guest_real_to_host(struct kvm *kvm, u16 selector, u16 offset)
 {
-	unsigned long flat = segment_to_flat(selector, offset);
+	unsigned long flat = ((u32)selector << 4) + offset;
 
 	return guest_flat_to_host(kvm, flat);
 }

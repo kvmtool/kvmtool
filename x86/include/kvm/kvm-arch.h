@@ -2,7 +2,6 @@
 #define KVM__KVM_ARCH_H
 
 #include "kvm/interrupt.h"
-#include "kvm/segment.h"
 
 #include <stdbool.h>
 #include <linux/types.h>
