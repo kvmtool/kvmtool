@@ -1,7 +1,6 @@
 #include "kvm/virtio-pci-dev.h"
 #include "kvm/virtio-net.h"
 #include "kvm/virtio.h"
-#include "kvm/types.h"
 #include "kvm/mutex.h"
 #include "kvm/util.h"
 #include "kvm/kvm.h"
