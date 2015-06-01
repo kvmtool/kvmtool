@@ -1,4 +1,4 @@
-#include "bios/memcpy.h"
+#include "asm/bios/memcpy.h"
 
 /*
  *  Copy memory area in 16-bit real mode.

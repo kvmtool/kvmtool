@@ -1,7 +1,7 @@
 #include "kvm/bios.h"
 #include "kvm/vesa.h"
 
-#include "bios/memcpy.h"
+#include "asm/bios/memcpy.h"
 
 #include "asm/bios/vesa.h"
 
