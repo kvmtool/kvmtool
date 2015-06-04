@@ -192,9 +192,7 @@ endif
 ###
 
 ifeq (,$(ARCH_INCLUDE))
-	UNSUPP_ERR = @echo "This architecture is not supported in kvmtool." && exit 1
-else
-	UNSUPP_ERR =
+        $(error This architecture ($(ARCH)) is not supported in kvmtool)
 endif
 
 ###
@@ -341,10 +339,7 @@ ifneq ($(WERROR),0)
 	CFLAGS += -Werror
 endif
 
-all: arch_support_check $(PROGRAM) $(PROGRAM_ALIAS) $(GUEST_INIT)
-
-arch_support_check:
-	$(UNSUPP_ERR)
+all: $(PROGRAM) $(PROGRAM_ALIAS) $(GUEST_INIT)
 
 # CFLAGS used when building objects
 # This is intentionally not assigned using :=
