@@ -131,6 +131,7 @@ ifeq ($(ARCH),x86)
 	OTHEROBJS	+= x86/bios.o
 	OTHEROBJS	+= x86/bios/bios-rom.o
 	ARCH_INCLUDE := x86/include
+	ARCH_HAS_FRAMEBUFFER := y
 endif
 # POWER/ppc:  Actually only support ppc64 currently.
 ifeq ($(ARCH), powerpc)
@@ -210,40 +211,42 @@ else
 	NOTFOUND	+= bfd
 endif
 
-CFLAGS_GTK3 := $(shell pkg-config --cflags gtk+-3.0 2>/dev/null)
-LDFLAGS_GTK3 := $(shell pkg-config --libs gtk+-3.0 2>/dev/null)
-ifeq ($(call try-build,$(SOURCE_GTK3),$(CFLAGS) $(CFLAGS_GTK3),$(LDFLAGS_GTK3)),y)
-	OBJS_DYNOPT	+= ui/gtk3.o
-	CFLAGS_DYNOPT	+= -DCONFIG_HAS_GTK3 $(CFLAGS_GTK3)
-	LIBS_DYNOPT	+= $(LDFLAGS_GTK3)
-else
-	NOTFOUND	+= GTK3
-endif
+ifeq (y,$(ARCH_HAS_FRAMEBUFFER))
+	CFLAGS_GTK3 := $(shell pkg-config --cflags gtk+-3.0 2>/dev/null)
+	LDFLAGS_GTK3 := $(shell pkg-config --libs gtk+-3.0 2>/dev/null)
+	ifeq ($(call try-build,$(SOURCE_GTK3),$(CFLAGS) $(CFLAGS_GTK3),$(LDFLAGS_GTK3)),y)
+		OBJS_DYNOPT	+= ui/gtk3.o
+		CFLAGS_DYNOPT	+= -DCONFIG_HAS_GTK3 $(CFLAGS_GTK3)
+		LIBS_DYNOPT	+= $(LDFLAGS_GTK3)
+	else
+		NOTFOUND	+= GTK3
+	endif
 
-ifeq ($(call try-build,$(SOURCE_VNCSERVER),$(CFLAGS),-lvncserver),y)
-	OBJS_DYNOPT	+= ui/vnc.o
-	CFLAGS_DYNOPT	+= -DCONFIG_HAS_VNCSERVER
-	LIBS_DYNOPT	+= -lvncserver
-else
-	NOTFOUND	+= vncserver
-endif
-ifeq ($(call try-build,$(SOURCE_VNCSERVER),$(CFLAGS),-lvncserver -static),y)
-	OBJS_STATOPT	+= ui/vnc.o
-	CFLAGS_STATOPT	+= -DCONFIG_HAS_VNCSERVER
-	LIBS_STATOPT	+= -lvncserver
-endif
+	ifeq ($(call try-build,$(SOURCE_VNCSERVER),$(CFLAGS),-lvncserver),y)
+		OBJS_DYNOPT	+= ui/vnc.o
+		CFLAGS_DYNOPT	+= -DCONFIG_HAS_VNCSERVER
+		LIBS_DYNOPT	+= -lvncserver
+	else
+		NOTFOUND	+= vncserver
+	endif
+	ifeq ($(call try-build,$(SOURCE_VNCSERVER),$(CFLAGS),-lvncserver -static),y)
+		OBJS_STATOPT	+= ui/vnc.o
+		CFLAGS_STATOPT	+= -DCONFIG_HAS_VNCSERVER
+		LIBS_STATOPT	+= -lvncserver
+	endif
 
-ifeq ($(call try-build,$(SOURCE_SDL),$(CFLAGS),-lSDL),y)
-	OBJS_DYNOPT	+= ui/sdl.o
-	CFLAGS_DYNOPT	+= -DCONFIG_HAS_SDL
-	LIBS_DYNOPT	+= -lSDL
-else
-	NOTFOUND	+= SDL
-endif
-ifeq ($(call try-build,$(SOURCE_SDL),$(CFLAGS),-lSDL -static), y)
-	OBJS_STATOPT	+= ui/sdl.o
-	CFLAGS_STATOPT	+= -DCONFIG_HAS_SDL
-	LIBS_STATOPT	+= -lSDL
+	ifeq ($(call try-build,$(SOURCE_SDL),$(CFLAGS),-lSDL),y)
+		OBJS_DYNOPT	+= ui/sdl.o
+		CFLAGS_DYNOPT	+= -DCONFIG_HAS_SDL
+		LIBS_DYNOPT	+= -lSDL
+	else
+		NOTFOUND	+= SDL
+	endif
+	ifeq ($(call try-build,$(SOURCE_SDL),$(CFLAGS),-lSDL -static), y)
+		OBJS_STATOPT	+= ui/sdl.o
+		CFLAGS_STATOPT	+= -DCONFIG_HAS_SDL
+		LIBS_STATOPT	+= -lSDL
+	endif
 endif
 
 ifeq ($(call try-build,$(SOURCE_ZLIB),$(CFLAGS),-lz),y)
