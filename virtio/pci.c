@@ -141,7 +141,7 @@ static bool virtio_pci__io_in(struct ioport *ioport, struct kvm_cpu *vcpu, u16 p
 		break;
 	case VIRTIO_PCI_ISR:
 		ioport__write8(data, vpci->isr);
-		kvm__irq_line(kvm, vpci->pci_hdr.irq_line, VIRTIO_IRQ_LOW);
+		kvm__irq_line(kvm, vpci->legacy_irq_line, VIRTIO_IRQ_LOW);
 		vpci->isr = VIRTIO_IRQ_LOW;
 		break;
 	default:
@@ -299,7 +299,7 @@ int virtio_pci__signal_vq(struct kvm *kvm, struct virtio_device *vdev, u32 vq)
 			kvm__irq_trigger(kvm, vpci->gsis[vq]);
 	} else {
 		vpci->isr = VIRTIO_IRQ_HIGH;
-		kvm__irq_trigger(kvm, vpci->pci_hdr.irq_line);
+		kvm__irq_trigger(kvm, vpci->legacy_irq_line);
 	}
 	return 0;
 }
@@ -323,7 +323,7 @@ int virtio_pci__signal_config(struct kvm *kvm, struct virtio_device *vdev)
 			kvm__irq_trigger(kvm, vpci->config_gsi);
 	} else {
 		vpci->isr = VIRTIO_PCI_ISR_CONFIG;
-		kvm__irq_trigger(kvm, vpci->pci_hdr.irq_line);
+		kvm__irq_trigger(kvm, vpci->legacy_irq_line);
 	}
 
 	return 0;
@@ -421,6 +421,9 @@ int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 	r = device__register(&vpci->dev_hdr);
 	if (r < 0)
 		goto free_msix_mmio;
+
+	/* save the IRQ that device__register() has allocated */
+	vpci->legacy_irq_line = vpci->pci_hdr.irq_line;
 
 	return 0;
 

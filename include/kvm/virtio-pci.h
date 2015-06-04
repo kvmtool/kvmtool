@@ -30,6 +30,14 @@ struct virtio_pci {
 	u8			isr;
 	u32			features;
 
+	/*
+	 * We cannot rely on the INTERRUPT_LINE byte in the config space once
+	 * we have run guest code, as the OS is allowed to use that field
+	 * as a scratch pad to communicate between driver and PCI layer.
+	 * So store our legacy interrupt line number in here for internal use.
+	 */
+	u8			legacy_irq_line;
+
 	/* MSI-X */
 	u16			config_vector;
 	u32			config_gsi;
