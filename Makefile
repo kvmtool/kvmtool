@@ -15,7 +15,9 @@ include config/utilities.mak
 include config/feature-tests.mak
 
 CC	:= $(CROSS_COMPILE)gcc
+CFLAGS	:=
 LD	:= $(CROSS_COMPILE)ld
+LDFLAGS	:=
 
 FIND	:= find
 CSCOPE	:= cscope
