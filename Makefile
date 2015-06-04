@@ -332,9 +332,6 @@ WARNINGS += -Wwrite-strings
 
 CFLAGS	+= $(WARNINGS)
 
-# Some targets may use 'external' sources that don't build totally cleanly.
-CFLAGS_EASYGOING := $(CFLAGS)
-
 ifneq ($(WERROR),0)
 	CFLAGS += -Werror
 endif
