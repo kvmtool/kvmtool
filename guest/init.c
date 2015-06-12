@@ -9,7 +9,7 @@
 #include <errno.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
-#include <linux/reboot.h>
+#include <sys/reboot.h>
 
 static int run_process(char *filename)
 {
@@ -70,7 +70,7 @@ int main(int argc, char *argv[])
 		} while (corpse != child);
 	}
 
-	reboot(LINUX_REBOOT_CMD_RESTART);
+	reboot(RB_AUTOBOOT);
 
 	printf("Init failed: %s\n", strerror(errno));
 
