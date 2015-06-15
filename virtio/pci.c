@@ -57,7 +57,7 @@ static int virtio_pci__init_ioeventfd(struct kvm *kvm, struct virtio_device *vde
 
 	/* mmio */
 	ioevent.io_addr	= vpci->mmio_addr + VIRTIO_PCI_QUEUE_NOTIFY;
-	ioevent.io_len	= sizeof(u32);
+	ioevent.io_len	= sizeof(u16);
 	ioevent.fd	= fds[1] = eventfd(0, 0);
 	r = ioeventfd__add_event(&ioevent, flags);
 	if (r)
