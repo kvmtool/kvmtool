@@ -287,7 +287,7 @@ static int virtio_net_request_tap(struct net_dev *ndev, struct ifreq *ifr,
 	if (tapname)
 		strncpy(ifr->ifr_name, tapname, sizeof(ifr->ifr_name));
 
-	ret = ioctl(ndev->tap_fd, TUNSETIFF, &ifr);
+	ret = ioctl(ndev->tap_fd, TUNSETIFF, ifr);
 
 	if (ret >= 0)
 		strncpy(ndev->tap_name, ifr->ifr_name, sizeof(ndev->tap_name));
