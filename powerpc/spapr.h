@@ -16,16 +16,31 @@
 
 #include <inttypes.h>
 
-/* We need some of the H_ hcall defs, but they're __KERNEL__ only. */
-#define __KERNEL__
-#include <asm/hvcall.h>
-#undef __KERNEL__
-
 #include "kvm/kvm.h"
 #include "kvm/kvm-cpu.h"
 
 typedef unsigned long target_ulong;
 typedef uintptr_t target_phys_addr_t;
+
+#define H_SUCCESS	0
+#define H_HARDWARE	-1	/* Hardware error */
+#define H_FUNCTION	-2	/* Function not supported */
+#define H_PARAMETER	-4	/* Parameter invalid, out-of-range or conflicting */
+
+#define H_SET_DABR		0x28
+#define H_LOGICAL_CI_LOAD	0x3c
+#define H_LOGICAL_CI_STORE	0x40
+#define H_LOGICAL_CACHE_LOAD	0x44
+#define H_LOGICAL_CACHE_STORE	0x48
+#define H_LOGICAL_ICBI		0x4c
+#define H_LOGICAL_DCBF		0x50
+#define H_GET_TERM_CHAR		0x54
+#define H_PUT_TERM_CHAR		0x58
+#define H_CPPR			0x68
+#define H_EOI			0x64
+#define H_IPI			0x6c
+#define H_XIRR			0x74
+#define MAX_HCALL_OPCODE	H_XIRR
 
 /*
  * The hcalls above are standardized in PAPR and implemented by pHyp
