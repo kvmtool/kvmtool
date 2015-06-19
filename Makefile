@@ -148,8 +148,6 @@ ifeq ($(ARCH), powerpc)
 	OBJS	+= powerpc/spapr_pci.o
 	OBJS	+= powerpc/xics.o
 	ARCH_INCLUDE := powerpc/include
-	CFLAGS 	+= -m64
-	LDFLAGS += -m elf64ppc
 
 	ARCH_WANT_LIBFDT := y
 endif

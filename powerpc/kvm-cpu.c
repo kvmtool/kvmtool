@@ -147,7 +147,7 @@ static void kvm_cpu__setup_sregs(struct kvm_cpu *vcpu)
 
 	reg.id = KVM_REG_PPC_HIOR;
 	value = 0;
-	reg.addr = (u64)&value;
+	reg.addr = (u64)(unsigned long)&value;
 	if (ioctl(vcpu->vcpu_fd, KVM_SET_ONE_REG, &reg) < 0)
 		die("KVM_SET_ONE_REG failed");
 }

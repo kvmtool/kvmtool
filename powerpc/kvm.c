@@ -172,7 +172,7 @@ int load_flat_binary(struct kvm *kvm, int fd_kernel, int fd_initrd, const char *
 	while ((nr = read(fd_kernel, p, 65536)) > 0)
 		p += nr;
 
-	pr_info("Loaded kernel to 0x%x (%ld bytes)", KERNEL_LOAD_ADDR, p-k_start);
+	pr_info("Loaded kernel to 0x%x (%ld bytes)", KERNEL_LOAD_ADDR, (long)(p-k_start));
 
 	if (fd_initrd != -1) {
 		if (lseek(fd_initrd, 0, SEEK_SET) < 0)
@@ -192,7 +192,7 @@ int load_flat_binary(struct kvm *kvm, int fd_kernel, int fd_initrd, const char *
 			die("initrd too big to contain in guest RAM.\n");
 
 		pr_info("Loaded initrd to 0x%x (%ld bytes)",
-			INITRD_LOAD_ADDR, p-i_start);
+			INITRD_LOAD_ADDR, (long)(p-i_start));
 		kvm->arch.initrd_gra = INITRD_LOAD_ADDR;
 		kvm->arch.initrd_size = p-i_start;
 	} else {
