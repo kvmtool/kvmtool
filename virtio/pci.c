@@ -25,7 +25,7 @@ static int virtio_pci__init_ioeventfd(struct kvm *kvm, struct virtio_device *vde
 {
 	struct ioevent ioevent;
 	struct virtio_pci *vpci = vdev->virtio;
-	int i, r, flags = IOEVENTFD_FLAG_PIO;
+	int i, r, flags = 0;
 	int fds[2];
 
 	vpci->ioeventfds[vq] = (struct virtio_pci_ioevent_param) {
@@ -51,7 +51,7 @@ static int virtio_pci__init_ioeventfd(struct kvm *kvm, struct virtio_device *vde
 	ioevent.io_addr	= vpci->port_addr + VIRTIO_PCI_QUEUE_NOTIFY;
 	ioevent.io_len	= sizeof(u16);
 	ioevent.fd	= fds[0] = eventfd(0, 0);
-	r = ioeventfd__add_event(&ioevent, flags);
+	r = ioeventfd__add_event(&ioevent, flags | IOEVENTFD_FLAG_PIO);
 	if (r)
 		return r;
 
