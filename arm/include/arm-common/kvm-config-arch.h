@@ -8,7 +8,10 @@ struct kvm_config_arch {
 	unsigned int	force_cntfrq;
 	bool		virtio_trans_pci;
 	bool		aarch32_guest;
+	enum irqchip_type irqchip;
 };
+
+int irqchip_parser(const struct option *opt, const char *arg, int unset);
 
 #define OPT_ARCH_RUN(pfx, cfg)							\
 	pfx,									\
@@ -21,6 +24,10 @@ struct kvm_config_arch {
 		     "updated to program CNTFRQ correctly*"),			\
 	OPT_BOOLEAN('\0', "force-pci", &(cfg)->virtio_trans_pci,		\
 		    "Force virtio devices to use PCI as their default "		\
-		    "transport"),
+		    "transport"),						\
+        OPT_CALLBACK('\0', "irqchip", &(cfg)->irqchip,				\
+		     "[gicv2|gicv3]",					\
+		     "Type of interrupt controller to emulate in the guest",	\
+		     irqchip_parser, NULL),
 
 #endif /* ARM_COMMON__KVM_CONFIG_ARCH_H */

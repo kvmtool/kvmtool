@@ -22,6 +22,22 @@ static int gic_fd = -1;
 static u64 gic_redists_base;
 static u64 gic_redists_size;
 
+int irqchip_parser(const struct option *opt, const char *arg, int unset)
+{
+	enum irqchip_type *type = opt->value;
+
+	if (!strcmp(arg, "gicv2")) {
+		*type = IRQCHIP_GICV2;
+	} else if (!strcmp(arg, "gicv3")) {
+		*type = IRQCHIP_GICV3;
+	} else {
+		pr_err("irqchip: unknown type \"%s\"\n", arg);
+		return -1;
+	}
+
+	return 0;
+}
+
 static int gic__create_device(struct kvm *kvm, enum irqchip_type type)
 {
 	int err;
