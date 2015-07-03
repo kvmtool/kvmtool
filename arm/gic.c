@@ -11,13 +11,13 @@
 
 static int gic_fd = -1;
 
-static int gic__create_device(struct kvm *kvm)
+static int gic__create_device(struct kvm *kvm, enum irqchip_type type)
 {
 	int err;
 	u64 cpu_if_addr = ARM_GIC_CPUI_BASE;
 	u64 dist_addr = ARM_GIC_DIST_BASE;
 	struct kvm_create_device gic_device = {
-		.type	= KVM_DEV_TYPE_ARM_VGIC_V2,
+		.flags	= 0,
 	};
 	struct kvm_device_attr cpu_if_attr = {
 		.group	= KVM_DEV_ARM_VGIC_GRP_ADDR,
@@ -26,9 +26,15 @@ static int gic__create_device(struct kvm *kvm)
 	};
 	struct kvm_device_attr dist_attr = {
 		.group	= KVM_DEV_ARM_VGIC_GRP_ADDR,
-		.attr	= KVM_VGIC_V2_ADDR_TYPE_DIST,
 		.addr	= (u64)(unsigned long)&dist_addr,
 	};
+
+	switch (type) {
+	case IRQCHIP_GICV2:
+		gic_device.type = KVM_DEV_TYPE_ARM_VGIC_V2;
+		dist_attr.attr  = KVM_VGIC_V2_ADDR_TYPE_DIST;
+		break;
+	}
 
 	err = ioctl(kvm->vm_fd, KVM_CREATE_DEVICE, &gic_device);
 	if (err)
@@ -36,7 +42,11 @@ static int gic__create_device(struct kvm *kvm)
 
 	gic_fd = gic_device.fd;
 
-	err = ioctl(gic_fd, KVM_SET_DEVICE_ATTR, &cpu_if_attr);
+	switch (type) {
+	case IRQCHIP_GICV2:
+		err = ioctl(gic_fd, KVM_SET_DEVICE_ATTR, &cpu_if_attr);
+		break;
+	}
 	if (err)
 		goto out_err;
 
@@ -80,13 +90,20 @@ static int gic__create_irqchip(struct kvm *kvm)
 	return err;
 }
 
-int gic__create(struct kvm *kvm)
+int gic__create(struct kvm *kvm, enum irqchip_type type)
 {
 	int err;
 
+	switch (type) {
+	case IRQCHIP_GICV2:
+		break;
+	default:
+		return -ENODEV;
+	}
+
 	/* Try the new way first, and fallback on legacy method otherwise */
-	err = gic__create_device(kvm);
-	if (err)
+	err = gic__create_device(kvm, type);
+	if (err && type == IRQCHIP_GICV2)
 		err = gic__create_irqchip(kvm);
 
 	return err;
@@ -134,15 +151,24 @@ static int gic__init_gic(struct kvm *kvm)
 }
 late_init(gic__init_gic)
 
-void gic__generate_fdt_nodes(void *fdt, u32 phandle)
+void gic__generate_fdt_nodes(void *fdt, u32 phandle, enum irqchip_type type)
 {
+	const char *compatible;
 	u64 reg_prop[] = {
 		cpu_to_fdt64(ARM_GIC_DIST_BASE), cpu_to_fdt64(ARM_GIC_DIST_SIZE),
 		cpu_to_fdt64(ARM_GIC_CPUI_BASE), cpu_to_fdt64(ARM_GIC_CPUI_SIZE),
 	};
 
+	switch (type) {
+	case IRQCHIP_GICV2:
+		compatible = "arm,cortex-a15-gic";
+		break;
+	default:
+		return;
+	}
+
 	_FDT(fdt_begin_node(fdt, "intc"));
-	_FDT(fdt_property_string(fdt, "compatible", "arm,cortex-a15-gic"));
+	_FDT(fdt_property_string(fdt, "compatible", compatible));
 	_FDT(fdt_property_cell(fdt, "#interrupt-cells", GIC_FDT_IRQ_NUM_CELLS));
 	_FDT(fdt_property(fdt, "interrupt-controller", NULL, 0));
 	_FDT(fdt_property(fdt, "reg", reg_prop, sizeof(reg_prop)));

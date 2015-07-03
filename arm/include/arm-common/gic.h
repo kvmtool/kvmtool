@@ -21,10 +21,14 @@
 #define GIC_MAX_CPUS			8
 #define GIC_MAX_IRQ			255
 
+enum irqchip_type {
+	IRQCHIP_GICV2,
+};
+
 struct kvm;
 
 int gic__alloc_irqnum(void);
-int gic__create(struct kvm *kvm);
-void gic__generate_fdt_nodes(void *fdt, u32 phandle);
+int gic__create(struct kvm *kvm, enum irqchip_type type);
+void gic__generate_fdt_nodes(void *fdt, u32 phandle, enum irqchip_type type);
 
 #endif /* ARM_COMMON__GIC_H */

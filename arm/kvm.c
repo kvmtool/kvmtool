@@ -82,6 +82,6 @@ void kvm__arch_init(struct kvm *kvm, const char *hugetlbfs_path, u64 ram_size)
 		MADV_MERGEABLE | MADV_HUGEPAGE);
 
 	/* Create the virtual GIC. */
-	if (gic__create(kvm))
+	if (gic__create(kvm, IRQCHIP_GICV2))
 		die("Failed to create virtual GIC");
 }
