@@ -11,6 +11,7 @@
 struct kvm;
 
 int irq__alloc_line(void);
+int irq__get_nr_allocated_lines(void);
 
 int irq__init(struct kvm *kvm);
 int irq__exit(struct kvm *kvm);
