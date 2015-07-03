@@ -45,18 +45,6 @@ static inline bool arm_addr_in_ioport_region(u64 phys_addr)
 	return phys_addr >= KVM_IOPORT_AREA && phys_addr < limit;
 }
 
-static inline bool arm_addr_in_virtio_mmio_region(u64 phys_addr)
-{
-	u64 limit = KVM_VIRTIO_MMIO_AREA + ARM_VIRTIO_MMIO_SIZE;
-	return phys_addr >= KVM_VIRTIO_MMIO_AREA && phys_addr < limit;
-}
-
-static inline bool arm_addr_in_pci_region(u64 phys_addr)
-{
-	u64 limit = KVM_PCI_CFG_AREA + ARM_PCI_CFG_SIZE + ARM_PCI_MMIO_SIZE;
-	return phys_addr >= KVM_PCI_CFG_AREA && phys_addr < limit;
-}
-
 struct kvm_arch {
 	/*
 	 * We may have to align the guest memory for virtio, so keep the
