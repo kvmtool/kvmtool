@@ -1,10 +1,12 @@
 #include "kvm/fdt.h"
+#include "kvm/irq.h"
 #include "kvm/kvm.h"
 #include "kvm/virtio.h"
 
 #include "arm-common/gic.h"
 
 #include <linux/byteorder.h>
+#include <linux/kernel.h>
 #include <linux/kvm.h>
 
 static int gic_fd = -1;
@@ -95,6 +97,29 @@ int gic__create(struct kvm *kvm)
 
 	return err;
 }
+
+static int gic__init_gic(struct kvm *kvm)
+{
+	int lines = irq__get_nr_allocated_lines();
+	u32 nr_irqs = ALIGN(lines, 32) + GIC_SPI_IRQ_BASE;
+	struct kvm_device_attr nr_irqs_attr = {
+		.group	= KVM_DEV_ARM_VGIC_GRP_NR_IRQS,
+		.addr	= (u64)(unsigned long)&nr_irqs,
+	};
+
+	/*
+	 * If we didn't use the KVM_CREATE_DEVICE method, KVM will
+	 * give us some default number of interrupts.
+	 */
+	if (gic_fd < 0)
+		return 0;
+
+	if (!ioctl(gic_fd, KVM_HAS_DEVICE_ATTR, &nr_irqs_attr))
+		return ioctl(gic_fd, KVM_SET_DEVICE_ATTR, &nr_irqs_attr);
+
+	return 0;
+}
+late_init(gic__init_gic)
 
 void gic__generate_fdt_nodes(void *fdt, u32 phandle)
 {
