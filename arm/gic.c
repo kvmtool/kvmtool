@@ -84,12 +84,6 @@ int gic__create(struct kvm *kvm)
 {
 	int err;
 
-	if (kvm->nrcpus > GIC_MAX_CPUS) {
-		pr_warning("%d CPUS greater than maximum of %d -- truncating\n",
-				kvm->nrcpus, GIC_MAX_CPUS);
-		kvm->nrcpus = GIC_MAX_CPUS;
-	}
-
 	/* Try the new way first, and fallback on legacy method otherwise */
 	err = gic__create_device(kvm);
 	if (err)
