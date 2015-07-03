@@ -24,7 +24,7 @@
 struct kvm;
 
 int gic__alloc_irqnum(void);
-int gic__init_irqchip(struct kvm *kvm);
+int gic__create(struct kvm *kvm);
 void gic__generate_fdt_nodes(void *fdt, u32 phandle);
 
 #endif /* ARM_COMMON__GIC_H */

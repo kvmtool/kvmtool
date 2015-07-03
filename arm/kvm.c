@@ -81,7 +81,7 @@ void kvm__arch_init(struct kvm *kvm, const char *hugetlbfs_path, u64 ram_size)
 	madvise(kvm->arch.ram_alloc_start, kvm->arch.ram_alloc_size,
 		MADV_MERGEABLE | MADV_HUGEPAGE);
 
-	/* Initialise the virtual GIC. */
-	if (gic__init_irqchip(kvm))
-		die("Failed to initialise virtual GIC");
+	/* Create the virtual GIC. */
+	if (gic__create(kvm))
+		die("Failed to create virtual GIC");
 }

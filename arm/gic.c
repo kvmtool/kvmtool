@@ -7,7 +7,50 @@
 #include <linux/byteorder.h>
 #include <linux/kvm.h>
 
-int gic__init_irqchip(struct kvm *kvm)
+static int gic_fd = -1;
+
+static int gic__create_device(struct kvm *kvm)
+{
+	int err;
+	u64 cpu_if_addr = ARM_GIC_CPUI_BASE;
+	u64 dist_addr = ARM_GIC_DIST_BASE;
+	struct kvm_create_device gic_device = {
+		.type	= KVM_DEV_TYPE_ARM_VGIC_V2,
+	};
+	struct kvm_device_attr cpu_if_attr = {
+		.group	= KVM_DEV_ARM_VGIC_GRP_ADDR,
+		.attr	= KVM_VGIC_V2_ADDR_TYPE_CPU,
+		.addr	= (u64)(unsigned long)&cpu_if_addr,
+	};
+	struct kvm_device_attr dist_attr = {
+		.group	= KVM_DEV_ARM_VGIC_GRP_ADDR,
+		.attr	= KVM_VGIC_V2_ADDR_TYPE_DIST,
+		.addr	= (u64)(unsigned long)&dist_addr,
+	};
+
+	err = ioctl(kvm->vm_fd, KVM_CREATE_DEVICE, &gic_device);
+	if (err)
+		return err;
+
+	gic_fd = gic_device.fd;
+
+	err = ioctl(gic_fd, KVM_SET_DEVICE_ATTR, &cpu_if_attr);
+	if (err)
+		goto out_err;
+
+	err = ioctl(gic_fd, KVM_SET_DEVICE_ATTR, &dist_attr);
+	if (err)
+		goto out_err;
+
+	return 0;
+
+out_err:
+	close(gic_fd);
+	gic_fd = -1;
+	return err;
+}
+
+static int gic__create_irqchip(struct kvm *kvm)
 {
 	int err;
 	struct kvm_arm_device_addr gic_addr[] = {
@@ -23,12 +66,6 @@ int gic__init_irqchip(struct kvm *kvm)
 		}
 	};
 
-	if (kvm->nrcpus > GIC_MAX_CPUS) {
-		pr_warning("%d CPUS greater than maximum of %d -- truncating\n",
-				kvm->nrcpus, GIC_MAX_CPUS);
-		kvm->nrcpus = GIC_MAX_CPUS;
-	}
-
 	err = ioctl(kvm->vm_fd, KVM_CREATE_IRQCHIP);
 	if (err)
 		return err;
@@ -38,6 +75,24 @@ int gic__init_irqchip(struct kvm *kvm)
 		return err;
 
 	err = ioctl(kvm->vm_fd, KVM_ARM_SET_DEVICE_ADDR, &gic_addr[1]);
+	return err;
+}
+
+int gic__create(struct kvm *kvm)
+{
+	int err;
+
+	if (kvm->nrcpus > GIC_MAX_CPUS) {
+		pr_warning("%d CPUS greater than maximum of %d -- truncating\n",
+				kvm->nrcpus, GIC_MAX_CPUS);
+		kvm->nrcpus = GIC_MAX_CPUS;
+	}
+
+	/* Try the new way first, and fallback on legacy method otherwise */
+	err = gic__create_device(kvm);
+	if (err)
+		err = gic__create_irqchip(kvm);
+
 	return err;
 }
 
