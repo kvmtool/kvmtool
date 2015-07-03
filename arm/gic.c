@@ -98,24 +98,43 @@ int gic__create(struct kvm *kvm)
 	return err;
 }
 
+/*
+ * Sets the number of used interrupts and finalizes the GIC init explicitly.
+ */
 static int gic__init_gic(struct kvm *kvm)
 {
+	int ret;
+
 	int lines = irq__get_nr_allocated_lines();
 	u32 nr_irqs = ALIGN(lines, 32) + GIC_SPI_IRQ_BASE;
 	struct kvm_device_attr nr_irqs_attr = {
 		.group	= KVM_DEV_ARM_VGIC_GRP_NR_IRQS,
 		.addr	= (u64)(unsigned long)&nr_irqs,
 	};
+	struct kvm_device_attr vgic_init_attr = {
+		.group	= KVM_DEV_ARM_VGIC_GRP_CTRL,
+		.attr	= KVM_DEV_ARM_VGIC_CTRL_INIT,
+	};
 
 	/*
 	 * If we didn't use the KVM_CREATE_DEVICE method, KVM will
-	 * give us some default number of interrupts.
+	 * give us some default number of interrupts. The GIC initialization
+	 * will be done automatically in this case.
 	 */
 	if (gic_fd < 0)
 		return 0;
 
-	if (!ioctl(gic_fd, KVM_HAS_DEVICE_ATTR, &nr_irqs_attr))
-		return ioctl(gic_fd, KVM_SET_DEVICE_ATTR, &nr_irqs_attr);
+	if (!ioctl(gic_fd, KVM_HAS_DEVICE_ATTR, &nr_irqs_attr)) {
+		ret = ioctl(gic_fd, KVM_SET_DEVICE_ATTR, &nr_irqs_attr);
+		if (ret)
+			return ret;
+	}
+
+	if (!ioctl(gic_fd, KVM_HAS_DEVICE_ATTR, &vgic_init_attr)) {
+		ret = ioctl(gic_fd, KVM_SET_DEVICE_ATTR, &vgic_init_attr);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }
