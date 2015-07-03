@@ -9,7 +9,18 @@
 #include <linux/kernel.h>
 #include <linux/kvm.h>
 
+/* Those names are not defined for ARM (yet) */
+#ifndef KVM_VGIC_V3_ADDR_TYPE_DIST
+#define KVM_VGIC_V3_ADDR_TYPE_DIST 2
+#endif
+
+#ifndef KVM_VGIC_V3_ADDR_TYPE_REDIST
+#define KVM_VGIC_V3_ADDR_TYPE_REDIST 3
+#endif
+
 static int gic_fd = -1;
+static u64 gic_redists_base;
+static u64 gic_redists_size;
 
 static int gic__create_device(struct kvm *kvm, enum irqchip_type type)
 {
@@ -28,11 +39,20 @@ static int gic__create_device(struct kvm *kvm, enum irqchip_type type)
 		.group	= KVM_DEV_ARM_VGIC_GRP_ADDR,
 		.addr	= (u64)(unsigned long)&dist_addr,
 	};
+	struct kvm_device_attr redist_attr = {
+		.group	= KVM_DEV_ARM_VGIC_GRP_ADDR,
+		.attr	= KVM_VGIC_V3_ADDR_TYPE_REDIST,
+		.addr	= (u64)(unsigned long)&gic_redists_base,
+	};
 
 	switch (type) {
 	case IRQCHIP_GICV2:
 		gic_device.type = KVM_DEV_TYPE_ARM_VGIC_V2;
 		dist_attr.attr  = KVM_VGIC_V2_ADDR_TYPE_DIST;
+		break;
+	case IRQCHIP_GICV3:
+		gic_device.type = KVM_DEV_TYPE_ARM_VGIC_V3;
+		dist_attr.attr  = KVM_VGIC_V3_ADDR_TYPE_DIST;
 		break;
 	}
 
@@ -45,6 +65,9 @@ static int gic__create_device(struct kvm *kvm, enum irqchip_type type)
 	switch (type) {
 	case IRQCHIP_GICV2:
 		err = ioctl(gic_fd, KVM_SET_DEVICE_ATTR, &cpu_if_attr);
+		break;
+	case IRQCHIP_GICV3:
+		err = ioctl(gic_fd, KVM_SET_DEVICE_ATTR, &redist_attr);
 		break;
 	}
 	if (err)
@@ -96,6 +119,10 @@ int gic__create(struct kvm *kvm, enum irqchip_type type)
 
 	switch (type) {
 	case IRQCHIP_GICV2:
+		break;
+	case IRQCHIP_GICV3:
+		gic_redists_size = kvm->cfg.nrcpus * ARM_GIC_REDIST_SIZE;
+		gic_redists_base = ARM_GIC_DIST_BASE - gic_redists_size;
 		break;
 	default:
 		return -ENODEV;
@@ -156,12 +183,19 @@ void gic__generate_fdt_nodes(void *fdt, u32 phandle, enum irqchip_type type)
 	const char *compatible;
 	u64 reg_prop[] = {
 		cpu_to_fdt64(ARM_GIC_DIST_BASE), cpu_to_fdt64(ARM_GIC_DIST_SIZE),
-		cpu_to_fdt64(ARM_GIC_CPUI_BASE), cpu_to_fdt64(ARM_GIC_CPUI_SIZE),
+		0, 0,				/* to be filled */
 	};
 
 	switch (type) {
 	case IRQCHIP_GICV2:
 		compatible = "arm,cortex-a15-gic";
+		reg_prop[2] = cpu_to_fdt64(ARM_GIC_CPUI_BASE);
+		reg_prop[3] = cpu_to_fdt64(ARM_GIC_CPUI_SIZE);
+		break;
+	case IRQCHIP_GICV3:
+		compatible = "arm,gic-v3";
+		reg_prop[2] = cpu_to_fdt64(gic_redists_base);
+		reg_prop[3] = cpu_to_fdt64(gic_redists_size);
 		break;
 	default:
 		return;

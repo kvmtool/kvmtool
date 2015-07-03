@@ -23,6 +23,7 @@
 
 enum irqchip_type {
 	IRQCHIP_GICV2,
+	IRQCHIP_GICV3,
 };
 
 struct kvm;

@@ -30,6 +30,13 @@
 #define KVM_PCI_MMIO_AREA	(KVM_PCI_CFG_AREA + ARM_PCI_CFG_SIZE)
 #define KVM_VIRTIO_MMIO_AREA	ARM_MMIO_AREA
 
+/*
+ * On a GICv3 there must be one redistributor per vCPU.
+ * The value here is the size for one, we multiply this at runtime with
+ * the number of requested vCPUs to get the actual size.
+ */
+#define ARM_GIC_REDIST_SIZE	0x20000
+
 #define KVM_IRQ_OFFSET		GIC_SPI_IRQ_BASE
 
 #define KVM_VM_TYPE		0
