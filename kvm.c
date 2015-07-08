@@ -112,7 +112,7 @@ static int kvm__check_extensions(struct kvm *kvm)
 		if (!kvm_req_ext[i].name)
 			break;
 		if (!kvm__supports_extension(kvm, kvm_req_ext[i].code)) {
-			pr_err("Unsuppored KVM extension detected: %s",
+			pr_err("Unsupported KVM extension detected: %s",
 				kvm_req_ext[i].name);
 			return -i;
 		}
