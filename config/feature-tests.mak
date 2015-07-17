@@ -196,3 +196,13 @@ int main(void)
 	return 0;
 }
 endef
+
+define SOURCE_STRLCPY
+#include <string.h>
+
+int main(void)
+{
+	strlcpy(NULL, NULL, 0);
+	return 0;
+}
+endef

@@ -13,6 +13,7 @@ int prefixcmp(const char *str, const char *prefix)
 	}
 }
 
+#ifndef HAVE_STRLCPY
 /**
  * strlcat - Append a length-limited, %NUL-terminated string to another
  * @dest: The string to be appended to
@@ -60,3 +61,4 @@ size_t strlcpy(char *dest, const char *src, size_t size)
 	}
 	return ret;
 }
+#endif

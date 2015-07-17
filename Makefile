@@ -199,6 +199,11 @@ endif
 # On a given system, some libs may link statically, some may not; so, check
 # both and only build those that link!
 
+ifeq ($(call try-build,$(SOURCE_STRLCPY),$(CFLAGS),),y)
+	CFLAGS_DYNOPT	+= -DHAVE_STRLCPY
+	CFLAGS_STATOPT	+= -DHAVE_STRLCPY
+endif
+
 ifeq ($(call try-build,$(SOURCE_BFD),$(CFLAGS),-lbfd -static),y)
 	CFLAGS_STATOPT	+= -DCONFIG_HAS_BFD
 	OBJS_STATOPT	+= symbol.o
