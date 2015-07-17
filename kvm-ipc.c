@@ -99,7 +99,7 @@ int kvm__get_sock_by_instance(const char *name)
 	strlcpy(local.sun_path, sock_file, sizeof(local.sun_path));
 	len = strlen(local.sun_path) + sizeof(local.sun_family);
 
-	r = connect(s, &local, len);
+	r = connect(s, (struct sockaddr *)&local, len);
 	if (r < 0 && errno == ECONNREFUSED) {
 		/* Tell the user clean ghost socket file */
 		pr_err("\"%s\" could be a ghost socket file, please remove it",
