@@ -34,7 +34,7 @@ static pthread_t thread;
 static int kvm__create_socket(struct kvm *kvm)
 {
 	char full_name[PATH_MAX];
-	unsigned int s;
+	int s;
 	struct sockaddr_un local;
 	int len, r;
 
