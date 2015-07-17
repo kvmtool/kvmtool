@@ -1203,7 +1203,7 @@ static int qcow_read_refcount_table(struct qcow *q)
 	if (!rft->rf_table)
 		return -1;
 
-	rft->root = RB_ROOT;
+	rft->root = (struct rb_root) RB_ROOT;
 	INIT_LIST_HEAD(&rft->lru_list);
 
 	return pread_in_full(q->fd, rft->rf_table, sizeof(u64) * rft->rf_size, header->refcount_table_offset);
@@ -1289,7 +1289,7 @@ static struct disk_image *qcow2_probe(int fd, bool readonly)
 
 	l1t = &q->table;
 
-	l1t->root = RB_ROOT;
+	l1t->root = (struct rb_root) RB_ROOT;
 	INIT_LIST_HEAD(&l1t->lru_list);
 
 	h = q->header = qcow2_read_header(fd);
@@ -1435,7 +1435,7 @@ static struct disk_image *qcow1_probe(int fd, bool readonly)
 
 	l1t = &q->table;
 
-	l1t->root = RB_ROOT;
+	l1t->root = (struct rb_root)RB_ROOT;
 	INIT_LIST_HEAD(&l1t->lru_list);
 
 	h = q->header = qcow1_read_header(fd);

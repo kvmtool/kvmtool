@@ -13,7 +13,7 @@
 struct mutex {
 	pthread_mutex_t mutex;
 };
-#define MUTEX_INITIALIZER (struct mutex) { .mutex = PTHREAD_MUTEX_INITIALIZER }
+#define MUTEX_INITIALIZER { .mutex = PTHREAD_MUTEX_INITIALIZER }
 
 #define DEFINE_MUTEX(mtx) struct mutex mtx = MUTEX_INITIALIZER
 

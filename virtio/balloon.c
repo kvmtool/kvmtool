@@ -239,7 +239,7 @@ static int set_size_vq(struct kvm *kvm, void *dev, u32 vq, int size)
 	return size;
 }
 
-struct virtio_ops bln_dev_virtio_ops = (struct virtio_ops) {
+struct virtio_ops bln_dev_virtio_ops = {
 	.get_config		= get_config,
 	.get_host_features	= get_host_features,
 	.set_guest_features	= set_guest_features,
