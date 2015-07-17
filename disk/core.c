@@ -5,7 +5,7 @@
 
 #include <linux/err.h>
 #include <sys/eventfd.h>
-#include <sys/poll.h>
+#include <poll.h>
 
 #define AIO_MAX 256
 
