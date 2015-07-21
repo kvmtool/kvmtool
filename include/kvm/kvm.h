@@ -11,6 +11,7 @@
 #include <time.h>
 #include <signal.h>
 #include <sys/prctl.h>
+#include <limits.h>
 
 #define SIGKVMEXIT		(SIGRTMIN + 0)
 #define SIGKVMPAUSE		(SIGRTMIN + 1)
@@ -19,7 +20,9 @@
 #define HOME_DIR		getenv("HOME")
 #define KVM_BINARY_NAME		"lkvm"
 
+#ifndef PAGE_SIZE
 #define PAGE_SIZE (sysconf(_SC_PAGE_SIZE))
+#endif
 
 #define DEFINE_KVM_EXT(ext)		\
 	.name = #ext,			\
