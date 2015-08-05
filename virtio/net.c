@@ -294,10 +294,29 @@ static int virtio_net_request_tap(struct net_dev *ndev, struct ifreq *ifr,
 	return ret;
 }
 
+static int virtio_net_exec_script(const char* script, const char *tap_name)
+{
+	pid_t pid;
+	int status;
+
+	pid = fork();
+	if (pid == 0) {
+		execl(script, script, tap_name, NULL);
+		_exit(1);
+	} else {
+		waitpid(pid, &status, 0);
+		if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
+			pr_warning("Fail to setup tap by %s", script);
+			return -1;
+		}
+	}
+	return 0;
+}
+
 static bool virtio_net__tap_init(struct net_dev *ndev)
 {
 	int sock = socket(AF_INET, SOCK_STREAM, 0);
-	int pid, status, offload, hdr_len;
+	int offload, hdr_len;
 	struct sockaddr_in sin = {0};
 	struct ifreq ifr;
 	const struct virtio_net_params *params = ndev->params;
@@ -339,17 +358,8 @@ static bool virtio_net__tap_init(struct net_dev *ndev)
 	}
 
 	if (strcmp(params->script, "none")) {
-		pid = fork();
-		if (pid == 0) {
-			execl(params->script, params->script, ndev->tap_name, NULL);
-			_exit(1);
-		} else {
-			waitpid(pid, &status, 0);
-			if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
-				pr_warning("Fail to setup tap by %s", params->script);
-				goto fail;
-			}
-		}
+		if (virtio_net_exec_script(params->script, ndev->tap_name) < 0)
+			goto fail;
 	} else if (!skipconf) {
 		memset(&ifr, 0, sizeof(ifr));
 		strncpy(ifr.ifr_name, ndev->tap_name, sizeof(ndev->tap_name));
@@ -702,6 +712,8 @@ static int set_net_param(struct kvm *kvm, struct virtio_net_params *p,
 			die("Unknown network mode %s, please use user, tap or none", kvm->cfg.network);
 	} else if (strcmp(param, "script") == 0) {
 		p->script = strdup(val);
+	} else if (strcmp(param, "downscript") == 0) {
+		p->downscript = strdup(val);
 	} else if (strcmp(param, "guest_ip") == 0) {
 		p->guest_ip = strdup(val);
 	} else if (strcmp(param, "host_ip") == 0) {
@@ -740,6 +752,7 @@ int netdev_parser(const struct option *opt, const char *arg, int unset)
 		.guest_ip	= DEFAULT_GUEST_ADDR,
 		.host_ip	= DEFAULT_HOST_ADDR,
 		.script		= DEFAULT_SCRIPT,
+		.downscript	= DEFAULT_SCRIPT,
 		.mode		= NET_MODE_TAP,
 	};
 
@@ -877,6 +890,18 @@ virtio_dev_init(virtio_net__init);
 
 int virtio_net__exit(struct kvm *kvm)
 {
+	struct virtio_net_params *params;
+	struct net_dev *ndev;
+	struct list_head *ptr;
+
+	list_for_each(ptr, &ndevs) {
+		ndev = list_entry(ptr, struct net_dev, list);
+		params = ndev->params;
+		/* Cleanup any tap device which attached to bridge */
+		if (ndev->mode == NET_MODE_TAP &&
+		    strcmp(params->downscript, "none"))
+			virtio_net_exec_script(params->downscript, ndev->tap_name);
+	}
 	return 0;
 }
 virtio_dev_exit(virtio_net__exit);

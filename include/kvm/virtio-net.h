@@ -9,6 +9,7 @@ struct virtio_net_params {
 	const char *guest_ip;
 	const char *host_ip;
 	const char *script;
+	const char *downscript;
 	const char *trans;
 	const char *tapif;
 	char guest_mac[6];
