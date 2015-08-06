@@ -96,3 +96,10 @@ See the following thread for original discussion for motivation of this
 project:
 
 http://thread.gmane.org/gmane.linux.kernel/962051/focus=962620
+
+
+Contributing
+------------
+
+Please send patches for kvmtool to kvm@vger.kernel.org , in the usual git patch
+format. Include "kvmtool" in the mail subject.
