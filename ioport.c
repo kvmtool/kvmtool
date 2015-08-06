@@ -185,7 +185,7 @@ bool kvm__emulate_io(struct kvm_cpu *vcpu, u16 port, void *data, int direction, 
 	br_read_lock();
 	entry = ioport_search(&ioport_tree, port);
 	if (!entry)
-		goto error;
+		goto out;
 
 	ops	= entry->ops;
 
@@ -198,14 +198,11 @@ bool kvm__emulate_io(struct kvm_cpu *vcpu, u16 port, void *data, int direction, 
 		ptr += size;
 	}
 
+out:
 	br_read_unlock();
 
-	if (!ret)
-		goto error;
-
-	return true;
-error:
-	br_read_unlock();
+	if (ret)
+		return true;
 
 	if (kvm->cfg.ioport_debug)
 		ioport_error(port, data, direction, size, count);
