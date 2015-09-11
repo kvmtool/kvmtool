@@ -16,9 +16,6 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 
-extern char _binary_guest_init_start;
-extern char _binary_guest_init_size;
-
 static const char *instance_name;
 
 static const char * const setup_usage[] = {
@@ -124,7 +121,11 @@ static const char *guestfs_symlinks[] = {
 	"/etc/ld.so.conf",
 };
 
-static int copy_init(const char *guestfs_name)
+#ifdef CONFIG_GUEST_INIT
+extern char _binary_guest_init_start;
+extern char _binary_guest_init_size;
+
+int kvm_setup_guest_init(const char *guestfs_name)
 {
 	char path[PATH_MAX];
 	size_t size;
@@ -144,7 +145,15 @@ static int copy_init(const char *guestfs_name)
 	close(fd);
 
 	return 0;
+
 }
+#else
+int kvm_setup_guest_init(const char *guestfs_name)
+{
+	die("Guest init image not compiled in");
+	return 0;
+}
+#endif
 
 static int copy_passwd(const char *guestfs_name)
 {
@@ -222,7 +231,7 @@ static int do_setup(const char *guestfs_name)
 		make_guestfs_symlink(guestfs_name, guestfs_symlinks[i]);
 	}
 
-	ret = copy_init(guestfs_name);
+	ret = kvm_setup_guest_init(guestfs_name);
 	if (ret < 0)
 		return ret;
 

@@ -59,9 +59,6 @@ static int  kvm_run_wrapper;
 
 bool do_debug_print = false;
 
-extern char _binary_guest_init_start;
-extern char _binary_guest_init_size;
-
 static const char * const run_usage[] = {
 	"lkvm run [<options>] [<kernel image>]",
 	NULL
@@ -345,30 +342,6 @@ void kvm_run_help(void)
 	usage_with_options(run_usage, options);
 }
 
-static int kvm_setup_guest_init(struct kvm *kvm)
-{
-	const char *rootfs = kvm->cfg.custom_rootfs_name;
-	char tmp[PATH_MAX];
-	size_t size;
-	int fd, ret;
-	char *data;
-
-	/* Setup /virt/init */
-	size = (size_t)&_binary_guest_init_size;
-	data = (char *)&_binary_guest_init_start;
-	snprintf(tmp, PATH_MAX, "%s%s/virt/init", kvm__get_dir(), rootfs);
-	remove(tmp);
-	fd = open(tmp, O_CREAT | O_WRONLY, 0755);
-	if (fd < 0)
-		die("Fail to setup %s", tmp);
-	ret = xwrite(fd, data, size);
-	if (ret < 0)
-		die("Fail to setup %s", tmp);
-	close(fd);
-
-	return 0;
-}
-
 static int kvm_run_set_sandbox(struct kvm *kvm)
 {
 	const char *guestfs_name = kvm->cfg.custom_rootfs_name;
@@ -631,7 +604,7 @@ static struct kvm *kvm_cmd_run_init(int argc, const char **argv)
 
 			if (!kvm->cfg.no_dhcp)
 				strcat(real_cmdline, "  ip=dhcp");
-			if (kvm_setup_guest_init(kvm))
+			if (kvm_setup_guest_init(kvm->cfg.custom_rootfs_name))
 				die("Failed to setup init for guest.");
 		}
 	} else if (!strstr(real_cmdline, "root=")) {
