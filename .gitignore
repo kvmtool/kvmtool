@@ -9,6 +9,7 @@ include/common-cmds.h
 tests/boot/boot_test.iso
 tests/boot/rootfs/
 guest/init
+guest/pre_init
 guest/init_stage2
 KVMTOOLS-VERSION-FILE
 /x86/bios/bios.bin

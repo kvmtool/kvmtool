@@ -281,6 +281,14 @@ ifeq ($(call try-build,$(SOURCE_STATIC),,-static),y)
 	CFLAGS		+= -DCONFIG_GUEST_INIT
 	GUEST_INIT	:= guest/init
 	GUEST_OBJS	= guest/guest_init.o
+	ifeq ($(ARCH_PRE_INIT),)
+		GUEST_INIT_FLAGS	+= -static
+	else
+		CFLAGS			+= -DCONFIG_GUEST_PRE_INIT
+		GUEST_INIT_FLAGS	+= -DCONFIG_GUEST_PRE_INIT
+		GUEST_PRE_INIT		:= guest/pre_init
+		GUEST_OBJS		+= guest/guest_pre_init.o
+	endif
 else
 	$(warning No static libc found. Skipping guest init)
 	NOTFOUND        += static-libc
@@ -346,7 +354,7 @@ ifneq ($(WERROR),0)
 	CFLAGS += -Werror
 endif
 
-all: $(PROGRAM) $(PROGRAM_ALIAS) $(GUEST_INIT)
+all: $(PROGRAM) $(PROGRAM_ALIAS) $(GUEST_INIT) $(GUEST_PRE_INIT)
 
 # CFLAGS used when building objects
 # This is intentionally not assigned using :=
@@ -360,11 +368,11 @@ c_flags	= -Wp,-MD,$(depfile) $(CFLAGS)
 #
 STATIC_OBJS = $(patsubst %.o,%.static.o,$(OBJS) $(OBJS_STATOPT))
 
-$(PROGRAM)-static:  $(STATIC_OBJS) $(OTHEROBJS) $(GUEST_INIT)
+$(PROGRAM)-static:  $(STATIC_OBJS) $(OTHEROBJS) $(GUEST_INIT) $(GUEST_PRE_INIT)
 	$(E) "  LINK    " $@
 	$(Q) $(CC) -static $(CFLAGS) $(STATIC_OBJS) $(OTHEROBJS) $(GUEST_OBJS) $(LIBS) $(LIBS_STATOPT) -o $@
 
-$(PROGRAM): $(OBJS) $(OBJS_DYNOPT) $(OTHEROBJS) $(GUEST_INIT)
+$(PROGRAM): $(OBJS) $(OBJS_DYNOPT) $(OTHEROBJS) $(GUEST_INIT) $(GUEST_PRE_INIT)
 	$(E) "  LINK    " $@
 	$(Q) $(CC) $(CFLAGS) $(OBJS) $(OBJS_DYNOPT) $(OTHEROBJS) $(GUEST_OBJS) $(LIBS) $(LIBS_DYNOPT) -o $@
 
@@ -372,9 +380,16 @@ $(PROGRAM_ALIAS): $(PROGRAM)
 	$(E) "  LN      " $@
 	$(Q) ln -f $(PROGRAM) $@
 
+ifneq ($(ARCH_PRE_INIT),)
+$(GUEST_PRE_INIT): $(ARCH_PRE_INIT)
+	$(E) "  LINK    " $@
+	$(Q) $(CC) -s -nostdlib $(ARCH_PRE_INIT) -o $@
+	$(Q) $(LD) $(LDFLAGS) -r -b binary -o guest/guest_pre_init.o $(GUEST_PRE_INIT)
+endif
+
 $(GUEST_INIT): guest/init.c
 	$(E) "  LINK    " $@
-	$(Q) $(CC) -static guest/init.c -o $@
+	$(Q) $(CC) $(GUEST_INIT_FLAGS) guest/init.c -o $@
 	$(Q) $(LD) $(LDFLAGS) -r -b binary -o guest/guest_init.o $(GUEST_INIT)
 
 %.s: %.c
@@ -473,7 +488,7 @@ clean:
 	$(Q) rm -f x86/bios/bios-rom.h
 	$(Q) rm -f tests/boot/boot_test.iso
 	$(Q) rm -rf tests/boot/rootfs/
-	$(Q) rm -f $(DEPS) $(OBJS) $(OTHEROBJS) $(OBJS_DYNOPT) $(STATIC_OBJS) $(PROGRAM) $(PROGRAM_ALIAS) $(PROGRAM)-static $(GUEST_INIT) $(GUEST_OBJS)
+	$(Q) rm -f $(DEPS) $(OBJS) $(OTHEROBJS) $(OBJS_DYNOPT) $(STATIC_OBJS) $(PROGRAM) $(PROGRAM_ALIAS) $(PROGRAM)-static $(GUEST_INIT) $(GUEST_PRE_INIT) $(GUEST_OBJS)
 	$(Q) rm -f cscope.*
 	$(Q) rm -f tags
 	$(Q) rm -f TAGS
