@@ -122,30 +122,34 @@ static const char *guestfs_symlinks[] = {
 };
 
 #ifdef CONFIG_GUEST_INIT
-extern char _binary_guest_init_start;
-extern char _binary_guest_init_size;
-
-int kvm_setup_guest_init(const char *guestfs_name)
+static int extract_file(const char *guestfs_name, const char *filename,
+			const void *data, const void *_size)
 {
 	char path[PATH_MAX];
-	size_t size;
 	int fd, ret;
-	char *data;
 
-	size = (size_t)&_binary_guest_init_size;
-	data = (char *)&_binary_guest_init_start;
-	snprintf(path, PATH_MAX, "%s%s/virt/init", kvm__get_dir(), guestfs_name);
+	snprintf(path, PATH_MAX, "%s%s/%s", kvm__get_dir(),
+				guestfs_name, filename);
 	remove(path);
 	fd = open(path, O_CREAT | O_WRONLY, 0755);
 	if (fd < 0)
 		die("Fail to setup %s", path);
-	ret = xwrite(fd, data, size);
+	ret = xwrite(fd, data, (size_t)_size);
 	if (ret < 0)
 		die("Fail to setup %s", path);
 	close(fd);
 
 	return 0;
+}
 
+extern char _binary_guest_init_start;
+extern char _binary_guest_init_size;
+
+int kvm_setup_guest_init(const char *guestfs_name)
+{
+	return extract_file(guestfs_name, "virt/init",
+				&_binary_guest_init_start,
+				&_binary_guest_init_size);
 }
 #else
 int kvm_setup_guest_init(const char *guestfs_name)
