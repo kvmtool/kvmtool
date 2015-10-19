@@ -566,12 +566,6 @@ static struct kvm *kvm_cmd_run_init(int argc, const char **argv)
 	memset(real_cmdline, 0, sizeof(real_cmdline));
 	kvm__arch_set_cmdline(real_cmdline, kvm->cfg.vnc || kvm->cfg.sdl || kvm->cfg.gtk);
 
-	if (strlen(real_cmdline) > 0)
-		strcat(real_cmdline, " ");
-
-	if (kvm->cfg.kernel_cmdline)
-		strlcat(real_cmdline, kvm->cfg.kernel_cmdline, sizeof(real_cmdline));
-
 	if (!kvm->cfg.guest_name) {
 		if (kvm->cfg.custom_rootfs) {
 			kvm->cfg.guest_name = kvm->cfg.custom_rootfs_name;
@@ -607,8 +601,13 @@ static struct kvm *kvm_cmd_run_init(int argc, const char **argv)
 			if (kvm_setup_guest_init(kvm->cfg.custom_rootfs_name))
 				die("Failed to setup init for guest.");
 		}
-	} else if (!strstr(real_cmdline, "root=")) {
+	} else if (!strstr(kvm->cfg.kernel_cmdline, "root=")) {
 		strlcat(real_cmdline, " root=/dev/vda rw ", sizeof(real_cmdline));
+	}
+
+	if (kvm->cfg.kernel_cmdline) {
+		strcat(real_cmdline, " ");
+		strlcat(real_cmdline, kvm->cfg.kernel_cmdline, sizeof(real_cmdline));
 	}
 
 	kvm->cfg.real_cmdline = real_cmdline;
