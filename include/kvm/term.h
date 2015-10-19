@@ -18,9 +18,6 @@ int term_putc(char *addr, int cnt, int term);
 int term_getc(struct kvm *kvm, int term);
 
 bool term_readable(int term);
-void term_set_tty(int term);
-int term_init(struct kvm *kvm);
-int term_exit(struct kvm *kvm);
 int tty_parser(const struct option *opt, const char *arg, int unset);
 
 #endif /* KVM__TERM_H */

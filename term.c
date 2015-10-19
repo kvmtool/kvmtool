@@ -19,15 +19,16 @@
 
 static struct termios	orig_term;
 
-int term_escape_char	= 0x01; /* ctrl-a is used for escape */
-bool term_got_escape	= false;
-
-int term_fds[TERM_MAX_DEVS][2];
+static int term_fds[TERM_MAX_DEVS][2];
 
 static pthread_t term_poll_thread;
 
+/* ctrl-a is used for escape */
+#define term_escape_char	0x01
+
 int term_getc(struct kvm *kvm, int term)
 {
+	static bool term_got_escape = false;
 	unsigned char c;
 
 	if (read_in_full(term_fds[term][TERM_FD_IN], &c, 1) < 0)
@@ -137,7 +138,7 @@ static void term_sig_cleanup(int sig)
 	raise(sig);
 }
 
-void term_set_tty(int term)
+static void term_set_tty(int term)
 {
 	struct termios orig_term;
 	int master, slave;
@@ -167,7 +168,7 @@ int tty_parser(const struct option *opt, const char *arg, int unset)
 	return 0;
 }
 
-int term_init(struct kvm *kvm)
+static int term_init(struct kvm *kvm)
 {
 	struct termios term;
 	int i, r;
@@ -204,7 +205,7 @@ int term_init(struct kvm *kvm)
 }
 dev_init(term_init);
 
-int term_exit(struct kvm *kvm)
+static int term_exit(struct kvm *kvm)
 {
 	return 0;
 }
