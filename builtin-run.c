@@ -594,7 +594,11 @@ static struct kvm *kvm_cmd_run_init(int argc, const char **argv)
 		if (kvm->cfg.custom_rootfs) {
 			kvm_run_set_sandbox(kvm);
 
+#ifdef CONFIG_GUEST_PRE_INIT
+			strcat(real_cmdline, " init=/virt/pre_init");
+#else
 			strcat(real_cmdline, " init=/virt/init");
+#endif
 
 			if (!kvm->cfg.no_dhcp)
 				strcat(real_cmdline, "  ip=dhcp");

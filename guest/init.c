@@ -30,7 +30,9 @@ static int run_process_sandbox(char *filename)
 
 static void do_mounts(void)
 {
+#ifndef CONFIG_GUEST_PRE_INIT
 	mount("hostfs", "/host", "9p", MS_RDONLY, "trans=virtio,version=9p2000.L");
+#endif
 	mount("", "/sys", "sysfs", 0, NULL);
 	mount("proc", "/proc", "proc", 0, NULL);
 	mount("devtmpfs", "/dev", "devtmpfs", 0, NULL);

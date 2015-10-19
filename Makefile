@@ -110,6 +110,7 @@ endif
 ifeq ($(ARCH),x86_64)
 	ARCH         := x86
 	DEFINES      += -DCONFIG_X86_64
+	ARCH_PRE_INIT = x86/init.S
 endif
 
 ### Arch-specific stuff
