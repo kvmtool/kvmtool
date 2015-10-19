@@ -266,4 +266,4 @@ int kvm_cpu__exit(struct kvm *kvm)
 
 	return r;
 }
-late_exit(kvm_cpu__exit);
+core_exit(kvm_cpu__exit);
