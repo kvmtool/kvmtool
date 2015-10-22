@@ -130,10 +130,14 @@ static int extract_file(const char *guestfs_name, const char *filename,
 
 	snprintf(path, PATH_MAX, "%s%s/%s", kvm__get_dir(),
 				guestfs_name, filename);
-	remove(path);
-	fd = open(path, O_CREAT | O_WRONLY, 0755);
-	if (fd < 0)
+
+	fd = open(path, O_EXCL | O_CREAT | O_WRONLY, 0755);
+	if (fd < 0) {
+		if (errno == EEXIST)
+			return 0;
 		die("Fail to setup %s", path);
+	}
+
 	ret = xwrite(fd, data, (size_t)_size);
 	if (ret < 0)
 		die("Fail to setup %s", path);
