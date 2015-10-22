@@ -590,7 +590,7 @@ static struct kvm *kvm_cmd_run_init(int argc, const char **argv)
 	}
 
 	if (kvm->cfg.using_rootfs) {
-		strcat(real_cmdline, " root=/dev/root rw rootflags=rw,trans=virtio,version=9p2000.L rootfstype=9p");
+		strcat(real_cmdline, " rw rootflags=trans=virtio,version=9p2000.L rootfstype=9p");
 		if (kvm->cfg.custom_rootfs) {
 			kvm_run_set_sandbox(kvm);
 
