@@ -1,4 +1,5 @@
 /lkvm
+/lkvm-static
 /vm
 *.o
 *.d
