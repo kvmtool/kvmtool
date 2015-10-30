@@ -162,19 +162,22 @@ bool kvm__arch_load_kernel_image(struct kvm *kvm, int fd_kernel, int fd_initrd,
 {
 	void *p;
 	void *k_start;
-	void *i_start;
-	int nr;
+	ssize_t filesize;
 
 	if (lseek(fd_kernel, 0, SEEK_SET) < 0)
 		die_perror("lseek");
 
 	p = k_start = guest_flat_to_host(kvm, KERNEL_LOAD_ADDR);
 
-	while ((nr = read(fd_kernel, p, 65536)) > 0)
-		p += nr;
+	filesize = read_file(fd_kernel, p, INITRD_LOAD_ADDR - KERNEL_LOAD_ADDR);
+	if (filesize < 0) {
+		if (errno == ENOMEM)
+			die("Kernel overlaps initrd!");
 
-	pr_info("Loaded kernel to 0x%x (%ld bytes)", KERNEL_LOAD_ADDR, (long)(p-k_start));
-
+		die_perror("kernel read");
+	}
+	pr_info("Loaded kernel to 0x%x (%ld bytes)", KERNEL_LOAD_ADDR,
+		filesize);
 	if (fd_initrd != -1) {
 		if (lseek(fd_initrd, 0, SEEK_SET) < 0)
 			die_perror("lseek");
@@ -183,19 +186,20 @@ bool kvm__arch_load_kernel_image(struct kvm *kvm, int fd_kernel, int fd_initrd,
 			die("Kernel overlaps initrd!");
 
 		/* Round up kernel size to 8byte alignment, and load initrd right after. */
-		i_start = p = guest_flat_to_host(kvm, INITRD_LOAD_ADDR);
+		p = guest_flat_to_host(kvm, INITRD_LOAD_ADDR);
 
-		while (((nr = read(fd_initrd, p, 65536)) > 0) &&
-		       p < (kvm->ram_start + kvm->ram_size))
-			p += nr;
-
-		if (p >= (kvm->ram_start + kvm->ram_size))
-			die("initrd too big to contain in guest RAM.\n");
+		filesize = read_file(fd_initrd, p,
+			       (kvm->ram_start + kvm->ram_size) - p);
+		if (filesize < 0) {
+			if (errno == ENOMEM)
+				die("initrd too big to contain in guest RAM.\n");
+			die_perror("initrd read");
+		}
 
 		pr_info("Loaded initrd to 0x%x (%ld bytes)",
-			INITRD_LOAD_ADDR, (long)(p-i_start));
+			INITRD_LOAD_ADDR, filesize);
 		kvm->arch.initrd_gra = INITRD_LOAD_ADDR;
-		kvm->arch.initrd_size = p-i_start;
+		kvm->arch.initrd_size = filesize;
 	} else {
 		kvm->arch.initrd_size = 0;
 	}
