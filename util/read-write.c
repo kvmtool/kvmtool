@@ -32,6 +32,27 @@ restart:
 	return nr;
 }
 
+/*
+ * Read in the whole file while not exceeding max_size bytes of the buffer.
+ * Returns -1 (with errno set) in case of an error (ENOMEM if buffer was
+ * too small) or the filesize if the whole file could be read.
+ */
+ssize_t read_file(int fd, char *buf, size_t max_size)
+{
+	ssize_t ret;
+	char dummy;
+
+	errno = 0;
+	ret = read_in_full(fd, buf, max_size);
+
+	/* Probe whether we reached EOF. */
+	if (xread(fd, &dummy, 1) == 0)
+		return ret;
+
+	errno = ENOMEM;
+	return -1;
+}
+
 ssize_t read_in_full(int fd, void *buf, size_t count)
 {
 	ssize_t total = 0;
