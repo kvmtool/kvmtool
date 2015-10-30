@@ -9,13 +9,10 @@
 
 #include <stdbool.h>
 
-#include <asm/setup.h>
 #include <linux/byteorder.h>
 #include <linux/kernel.h>
 #include <linux/sizes.h>
 #include <linux/psci.h>
-
-static char kern_cmdline[COMMAND_LINE_SIZE];
 
 bool kvm__load_firmware(struct kvm *kvm, const char *firmware_filename)
 {
@@ -145,7 +142,7 @@ static int setup_fdt(struct kvm *kvm)
 	/* /chosen */
 	_FDT(fdt_begin_node(fdt, "chosen"));
 	_FDT(fdt_property_cell(fdt, "linux,pci-probe-only", 1));
-	_FDT(fdt_property_string(fdt, "bootargs", kern_cmdline));
+	_FDT(fdt_property_string(fdt, "bootargs", kvm->cfg.real_cmdline));
 
 	/* Initrd */
 	if (kvm->arch.initrd_size != 0) {
@@ -223,93 +220,3 @@ static int setup_fdt(struct kvm *kvm)
 	return 0;
 }
 late_init(setup_fdt);
-
-#define FDT_ALIGN	SZ_2M
-#define INITRD_ALIGN	4
-bool kvm__arch_load_kernel_image(struct kvm *kvm, int fd_kernel, int fd_initrd,
-				 const char *kernel_cmdline)
-{
-	void *pos, *kernel_end, *limit;
-	unsigned long guest_addr;
-	ssize_t file_size;
-
-	if (lseek(fd_kernel, 0, SEEK_SET) < 0)
-		die_perror("lseek");
-
-	/*
-	 * Linux requires the initrd and dtb to be mapped inside lowmem,
-	 * so we can't just place them at the top of memory.
-	 */
-	limit = kvm->ram_start + min(kvm->ram_size, (u64)SZ_256M) - 1;
-
-	pos = kvm->ram_start + ARM_KERN_OFFSET(kvm);
-	kvm->arch.kern_guest_start = host_to_guest_flat(kvm, pos);
-	file_size = read_file(fd_kernel, pos, limit - pos);
-	if (file_size < 0) {
-		if (errno == ENOMEM)
-			die("kernel image too big to contain in guest memory.");
-
-		die_perror("kernel read");
-	}
-	kernel_end = pos + file_size;
-	pr_info("Loaded kernel to 0x%llx (%zd bytes)",
-		kvm->arch.kern_guest_start, file_size);
-
-	/*
-	 * Now load backwards from the end of memory so the kernel
-	 * decompressor has plenty of space to work with. First up is
-	 * the device tree blob...
-	 */
-	pos = limit;
-	pos -= (FDT_MAX_SIZE + FDT_ALIGN);
-	guest_addr = ALIGN(host_to_guest_flat(kvm, pos), FDT_ALIGN);
-	pos = guest_flat_to_host(kvm, guest_addr);
-	if (pos < kernel_end)
-		die("fdt overlaps with kernel image.");
-
-	kvm->arch.dtb_guest_start = guest_addr;
-	pr_info("Placing fdt at 0x%llx - 0x%llx",
-		kvm->arch.dtb_guest_start,
-		host_to_guest_flat(kvm, limit));
-	limit = pos;
-
-	/* ... and finally the initrd, if we have one. */
-	if (fd_initrd != -1) {
-		struct stat sb;
-		unsigned long initrd_start;
-
-		if (lseek(fd_initrd, 0, SEEK_SET) < 0)
-			die_perror("lseek");
-
-		if (fstat(fd_initrd, &sb))
-			die_perror("fstat");
-
-		pos -= (sb.st_size + INITRD_ALIGN);
-		guest_addr = ALIGN(host_to_guest_flat(kvm, pos), INITRD_ALIGN);
-		pos = guest_flat_to_host(kvm, guest_addr);
-		if (pos < kernel_end)
-			die("initrd overlaps with kernel image.");
-
-		initrd_start = guest_addr;
-		file_size = read_file(fd_initrd, pos, limit - pos);
-		if (file_size == -1) {
-			if (errno == ENOMEM)
-				die("initrd too big to contain in guest memory.");
-
-			die_perror("initrd read");
-		}
-
-		kvm->arch.initrd_guest_start = initrd_start;
-		kvm->arch.initrd_size = file_size;
-		pr_info("Loaded initrd to 0x%llx (%llu bytes)",
-			kvm->arch.initrd_guest_start,
-			kvm->arch.initrd_size);
-	} else {
-		kvm->arch.initrd_size = 0;
-	}
-
-	strncpy(kern_cmdline, kernel_cmdline, COMMAND_LINE_SIZE);
-	kern_cmdline[COMMAND_LINE_SIZE - 1] = '\0';
-
-	return true;
-}
