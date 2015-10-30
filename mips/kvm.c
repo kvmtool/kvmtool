@@ -163,7 +163,8 @@ static void kvm__mips_install_cmdline(struct kvm *kvm)
 
 /* Load at the 1M point. */
 #define KERNEL_LOAD_ADDR 0x1000000
-int load_flat_binary(struct kvm *kvm, int fd_kernel, int fd_initrd, const char *kernel_cmdline)
+
+static bool load_flat_binary(struct kvm *kvm, int fd_kernel)
 {
 	void *p;
 	void *k_start;
@@ -281,7 +282,7 @@ static bool kvm__arch_get_elf_32_info(Elf32_Ehdr *ehdr, int fd_kernel,
 	return true;
 }
 
-int load_elf_binary(struct kvm *kvm, int fd_kernel, int fd_initrd, const char *kernel_cmdline)
+static bool load_elf_binary(struct kvm *kvm, int fd_kernel)
 {
 	union {
 		Elf64_Ehdr ehdr;
@@ -342,9 +343,23 @@ int load_elf_binary(struct kvm *kvm, int fd_kernel, int fd_initrd, const char *k
 		ei.len -= nr;
 	} while (ei.len);
 
-	kvm__mips_install_cmdline(kvm);
-
 	return true;
+}
+
+bool kvm__arch_load_kernel_image(struct kvm *kvm, int fd_kernel, int fd_initrd,
+				 const char *kernel_cmdline)
+{
+	if (fd_initrd != -1) {
+		pr_err("Initrd not supported on MIPS.");
+		return false;
+	}
+
+	if (load_elf_binary(kvm, fd_kernel)) {
+		kvm__mips_install_cmdline(kvm);
+		return true;
+	}
+
+	return load_flat_binary(kvm, fd_kernel);
 }
 
 void ioport__map_irq(u8 *irq)

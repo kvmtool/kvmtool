@@ -206,17 +206,10 @@ static inline void *guest_real_to_host(struct kvm *kvm, u16 selector, u16 offset
 	return guest_flat_to_host(kvm, flat);
 }
 
-int load_flat_binary(struct kvm *kvm, int fd_kernel, int fd_initrd, const char *kernel_cmdline)
+static bool load_flat_binary(struct kvm *kvm, int fd_kernel)
 {
 	void *p;
 	int nr;
-
-	/*
-	 * Some architectures may support loading an initrd alongside the flat kernel,
-	 * but we do not.
-	 */
-	if (fd_initrd != -1)
-		pr_warning("Loading initrd with flat binary not supported.");
 
 	if (lseek(fd_kernel, 0, SEEK_SET) < 0)
 		die_perror("lseek");
@@ -235,8 +228,8 @@ int load_flat_binary(struct kvm *kvm, int fd_kernel, int fd_initrd, const char *
 
 static const char *BZIMAGE_MAGIC = "HdrS";
 
-bool load_bzimage(struct kvm *kvm, int fd_kernel, int fd_initrd,
-		  const char *kernel_cmdline)
+static bool load_bzimage(struct kvm *kvm, int fd_kernel, int fd_initrd,
+			 const char *kernel_cmdline)
 {
 	struct boot_params *kern_boot;
 	unsigned long setup_sects;
@@ -350,6 +343,20 @@ bool load_bzimage(struct kvm *kvm, int fd_kernel, int fd_initrd,
 	kvm->arch.boot_sp = BOOT_LOADER_SP;
 
 	return true;
+}
+
+bool kvm__arch_load_kernel_image(struct kvm *kvm, int fd_kernel, int fd_initrd,
+				 const char *kernel_cmdline)
+{
+	if (load_bzimage(kvm, fd_kernel, fd_initrd, kernel_cmdline))
+		return true;
+	pr_warning("Kernel image is not a bzImage.");
+	pr_warning("Trying to load it as a flat binary (no cmdline support)");
+
+	if (fd_initrd != -1)
+		pr_warning("Loading initrd with flat binary not supported.");
+
+	return load_flat_binary(kvm, fd_kernel);
 }
 
 /**

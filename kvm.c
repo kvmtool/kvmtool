@@ -341,18 +341,6 @@ static bool initrd_check(int fd)
 		!memcmp(id, CPIO_MAGIC, 4);
 }
 
-int __attribute__((__weak__)) load_elf_binary(struct kvm *kvm, int fd_kernel,
-				int fd_initrd, const char *kernel_cmdline)
-{
-	return false;
-}
-
-bool __attribute__((__weak__)) load_bzimage(struct kvm *kvm, int fd_kernel,
-				int fd_initrd, const char *kernel_cmdline)
-{
-	return false;
-}
-
 bool kvm__load_kernel(struct kvm *kvm, const char *kernel_filename,
 		const char *initrd_filename, const char *kernel_cmdline)
 {
@@ -372,39 +360,17 @@ bool kvm__load_kernel(struct kvm *kvm, const char *kernel_filename,
 			die("%s is not an initrd", initrd_filename);
 	}
 
-#ifdef CONFIG_X86
-	ret = load_bzimage(kvm, fd_kernel, fd_initrd, kernel_cmdline);
-
-	if (ret)
-		goto found_kernel;
-
-	pr_warning("%s is not a bzImage. Trying to load it as a flat binary...", kernel_filename);
-#endif
-
-	ret = load_elf_binary(kvm, fd_kernel, fd_initrd, kernel_cmdline);
-
-	if (ret)
-		goto found_kernel;
-
-	ret = load_flat_binary(kvm, fd_kernel, fd_initrd, kernel_cmdline);
-
-	if (ret)
-		goto found_kernel;
+	ret = kvm__arch_load_kernel_image(kvm, fd_kernel, fd_initrd,
+					  kernel_cmdline);
 
 	if (initrd_filename)
 		close(fd_initrd);
 	close(fd_kernel);
 
-	die("%s is not a valid bzImage or flat binary", kernel_filename);
-
-found_kernel:
-	if (initrd_filename)
-		close(fd_initrd);
-	close(fd_kernel);
-
+	if (!ret)
+		die("%s is not a valid kernel image", kernel_filename);
 	return ret;
 }
-
 
 void kvm__dump_mem(struct kvm *kvm, unsigned long addr, unsigned long size, int debug_fd)
 {

@@ -157,7 +157,8 @@ void kvm__arch_read_term(struct kvm *kvm)
 	spapr_hvcons_poll(kvm);
 }
 
-int load_flat_binary(struct kvm *kvm, int fd_kernel, int fd_initrd, const char *kernel_cmdline)
+bool kvm__arch_load_kernel_image(struct kvm *kvm, int fd_kernel, int fd_initrd,
+				 const char *kernel_cmdline)
 {
 	void *p;
 	void *k_start;

@@ -239,8 +239,8 @@ static int read_image(int fd, void **pos, void *limit)
 
 #define FDT_ALIGN	SZ_2M
 #define INITRD_ALIGN	4
-int load_flat_binary(struct kvm *kvm, int fd_kernel, int fd_initrd,
-		     const char *kernel_cmdline)
+bool kvm__arch_load_kernel_image(struct kvm *kvm, int fd_kernel, int fd_initrd,
+				 const char *kernel_cmdline)
 {
 	void *pos, *kernel_end, *limit;
 	unsigned long guest_addr;
