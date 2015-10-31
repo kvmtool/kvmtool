@@ -605,7 +605,7 @@ static struct kvm *kvm_cmd_run_init(int argc, const char **argv)
 			if (kvm_setup_guest_init(kvm->cfg.custom_rootfs_name))
 				die("Failed to setup init for guest.");
 		}
-	} else if (!strstr(kvm->cfg.kernel_cmdline, "root=")) {
+	} else if (!kvm->cfg.kernel_cmdline || !strstr(kvm->cfg.kernel_cmdline, "root=")) {
 		strlcat(real_cmdline, " root=/dev/vda rw ", sizeof(real_cmdline));
 	}
 
