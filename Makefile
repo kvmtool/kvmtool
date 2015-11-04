@@ -15,7 +15,9 @@ include config/utilities.mak
 include config/feature-tests.mak
 
 CC	:= $(CROSS_COMPILE)gcc
+CFLAGS	:=
 LD	:= $(CROSS_COMPILE)ld
+LDFLAGS	:=
 
 FIND	:= find
 CSCOPE	:= cscope
@@ -160,7 +162,7 @@ ifeq ($(ARCH), arm)
 	OBJS		+= arm/aarch32/kvm-cpu.o
 	ARCH_INCLUDE	:= $(HDRS_ARM_COMMON)
 	ARCH_INCLUDE	+= -Iarm/aarch32/include
-	override CFLAGS	+= -march=armv7-a
+	CFLAGS		+= -march=armv7-a
 
 	ARCH_WANT_LIBFDT := y
 endif
@@ -272,12 +274,12 @@ endif
 ifeq ($(LTO),1)
 	FLAGS_LTO := -flto
 	ifeq ($(call try-build,$(SOURCE_HELLO),$(CFLAGS),$(LDFLAGS) $(FLAGS_LTO)),y)
-		override CFLAGS	+= $(FLAGS_LTO)
+		CFLAGS		+= $(FLAGS_LTO)
 	endif
 endif
 
 ifeq ($(call try-build,$(SOURCE_STATIC),$(CFLAGS),$(LDFLAGS) -static),y)
-	override CFLAGS	+= -DCONFIG_GUEST_INIT
+	CFLAGS		+= -DCONFIG_GUEST_INIT
 	GUEST_INIT	:= guest/init
 	GUEST_OBJS	= guest/guest_init.o
 	ifeq ($(ARCH_PRE_INIT),)
@@ -329,8 +331,7 @@ DEFINES	+= -DKVMTOOLS_VERSION='"$(KVMTOOLS_VERSION)"'
 DEFINES	+= -DBUILD_ARCH='"$(ARCH)"'
 
 KVM_INCLUDE := include
-override CFLAGS	+= $(CPPFLAGS) $(DEFINES) -I$(KVM_INCLUDE) -I$(ARCH_INCLUDE)
-override CFLAGS	+= -O2 -fno-strict-aliasing -g
+CFLAGS	+= $(CPPFLAGS) $(DEFINES) -I$(KVM_INCLUDE) -I$(ARCH_INCLUDE) -O2 -fno-strict-aliasing -g
 
 WARNINGS += -Wall
 WARNINGS += -Wformat=2
@@ -348,10 +349,10 @@ WARNINGS += -Wvolatile-register-var
 WARNINGS += -Wwrite-strings
 WARNINGS += -Wno-format-nonliteral
 
-override CFLAGS	+= $(WARNINGS)
+CFLAGS	+= $(WARNINGS)
 
 ifneq ($(WERROR),0)
-	override CFLAGS += -Werror
+	CFLAGS += -Werror
 endif
 
 all: $(PROGRAM) $(PROGRAM_ALIAS) $(GUEST_INIT) $(GUEST_PRE_INIT)
