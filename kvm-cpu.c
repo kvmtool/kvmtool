@@ -45,10 +45,8 @@ void kvm_cpu__run(struct kvm_cpu *vcpu)
 static void kvm_cpu_signal_handler(int signum)
 {
 	if (signum == SIGKVMEXIT) {
-		if (current_kvm_cpu && current_kvm_cpu->is_running) {
+		if (current_kvm_cpu && current_kvm_cpu->is_running)
 			current_kvm_cpu->is_running = false;
-			kvm__continue(current_kvm_cpu->kvm);
-		}
 	} else if (signum == SIGKVMPAUSE) {
 		current_kvm_cpu->paused = 1;
 	}
@@ -67,19 +65,6 @@ static void kvm_cpu__handle_coalesced_mmio(struct kvm_cpu *cpu)
 					      1);
 			cpu->ring->first = (cpu->ring->first + 1) % KVM_COALESCED_MMIO_MAX;
 		}
-	}
-}
-
-void kvm_cpu__reboot(struct kvm *kvm)
-{
-	int i;
-
-	/* The kvm->cpus array contains a null pointer in the last location */
-	for (i = 0; ; i++) {
-		if (kvm->cpus[i])
-			pthread_kill(kvm->cpus[i]->thread, SIGKVMEXIT);
-		else
-			break;
 	}
 }
 
@@ -177,7 +162,7 @@ int kvm_cpu__start(struct kvm_cpu *cpu)
 				 * Ensure that all VCPUs are torn down,
 				 * regardless of which CPU generated the event.
 				 */
-				kvm_cpu__reboot(cpu->kvm);
+				kvm__reboot(cpu->kvm);
 				goto exit_kvm;
 			};
 			break;

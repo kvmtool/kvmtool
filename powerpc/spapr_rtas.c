@@ -118,7 +118,7 @@ static void rtas_power_off(struct kvm_cpu *vcpu,
 		rtas_st(vcpu->kvm, rets, 0, -3);
 		return;
 	}
-	kvm_cpu__reboot(vcpu->kvm);
+	kvm__reboot(vcpu->kvm);
 }
 
 static void rtas_system_reboot(struct kvm_cpu *vcpu,
@@ -131,7 +131,7 @@ static void rtas_system_reboot(struct kvm_cpu *vcpu,
 	}
 
 	/* NB this actually halts the VM */
-	kvm_cpu__reboot(vcpu->kvm);
+	kvm__reboot(vcpu->kvm);
 }
 
 static void rtas_query_cpu_stopped_state(struct kvm_cpu *vcpu,

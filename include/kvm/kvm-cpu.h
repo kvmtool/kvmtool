@@ -12,7 +12,6 @@ void kvm_cpu__reset_vcpu(struct kvm_cpu *vcpu);
 void kvm_cpu__setup_cpuid(struct kvm_cpu *vcpu);
 void kvm_cpu__enable_singlestep(struct kvm_cpu *vcpu);
 void kvm_cpu__run(struct kvm_cpu *vcpu);
-void kvm_cpu__reboot(struct kvm *kvm);
 int kvm_cpu__start(struct kvm_cpu *cpu);
 bool kvm_cpu__handle_exit(struct kvm_cpu *vcpu);
 int kvm_cpu__get_endianness(struct kvm_cpu *vcpu);

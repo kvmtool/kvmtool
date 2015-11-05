@@ -428,6 +428,27 @@ void kvm__dump_mem(struct kvm *kvm, unsigned long addr, unsigned long size, int 
 	}
 }
 
+void kvm__reboot(struct kvm *kvm)
+{
+	int i;
+
+	/* Check if the guest is running */
+	if (!kvm->cpus[0] || kvm->cpus[0]->thread == 0)
+		return;
+
+	mutex_lock(&pause_lock);
+
+	/* The kvm->cpus array contains a null pointer in the last location */
+	for (i = 0; ; i++) {
+		if (kvm->cpus[i])
+			pthread_kill(kvm->cpus[i]->thread, SIGKVMEXIT);
+		else
+			break;
+	}
+
+	mutex_unlock(&pause_lock);
+}
+
 void kvm__pause(struct kvm *kvm)
 {
 	int i, paused_vcpus = 0;
@@ -441,8 +462,12 @@ void kvm__pause(struct kvm *kvm)
 	pause_event = eventfd(0, 0);
 	if (pause_event < 0)
 		die("Failed creating pause notification event");
-	for (i = 0; i < kvm->nrcpus; i++)
-		pthread_kill(kvm->cpus[i]->thread, SIGKVMPAUSE);
+	for (i = 0; i < kvm->nrcpus; i++) {
+		if (kvm->cpus[i]->is_running)
+			pthread_kill(kvm->cpus[i]->thread, SIGKVMPAUSE);
+		else
+			paused_vcpus++;
+	}
 
 	while (paused_vcpus < kvm->nrcpus) {
 		u64 cur_read;

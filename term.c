@@ -37,7 +37,7 @@ int term_getc(struct kvm *kvm, int term)
 	if (term_got_escape) {
 		term_got_escape = false;
 		if (c == 'x')
-			kvm_cpu__reboot(kvm);
+			kvm__reboot(kvm);
 		if (c == term_escape_char)
 			return c;
 	}
