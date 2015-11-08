@@ -385,13 +385,13 @@ ifneq ($(ARCH_PRE_INIT),)
 $(GUEST_PRE_INIT): $(ARCH_PRE_INIT)
 	$(E) "  LINK    " $@
 	$(Q) $(CC) -s -nostdlib $(ARCH_PRE_INIT) -o $@
-	$(Q) $(LD) $(LDFLAGS) -r -b binary -o guest/guest_pre_init.o $(GUEST_PRE_INIT)
+	$(Q) $(LD) -r -b binary -o guest/guest_pre_init.o $(GUEST_PRE_INIT)
 endif
 
 $(GUEST_INIT): guest/init.c
 	$(E) "  LINK    " $@
 	$(Q) $(CC) $(GUEST_INIT_FLAGS) guest/init.c -o $@
-	$(Q) $(LD) $(LDFLAGS) -r -b binary -o guest/guest_init.o $(GUEST_INIT)
+	$(Q) $(LD) -r -b binary -o guest/guest_init.o $(GUEST_INIT)
 
 %.s: %.c
 	$(Q) $(CC) -o $@ -S $(CFLAGS) -fverbose-asm $<
