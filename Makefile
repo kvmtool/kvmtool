@@ -369,6 +369,9 @@ c_flags	= -Wp,-MD,$(depfile) $(CFLAGS)
 #
 STATIC_OBJS = $(patsubst %.o,%.static.o,$(OBJS) $(OBJS_STATOPT))
 
+STATIC_DEPS	:= $(foreach obj,$(STATIC_OBJS),\
+		$(subst $(comma),_,$(dir $(obj)).$(notdir $(obj)).d))
+
 $(PROGRAM)-static:  $(STATIC_OBJS) $(OTHEROBJS) $(GUEST_INIT) $(GUEST_PRE_INIT)
 	$(E) "  LINK    " $@
 	$(Q) $(CC) -static $(CFLAGS) $(STATIC_OBJS) $(OTHEROBJS) $(GUEST_OBJS) $(LDFLAGS) $(LIBS) $(LIBS_STATOPT) -o $@
@@ -489,7 +492,7 @@ clean:
 	$(Q) rm -f x86/bios/bios-rom.h
 	$(Q) rm -f tests/boot/boot_test.iso
 	$(Q) rm -rf tests/boot/rootfs/
-	$(Q) rm -f $(DEPS) $(OBJS) $(OTHEROBJS) $(OBJS_DYNOPT) $(STATIC_OBJS) $(PROGRAM) $(PROGRAM_ALIAS) $(PROGRAM)-static $(GUEST_INIT) $(GUEST_PRE_INIT) $(GUEST_OBJS)
+	$(Q) rm -f $(DEPS) $(STATIC_DEPS) $(OBJS) $(OTHEROBJS) $(OBJS_DYNOPT) $(STATIC_OBJS) $(PROGRAM) $(PROGRAM_ALIAS) $(PROGRAM)-static $(GUEST_INIT) $(GUEST_PRE_INIT) $(GUEST_OBJS)
 	$(Q) rm -f cscope.*
 	$(Q) rm -f tags
 	$(Q) rm -f TAGS
