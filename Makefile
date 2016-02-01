@@ -291,7 +291,7 @@ ifeq ($(call try-build,$(SOURCE_STATIC),$(CFLAGS),$(LDFLAGS) -static),y)
 		GUEST_OBJS		+= guest/guest_pre_init.o
 	endif
 else
-	$(warning No static libc found. Skipping guest init)
+$(warning No static libc found. Skipping guest init)
 	NOTFOUND        += static-libc
 endif
 
