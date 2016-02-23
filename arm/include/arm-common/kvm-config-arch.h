@@ -8,6 +8,7 @@ struct kvm_config_arch {
 	unsigned int	force_cntfrq;
 	bool		virtio_trans_pci;
 	bool		aarch32_guest;
+	bool		has_pmuv3;
 	enum irqchip_type irqchip;
 };
 
