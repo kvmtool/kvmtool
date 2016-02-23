@@ -400,9 +400,6 @@ $(GUEST_INIT): guest/init.c
 %.s: %.c
 	$(Q) $(CC) -o $@ -S $(CFLAGS) -fverbose-asm $<
 
-# The header file common-cmds.h is needed for compilation of builtin-help.c.
-builtin-help.static.o builtin-help.o: $(KVM_INCLUDE)/common-cmds.h
-
 $(OBJS):
 
 util/rbtree.static.o util/rbtree.o: util/rbtree.c
@@ -429,12 +426,6 @@ endif
 	$(E) "  CC      " $@
 	$(Q) $(CC) -c $(c_flags) $(CFLAGS_DYNOPT) $< -o $@
 
-
-$(KVM_INCLUDE)/common-cmds.h: util/generate-cmdlist.sh command-list.txt
-
-$(KVM_INCLUDE)/common-cmds.h: $(wildcard Documentation/kvm-*.txt)
-	$(E) "  GEN     " $@
-	$(Q) util/generate-cmdlist.sh > $@+ && mv $@+ $@
 
 #
 # BIOS assembly weirdness
@@ -497,7 +488,6 @@ clean:
 	$(Q) rm -f cscope.*
 	$(Q) rm -f tags
 	$(Q) rm -f TAGS
-	$(Q) rm -f $(KVM_INCLUDE)/common-cmds.h
 	$(Q) rm -f KVMTOOLS-VERSION-FILE
 .PHONY: clean
 
