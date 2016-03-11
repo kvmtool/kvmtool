@@ -6,6 +6,7 @@
 #include "arm-common/gic.h"
 #include "arm-common/pmu.h"
 
+#ifdef CONFIG_ARM64
 static int set_pmu_attr(struct kvm *kvm, int vcpu_idx,
 			struct kvm_device_attr *attr)
 {
@@ -75,3 +76,6 @@ void pmu__generate_fdt_nodes(void *fdt, struct kvm *kvm)
 	_FDT(fdt_property(fdt, "interrupts", irq_prop, sizeof(irq_prop)));
 	_FDT(fdt_end_node(fdt));
 }
+#else
+void pmu__generate_fdt_nodes(void *fdt, struct kvm *kvm) { }
+#endif
