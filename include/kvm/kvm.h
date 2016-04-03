@@ -15,6 +15,7 @@
 
 #define SIGKVMEXIT		(SIGRTMIN + 0)
 #define SIGKVMPAUSE		(SIGRTMIN + 1)
+#define SIGKVMTASK		(SIGRTMIN + 2)
 
 #define KVM_PID_FILE_PATH	"/.lkvm/"
 #define HOME_DIR		getenv("HOME")

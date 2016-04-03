@@ -4,6 +4,11 @@
 #include "kvm/kvm-cpu-arch.h"
 #include <stdbool.h>
 
+struct kvm_cpu_task {
+	void (*func)(struct kvm_cpu *vcpu, void *data);
+	void *data;
+};
+
 int kvm_cpu__init(struct kvm *kvm);
 int kvm_cpu__exit(struct kvm *kvm);
 struct kvm_cpu *kvm_cpu__arch_init(struct kvm *kvm, unsigned long cpu_id);
@@ -22,5 +27,6 @@ void kvm_cpu__show_code(struct kvm_cpu *vcpu);
 void kvm_cpu__show_registers(struct kvm_cpu *vcpu);
 void kvm_cpu__show_page_tables(struct kvm_cpu *vcpu);
 void kvm_cpu__arch_nmi(struct kvm_cpu *cpu);
+void kvm_cpu__run_on_all_cpus(struct kvm *kvm, struct kvm_cpu_task *task);
 
 #endif /* KVM__KVM_CPU_H */

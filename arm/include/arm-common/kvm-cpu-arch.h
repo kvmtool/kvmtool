@@ -17,6 +17,7 @@ struct kvm_cpu {
 	struct kvm	*kvm;
 	int		vcpu_fd;
 	struct kvm_run	*kvm_run;
+	struct kvm_cpu_task	*task;
 
 	u8		is_running;
 	u8		paused;

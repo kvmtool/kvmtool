@@ -4,9 +4,12 @@
 #include "kvm/util.h"
 #include "kvm/kvm.h"
 #include "kvm/virtio.h"
+#include "kvm/mutex.h"
+#include "kvm/barrier.h"
 
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <sys/eventfd.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
@@ -50,6 +53,8 @@ static void kvm_cpu_signal_handler(int signum)
 	} else if (signum == SIGKVMPAUSE) {
 		current_kvm_cpu->paused = 1;
 	}
+
+	/* For SIGKVMTASK cpu->task is already set */
 }
 
 static void kvm_cpu__handle_coalesced_mmio(struct kvm_cpu *cpu)
@@ -68,6 +73,62 @@ static void kvm_cpu__handle_coalesced_mmio(struct kvm_cpu *cpu)
 	}
 }
 
+static DEFINE_MUTEX(task_lock);
+static int task_eventfd;
+
+static void kvm_cpu__run_task(struct kvm_cpu *cpu)
+{
+	u64 inc = 1;
+
+	pr_debug("Running task %p on cpu %lu", cpu->task, cpu->cpu_id);
+
+	/* Make sure we see the store to cpu->task */
+	rmb();
+	cpu->task->func(cpu, cpu->task->data);
+
+	/* Clear task before we signal completion */
+	cpu->task = NULL;
+	wmb();
+
+	if (write(task_eventfd, &inc, sizeof(inc)) < 0)
+		die("Failed notifying of completed task.");
+}
+
+void kvm_cpu__run_on_all_cpus(struct kvm *kvm, struct kvm_cpu_task *task)
+{
+	int i, done = 0;
+
+	pr_debug("Running task %p on all cpus", task);
+
+	mutex_lock(&task_lock);
+
+	for (i = 0; i < kvm->nrcpus; i++) {
+		if (kvm->cpus[i]->task) {
+			/* Should never happen */
+			die("CPU %d already has a task pending!", i);
+		}
+
+		kvm->cpus[i]->task = task;
+		wmb();
+
+		if (kvm->cpus[i] == current_kvm_cpu)
+			kvm_cpu__run_task(current_kvm_cpu);
+		else
+			pthread_kill(kvm->cpus[i]->thread, SIGKVMTASK);
+	}
+
+	while (done < kvm->nrcpus) {
+		u64 count;
+
+		if (read(task_eventfd, &count, sizeof(count)) < 0)
+			die("Failed reading task eventfd");
+
+		done += count;
+	}
+
+	mutex_unlock(&task_lock);
+}
+
 int kvm_cpu__start(struct kvm_cpu *cpu)
 {
 	sigset_t sigset;
@@ -79,6 +140,7 @@ int kvm_cpu__start(struct kvm_cpu *cpu)
 
 	signal(SIGKVMEXIT, kvm_cpu_signal_handler);
 	signal(SIGKVMPAUSE, kvm_cpu_signal_handler);
+	signal(SIGKVMTASK, kvm_cpu_signal_handler);
 
 	kvm_cpu__reset_vcpu(cpu);
 
@@ -95,6 +157,9 @@ int kvm_cpu__start(struct kvm_cpu *cpu)
 			kvm_cpu__arch_nmi(cpu);
 			cpu->needs_nmi = 0;
 		}
+
+		if (cpu->task)
+			kvm_cpu__run_task(cpu);
 
 		kvm_cpu__run(cpu);
 
@@ -202,6 +267,12 @@ int kvm_cpu__init(struct kvm *kvm)
 
 	kvm->nrcpus = kvm->cfg.nrcpus;
 
+	task_eventfd = eventfd(0, 0);
+	if (task_eventfd < 0) {
+		pr_warning("Couldn't create task_eventfd");
+		return task_eventfd;
+	}
+
 	/* Alloc one pointer too many, so array ends up 0-terminated */
 	kvm->cpus = calloc(kvm->nrcpus + 1, sizeof(void *));
 	if (!kvm->cpus) {
@@ -248,6 +319,8 @@ int kvm_cpu__exit(struct kvm *kvm)
 	free(kvm->cpus);
 
 	kvm->nrcpus = 0;
+
+	close(task_eventfd);
 
 	return r;
 }

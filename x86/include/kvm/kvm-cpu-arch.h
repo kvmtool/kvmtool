@@ -18,6 +18,7 @@ struct kvm_cpu {
 	struct kvm		*kvm;		/* parent KVM */
 	int			vcpu_fd;	/* For VCPU ioctls() */
 	struct kvm_run		*kvm_run;
+	struct kvm_cpu_task	*task;
 
 	struct kvm_regs		regs;
 	struct kvm_sregs	sregs;
