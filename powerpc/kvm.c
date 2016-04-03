@@ -291,7 +291,7 @@ static int setup_fdt(struct kvm *kvm)
 	uint32_t	int_server_ranges_prop[] = {0, cpu_to_be32(smp_cpus)};
 	char 		hypertas_prop_kvm[] = "hcall-pft\0hcall-term\0"
 		"hcall-dabr\0hcall-interrupt\0hcall-tce\0hcall-vio\0"
-		"hcall-splpar\0hcall-bulk";
+		"hcall-splpar\0hcall-bulk\0hcall-set-mode";
 	int 		i, j;
 	char 		cpu_name[30];
 	u8		staging_fdt[FDT_MAX_SIZE];

@@ -18,6 +18,7 @@
 
 #include <stdio.h>
 #include <assert.h>
+#include <sys/eventfd.h>
 
 static spapr_hcall_fn papr_hypercall_table[(MAX_HCALL_OPCODE / 4) + 1];
 static spapr_hcall_fn kvmppc_hypercall_table[KVMPPC_HCALL_MAX -
@@ -74,6 +75,70 @@ static target_ulong h_logical_dcbf(struct kvm_cpu *vcpu, target_ulong opcode, ta
 	return H_SUCCESS;
 }
 
+struct lpcr_data {
+	struct kvm_cpu	*cpu;
+	int		mode;
+};
+
+static void get_cpu_lpcr(struct kvm_cpu *vcpu, target_ulong *lpcr)
+{
+	struct kvm_one_reg reg = {
+		.id = KVM_REG_PPC_LPCR_64,
+		.addr = (__u64)lpcr
+	};
+
+	if (ioctl(vcpu->vcpu_fd, KVM_GET_ONE_REG, &reg))
+		die("Couldn't read vcpu reg?!");
+}
+
+static void set_cpu_lpcr(struct kvm_cpu *vcpu, target_ulong *lpcr)
+{
+	struct kvm_one_reg reg = {
+		.id = KVM_REG_PPC_LPCR_64,
+		.addr = (__u64)lpcr
+	};
+
+	if (ioctl(vcpu->vcpu_fd, KVM_SET_ONE_REG, &reg))
+		die("Couldn't write vcpu reg?!");
+}
+
+static void set_endian_task(struct kvm_cpu *vcpu, void *data)
+{
+	target_ulong mflags = (target_ulong)data;
+	target_ulong lpcr;
+
+	get_cpu_lpcr(vcpu, &lpcr);
+
+	if (mflags == H_SET_MODE_ENDIAN_BIG)
+		lpcr &= ~LPCR_ILE;
+	else
+		lpcr |= LPCR_ILE;
+
+	set_cpu_lpcr(vcpu, &lpcr);
+}
+
+static target_ulong h_set_mode(struct kvm_cpu *vcpu, target_ulong opcode, target_ulong *args)
+{
+	int ret;
+
+	switch (args[1]) {
+	case H_SET_MODE_RESOURCE_LE: {
+		struct kvm_cpu_task task;
+		task.func = set_endian_task;
+		task.data = (void *)args[0];
+		kvm_cpu__run_on_all_cpus(vcpu->kvm, &task);
+		ret = H_SUCCESS;
+		break;
+	}
+	default:
+		ret = H_FUNCTION;
+		break;
+	}
+
+	return ret;
+}
+
+
 void spapr_register_hypercall(target_ulong opcode, spapr_hcall_fn fn)
 {
 	spapr_hcall_fn *slot;
@@ -128,6 +193,7 @@ void hypercall_init(void)
 	spapr_register_hypercall(H_LOGICAL_CACHE_STORE, h_logical_store);
 	spapr_register_hypercall(H_LOGICAL_ICBI, h_logical_icbi);
 	spapr_register_hypercall(H_LOGICAL_DCBF, h_logical_dcbf);
+	spapr_register_hypercall(H_SET_MODE, h_set_mode);
 
 	/* KVM-PPC specific hcalls */
 	spapr_register_hypercall(KVMPPC_H_RTAS, h_rtas);

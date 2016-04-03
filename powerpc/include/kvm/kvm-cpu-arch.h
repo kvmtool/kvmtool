@@ -38,6 +38,8 @@
 
 #define POWER7_EXT_IRQ	0
 
+#define LPCR_ILE	(1 << (63-38))
+
 struct kvm;
 
 struct kvm_cpu {

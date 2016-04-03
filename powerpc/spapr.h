@@ -27,7 +27,7 @@ typedef uintptr_t target_phys_addr_t;
 #define H_HARDWARE	-1	/* Hardware error */
 #define H_FUNCTION	-2	/* Function not supported */
 #define H_PARAMETER	-4	/* Parameter invalid, out-of-range or conflicting */
-
+#define H_P2		-55
 #define H_SET_DABR		0x28
 #define H_LOGICAL_CI_LOAD	0x3c
 #define H_LOGICAL_CI_STORE	0x40
@@ -41,7 +41,18 @@ typedef uintptr_t target_phys_addr_t;
 #define H_EOI			0x64
 #define H_IPI			0x6c
 #define H_XIRR			0x74
-#define MAX_HCALL_OPCODE	H_XIRR
+#define H_SET_MODE		0x31C
+#define MAX_HCALL_OPCODE	H_SET_MODE
+
+/* Values for 2nd argument to H_SET_MODE */
+#define H_SET_MODE_RESOURCE_SET_CIABR		1
+#define H_SET_MODE_RESOURCE_SET_DAWR		2
+#define H_SET_MODE_RESOURCE_ADDR_TRANS_MODE	3
+#define H_SET_MODE_RESOURCE_LE			4
+
+/* Flags for H_SET_MODE_RESOURCE_LE */
+#define H_SET_MODE_ENDIAN_BIG		0
+#define H_SET_MODE_ENDIAN_LITTLE	1
 
 /*
  * The hcalls above are standardized in PAPR and implemented by pHyp
