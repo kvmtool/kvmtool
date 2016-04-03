@@ -15,6 +15,7 @@
 #define __HW_SPAPR_H__
 
 #include <inttypes.h>
+#include <linux/byteorder.h>
 
 #include "kvm/kvm.h"
 #include "kvm/kvm-cpu.h"
@@ -80,12 +81,12 @@ int spapr_rtas_fdt_setup(struct kvm *kvm, void *fdt);
 
 static inline uint32_t rtas_ld(struct kvm *kvm, target_ulong phys, int n)
 {
-	return *((uint32_t *)guest_flat_to_host(kvm, phys + 4*n));
+	return cpu_to_be32(*((uint32_t *)guest_flat_to_host(kvm, phys + 4*n)));
 }
 
 static inline void rtas_st(struct kvm *kvm, target_ulong phys, int n, uint32_t val)
 {
-	*((uint32_t *)guest_flat_to_host(kvm, phys + 4*n)) = val;
+	*((uint32_t *)guest_flat_to_host(kvm, phys + 4*n)) = cpu_to_be32(val);
 }
 
 typedef void (*spapr_rtas_fn)(struct kvm_cpu *vcpu, uint32_t token,

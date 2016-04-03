@@ -258,21 +258,21 @@ static void generate_segment_page_sizes(struct kvm_ppc_smmu_info *info, struct f
 		if (sps->page_shift == 0)
 			break;
 
-		*p++ = sps->page_shift;
-		*p++ = sps->slb_enc;
+		*p++ = cpu_to_be32(sps->page_shift);
+		*p++ = cpu_to_be32(sps->slb_enc);
 
 		for (j = 0; j < KVM_PPC_PAGE_SIZES_MAX_SZ; j++)
 			if (!info->sps[i].enc[j].page_shift)
 				break;
 
-		*p++ = j;	/* count of enc */
+		*p++ = cpu_to_be32(j);	/* count of enc */
 
 		for (j = 0; j < KVM_PPC_PAGE_SIZES_MAX_SZ; j++) {
 			if (!info->sps[i].enc[j].page_shift)
 				break;
 
-			*p++ = info->sps[i].enc[j].page_shift;
-			*p++ = info->sps[i].enc[j].pte_enc;
+			*p++ = cpu_to_be32(info->sps[i].enc[j].page_shift);
+			*p++ = cpu_to_be32(info->sps[i].enc[j].pte_enc);
 		}
 	}
 }
@@ -297,7 +297,7 @@ static int setup_fdt(struct kvm *kvm)
 	u8		staging_fdt[FDT_MAX_SIZE];
 	struct cpu_info *cpu_info = find_cpu_info(kvm);
 	struct fdt_prop segment_page_sizes;
-	u32 segment_sizes_1T[] = {0x1c, 0x28, 0xffffffff, 0xffffffff};
+	u32 segment_sizes_1T[] = {cpu_to_be32(0x1c), cpu_to_be32(0x28), 0xffffffff, 0xffffffff};
 
 	/* Generate an appropriate DT at kvm->arch.fdt_gra */
 	void *fdt_dest = guest_flat_to_host(kvm, kvm->arch.fdt_gra);
@@ -369,7 +369,7 @@ static int setup_fdt(struct kvm *kvm)
 	_FDT(fdt_property_cell(fdt, "#size-cells", 0x0));
 
 	for (i = 0; i < smp_cpus; i += SMT_THREADS) {
-		int32_t pft_size_prop[] = { 0, HPT_ORDER };
+		int32_t pft_size_prop[] = { 0, cpu_to_be32(HPT_ORDER) };
 		uint32_t servers_prop[SMT_THREADS];
 		uint32_t gservers_prop[SMT_THREADS * 2];
 		int threads = (smp_cpus - i) >= SMT_THREADS ? SMT_THREADS :
@@ -508,11 +508,11 @@ int kvm__arch_setup_firmware(struct kvm *kvm)
 	 */
 	uint32_t *rtas = guest_flat_to_host(kvm, kvm->arch.rtas_gra);
 
-	rtas[0] = 0x7c641b78;
-	rtas[1] = 0x3c600000;
-	rtas[2] = 0x6063f000;
-	rtas[3] = 0x44000022;
-	rtas[4] = 0x4e800020;
+	rtas[0] = cpu_to_be32(0x7c641b78);
+	rtas[1] = cpu_to_be32(0x3c600000);
+	rtas[2] = cpu_to_be32(0x6063f000);
+	rtas[3] = cpu_to_be32(0x44000022);
+	rtas[4] = cpu_to_be32(0x4e800020);
 	kvm->arch.rtas_size = 20;
 
 	pr_info("Set up %ld bytes of RTAS at 0x%lx\n",
