@@ -630,7 +630,6 @@ static struct kvm *kvm_cmd_run_init(int argc, const char **argv)
 static int kvm_cmd_run_work(struct kvm *kvm)
 {
 	int i;
-	void *ret = NULL;
 
 	for (i = 0; i < kvm->nrcpus; i++) {
 		if (pthread_create(&kvm->cpus[i]->thread, NULL, kvm_cpu_thread, kvm->cpus[i]) != 0)
@@ -638,7 +637,10 @@ static int kvm_cmd_run_work(struct kvm *kvm)
 	}
 
 	/* Only VCPU #0 is going to exit by itself when shutting down */
-	return pthread_join(kvm->cpus[0]->thread, &ret);
+	if (pthread_join(kvm->cpus[0]->thread, NULL) != 0)
+		die("unable to join with vcpu 0");
+
+	return kvm_cpu__exit(kvm);
 }
 
 static void kvm_cmd_run_exit(struct kvm *kvm, int guest_ret)

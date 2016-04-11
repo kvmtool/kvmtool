@@ -305,6 +305,7 @@ int kvm_cpu__exit(struct kvm *kvm)
 	kvm_cpu__delete(kvm->cpus[0]);
 	kvm->cpus[0] = NULL;
 
+	kvm__pause(kvm);
 	for (i = 1; i < kvm->nrcpus; i++) {
 		if (kvm->cpus[i]->is_running) {
 			pthread_kill(kvm->cpus[i]->thread, SIGKVMEXIT);
@@ -315,6 +316,7 @@ int kvm_cpu__exit(struct kvm *kvm)
 		if (ret == NULL)
 			r = 0;
 	}
+	kvm__continue(kvm);
 
 	free(kvm->cpus);
 
@@ -324,4 +326,3 @@ int kvm_cpu__exit(struct kvm *kvm)
 
 	return r;
 }
-core_exit(kvm_cpu__exit);
