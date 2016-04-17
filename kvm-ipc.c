@@ -137,7 +137,7 @@ int kvm__enumerate_instances(int (*callback)(const char *name, int fd))
 {
 	int sock;
 	DIR *dir;
-	struct dirent entry, *result;
+	struct dirent *entry;
 	int ret = 0;
 	const char *path;
 
@@ -148,25 +148,25 @@ int kvm__enumerate_instances(int (*callback)(const char *name, int fd))
 		return -errno;
 
 	for (;;) {
-		readdir_r(dir, &entry, &result);
-		if (result == NULL)
+		entry = readdir(dir);
+		if (!entry)
 			break;
-		if (is_socket(path, &entry)) {
-			ssize_t name_len = strlen(entry.d_name);
+		if (is_socket(path, entry)) {
+			ssize_t name_len = strlen(entry->d_name);
 			char *p;
 
 			if (name_len <= KVM_SOCK_SUFFIX_LEN)
 				continue;
 
-			p = &entry.d_name[name_len - KVM_SOCK_SUFFIX_LEN];
+			p = &entry->d_name[name_len - KVM_SOCK_SUFFIX_LEN];
 			if (memcmp(KVM_SOCK_SUFFIX, p, KVM_SOCK_SUFFIX_LEN))
 				continue;
 
 			*p = 0;
-			sock = kvm__get_sock_by_instance(entry.d_name);
+			sock = kvm__get_sock_by_instance(entry->d_name);
 			if (sock < 0)
 				continue;
-			ret = callback(entry.d_name, sock);
+			ret = callback(entry->d_name, sock);
 			close(sock);
 			if (ret < 0)
 				break;
