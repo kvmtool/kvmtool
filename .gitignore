@@ -4,7 +4,7 @@
 *.o
 *.d
 *.swp
-.cscope
+/cscope.*
 tags
 tests/boot/boot_test.iso
 tests/boot/rootfs/
