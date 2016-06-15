@@ -45,6 +45,7 @@ int device__register(struct device_header *dev)
 		int num = rb_entry(*node, struct device_header, node)->dev_num;
 		int result = dev->dev_num - num;
 
+		parent = *node;
 		if (result < 0)
 			node = &((*node)->rb_left);
 		else if (result > 0)
