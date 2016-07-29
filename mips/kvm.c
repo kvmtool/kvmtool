@@ -296,9 +296,6 @@ static bool load_elf_binary(struct kvm *kvm, int fd_kernel)
 	char *p;
 	struct kvm__arch_elf_info ei;
 
-	if (lseek(fd_kernel, 0, SEEK_SET) < 0)
-		die_perror("lseek");
-
 	nr = read(fd_kernel, &eh, sizeof(eh));
 	if (nr != sizeof(eh)) {
 		pr_info("Couldn't read %d bytes for ELF header.", (int)sizeof(eh));

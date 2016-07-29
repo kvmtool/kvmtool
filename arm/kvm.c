@@ -96,9 +96,6 @@ bool kvm__arch_load_kernel_image(struct kvm *kvm, int fd_kernel, int fd_initrd,
 	unsigned long guest_addr;
 	ssize_t file_size;
 
-	if (lseek(fd_kernel, 0, SEEK_SET) < 0)
-		die_perror("lseek");
-
 	/*
 	 * Linux requires the initrd and dtb to be mapped inside lowmem,
 	 * so we can't just place them at the top of memory.
@@ -140,9 +137,6 @@ bool kvm__arch_load_kernel_image(struct kvm *kvm, int fd_kernel, int fd_initrd,
 	if (fd_initrd != -1) {
 		struct stat sb;
 		unsigned long initrd_start;
-
-		if (lseek(fd_initrd, 0, SEEK_SET) < 0)
-			die_perror("lseek");
 
 		if (fstat(fd_initrd, &sb))
 			die_perror("fstat");

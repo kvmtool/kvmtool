@@ -243,9 +243,6 @@ static bool load_bzimage(struct kvm *kvm, int fd_kernel, int fd_initrd,
 	 * memory layout.
 	 */
 
-	if (lseek(fd_kernel, 0, SEEK_SET) < 0)
-		die_perror("lseek");
-
 	if (read_in_full(fd_kernel, &boot, sizeof(boot)) != sizeof(boot))
 		return false;
 

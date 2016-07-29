@@ -164,9 +164,6 @@ bool kvm__arch_load_kernel_image(struct kvm *kvm, int fd_kernel, int fd_initrd,
 	void *k_start;
 	ssize_t filesize;
 
-	if (lseek(fd_kernel, 0, SEEK_SET) < 0)
-		die_perror("lseek");
-
 	p = k_start = guest_flat_to_host(kvm, KERNEL_LOAD_ADDR);
 
 	filesize = read_file(fd_kernel, p, INITRD_LOAD_ADDR - KERNEL_LOAD_ADDR);
@@ -179,9 +176,6 @@ bool kvm__arch_load_kernel_image(struct kvm *kvm, int fd_kernel, int fd_initrd,
 	pr_info("Loaded kernel to 0x%x (%ld bytes)", KERNEL_LOAD_ADDR,
 		filesize);
 	if (fd_initrd != -1) {
-		if (lseek(fd_initrd, 0, SEEK_SET) < 0)
-			die_perror("lseek");
-
 		if (p-k_start > INITRD_LOAD_ADDR)
 			die("Kernel overlaps initrd!");
 
