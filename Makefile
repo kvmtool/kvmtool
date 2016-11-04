@@ -284,7 +284,7 @@ ifeq ($(call try-build,$(SOURCE_STATIC),$(CFLAGS),$(LDFLAGS) -static),y)
 	GUEST_INIT	:= guest/init
 	GUEST_OBJS	= guest/guest_init.o
 	ifeq ($(ARCH_PRE_INIT),)
-		GUEST_INIT_FLAGS	+= -static
+		GUEST_INIT_FLAGS	+= -static $(PIE_FLAGS)
 	else
 		CFLAGS			+= -DCONFIG_GUEST_PRE_INIT
 		GUEST_INIT_FLAGS	+= -DCONFIG_GUEST_PRE_INIT
@@ -305,6 +305,10 @@ ifeq (y,$(ARCH_WANT_LIBFDT))
 		LIBS_DYNOPT	+= -lfdt
 		LIBS_STATOPT	+= -lfdt
 	endif
+endif
+
+ifeq ($(call try-build,$(SOURCE_HELLO),$(CFLAGS),-no-pie),y)
+	PIE_FLAGS	+= -no-pie
 endif
 
 ifneq ($(NOTFOUND),)
@@ -388,7 +392,7 @@ $(PROGRAM_ALIAS): $(PROGRAM)
 ifneq ($(ARCH_PRE_INIT),)
 $(GUEST_PRE_INIT): $(ARCH_PRE_INIT)
 	$(E) "  LINK    " $@
-	$(Q) $(CC) -s -nostdlib $(ARCH_PRE_INIT) -o $@
+	$(Q) $(CC) -s $(PIE_FLAGS) -nostdlib $(ARCH_PRE_INIT) -o $@
 	$(Q) $(LD) -r -b binary -o guest/guest_pre_init.o $(GUEST_PRE_INIT)
 endif
 
@@ -435,6 +439,7 @@ BIOS_CFLAGS += -march=i386
 BIOS_CFLAGS += -mregparm=3
 
 BIOS_CFLAGS += -fno-stack-protector
+BIOS_CFLAGS += -fno-pic
 
 x86/bios.o: x86/bios/bios.bin x86/bios/bios-rom.h
 
