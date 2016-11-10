@@ -222,6 +222,21 @@ static bool is_dir(struct p9_fid *fid)
 	return S_ISDIR(st.st_mode);
 }
 
+/* path is always absolute */
+static bool path_is_illegal(const char *path)
+{
+	size_t len;
+
+	if (strstr(path, "/../") != NULL)
+		return true;
+
+	len = strlen(path);
+	if (len >= 3 && strcmp(path + len - 3, "/..") == 0)
+		return true;
+
+	return false;
+}
+
 static void virtio_p9_open(struct p9_dev *p9dev,
 			   struct p9_pdu *pdu, u32 *outlen)
 {
@@ -278,6 +293,11 @@ static void virtio_p9_create(struct p9_dev *p9dev,
 	flags = virtio_p9_openflags(flags);
 
 	sprintf(full_path, "%s/%s", dfid->abs_path, name);
+	if (path_is_illegal(full_path)) {
+		errno = EACCES;
+		goto err_out;
+	}
+
 	fd = open(full_path, flags | O_CREAT, mode);
 	if (fd < 0)
 		goto err_out;
@@ -319,6 +339,11 @@ static void virtio_p9_mkdir(struct p9_dev *p9dev,
 	dfid = get_fid(p9dev, dfid_val);
 
 	sprintf(full_path, "%s/%s", dfid->abs_path, name);
+	if (path_is_illegal(full_path)) {
+		errno = EACCES;
+		goto err_out;
+	}
+
 	ret = mkdir(full_path, mode);
 	if (ret < 0)
 		goto err_out;
@@ -776,6 +801,11 @@ static void virtio_p9_rename(struct p9_dev *p9dev,
 	new_fid = get_fid(p9dev, new_fid_val);
 
 	sprintf(full_path, "%s/%s", new_fid->abs_path, new_name);
+	if (path_is_illegal(full_path)) {
+		errno = EACCES;
+		goto err_out;
+	}
+
 	ret = rename(fid->abs_path, full_path);
 	if (ret < 0)
 		goto err_out;
@@ -860,6 +890,11 @@ static void virtio_p9_mknod(struct p9_dev *p9dev,
 
 	dfid = get_fid(p9dev, fid_val);
 	sprintf(full_path, "%s/%s", dfid->abs_path, name);
+	if (path_is_illegal(full_path)) {
+		errno = EACCES;
+		goto err_out;
+	}
+
 	ret = mknod(full_path, mode, makedev(major, minor));
 	if (ret < 0)
 		goto err_out;
@@ -927,6 +962,11 @@ static void virtio_p9_symlink(struct p9_dev *p9dev,
 
 	dfid = get_fid(p9dev, fid_val);
 	sprintf(new_name, "%s/%s", dfid->abs_path, name);
+	if (path_is_illegal(new_name)) {
+		errno = EACCES;
+		goto err_out;
+	}
+
 	ret = symlink(old_path, new_name);
 	if (ret < 0)
 		goto err_out;
@@ -962,6 +1002,11 @@ static void virtio_p9_link(struct p9_dev *p9dev,
 	dfid = get_fid(p9dev, dfid_val);
 	fid =  get_fid(p9dev, fid_val);
 	sprintf(full_path, "%s/%s", dfid->abs_path, name);
+	if (path_is_illegal(full_path)) {
+		errno = EACCES;
+		goto err_out;
+	}
+
 	ret = link(fid->abs_path, full_path);
 	if (ret < 0)
 		goto err_out;
@@ -1079,6 +1124,11 @@ static void virtio_p9_renameat(struct p9_dev *p9dev,
 
 	sprintf(old_full_path, "%s/%s", old_dfid->abs_path, old_name);
 	sprintf(new_full_path, "%s/%s", new_dfid->abs_path, new_name);
+	if (path_is_illegal(old_full_path) || path_is_illegal(new_full_path)) {
+		errno = EACCES;
+		goto err_out;
+	}
+
 	ret = rename(old_full_path, new_full_path);
 	if (ret < 0)
 		goto err_out;
@@ -1112,6 +1162,11 @@ static void virtio_p9_unlinkat(struct p9_dev *p9dev,
 	fid = get_fid(p9dev, fid_val);
 
 	sprintf(full_path, "%s/%s", fid->abs_path, name);
+	if (path_is_illegal(full_path)) {
+		errno = EACCES;
+		goto err_out;
+	}
+
 	ret = remove(full_path);
 	if (ret < 0)
 		goto err_out;
