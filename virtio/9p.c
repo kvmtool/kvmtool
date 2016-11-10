@@ -28,6 +28,7 @@ static struct p9_fid *find_or_create_fid(struct p9_dev *dev, u32 fid)
 {
 	struct rb_node *node = dev->fids.rb_node;
 	struct p9_fid *pfid = NULL;
+	size_t len;
 
 	while (node) {
 		struct p9_fid *cur = rb_entry(node, struct p9_fid, node);
@@ -45,9 +46,15 @@ static struct p9_fid *find_or_create_fid(struct p9_dev *dev, u32 fid)
 	if (!pfid)
 		return NULL;
 
+	len = strlen(dev->root_dir);
+	if (len >= sizeof(pfid->abs_path)) {
+		free(pfid);
+		return NULL;
+	}
+
 	pfid->fid = fid;
 	strcpy(pfid->abs_path, dev->root_dir);
-	pfid->path = pfid->abs_path + strlen(dev->root_dir);
+	pfid->path = pfid->abs_path + strlen(pfid->abs_path);
 
 	insert_new_fid(dev, pfid);
 
@@ -386,6 +393,19 @@ err_out:
 	return;
 }
 
+static int join_path(struct p9_fid *fid, const char *name)
+{
+	size_t len, size;
+
+	size = sizeof(fid->abs_path) - (fid->path - fid->abs_path);
+	len = strlen(name);
+	if (len >= size)
+		return -1;
+
+	strncpy(fid->path, name, size);
+	return 0;
+}
+
 static void virtio_p9_walk(struct p9_dev *p9dev,
 			   struct p9_pdu *pdu, u32 *outlen)
 {
@@ -404,7 +424,11 @@ static void virtio_p9_walk(struct p9_dev *p9dev,
 	if (nwname) {
 		struct p9_fid *fid = get_fid(p9dev, fid_val);
 
-		strcpy(new_fid->path, fid->path);
+		if (join_path(new_fid, fid->path) != 0) {
+			errno = ENAMETOOLONG;
+			goto err_out;
+		}
+
 		/* skip the space for count */
 		pdu->write_offset += sizeof(u16);
 		for (i = 0; i < nwname; i++) {
@@ -429,7 +453,10 @@ static void virtio_p9_walk(struct p9_dev *p9dev,
 				goto err_out;
 
 			stat2qid(&st, &wqid);
-			strcpy(new_fid->path, tmp);
+			if (join_path(new_fid, tmp) != 0) {
+				errno = ENAMETOOLONG;
+				goto err_out;
+			}
 			new_fid->uid = fid->uid;
 			nwqid++;
 			virtio_p9_pdu_writef(pdu, "Q", &wqid);
@@ -440,7 +467,10 @@ static void virtio_p9_walk(struct p9_dev *p9dev,
 		 */
 		pdu->write_offset += sizeof(u16);
 		old_fid = get_fid(p9dev, fid_val);
-		strcpy(new_fid->path, old_fid->path);
+		if (join_path(new_fid, old_fid->path) != 0) {
+			errno = ENAMETOOLONG;
+			goto err_out;
+		}
 		new_fid->uid    = old_fid->uid;
 	}
 	*outlen = pdu->write_offset;
@@ -476,7 +506,10 @@ static void virtio_p9_attach(struct p9_dev *p9dev,
 
 	fid = get_fid(p9dev, fid_val);
 	fid->uid = uid;
-	strcpy(fid->path, "/");
+	if (join_path(fid, "/") != 0) {
+		errno = ENAMETOOLONG;
+		goto err_out;
+	}
 
 	virtio_p9_pdu_writef(pdu, "Q", &qid);
 	*outlen = pdu->write_offset;
@@ -1120,20 +1153,24 @@ static int virtio_p9_ancestor(char *path, char *ancestor)
 	return 0;
 }
 
-static void virtio_p9_fix_path(char *fid_path, char *old_name, char *new_name)
+static int virtio_p9_fix_path(struct p9_fid *fid, char *old_name, char *new_name)
 {
-	char tmp_name[PATH_MAX];
+	int ret;
+	char *p, tmp_name[PATH_MAX];
 	size_t rp_sz = strlen(old_name);
 
-	if (rp_sz == strlen(fid_path)) {
+	if (rp_sz == strlen(fid->path)) {
 		/* replace the full name */
-		strcpy(fid_path, new_name);
-		return;
+		p = new_name;
+	} else {
+		/* save the trailing path details */
+		ret = snprintf(tmp_name, sizeof(tmp_name), "%s%s", new_name, fid->path + rp_sz);
+		if (ret >= (int)sizeof(tmp_name))
+			return -1;
+		p = tmp_name;
 	}
-	/* save the trailing path details */
-	strcpy(tmp_name, fid_path + rp_sz);
-	sprintf(fid_path, "%s%s", new_name, tmp_name);
-	return;
+
+	return join_path(fid, p);
 }
 
 static void rename_fids(struct p9_dev *p9dev, char *old_name, char *new_name)
@@ -1144,7 +1181,7 @@ static void rename_fids(struct p9_dev *p9dev, char *old_name, char *new_name)
 		struct p9_fid *fid = rb_entry(node, struct p9_fid, node);
 
 		if (fid->fid != P9_NOFID && virtio_p9_ancestor(fid->path, old_name)) {
-				virtio_p9_fix_path(fid->path, old_name, new_name);
+				virtio_p9_fix_path(fid, old_name, new_name);
 		}
 		node = rb_next(node);
 	}
@@ -1544,7 +1581,9 @@ int virtio_9p__register(struct kvm *kvm, const char *root, const char *tag_name)
 		goto free_p9dev;
 	}
 
-	strcpy(p9dev->root_dir, root);
+	strncpy(p9dev->root_dir, root, sizeof(p9dev->root_dir));
+	p9dev->root_dir[sizeof(p9dev->root_dir)-1] = '\x00';
+
 	p9dev->config->tag_len = strlen(tag_name);
 	if (p9dev->config->tag_len > MAX_TAG_LEN) {
 		err = -EINVAL;
