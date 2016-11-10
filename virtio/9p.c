@@ -91,15 +91,6 @@ static struct p9_fid *get_fid(struct p9_dev *p9dev, int fid)
 	return new;
 }
 
-/* Warning: Immediately use value returned from this function */
-static const char *rel_to_abs(struct p9_dev *p9dev,
-			      const char *path, char *abs_path)
-{
-	sprintf(abs_path, "%s/%s", p9dev->root_dir, path);
-
-	return abs_path;
-}
-
 static void stat2qid(struct stat *st, struct p9_qid *qid)
 {
 	*qid = (struct p9_qid) {
@@ -267,6 +258,19 @@ static int get_full_path(char *full_path, size_t size, struct p9_fid *fid,
 			 const char *name)
 {
 	return get_full_path_helper(full_path, size, fid->abs_path, name);
+}
+
+static int stat_rel(struct p9_dev *p9dev, const char *path, struct stat *st)
+{
+	char full_path[PATH_MAX];
+
+	if (get_full_path_helper(full_path, sizeof(full_path), p9dev->root_dir, path) != 0)
+		return -1;
+
+	if (lstat(full_path, st) != 0)
+		return -1;
+
+	return 0;
 }
 
 static void virtio_p9_open(struct p9_dev *p9dev,
@@ -443,7 +447,6 @@ static void virtio_p9_walk(struct p9_dev *p9dev,
 		for (i = 0; i < nwname; i++) {
 			struct stat st;
 			char tmp[PATH_MAX] = {0};
-			char full_path[PATH_MAX];
 			char *str;
 			int ret;
 
@@ -458,7 +461,7 @@ static void virtio_p9_walk(struct p9_dev *p9dev,
 
 			free(str);
 
-			if (lstat(rel_to_abs(p9dev, tmp, full_path), &st) < 0)
+			if (stat_rel(p9dev, tmp, &st) != 0)
 				goto err_out;
 
 			stat2qid(&st, &wqid);
@@ -612,7 +615,6 @@ static void virtio_p9_readdir(struct p9_dev *p9dev,
 	struct stat st;
 	struct p9_fid *fid;
 	struct dirent *dent;
-	char full_path[PATH_MAX];
 	u64 offset, old_offset;
 
 	rcount = 0;
@@ -643,7 +645,8 @@ static void virtio_p9_readdir(struct p9_dev *p9dev,
 			break;
 		}
 		old_offset = dent->d_off;
-		lstat(rel_to_abs(p9dev, dent->d_name, full_path), &st);
+		if (stat_rel(p9dev, dent->d_name, &st) != 0)
+			memset(&st, -1, sizeof(st));
 		stat2qid(&st, &qid);
 		read = pdu->write_offset;
 		virtio_p9_pdu_writef(pdu, "Qqbs", &qid, dent->d_off,
