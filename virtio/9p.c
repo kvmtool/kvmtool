@@ -244,6 +244,31 @@ static bool path_is_illegal(const char *path)
 	return false;
 }
 
+static int get_full_path_helper(char *full_path, size_t size,
+			 const char *dirname, const char *name)
+{
+	int ret;
+
+	ret = snprintf(full_path, size, "%s/%s", dirname, name);
+	if (ret >= (int)sizeof(full_path)) {
+		errno = ENAMETOOLONG;
+		return -1;
+	}
+
+	if (path_is_illegal(full_path)) {
+		errno = EACCES;
+		return -1;
+	}
+
+	return 0;
+}
+
+static int get_full_path(char *full_path, size_t size, struct p9_fid *fid,
+			 const char *name)
+{
+	return get_full_path_helper(full_path, size, fid->abs_path, name);
+}
+
 static void virtio_p9_open(struct p9_dev *p9dev,
 			   struct p9_pdu *pdu, u32 *outlen)
 {
@@ -298,18 +323,8 @@ static void virtio_p9_create(struct p9_dev *p9dev,
 			    &name, &flags, &mode, &gid);
 	dfid = get_fid(p9dev, dfid_val);
 
-	flags = virtio_p9_openflags(flags);
-
-	ret = snprintf(full_path, sizeof(full_path), "%s/%s", dfid->abs_path, name);
-	if (ret >= (int)sizeof(full_path)) {
-		errno = ENAMETOOLONG;
+	if (get_full_path(full_path, sizeof(full_path), dfid, name) != 0)
 		goto err_out;
-	}
-
-	if (path_is_illegal(full_path)) {
-		errno = EACCES;
-		goto err_out;
-	}
 
 	size = sizeof(dfid->abs_path) - (dfid->path - dfid->abs_path);
 	ret = snprintf(dfid->path, size, "%s/%s", dfid->path, name);
@@ -319,6 +334,8 @@ static void virtio_p9_create(struct p9_dev *p9dev,
 			dfid->path[size] = '\x00';
 		goto err_out;
 	}
+
+	flags = virtio_p9_openflags(flags);
 
 	fd = open(full_path, flags | O_CREAT, mode);
 	if (fd < 0)
@@ -359,16 +376,8 @@ static void virtio_p9_mkdir(struct p9_dev *p9dev,
 			    &name, &mode, &gid);
 	dfid = get_fid(p9dev, dfid_val);
 
-	ret = snprintf(full_path, sizeof(full_path), "%s/%s", dfid->abs_path, name);
-	if (ret >= (int)sizeof(full_path)) {
-		errno = ENAMETOOLONG;
+	if (get_full_path(full_path, sizeof(full_path), dfid, name) != 0)
 		goto err_out;
-	}
-
-	if (path_is_illegal(full_path)) {
-		errno = EACCES;
-		goto err_out;
-	}
 
 	ret = mkdir(full_path, mode);
 	if (ret < 0)
@@ -857,16 +866,8 @@ static void virtio_p9_rename(struct p9_dev *p9dev,
 	fid = get_fid(p9dev, fid_val);
 	new_fid = get_fid(p9dev, new_fid_val);
 
-	ret = snprintf(full_path, sizeof(full_path), "%s/%s", new_fid->abs_path, new_name);
-	if (ret >= (int)sizeof(full_path)) {
-		errno = ENAMETOOLONG;
+	if (get_full_path(full_path, sizeof(full_path), new_fid, new_name) != 0)
 		goto err_out;
-	}
-
-	if (path_is_illegal(full_path)) {
-		errno = EACCES;
-		goto err_out;
-	}
 
 	ret = rename(fid->abs_path, full_path);
 	if (ret < 0)
@@ -951,16 +952,9 @@ static void virtio_p9_mknod(struct p9_dev *p9dev,
 			    &major, &minor, &gid);
 
 	dfid = get_fid(p9dev, fid_val);
-	ret = snprintf(full_path, sizeof(full_path), "%s/%s", dfid->abs_path, name);
-	if (ret >= (int)sizeof(full_path)) {
-		errno = ENAMETOOLONG;
-		goto err_out;
-	}
 
-	if (path_is_illegal(full_path)) {
-		errno = EACCES;
+	if (get_full_path(full_path, sizeof(full_path), dfid, name) != 0)
 		goto err_out;
-	}
 
 	ret = mknod(full_path, mode, makedev(major, minor));
 	if (ret < 0)
@@ -1028,16 +1022,9 @@ static void virtio_p9_symlink(struct p9_dev *p9dev,
 	virtio_p9_pdu_readf(pdu, "dssd", &fid_val, &name, &old_path, &gid);
 
 	dfid = get_fid(p9dev, fid_val);
-	ret = snprintf(new_name, sizeof(new_name), "%s/%s", dfid->abs_path, name);
-	if (ret >= (int)sizeof(new_name)) {
-		errno = ENAMETOOLONG;
-		goto err_out;
-	}
 
-	if (path_is_illegal(new_name)) {
-		errno = EACCES;
+	if (get_full_path(new_name, sizeof(new_name), dfid, name) != 0)
 		goto err_out;
-	}
 
 	ret = symlink(old_path, new_name);
 	if (ret < 0)
@@ -1073,16 +1060,9 @@ static void virtio_p9_link(struct p9_dev *p9dev,
 
 	dfid = get_fid(p9dev, dfid_val);
 	fid =  get_fid(p9dev, fid_val);
-	ret = snprintf(full_path, sizeof(full_path), "%s/%s", dfid->abs_path, name);
-	if (ret >= (int)sizeof(full_path)) {
-		errno = ENAMETOOLONG;
-		goto err_out;
-	}
 
-	if (path_is_illegal(full_path)) {
-		errno = EACCES;
+	if (get_full_path(full_path, sizeof(full_path), dfid, name) != 0)
 		goto err_out;
-	}
 
 	ret = link(fid->abs_path, full_path);
 	if (ret < 0)
@@ -1203,22 +1183,11 @@ static void virtio_p9_renameat(struct p9_dev *p9dev,
 	old_dfid = get_fid(p9dev, old_dfid_val);
 	new_dfid = get_fid(p9dev, new_dfid_val);
 
-	ret = snprintf(old_full_path, sizeof(old_full_path), "%s/%s", old_dfid->abs_path, old_name);
-	if (ret >= (int)sizeof(old_full_path)) {
-		errno = ENAMETOOLONG;
+	if (get_full_path(old_full_path, sizeof(old_full_path), old_dfid, old_name) != 0)
 		goto err_out;
-	}
 
-	ret = snprintf(new_full_path, sizeof(new_full_path), "%s/%s", new_dfid->abs_path, new_name);
-	if (ret >= (int)sizeof(new_full_path)) {
-		errno = ENAMETOOLONG;
+	if (get_full_path(new_full_path, sizeof(new_full_path), new_dfid, new_name) != 0)
 		goto err_out;
-	}
-
-	if (path_is_illegal(old_full_path) || path_is_illegal(new_full_path)) {
-		errno = EACCES;
-		goto err_out;
-	}
 
 	ret = rename(old_full_path, new_full_path);
 	if (ret < 0)
@@ -1252,16 +1221,8 @@ static void virtio_p9_unlinkat(struct p9_dev *p9dev,
 	virtio_p9_pdu_readf(pdu, "dsd", &fid_val, &name, &flags);
 	fid = get_fid(p9dev, fid_val);
 
-	ret = snprintf(full_path, sizeof(full_path), "%s/%s", fid->abs_path, name);
-	if (ret >= (int)sizeof(full_path)) {
-		errno = ENAMETOOLONG;
+	if (get_full_path(full_path, sizeof(full_path), fid, name) != 0)
 		goto err_out;
-	}
-
-	if (path_is_illegal(full_path)) {
-		errno = EACCES;
-		goto err_out;
-	}
 
 	ret = remove(full_path);
 	if (ret < 0)
