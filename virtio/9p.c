@@ -250,7 +250,7 @@ static int get_full_path_helper(char *full_path, size_t size,
 	int ret;
 
 	ret = snprintf(full_path, size, "%s/%s", dirname, name);
-	if (ret >= (int)sizeof(full_path)) {
+	if (ret >= (int)size) {
 		errno = ENAMETOOLONG;
 		return -1;
 	}
