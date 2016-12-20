@@ -104,5 +104,10 @@ http://lwn.net/Articles/658511/
 Contributing
 ------------
 
-Please send patches for kvmtool to kvm@vger.kernel.org , in the usual git patch
-format. Include "kvmtool" in the mail subject.
+Please send patches for kvmtool to kvm@vger.kernel.org, in the usual git
+patch format, including "kvmtool" in the mail subject. "kvmtool" can be
+added automatically by issuing the command
+
+ git config format.subjectprefix "PATCH kvmtool"
+
+in the git repository.
