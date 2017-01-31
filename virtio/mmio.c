@@ -252,6 +252,7 @@ void generate_virtio_mmio_fdt_node(void *fdt,
 	_FDT(fdt_begin_node(fdt, dev_name));
 	_FDT(fdt_property_string(fdt, "compatible", "virtio,mmio"));
 	_FDT(fdt_property(fdt, "reg", reg_prop, sizeof(reg_prop)));
+	_FDT(fdt_property(fdt, "dma-coherent", NULL, 0));
 	generate_irq_prop(fdt, vmmio->irq, IRQ_TYPE_EDGE_RISING);
 	_FDT(fdt_end_node(fdt));
 }
