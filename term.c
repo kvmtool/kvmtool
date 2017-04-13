@@ -190,6 +190,7 @@ static int term_init(struct kvm *kvm)
 
 
 	term = orig_term;
+	term.c_iflag &= ~(ICRNL);
 	term.c_lflag &= ~(ICANON | ECHO | ISIG);
 	tcsetattr(STDIN_FILENO, TCSANOW, &term);
 
