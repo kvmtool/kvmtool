@@ -124,7 +124,7 @@ static int setup_fdt(struct kvm *kvm)
 						     kvm->arch.dtb_guest_start);
 	void (*generate_mmio_fdt_nodes)(void *, struct device_header *,
 					void (*)(void *, u8, enum irq_type));
-	void (*generate_cpu_peripheral_fdt_nodes)(void *, struct kvm *, u32)
+	void (*generate_cpu_peripheral_fdt_nodes)(void *, struct kvm *)
 					= kvm->cpus[0]->generate_fdt_nodes;
 
 	/* Create new tree without a reserve map */
@@ -165,7 +165,7 @@ static int setup_fdt(struct kvm *kvm)
 	/* CPU and peripherals (interrupt controller, timers, etc) */
 	generate_cpu_nodes(fdt, kvm);
 	if (generate_cpu_peripheral_fdt_nodes)
-		generate_cpu_peripheral_fdt_nodes(fdt, kvm, PHANDLE_GIC);
+		generate_cpu_peripheral_fdt_nodes(fdt, kvm);
 
 	/* Virtio MMIO devices */
 	dev_hdr = device__first_dev(DEVICE_BUS_MMIO);
@@ -184,7 +184,7 @@ static int setup_fdt(struct kvm *kvm)
 	}
 
 	/* PCI host controller */
-	pci__generate_fdt_nodes(fdt, PHANDLE_GIC);
+	pci__generate_fdt_nodes(fdt);
 
 	/* PSCI firmware */
 	_FDT(fdt_begin_node(fdt, "psci"));

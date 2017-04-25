@@ -30,6 +30,6 @@ struct kvm;
 
 int gic__alloc_irqnum(void);
 int gic__create(struct kvm *kvm, enum irqchip_type type);
-void gic__generate_fdt_nodes(void *fdt, u32 phandle, enum irqchip_type type);
+void gic__generate_fdt_nodes(void *fdt, enum irqchip_type type);
 
 #endif /* ARM_COMMON__GIC_H */

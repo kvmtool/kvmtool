@@ -21,7 +21,7 @@ struct of_interrupt_map_entry {
 	struct of_gic_irq		gic_irq;
 } __attribute__((packed));
 
-void pci__generate_fdt_nodes(void *fdt, u32 gic_phandle)
+void pci__generate_fdt_nodes(void *fdt)
 {
 	struct device_header *dev_hdr;
 	struct of_interrupt_map_entry irq_map[OF_PCI_IRQ_MAP_MAX];
@@ -84,7 +84,7 @@ void pci__generate_fdt_nodes(void *fdt, u32 gic_phandle)
 				},
 				.pci_pin	= cpu_to_fdt32(pin),
 			},
-			.gic_phandle	= cpu_to_fdt32(gic_phandle),
+			.gic_phandle	= cpu_to_fdt32(PHANDLE_GIC),
 			.gic_irq = {
 				.type	= cpu_to_fdt32(GIC_FDT_IRQ_TYPE_SPI),
 				.num	= cpu_to_fdt32(irq - GIC_SPI_IRQ_BASE),

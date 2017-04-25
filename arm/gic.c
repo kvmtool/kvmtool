@@ -194,7 +194,7 @@ static int gic__init_gic(struct kvm *kvm)
 }
 late_init(gic__init_gic)
 
-void gic__generate_fdt_nodes(void *fdt, u32 phandle, enum irqchip_type type)
+void gic__generate_fdt_nodes(void *fdt, enum irqchip_type type)
 {
 	const char *compatible;
 	u64 reg_prop[] = {
@@ -222,7 +222,7 @@ void gic__generate_fdt_nodes(void *fdt, u32 phandle, enum irqchip_type type)
 	_FDT(fdt_property_cell(fdt, "#interrupt-cells", GIC_FDT_IRQ_NUM_CELLS));
 	_FDT(fdt_property(fdt, "interrupt-controller", NULL, 0));
 	_FDT(fdt_property(fdt, "reg", reg_prop, sizeof(reg_prop)));
-	_FDT(fdt_property_cell(fdt, "phandle", phandle));
+	_FDT(fdt_property_cell(fdt, "phandle", PHANDLE_GIC));
 	_FDT(fdt_end_node(fdt));
 }
 

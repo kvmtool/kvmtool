@@ -25,8 +25,7 @@ struct kvm_cpu {
 
 	struct kvm_coalesced_mmio_ring	*ring;
 
-	void		(*generate_fdt_nodes)(void *fdt, struct kvm* kvm,
-					      u32 gic_phandle);
+	void		(*generate_fdt_nodes)(void *fdt, struct kvm* kvm);
 };
 
 struct kvm_arm_target {
