@@ -63,6 +63,7 @@ struct kvm {
 	struct list_head	mem_banks;
 
 	bool			nmi_disabled;
+	bool			msix_needs_devid;
 
 	const char		*vmlinux;
 	struct disk_image       **disks;

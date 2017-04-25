@@ -245,6 +245,9 @@ static int gic__init_gic(struct kvm *kvm)
 			return ret;
 	}
 
+	kvm->msix_needs_devid = kvm__supports_vm_extension(kvm,
+							   KVM_CAP_MSI_DEVID);
+
 	return 0;
 }
 late_init(gic__init_gic)
