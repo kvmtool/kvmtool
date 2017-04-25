@@ -129,6 +129,7 @@ static inline bool host_ptr_in_ram(struct kvm *kvm, void *p)
 }
 
 bool kvm__supports_extension(struct kvm *kvm, unsigned int extension);
+bool kvm__supports_vm_extension(struct kvm *kvm, unsigned int extension);
 
 static inline void kvm__set_thread_name(const char *name)
 {

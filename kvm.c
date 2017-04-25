@@ -93,6 +93,34 @@ const char *kvm__get_dir(void)
 	return kvm_dir;
 }
 
+bool kvm__supports_vm_extension(struct kvm *kvm, unsigned int extension)
+{
+	static int supports_vm_ext_check = 0;
+	int ret;
+
+	switch (supports_vm_ext_check) {
+	case 0:
+		ret = ioctl(kvm->sys_fd, KVM_CHECK_EXTENSION,
+			    KVM_CAP_CHECK_EXTENSION_VM);
+		if (ret <= 0) {
+			supports_vm_ext_check = -1;
+			return false;
+		}
+		supports_vm_ext_check = 1;
+		/* fall through */
+	case 1:
+		break;
+	case -1:
+		return false;
+	}
+
+	ret = ioctl(kvm->vm_fd, KVM_CHECK_EXTENSION, extension);
+	if (ret < 0)
+		return false;
+
+	return ret;
+}
+
 bool kvm__supports_extension(struct kvm *kvm, unsigned int extension)
 {
 	int ret;
