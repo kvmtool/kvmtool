@@ -193,8 +193,20 @@ static bool virtio_pci__specific_io_out(struct kvm *kvm, struct virtio_device *v
 
 			gsi = irq__add_msix_route(kvm,
 						  &vpci->msix_table[vec].msg);
-			if (gsi >= 0)
-				vpci->config_gsi = gsi;
+			/*
+			 * We don't need IRQ routing if we can use
+			 * MSI injection via the KVM_SIGNAL_MSI ioctl.
+			 */
+			if (gsi == -ENXIO &&
+			    vpci->features & VIRTIO_PCI_F_SIGNAL_MSI)
+				break;
+
+			if (gsi < 0) {
+				die("failed to configure MSIs");
+				break;
+			}
+
+			vpci->config_gsi = gsi;
 			break;
 		case VIRTIO_MSI_QUEUE_VECTOR:
 			vec = ioport__read16(data);
@@ -205,8 +217,19 @@ static bool virtio_pci__specific_io_out(struct kvm *kvm, struct virtio_device *v
 
 			gsi = irq__add_msix_route(kvm,
 						  &vpci->msix_table[vec].msg);
-			if (gsi < 0)
+			/*
+			 * We don't need IRQ routing if we can use
+			 * MSI injection via the KVM_SIGNAL_MSI ioctl.
+			 */
+			if (gsi == -ENXIO &&
+			    vpci->features & VIRTIO_PCI_F_SIGNAL_MSI)
 				break;
+
+			if (gsi < 0) {
+				die("failed to configure MSIs");
+				break;
+			}
+
 			vpci->gsis[vpci->queue_selector] = gsi;
 			if (vdev->ops->notify_vq_gsi)
 				vdev->ops->notify_vq_gsi(kvm, vpci->dev,
