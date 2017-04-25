@@ -9,15 +9,6 @@
 #include <linux/kernel.h>
 #include <linux/kvm.h>
 
-/* Those names are not defined for ARM (yet) */
-#ifndef KVM_VGIC_V3_ADDR_TYPE_DIST
-#define KVM_VGIC_V3_ADDR_TYPE_DIST 2
-#endif
-
-#ifndef KVM_VGIC_V3_ADDR_TYPE_REDIST
-#define KVM_VGIC_V3_ADDR_TYPE_REDIST 3
-#endif
-
 static int gic_fd = -1;
 static u64 gic_redists_base;
 static u64 gic_redists_size;
