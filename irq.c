@@ -66,7 +66,7 @@ static bool check_for_irq_routing(struct kvm *kvm)
 	return has_irq_routing > 0;
 }
 
-int irq__add_msix_route(struct kvm *kvm, struct msi_msg *msg)
+int irq__add_msix_route(struct kvm *kvm, struct msi_msg *msg, u32 device_id)
 {
 	int r;
 
@@ -77,7 +77,7 @@ int irq__add_msix_route(struct kvm *kvm, struct msi_msg *msg)
 	if (r)
 		return r;
 
-	irq_routing->entries[irq_routing->nr++] =
+	irq_routing->entries[irq_routing->nr] =
 		(struct kvm_irq_routing_entry) {
 			.gsi = next_gsi,
 			.type = KVM_IRQ_ROUTING_MSI,
@@ -85,6 +85,12 @@ int irq__add_msix_route(struct kvm *kvm, struct msi_msg *msg)
 			.u.msi.address_lo = msg->address_lo,
 			.u.msi.data = msg->data,
 		};
+
+	if (kvm->msix_needs_devid) {
+		irq_routing->entries[irq_routing->nr].flags = KVM_MSI_VALID_DEVID;
+		irq_routing->entries[irq_routing->nr].u.msi.devid = device_id;
+	}
+	irq_routing->nr++;
 
 	r = ioctl(kvm->vm_fd, KVM_SET_GSI_ROUTING, irq_routing);
 	if (r)

@@ -135,7 +135,8 @@ int pci_shmem__get_local_irqfd(struct kvm *kvm)
 			return fd;
 
 		if (pci_shmem_pci_device.msix.ctrl & cpu_to_le16(PCI_MSIX_FLAGS_ENABLE)) {
-			gsi = irq__add_msix_route(kvm, &msix_table[0].msg);
+			gsi = irq__add_msix_route(kvm, &msix_table[0].msg,
+						  pci_shmem_device.dev_num << 3);
 			if (gsi < 0)
 				return gsi;
 		} else {

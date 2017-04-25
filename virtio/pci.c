@@ -192,7 +192,8 @@ static bool virtio_pci__specific_io_out(struct kvm *kvm, struct virtio_device *v
 				break;
 
 			gsi = irq__add_msix_route(kvm,
-						  &vpci->msix_table[vec].msg);
+						  &vpci->msix_table[vec].msg,
+						  vpci->dev_hdr.dev_num << 3);
 			/*
 			 * We don't need IRQ routing if we can use
 			 * MSI injection via the KVM_SIGNAL_MSI ioctl.
@@ -216,7 +217,8 @@ static bool virtio_pci__specific_io_out(struct kvm *kvm, struct virtio_device *v
 				break;
 
 			gsi = irq__add_msix_route(kvm,
-						  &vpci->msix_table[vec].msg);
+						  &vpci->msix_table[vec].msg,
+						  vpci->dev_hdr.dev_num << 3);
 			/*
 			 * We don't need IRQ routing if we can use
 			 * MSI injection via the KVM_SIGNAL_MSI ioctl.
