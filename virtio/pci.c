@@ -156,7 +156,8 @@ static bool virtio_pci__specific_io_out(struct kvm *kvm, struct virtio_device *v
 					void *data, int size, int offset)
 {
 	struct virtio_pci *vpci = vdev->virtio;
-	u32 config_offset, gsi, vec;
+	u32 config_offset, vec;
+	int gsi;
 	int type = virtio__get_dev_specific_field(offset - 20, virtio_pci__msix_enabled(vpci),
 							&config_offset);
 	if (type == VIRTIO_PCI_O_MSIX) {
@@ -166,21 +167,27 @@ static bool virtio_pci__specific_io_out(struct kvm *kvm, struct virtio_device *v
 			if (vec == VIRTIO_MSI_NO_VECTOR)
 				break;
 
-			gsi = irq__add_msix_route(kvm, &vpci->msix_table[vec].msg);
-
-			vpci->config_gsi = gsi;
+			gsi = irq__add_msix_route(kvm,
+						  &vpci->msix_table[vec].msg);
+			if (gsi >= 0)
+				vpci->config_gsi = gsi;
 			break;
 		case VIRTIO_MSI_QUEUE_VECTOR:
-			vec = vpci->vq_vector[vpci->queue_selector] = ioport__read16(data);
+			vec = ioport__read16(data);
+			vpci->vq_vector[vpci->queue_selector] = vec;
 
 			if (vec == VIRTIO_MSI_NO_VECTOR)
 				break;
 
-			gsi = irq__add_msix_route(kvm, &vpci->msix_table[vec].msg);
+			gsi = irq__add_msix_route(kvm,
+						  &vpci->msix_table[vec].msg);
+			if (gsi < 0)
+				break;
 			vpci->gsis[vpci->queue_selector] = gsi;
 			if (vdev->ops->notify_vq_gsi)
 				vdev->ops->notify_vq_gsi(kvm, vpci->dev,
-							vpci->queue_selector, gsi);
+							 vpci->queue_selector,
+							 gsi);
 			break;
 		};
 

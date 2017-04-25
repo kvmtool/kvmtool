@@ -11,20 +11,15 @@
 #include <stddef.h>
 #include <stdlib.h>
 
-#define IRQ_MAX_GSI			64
 #define IRQCHIP_MASTER			0
 #define IRQCHIP_SLAVE			1
 #define IRQCHIP_IOAPIC			2
 
-/* First 24 GSIs are routed between IRQCHIPs and IOAPICs */
-static u32 gsi = 24;
-
-struct kvm_irq_routing *irq_routing;
-
 static int irq__add_routing(u32 gsi, u32 type, u32 irqchip, u32 pin)
 {
-	if (gsi >= IRQ_MAX_GSI)
-		return -ENOSPC;
+	int r = irq__allocate_routing_entry();
+	if (r)
+		return r;
 
 	irq_routing->entries[irq_routing->nr++] =
 		(struct kvm_irq_routing_entry) {
@@ -40,11 +35,6 @@ static int irq__add_routing(u32 gsi, u32 type, u32 irqchip, u32 pin)
 int irq__init(struct kvm *kvm)
 {
 	int i, r;
-
-	irq_routing = calloc(sizeof(struct kvm_irq_routing) +
-			IRQ_MAX_GSI * sizeof(struct kvm_irq_routing_entry), 1);
-	if (irq_routing == NULL)
-		return -ENOMEM;
 
 	/* Hook first 8 GSIs to master IRQCHIP */
 	for (i = 0; i < 8; i++)
@@ -69,33 +59,8 @@ int irq__init(struct kvm *kvm)
 		return errno;
 	}
 
+	next_gsi = i;
+
 	return 0;
 }
 dev_base_init(irq__init);
-
-int irq__exit(struct kvm *kvm)
-{
-	free(irq_routing);
-	return 0;
-}
-dev_base_exit(irq__exit);
-
-int irq__add_msix_route(struct kvm *kvm, struct msi_msg *msg)
-{
-	int r;
-
-	irq_routing->entries[irq_routing->nr++] =
-		(struct kvm_irq_routing_entry) {
-			.gsi = gsi,
-			.type = KVM_IRQ_ROUTING_MSI,
-			.u.msi.address_hi = msg->address_hi,
-			.u.msi.address_lo = msg->address_lo,
-			.u.msi.data = msg->data,
-		};
-
-	r = ioctl(kvm->vm_fd, KVM_SET_GSI_ROUTING, irq_routing);
-	if (r)
-		return r;
-
-	return gsi++;
-}

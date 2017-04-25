@@ -137,7 +137,6 @@ ifeq ($(ARCH), powerpc)
 	DEFINES += -DCONFIG_PPC
 	OBJS	+= powerpc/boot.o
 	OBJS	+= powerpc/ioport.o
-	OBJS	+= powerpc/irq.o
 	OBJS	+= powerpc/kvm.o
 	OBJS	+= powerpc/cpu_info.o
 	OBJS	+= powerpc/kvm-cpu.o
@@ -152,7 +151,7 @@ ifeq ($(ARCH), powerpc)
 endif
 
 # ARM
-OBJS_ARM_COMMON		:= arm/fdt.o arm/gic.o arm/ioport.o arm/irq.o \
+OBJS_ARM_COMMON		:= arm/fdt.o arm/gic.o arm/ioport.o \
 			   arm/kvm.o arm/kvm-cpu.o arm/pci.o arm/timer.o \
 			   arm/pmu.o
 HDRS_ARM_COMMON		:= arm/include
@@ -185,7 +184,6 @@ ifeq ($(ARCH),mips)
 	ARCH_INCLUDE	:= mips/include
 	OBJS		+= mips/kvm.o
 	OBJS		+= mips/kvm-cpu.o
-	OBJS		+= mips/irq.o
 endif
 ###
 
