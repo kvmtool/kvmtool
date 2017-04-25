@@ -93,6 +93,40 @@ int irq__add_msix_route(struct kvm *kvm, struct msi_msg *msg)
 	return next_gsi++;
 }
 
+static bool update_data(u32 *ptr, u32 newdata)
+{
+	if (*ptr == newdata)
+		return false;
+
+	*ptr = newdata;
+	return true;
+}
+
+void irq__update_msix_route(struct kvm *kvm, u32 gsi, struct msi_msg *msg)
+{
+	struct kvm_irq_routing_msi *entry;
+	unsigned int i;
+	bool changed;
+
+	for (i = 0; i < irq_routing->nr; i++)
+		if (gsi == irq_routing->entries[i].gsi)
+			break;
+	if (i == irq_routing->nr)
+		return;
+
+	entry = &irq_routing->entries[i].u.msi;
+
+	changed  = update_data(&entry->address_hi, msg->address_hi);
+	changed |= update_data(&entry->address_lo, msg->address_lo);
+	changed |= update_data(&entry->data, msg->data);
+
+	if (!changed)
+		return;
+
+	if (ioctl(kvm->vm_fd, KVM_SET_GSI_ROUTING, irq_routing) == -1)
+		die_perror("KVM_SET_GSI_ROUTING");
+}
+
 int __attribute__((weak)) irq__exit(struct kvm *kvm)
 {
 	free(irq_routing);

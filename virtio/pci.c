@@ -152,6 +152,30 @@ static bool virtio_pci__io_in(struct ioport *ioport, struct kvm_cpu *vcpu, u16 p
 	return ret;
 }
 
+static void update_msix_map(struct virtio_pci *vpci,
+			    struct msix_table *msix_entry, u32 vecnum)
+{
+	u32 gsi, i;
+
+	/* Find the GSI number used for that vector */
+	if (vecnum == vpci->config_vector) {
+		gsi = vpci->config_gsi;
+	} else {
+		for (i = 0; i < VIRTIO_PCI_MAX_VQ; i++)
+			if (vpci->vq_vector[i] == vecnum)
+				break;
+		if (i == VIRTIO_PCI_MAX_VQ)
+			return;
+		gsi = vpci->gsis[i];
+	}
+
+	if (gsi == 0)
+		return;
+
+	msix_entry = &msix_entry[vecnum];
+	irq__update_msix_route(vpci->kvm, gsi, &msix_entry->msg);
+}
+
 static bool virtio_pci__specific_io_out(struct kvm *kvm, struct virtio_device *vdev, u16 port,
 					void *data, int size, int offset)
 {
@@ -259,21 +283,32 @@ static void virtio_pci__msix_mmio_callback(struct kvm_cpu *vcpu,
 					   u8 is_write, void *ptr)
 {
 	struct virtio_pci *vpci = ptr;
-	void *table;
-	u32 offset;
+	struct msix_table *table;
+	int vecnum;
+	size_t offset;
 
 	if (addr > vpci->msix_io_block + PCI_IO_SIZE) {
-		table	= &vpci->msix_pba;
-		offset	= vpci->msix_io_block + PCI_IO_SIZE;
+		if (is_write)
+			return;
+		table  = (struct msix_table *)&vpci->msix_pba;
+		offset = addr - (vpci->msix_io_block + PCI_IO_SIZE);
 	} else {
-		table	= &vpci->msix_table;
-		offset	= vpci->msix_io_block;
+		table  = vpci->msix_table;
+		offset = addr - vpci->msix_io_block;
+	}
+	vecnum = offset / sizeof(struct msix_table);
+	offset = offset % sizeof(struct msix_table);
+
+	if (!is_write) {
+		memcpy(data, (void *)&table[vecnum] + offset, len);
+		return;
 	}
 
-	if (is_write)
-		memcpy(table + addr - offset, data, len);
-	else
-		memcpy(data, table + addr - offset, len);
+	memcpy((void *)&table[vecnum] + offset, data, len);
+
+	/* Did we just update the address or payload? */
+	if (offset < offsetof(struct msix_table, ctrl))
+		update_msix_map(vpci, table, vecnum);
 }
 
 static void virtio_pci__signal_msi(struct kvm *kvm, struct virtio_pci *vpci, int vec)
