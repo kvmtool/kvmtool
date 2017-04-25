@@ -530,7 +530,7 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 page_size, u32 align,
 	}
 
 	if (queue->endian != VIRTIO_ENDIAN_HOST)
-		die_perror("VHOST requires VIRTIO_ENDIAN_HOST");
+		die_perror("VHOST requires the same endianness in guest and host");
 
 	state.num = queue->vring.num;
 	r = ioctl(ndev->vhost_fd, VHOST_SET_VRING_NUM, &state);

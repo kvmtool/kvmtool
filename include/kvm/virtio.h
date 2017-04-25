@@ -17,9 +17,14 @@
 #define VIRTIO_PCI_O_CONFIG	0
 #define VIRTIO_PCI_O_MSIX	1
 
-#define VIRTIO_ENDIAN_HOST	0
 #define VIRTIO_ENDIAN_LE	(1 << 0)
 #define VIRTIO_ENDIAN_BE	(1 << 1)
+
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#define VIRTIO_ENDIAN_HOST VIRTIO_ENDIAN_LE
+#else
+#define VIRTIO_ENDIAN_HOST VIRTIO_ENDIAN_BE
+#endif
 
 struct virt_queue {
 	struct vring	vring;
@@ -40,7 +45,7 @@ struct virt_queue {
 #define VIRTIO_RING_ENDIAN VIRTIO_ENDIAN_HOST
 #endif
 
-#if (VIRTIO_RING_ENDIAN & (VIRTIO_ENDIAN_LE | VIRTIO_ENDIAN_BE))
+#if VIRTIO_RING_ENDIAN != VIRTIO_ENDIAN_HOST
 
 static inline __u16 __virtio_g2h_u16(u16 endian, __u16 val)
 {
