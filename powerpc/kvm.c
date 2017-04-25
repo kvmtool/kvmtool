@@ -40,8 +40,6 @@
 
 #define HUGETLBFS_PATH "/var/lib/hugetlbfs/global/pagesize-16MB/"
 
-#define PHANDLE_XICP		0x00001111
-
 static char kern_cmdline[2048];
 
 struct kvm_ext kvm_req_ext[] = {

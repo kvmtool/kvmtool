@@ -114,7 +114,6 @@ static int setup_fdt(struct kvm *kvm)
 {
 	struct device_header *dev_hdr;
 	u8 staging_fdt[FDT_MAX_SIZE];
-	u32 gic_phandle		= fdt__alloc_phandle();
 	u64 mem_reg_prop[]	= {
 		cpu_to_fdt64(kvm->arch.memory_guest_start),
 		cpu_to_fdt64(kvm->ram_size),
@@ -134,7 +133,7 @@ static int setup_fdt(struct kvm *kvm)
 
 	/* Header */
 	_FDT(fdt_begin_node(fdt, ""));
-	_FDT(fdt_property_cell(fdt, "interrupt-parent", gic_phandle));
+	_FDT(fdt_property_cell(fdt, "interrupt-parent", PHANDLE_GIC));
 	_FDT(fdt_property_string(fdt, "compatible", "linux,dummy-virt"));
 	_FDT(fdt_property_cell(fdt, "#address-cells", 0x2));
 	_FDT(fdt_property_cell(fdt, "#size-cells", 0x2));
@@ -166,7 +165,7 @@ static int setup_fdt(struct kvm *kvm)
 	/* CPU and peripherals (interrupt controller, timers, etc) */
 	generate_cpu_nodes(fdt, kvm);
 	if (generate_cpu_peripheral_fdt_nodes)
-		generate_cpu_peripheral_fdt_nodes(fdt, kvm, gic_phandle);
+		generate_cpu_peripheral_fdt_nodes(fdt, kvm, PHANDLE_GIC);
 
 	/* Virtio MMIO devices */
 	dev_hdr = device__first_dev(DEVICE_BUS_MMIO);
@@ -185,7 +184,7 @@ static int setup_fdt(struct kvm *kvm)
 	}
 
 	/* PCI host controller */
-	pci__generate_fdt_nodes(fdt, gic_phandle);
+	pci__generate_fdt_nodes(fdt, PHANDLE_GIC);
 
 	/* PSCI firmware */
 	_FDT(fdt_begin_node(fdt, "psci"));

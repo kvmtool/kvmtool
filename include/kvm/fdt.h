@@ -7,6 +7,8 @@
 
 #include <linux/types.h>
 
+#include "kvm/fdt-arch.h"
+
 #define FDT_MAX_SIZE	0x10000
 
 /* Those definitions are generic FDT values for specifying IRQ
@@ -32,11 +34,5 @@ enum irq_type {
 			    #exp, fdt_strerror(ret));			\
 		}							\
 	} while (0)
-
-static inline u32 fdt__alloc_phandle(void)
-{
-	static u32 phandle = 0;
-	return ++phandle;
-}
 
 #endif /* KVM__FDT_H */
