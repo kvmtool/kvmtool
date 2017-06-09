@@ -40,7 +40,7 @@ static void dump_fdt(const char *dtb_file, void *fdt)
 	close(fd);
 }
 
-#define CPU_NAME_MAX_LEN 8
+#define CPU_NAME_MAX_LEN 15
 static void generate_cpu_nodes(void *fdt, struct kvm *kvm)
 {
 	int cpu;
