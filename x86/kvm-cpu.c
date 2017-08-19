@@ -4,7 +4,6 @@
 #include "kvm/util.h"
 #include "kvm/kvm.h"
 
-#include <asm/msr-index.h>
 #include <asm/apicdef.h>
 #include <linux/err.h>
 #include <sys/ioctl.h>
@@ -135,6 +134,22 @@ static struct kvm_msrs *kvm_msrs__new(size_t nmsrs)
 
 	return vcpu;
 }
+
+#define MSR_IA32_SYSENTER_CS            0x00000174
+#define MSR_IA32_SYSENTER_ESP           0x00000175
+#define MSR_IA32_SYSENTER_EIP           0x00000176
+
+#define MSR_STAR                0xc0000081 /* legacy mode SYSCALL target */
+#define MSR_LSTAR               0xc0000082 /* long mode SYSCALL target */
+#define MSR_CSTAR               0xc0000083 /* compat mode SYSCALL target */
+#define MSR_SYSCALL_MASK        0xc0000084 /* EFLAGS mask for syscall */
+#define MSR_KERNEL_GS_BASE      0xc0000102 /* SwapGS GS shadow */
+
+#define MSR_IA32_TSC                    0x00000010
+#define MSR_IA32_MISC_ENABLE            0x000001a0
+
+#define MSR_IA32_MISC_ENABLE_FAST_STRING_BIT            0
+#define MSR_IA32_MISC_ENABLE_FAST_STRING                (1ULL << MSR_IA32_MISC_ENABLE_FAST_STRING_BIT)
 
 #define KVM_MSR_ENTRY(_index, _data)	\
 	(struct kvm_msr_entry) { .index = _index, .data = _data }
