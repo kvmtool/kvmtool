@@ -52,6 +52,7 @@ struct net_dev {
 	int				vhost_fd;
 	int				tap_fd;
 	char				tap_name[IFNAMSIZ];
+	bool				tap_ufo;
 
 	int				mode;
 
@@ -315,46 +316,17 @@ static int virtio_net_exec_script(const char* script, const char *tap_name)
 static bool virtio_net__tap_init(struct net_dev *ndev)
 {
 	int sock = socket(AF_INET, SOCK_STREAM, 0);
-	int offload, hdr_len;
+	int hdr_len;
 	struct sockaddr_in sin = {0};
 	struct ifreq ifr;
 	const struct virtio_net_params *params = ndev->params;
 	bool skipconf = !!params->tapif;
-	bool macvtap = skipconf && (params->tapif[0] == '/');
-	const char *tap_file = "/dev/net/tun";
-
-	/* Did the user already gave us the FD? */
-	if (params->fd) {
-		ndev->tap_fd = params->fd;
-		return 1;
-	}
-
-	if (macvtap)
-		tap_file = params->tapif;
-
-	ndev->tap_fd = open(tap_file, O_RDWR);
-	if (ndev->tap_fd < 0) {
-		pr_warning("Unable to open %s", tap_file);
-		goto fail;
-	}
-
-	if (!macvtap &&
-	    virtio_net_request_tap(ndev, &ifr, params->tapif) < 0) {
-		pr_warning("Config tap device error. Are you root?");
-		goto fail;
-	}
 
 	hdr_len = has_virtio_feature(ndev, VIRTIO_NET_F_MRG_RXBUF) ?
 			sizeof(struct virtio_net_hdr_mrg_rxbuf) :
 			sizeof(struct virtio_net_hdr);
 	if (ioctl(ndev->tap_fd, TUNSETVNETHDRSZ, &hdr_len) < 0)
 		pr_warning("Config tap device TUNSETVNETHDRSZ error");
-
-	offload = TUN_F_CSUM | TUN_F_TSO4 | TUN_F_TSO6 | TUN_F_UFO;
-	if (ioctl(ndev->tap_fd, TUNSETOFFLOAD, offload) < 0) {
-		pr_warning("Config tap device TUNSETOFFLOAD error");
-		goto fail;
-	}
 
 	if (strcmp(params->script, "none")) {
 		if (virtio_net_exec_script(params->script, ndev->tap_name) < 0)
@@ -388,6 +360,68 @@ fail:
 	if (sock >= 0)
 		close(sock);
 	if (ndev->tap_fd >= 0)
+		close(ndev->tap_fd);
+
+	return 0;
+}
+
+static bool virtio_net__tap_create(struct net_dev *ndev)
+{
+	int offload;
+	struct ifreq ifr;
+	const struct virtio_net_params *params = ndev->params;
+	bool macvtap = (!!params->tapif) && (params->tapif[0] == '/');
+
+	/* Did the user already gave us the FD? */
+	if (params->fd)
+		ndev->tap_fd = params->fd;
+	else {
+		const char *tap_file = "/dev/net/tun";
+
+		/* Did the user ask us to use macvtap? */
+		if (macvtap)
+			tap_file = params->tapif;
+
+		ndev->tap_fd = open(tap_file, O_RDWR);
+		if (ndev->tap_fd < 0) {
+			pr_warning("Unable to open %s", tap_file);
+			return 0;
+		}
+	}
+
+	if (!macvtap &&
+	    virtio_net_request_tap(ndev, &ifr, params->tapif) < 0) {
+		pr_warning("Config tap device error. Are you root?");
+		goto fail;
+	}
+
+	/*
+	 * The UFO support had been removed from kernel in commit:
+	 * ID: fb652fdfe83710da0ca13448a41b7ed027d0a984
+	 * https://www.spinics.net/lists/netdev/msg443562.html
+	 * In oder to support the older kernels without this commit,
+	 * we set the TUN_F_UFO to offload by default to test the status of
+	 * UFO kernel support.
+	 */
+	ndev->tap_ufo = true;
+	offload = TUN_F_CSUM | TUN_F_TSO4 | TUN_F_TSO6 | TUN_F_UFO;
+	if (ioctl(ndev->tap_fd, TUNSETOFFLOAD, offload) < 0) {
+		/*
+		 * Is this failure caused by kernel remove the UFO support?
+		 * Try TUNSETOFFLOAD without TUN_F_UFO.
+		 */
+		offload &= ~TUN_F_UFO;
+		if (ioctl(ndev->tap_fd, TUNSETOFFLOAD, offload) < 0) {
+			pr_warning("Config tap device TUNSETOFFLOAD error");
+			goto fail;
+		}
+		ndev->tap_ufo = false;
+	}
+
+	return 1;
+
+fail:
+	if ((ndev->tap_fd >= 0) || (!params->fd) )
 		close(ndev->tap_fd);
 
 	return 0;
@@ -432,14 +466,13 @@ static u8 *get_config(struct kvm *kvm, void *dev)
 
 static u32 get_host_features(struct kvm *kvm, void *dev)
 {
+	u32 features;
 	struct net_dev *ndev = dev;
 
-	return 1UL << VIRTIO_NET_F_MAC
+	features = 1UL << VIRTIO_NET_F_MAC
 		| 1UL << VIRTIO_NET_F_CSUM
-		| 1UL << VIRTIO_NET_F_HOST_UFO
 		| 1UL << VIRTIO_NET_F_HOST_TSO4
 		| 1UL << VIRTIO_NET_F_HOST_TSO6
-		| 1UL << VIRTIO_NET_F_GUEST_UFO
 		| 1UL << VIRTIO_NET_F_GUEST_TSO4
 		| 1UL << VIRTIO_NET_F_GUEST_TSO6
 		| 1UL << VIRTIO_RING_F_EVENT_IDX
@@ -447,6 +480,16 @@ static u32 get_host_features(struct kvm *kvm, void *dev)
 		| 1UL << VIRTIO_NET_F_CTRL_VQ
 		| 1UL << VIRTIO_NET_F_MRG_RXBUF
 		| 1UL << (ndev->queue_pairs > 1 ? VIRTIO_NET_F_MQ : 0);
+
+	/*
+	 * The UFO feature for host and guest only can be enabled when the
+	 * kernel has TAP UFO support.
+	 */
+	if (ndev->tap_ufo)
+		features |= (1UL << VIRTIO_NET_F_HOST_UFO
+				| 1UL << VIRTIO_NET_F_GUEST_UFO);
+
+	return features;
 }
 
 static int virtio_net__vhost_set_features(struct net_dev *ndev)
@@ -478,7 +521,8 @@ static void set_guest_features(struct kvm *kvm, void *dev, u32 features)
 
 	if (ndev->mode == NET_MODE_TAP) {
 		if (!virtio_net__tap_init(ndev))
-			die_perror("You have requested a TAP device, but creation of one has failed because");
+			die_perror("TAP device initialized failed because");
+
 		if (ndev->vhost_fd &&
 				virtio_net__vhost_set_features(ndev) != 0)
 			die_perror("VHOST_SET_FEATURES failed");
@@ -820,6 +864,8 @@ static int virtio_net__init_one(struct virtio_net_params *params)
 	ndev->mode = params->mode;
 	if (ndev->mode == NET_MODE_TAP) {
 		ndev->ops = &tap_ops;
+		if (!virtio_net__tap_create(ndev))
+			die_perror("You have requested a TAP device, but creation of one has failed because");
 	} else {
 		ndev->info.host_ip		= ntohl(inet_addr(params->host_ip));
 		ndev->info.guest_ip		= ntohl(inet_addr(params->guest_ip));
