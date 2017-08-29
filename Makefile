@@ -392,18 +392,18 @@ $(GUEST_PRE_INIT): $(ARCH_PRE_INIT)
 	$(E) "  COMPILE " $@
 	$(Q) $(CC) -s $(PIE_FLAGS) -nostdlib $< -o $@
 
-guest/guest_pre_init.o: $(GUEST_PRE_INIT)
+guest/guest_pre_init.c: $(GUEST_PRE_INIT)
 	$(E) "  CONVERT " $@
-	$(Q) $(LD) -r -b binary -o $@ $<
+	$(Q) $(call binary-to-C,$<,pre_init_binary,$@)
 endif
 
 $(GUEST_INIT): guest/init.c
 	$(E) "  COMPILE " $@
 	$(Q) $(CC) $(GUEST_INIT_FLAGS) $< -o $@
 
-guest/guest_init.o: $(GUEST_INIT)
+guest/guest_init.c: $(GUEST_INIT)
 	$(E) "  CONVERT " $@
-	$(Q) $(LD) -r -b binary -o $@ $<
+	$(Q) $(call binary-to-C,$<,init_binary,$@)
 
 %.s: %.c
 	$(Q) $(CC) -o $@ -S $(CFLAGS) -fverbose-asm $<
@@ -494,6 +494,7 @@ clean:
 	$(Q) rm -f tests/boot/boot_test.iso
 	$(Q) rm -rf tests/boot/rootfs/
 	$(Q) rm -f $(DEPS) $(STATIC_DEPS) $(OBJS) $(OTHEROBJS) $(OBJS_DYNOPT) $(STATIC_OBJS) $(PROGRAM) $(PROGRAM_ALIAS) $(PROGRAM)-static $(GUEST_INIT) $(GUEST_PRE_INIT) $(GUEST_OBJS)
+	$(Q) rm -f guest/guest_init.c guest/guest_pre_init.c
 	$(Q) rm -f cscope.*
 	$(Q) rm -f tags
 	$(Q) rm -f TAGS

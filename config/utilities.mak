@@ -194,3 +194,11 @@ try-build = $(shell sh -c							\
 	echo "$(1)" |								\
 	$(CC) -x c - $(2) $(3) -o "$$TMP" > /dev/null 2>&1 && echo y;		\
 	rm -f "$$TMP"')
+
+# binary-to-C
+# create a C source file describing the binary input file as an array
+# Usage: $(call binary-to-C,binary-file,C-symbol-name,C-output-file)
+binary-to-C = stat -c "unsigned long $(2)_size = %s;" $1 > $3;		\
+	echo "unsigned char $(2)[] = {" >> $3;				\
+	od -v -tx1 -An -w12 $1 | sed -e "s/ \(..\)/0x\1, /g" >> $3;	\
+	echo "};" >> $3
