@@ -358,7 +358,7 @@ ifneq ($(WERROR),0)
 	CFLAGS += -Werror
 endif
 
-all: $(PROGRAM) $(PROGRAM_ALIAS) $(GUEST_INIT) $(GUEST_PRE_INIT)
+all: $(PROGRAM) $(PROGRAM_ALIAS)
 
 # CFLAGS used when building objects
 # This is intentionally not assigned using :=
@@ -375,11 +375,11 @@ STATIC_OBJS = $(patsubst %.o,%.static.o,$(OBJS) $(OBJS_STATOPT))
 STATIC_DEPS	:= $(foreach obj,$(STATIC_OBJS),\
 		$(subst $(comma),_,$(dir $(obj)).$(notdir $(obj)).d))
 
-$(PROGRAM)-static:  $(STATIC_OBJS) $(OTHEROBJS) $(GUEST_INIT) $(GUEST_PRE_INIT)
+$(PROGRAM)-static:  $(STATIC_OBJS) $(OTHEROBJS) $(GUEST_OBJS)
 	$(E) "  LINK    " $@
 	$(Q) $(CC) -static $(CFLAGS) $(STATIC_OBJS) $(OTHEROBJS) $(GUEST_OBJS) $(LDFLAGS) $(LIBS) $(LIBS_STATOPT) -o $@
 
-$(PROGRAM): $(OBJS) $(OBJS_DYNOPT) $(OTHEROBJS) $(GUEST_INIT) $(GUEST_PRE_INIT)
+$(PROGRAM): $(OBJS) $(OBJS_DYNOPT) $(OTHEROBJS) $(GUEST_OBJS)
 	$(E) "  LINK    " $@
 	$(Q) $(CC) $(CFLAGS) $(OBJS) $(OBJS_DYNOPT) $(OTHEROBJS) $(GUEST_OBJS) $(LDFLAGS) $(LIBS) $(LIBS_DYNOPT) -o $@
 
@@ -389,15 +389,21 @@ $(PROGRAM_ALIAS): $(PROGRAM)
 
 ifneq ($(ARCH_PRE_INIT),)
 $(GUEST_PRE_INIT): $(ARCH_PRE_INIT)
-	$(E) "  LINK    " $@
-	$(Q) $(CC) -s $(PIE_FLAGS) -nostdlib $(ARCH_PRE_INIT) -o $@
-	$(Q) $(LD) -r -b binary -o guest/guest_pre_init.o $(GUEST_PRE_INIT)
+	$(E) "  COMPILE " $@
+	$(Q) $(CC) -s $(PIE_FLAGS) -nostdlib $< -o $@
+
+guest/guest_pre_init.o: $(GUEST_PRE_INIT)
+	$(E) "  CONVERT " $@
+	$(Q) $(LD) -r -b binary -o $@ $<
 endif
 
 $(GUEST_INIT): guest/init.c
-	$(E) "  LINK    " $@
-	$(Q) $(CC) $(GUEST_INIT_FLAGS) guest/init.c -o $@
-	$(Q) $(LD) -r -b binary -o guest/guest_init.o $(GUEST_INIT)
+	$(E) "  COMPILE " $@
+	$(Q) $(CC) $(GUEST_INIT_FLAGS) $< -o $@
+
+guest/guest_init.o: $(GUEST_INIT)
+	$(E) "  CONVERT " $@
+	$(Q) $(LD) -r -b binary -o $@ $<
 
 %.s: %.c
 	$(Q) $(CC) -o $@ -S $(CFLAGS) -fverbose-asm $<
