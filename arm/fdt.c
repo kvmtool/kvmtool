@@ -142,6 +142,7 @@ static int setup_fdt(struct kvm *kvm)
 	_FDT(fdt_begin_node(fdt, "chosen"));
 	_FDT(fdt_property_cell(fdt, "linux,pci-probe-only", 1));
 	_FDT(fdt_property_string(fdt, "bootargs", kvm->cfg.real_cmdline));
+	_FDT(fdt_property_u64(fdt, "kaslr-seed", kvm->cfg.arch.kaslr_seed));
 
 	/* Initrd */
 	if (kvm->arch.initrd_size != 0) {

@@ -9,6 +9,7 @@ struct kvm_config_arch {
 	bool		virtio_trans_pci;
 	bool		aarch32_guest;
 	bool		has_pmuv3;
+	u64		kaslr_seed;
 	enum irqchip_type irqchip;
 };
 
