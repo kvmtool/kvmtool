@@ -49,10 +49,8 @@ void kvm__arch_delete_ram(struct kvm *kvm)
 
 void kvm__arch_read_term(struct kvm *kvm)
 {
-	if (term_readable(0)) {
-		serial8250__update_consoles(kvm);
-		virtio_console__inject_interrupt(kvm);
-	}
+	serial8250__update_consoles(kvm);
+	virtio_console__inject_interrupt(kvm);
 }
 
 void kvm__arch_set_cmdline(char *cmdline, bool video)
