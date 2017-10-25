@@ -124,9 +124,9 @@ void kvm__arch_set_cmdline(char *cmdline, bool video)
 	strcpy(cmdline, "noapic noacpi pci=conf1 reboot=k panic=1 i8042.direct=1 "
 				"i8042.dumbkbd=1 i8042.nopnp=1");
 	if (video)
-		strcat(cmdline, " video=vesafb console=tty0");
+		strcat(cmdline, " video=vesafb");
 	else
-		strcat(cmdline, " console=ttyS0 earlyprintk=serial i8042.noaux=1");
+		strcat(cmdline, " earlyprintk=serial i8042.noaux=1");
 }
 
 /* Architecture-specific KVM init */

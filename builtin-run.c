@@ -454,6 +454,7 @@ static struct kvm *kvm_cmd_run_init(int argc, const char **argv)
 	static char real_cmdline[2048], default_name[20];
 	unsigned int nr_online_cpus;
 	struct kvm *kvm = kvm__new();
+	bool video;
 
 	if (IS_ERR(kvm))
 		return kvm;
@@ -536,6 +537,8 @@ static struct kvm *kvm_cmd_run_init(int argc, const char **argv)
 	if (!kvm->cfg.console)
 		kvm->cfg.console = DEFAULT_CONSOLE;
 
+	video = kvm->cfg.vnc || kvm->cfg.sdl || kvm->cfg.gtk;
+
 	if (!strncmp(kvm->cfg.console, "virtio", 6))
 		kvm->cfg.active_console  = CONSOLE_VIRTIO;
 	else if (!strncmp(kvm->cfg.console, "serial", 6))
@@ -564,7 +567,22 @@ static struct kvm *kvm_cmd_run_init(int argc, const char **argv)
                 kvm->cfg.network = DEFAULT_NETWORK;
 
 	memset(real_cmdline, 0, sizeof(real_cmdline));
-	kvm__arch_set_cmdline(real_cmdline, kvm->cfg.vnc || kvm->cfg.sdl || kvm->cfg.gtk);
+	kvm__arch_set_cmdline(real_cmdline, video);
+
+	if (video) {
+		strcat(real_cmdline, "console=tty0");
+	} else {
+		switch (kvm->cfg.active_console) {
+		case CONSOLE_HV:
+			/* Fallthrough */
+		case CONSOLE_VIRTIO:
+			strcat(real_cmdline, "console=hvc0");
+			break;
+		case CONSOLE_8250:
+			strcat(real_cmdline, "console=ttyS0");
+			break;
+		}
+	}
 
 	if (!kvm->cfg.guest_name) {
 		if (kvm->cfg.custom_rootfs) {
