@@ -570,16 +570,16 @@ static struct kvm *kvm_cmd_run_init(int argc, const char **argv)
 	kvm__arch_set_cmdline(real_cmdline, video);
 
 	if (video) {
-		strcat(real_cmdline, "console=tty0");
+		strcat(real_cmdline, " console=tty0");
 	} else {
 		switch (kvm->cfg.active_console) {
 		case CONSOLE_HV:
 			/* Fallthrough */
 		case CONSOLE_VIRTIO:
-			strcat(real_cmdline, "console=hvc0");
+			strcat(real_cmdline, " console=hvc0");
 			break;
 		case CONSOLE_8250:
-			strcat(real_cmdline, "console=ttyS0");
+			strcat(real_cmdline, " console=ttyS0");
 			break;
 		}
 	}
