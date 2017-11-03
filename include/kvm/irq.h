@@ -1,6 +1,7 @@
 #ifndef KVM__IRQ_H
 #define KVM__IRQ_H
 
+#include <stdbool.h>
 #include <linux/types.h>
 #include <linux/rbtree.h>
 #include <linux/list.h>
