@@ -443,7 +443,7 @@ void kvm__pause(struct kvm *kvm)
 	mutex_lock(&pause_lock);
 
 	/* Check if the guest is running */
-	if (!kvm->cpus[0] || kvm->cpus[0]->thread == 0)
+	if (!kvm->cpus || !kvm->cpus[0] || kvm->cpus[0]->thread == 0)
 		return;
 
 	pause_event = eventfd(0, 0);
