@@ -350,7 +350,7 @@ static void virtio_pci__signal_msi(struct kvm *kvm, struct virtio_pci *vpci,
 		msi.devid = vpci->dev_hdr.dev_num << 3;
 	}
 
-	ioctl(kvm->vm_fd, KVM_SIGNAL_MSI, &msi);
+	irq__signal_msi(kvm, &msi);
 }
 
 int virtio_pci__signal_vq(struct kvm *kvm, struct virtio_device *vdev, u32 vq)
@@ -488,7 +488,7 @@ int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 	vpci->pci_hdr.msix.pba_offset = cpu_to_le32(2 | PCI_IO_SIZE);
 	vpci->config_vector = 0;
 
-	if (kvm__supports_extension(kvm, KVM_CAP_SIGNAL_MSI))
+	if (irq__can_signal_msi(kvm))
 		vpci->features |= VIRTIO_PCI_F_SIGNAL_MSI;
 
 	r = device__register(&vpci->dev_hdr);

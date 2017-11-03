@@ -23,6 +23,7 @@
 
 enum irqchip_type {
 	IRQCHIP_GICV2,
+	IRQCHIP_GICV2M,
 	IRQCHIP_GICV3,
 	IRQCHIP_GICV3_ITS,
 };
@@ -31,6 +32,7 @@ struct kvm;
 
 int gic__alloc_irqnum(void);
 int gic__create(struct kvm *kvm, enum irqchip_type type);
+int gic__create_gicv2m_frame(struct kvm *kvm, u64 msi_frame_addr);
 void gic__generate_fdt_nodes(void *fdt, enum irqchip_type type);
 
 #endif /* ARM_COMMON__GIC_H */

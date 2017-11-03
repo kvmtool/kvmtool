@@ -24,6 +24,8 @@ int irqchip_parser(const struct option *opt, const char *arg, int unset)
 
 	if (!strcmp(arg, "gicv2")) {
 		*type = IRQCHIP_GICV2;
+	} else if (!strcmp(arg, "gicv2m")) {
+		*type = IRQCHIP_GICV2M;
 	} else if (!strcmp(arg, "gicv3")) {
 		*type = IRQCHIP_GICV3;
 	} else if (!strcmp(arg, "gicv3-its")) {
@@ -107,6 +109,8 @@ static int gic__create_msi_frame(struct kvm *kvm, enum irqchip_type type,
 				 u64 msi_frame_addr)
 {
 	switch (type) {
+	case IRQCHIP_GICV2M:
+		return gic__create_gicv2m_frame(kvm, msi_frame_addr);
 	case IRQCHIP_GICV3_ITS:
 		return gic__create_its_frame(kvm, msi_frame_addr);
 	default:	/* No MSI frame needed */
@@ -138,6 +142,7 @@ static int gic__create_device(struct kvm *kvm, enum irqchip_type type)
 	};
 
 	switch (type) {
+	case IRQCHIP_GICV2M:
 	case IRQCHIP_GICV2:
 		gic_device.type = KVM_DEV_TYPE_ARM_VGIC_V2;
 		dist_attr.attr  = KVM_VGIC_V2_ADDR_TYPE_DIST;
@@ -156,6 +161,7 @@ static int gic__create_device(struct kvm *kvm, enum irqchip_type type)
 	gic_fd = gic_device.fd;
 
 	switch (type) {
+	case IRQCHIP_GICV2M:
 	case IRQCHIP_GICV2:
 		err = ioctl(gic_fd, KVM_SET_DEVICE_ATTR, &cpu_if_attr);
 		break;
@@ -216,6 +222,10 @@ int gic__create(struct kvm *kvm, enum irqchip_type type)
 	int err;
 
 	switch (type) {
+	case IRQCHIP_GICV2M:
+		gic_msi_size = KVM_VGIC_V2M_SIZE;
+		gic_msi_base = ARM_GIC_DIST_BASE - gic_msi_size;
+		break;
 	case IRQCHIP_GICV2:
 		break;
 	case IRQCHIP_GICV3_ITS:
@@ -296,6 +306,9 @@ void gic__generate_fdt_nodes(void *fdt, enum irqchip_type type)
 	};
 
 	switch (type) {
+	case IRQCHIP_GICV2M:
+		msi_compatible = "arm,gic-v2m-frame";
+		/* fall-through */
 	case IRQCHIP_GICV2:
 		compatible = "arm,cortex-a15-gic";
 		reg_prop[2] = cpu_to_fdt64(ARM_GIC_CPUI_BASE);

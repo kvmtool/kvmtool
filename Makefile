@@ -151,7 +151,7 @@ ifeq ($(ARCH), powerpc)
 endif
 
 # ARM
-OBJS_ARM_COMMON		:= arm/fdt.o arm/gic.o arm/ioport.o \
+OBJS_ARM_COMMON		:= arm/fdt.o arm/gic.o arm/gicv2m.o arm/ioport.o \
 			   arm/kvm.o arm/kvm-cpu.o arm/pci.o arm/timer.o \
 			   arm/pmu.o
 HDRS_ARM_COMMON		:= arm/include
