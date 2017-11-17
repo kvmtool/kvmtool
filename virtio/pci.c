@@ -267,7 +267,7 @@ static bool virtio_pci__io_out(struct ioport *ioport, struct kvm_cpu *vcpu, u16 
 	switch (offset) {
 	case VIRTIO_PCI_GUEST_FEATURES:
 		val = ioport__read32(data);
-		vdev->ops->set_guest_features(kvm, vpci->dev, val);
+		virtio_set_guest_features(kvm, vdev, vpci->dev, val);
 		break;
 	case VIRTIO_PCI_QUEUE_PFN:
 		val = ioport__read32(data);

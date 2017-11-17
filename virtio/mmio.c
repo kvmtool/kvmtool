@@ -168,8 +168,8 @@ static void virtio_mmio_config_out(struct kvm_cpu *vcpu,
 	case VIRTIO_MMIO_GUEST_FEATURES:
 		if (vmmio->hdr.guest_features_sel == 0) {
 			val = ioport__read32(data);
-			vdev->ops->set_guest_features(vmmio->kvm,
-						      vmmio->dev, val);
+			virtio_set_guest_features(vmmio->kvm, vdev,
+						  vmmio->dev, val);
 		}
 		break;
 	case VIRTIO_MMIO_GUEST_PAGE_SIZE:

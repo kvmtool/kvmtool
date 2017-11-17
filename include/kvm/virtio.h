@@ -141,6 +141,7 @@ struct virtio_device {
 	void			*virtio;
 	struct virtio_ops	*ops;
 	u16			endian;
+	u32			features;
 };
 
 struct virtio_ops {
@@ -179,5 +180,8 @@ static inline void virtio_init_device_vq(struct virtio_device *vdev,
 {
 	vq->endian = vdev->endian;
 }
+
+void virtio_set_guest_features(struct kvm *kvm, struct virtio_device *vdev,
+			       void *dev, u32 features);
 
 #endif /* KVM__VIRTIO_H */

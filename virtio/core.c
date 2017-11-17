@@ -198,6 +198,15 @@ bool virtio_queue__should_signal(struct virt_queue *vq)
 	return false;
 }
 
+void virtio_set_guest_features(struct kvm *kvm, struct virtio_device *vdev,
+			       void *dev, u32 features)
+{
+	/* TODO: fail negotiation if features & ~host_features */
+
+	vdev->features = features;
+	vdev->ops->set_guest_features(kvm, dev, features);
+}
+
 int virtio_init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 		struct virtio_ops *ops, enum virtio_trans trans,
 		int device_id, int subsys_id, int class)
