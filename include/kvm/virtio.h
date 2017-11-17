@@ -34,6 +34,7 @@ struct virt_queue {
 	u16		last_avail_idx;
 	u16		last_used_signalled;
 	u16		endian;
+	bool		use_event_idx;
 };
 
 /*
@@ -110,11 +111,15 @@ static inline struct vring_desc *virt_queue__get_desc(struct virt_queue *queue, 
 
 static inline bool virt_queue__available(struct virt_queue *vq)
 {
+	u16 last_avail_idx = virtio_host_to_guest_u16(vq, vq->last_avail_idx);
+
 	if (!vq->vring.avail)
 		return 0;
 
-	vring_avail_event(&vq->vring) = virtio_host_to_guest_u16(vq, vq->last_avail_idx);
-	return virtio_guest_to_host_u16(vq, vq->vring.avail->idx) != vq->last_avail_idx;
+	if (vq->use_event_idx)
+		vring_avail_event(&vq->vring) = last_avail_idx;
+
+	return vq->vring.avail->idx != last_avail_idx;
 }
 
 void virt_queue__used_idx_advance(struct virt_queue *queue, u16 jump);
@@ -179,6 +184,7 @@ static inline void virtio_init_device_vq(struct virtio_device *vdev,
 					 struct virt_queue *vq)
 {
 	vq->endian = vdev->endian;
+	vq->use_event_idx = (vdev->features & VIRTIO_RING_F_EVENT_IDX);
 }
 
 void virtio_set_guest_features(struct kvm *kvm, struct virtio_device *vdev,

@@ -186,6 +186,15 @@ bool virtio_queue__should_signal(struct virt_queue *vq)
 {
 	u16 old_idx, new_idx, event_idx;
 
+	if (!vq->use_event_idx) {
+		/*
+		 * When VIRTIO_RING_F_EVENT_IDX isn't negotiated, interrupt the
+		 * guest if it didn't explicitly request to be left alone.
+		 */
+		return !(virtio_guest_to_host_u16(vq, vq->vring.avail->flags) &
+			 VRING_AVAIL_F_NO_INTERRUPT);
+	}
+
 	old_idx		= vq->last_used_signalled;
 	new_idx		= virtio_guest_to_host_u16(vq, vq->vring.used->idx);
 	event_idx	= virtio_guest_to_host_u16(vq, vring_used_event(&vq->vring));
