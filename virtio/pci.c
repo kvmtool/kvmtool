@@ -450,10 +450,10 @@ int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 		.class[2]		= (class >> 16) & 0xff,
 		.subsys_vendor_id	= cpu_to_le16(PCI_SUBSYSTEM_VENDOR_ID_REDHAT_QUMRANET),
 		.subsys_id		= cpu_to_le16(subsys_id),
-		.bar[0]			= cpu_to_le32(vpci->mmio_addr
-							| PCI_BASE_ADDRESS_SPACE_MEMORY),
-		.bar[1]			= cpu_to_le32(vpci->port_addr
+		.bar[0]			= cpu_to_le32(vpci->port_addr
 							| PCI_BASE_ADDRESS_SPACE_IO),
+		.bar[1]			= cpu_to_le32(vpci->mmio_addr
+							| PCI_BASE_ADDRESS_SPACE_MEMORY),
 		.bar[2]			= cpu_to_le32(vpci->msix_io_block
 							| PCI_BASE_ADDRESS_SPACE_MEMORY),
 		.status			= cpu_to_le16(PCI_STATUS_CAP_LIST),
