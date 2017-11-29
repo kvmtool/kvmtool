@@ -44,6 +44,7 @@ struct con_dev {
 
 static struct con_dev cdev = {
 	.mutex				= MUTEX_INITIALIZER,
+	.poll_cond			= PTHREAD_COND_INITIALIZER,
 
 	.vq_ready			= 0,
 
@@ -212,8 +213,6 @@ int virtio_console__init(struct kvm *kvm)
 {
 	if (kvm->cfg.active_console != CONSOLE_VIRTIO)
 		return 0;
-
-	pthread_cond_init(&cdev.poll_cond, NULL);
 
 	virtio_init(kvm, &cdev, &cdev.vdev, &con_dev_virtio_ops,
 		    VIRTIO_DEFAULT_TRANS(kvm), PCI_DEVICE_ID_VIRTIO_CONSOLE,
