@@ -9,6 +9,7 @@
 #include <linux/types.h>
 #include <sys/uio.h>
 
+#include "kvm/barrier.h"
 #include "kvm/kvm.h"
 
 #define VIRTIO_IRQ_LOW		0
@@ -99,6 +100,13 @@ static inline __u64 __virtio_h2g_u64(u16 endian, __u64 val)
 static inline u16 virt_queue__pop(struct virt_queue *queue)
 {
 	__u16 guest_idx;
+
+	/*
+	 * The guest updates the avail index after writing the ring entry.
+	 * Ensure that we read the updated entry once virt_queue__available()
+	 * observes the new index.
+	 */
+	rmb();
 
 	guest_idx = queue->vring.avail->ring[queue->last_avail_idx++ % queue->vring.num];
 	return virtio_guest_to_host_u16(queue, guest_idx);
