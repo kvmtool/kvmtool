@@ -75,8 +75,8 @@ static inline bool virt_desc__test_flag(struct virt_queue *vq,
 
 /*
  * Each buffer in the virtqueues is actually a chain of descriptors.  This
- * function returns the next descriptor in the chain, or vq->vring.num if we're
- * at the end.
+ * function returns the next descriptor in the chain, or max if we're at the
+ * end.
  */
 static unsigned next_desc(struct virt_queue *vq, struct vring_desc *desc,
 			  unsigned int i, unsigned int max)
@@ -87,12 +87,10 @@ static unsigned next_desc(struct virt_queue *vq, struct vring_desc *desc,
 	if (!virt_desc__test_flag(vq, &desc[i], VRING_DESC_F_NEXT))
 		return max;
 
-	/* Check they're not leading us off end of descriptors. */
 	next = virtio_guest_to_host_u16(vq, desc[i].next);
-	/* Make sure compiler knows to grab that: we don't want it changing! */
-	wmb();
 
-	return next;
+	/* Ensure they're not leading us off end of descriptors. */
+	return min(next, max);
 }
 
 u16 virt_queue__get_head_iov(struct virt_queue *vq, struct iovec iov[], u16 *out, u16 *in, u16 head, struct kvm *kvm)
