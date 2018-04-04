@@ -16,6 +16,7 @@ struct ioevent {
 	void			*fn_ptr;
 	int			fd;
 	u64			datamatch;
+	u32			flags;
 
 	struct list_head	list;
 };

@@ -46,6 +46,8 @@
 
 #define KVM_VM_TYPE			0
 
+#define KVM_IOEVENTFD_HAS_PIO		0
+
 #define VIRTIO_DEFAULT_TRANS(kvm)	VIRTIO_PCI
 
 struct spapr_phb;

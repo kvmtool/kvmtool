@@ -32,6 +32,8 @@
  */
 #define KVM_VM_TYPE		1
 
+#define KVM_IOEVENTFD_HAS_PIO	0
+
 #define VIRTIO_DEFAULT_TRANS(kvm)	VIRTIO_PCI
 
 #include <stdbool.h>
