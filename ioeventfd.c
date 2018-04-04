@@ -154,18 +154,17 @@ int ioeventfd__add_event(struct ioevent *ioevent, int flags)
 		goto cleanup;
 	}
 
-	if (!(flags & IOEVENTFD_FLAG_USER_POLL))
-		return 0;
+	if (flags & IOEVENTFD_FLAG_USER_POLL) {
+		epoll_event = (struct epoll_event) {
+			.events		= EPOLLIN,
+			.data.ptr	= new_ioevent,
+		};
 
-	epoll_event = (struct epoll_event) {
-		.events		= EPOLLIN,
-		.data.ptr	= new_ioevent,
-	};
-
-	r = epoll_ctl(epoll_fd, EPOLL_CTL_ADD, event, &epoll_event);
-	if (r) {
-		r = -errno;
-		goto cleanup;
+		r = epoll_ctl(epoll_fd, EPOLL_CTL_ADD, event, &epoll_event);
+		if (r) {
+			r = -errno;
+			goto cleanup;
+		}
 	}
 
 	list_add_tail(&new_ioevent->list, &used_ioevents);
