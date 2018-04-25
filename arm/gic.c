@@ -229,8 +229,8 @@ int gic__create(struct kvm *kvm, enum irqchip_type type)
 	case IRQCHIP_GICV2:
 		break;
 	case IRQCHIP_GICV3_ITS:
-		/* We reserve the 64K page with the doorbell as well. */
-		gic_msi_size = KVM_VGIC_V3_ITS_SIZE + SZ_64K;
+		/* The 64K page with the doorbell is included. */
+		gic_msi_size = KVM_VGIC_V3_ITS_SIZE;
 		/* fall through */
 	case IRQCHIP_GICV3:
 		gic_redists_size = kvm->cfg.nrcpus * ARM_GIC_REDIST_SIZE;
