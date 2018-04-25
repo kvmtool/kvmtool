@@ -21,6 +21,8 @@
 #define GIC_MAX_CPUS			8
 #define GIC_MAX_IRQ			255
 
+#define KVM_VGIC_V2M_SIZE		0x1000
+
 enum irqchip_type {
 	IRQCHIP_GICV2,
 	IRQCHIP_GICV2M,
