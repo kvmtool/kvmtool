@@ -224,7 +224,7 @@ int gic__create(struct kvm *kvm, enum irqchip_type type)
 	switch (type) {
 	case IRQCHIP_GICV2M:
 		gic_msi_size = KVM_VGIC_V2M_SIZE;
-		gic_msi_base = ARM_GIC_DIST_BASE - gic_msi_size;
+		gic_msi_base = ARM_GIC_CPUI_BASE - gic_msi_size;
 		break;
 	case IRQCHIP_GICV2:
 		break;
