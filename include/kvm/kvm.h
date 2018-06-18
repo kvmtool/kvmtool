@@ -37,9 +37,11 @@ enum {
 enum kvm_mem_type {
 	KVM_MEM_TYPE_RAM	= 1 << 0,
 	KVM_MEM_TYPE_DEVICE	= 1 << 1,
+	KVM_MEM_TYPE_RESERVED	= 1 << 2,
 
 	KVM_MEM_TYPE_ALL	= KVM_MEM_TYPE_RAM
 				| KVM_MEM_TYPE_DEVICE
+				| KVM_MEM_TYPE_RESERVED
 };
 
 struct kvm_ext {
@@ -115,6 +117,12 @@ static inline int kvm__register_dev_mem(struct kvm *kvm, u64 guest_phys,
 				 KVM_MEM_TYPE_DEVICE);
 }
 
+static inline int kvm__reserve_mem(struct kvm *kvm, u64 guest_phys, u64 size)
+{
+	return kvm__register_mem(kvm, guest_phys, size, NULL,
+				 KVM_MEM_TYPE_RESERVED);
+}
+
 int kvm__register_mmio(struct kvm *kvm, u64 phys_addr, u64 phys_addr_len, bool coalesce,
 		       void (*mmio_fn)(struct kvm_cpu *vcpu, u64 addr, u8 *data, u32 len, u8 is_write, void *ptr),
 			void *ptr);
@@ -150,6 +158,8 @@ static inline const char *kvm_mem_type_to_string(enum kvm_mem_type type)
 		return "RAM";
 	case KVM_MEM_TYPE_DEVICE:
 		return "device";
+	case KVM_MEM_TYPE_RESERVED:
+		return "reserved";
 	}
 
 	return "???";
