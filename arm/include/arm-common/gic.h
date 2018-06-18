@@ -37,4 +37,10 @@ int gic__create(struct kvm *kvm, enum irqchip_type type);
 int gic__create_gicv2m_frame(struct kvm *kvm, u64 msi_frame_addr);
 void gic__generate_fdt_nodes(void *fdt, enum irqchip_type type);
 
+int gic__add_irqfd(struct kvm *kvm, unsigned int gsi, int trigger_fd,
+		   int resample_fd);
+void gic__del_irqfd(struct kvm *kvm, unsigned int gsi, int trigger_fd);
+#define irq__add_irqfd gic__add_irqfd
+#define irq__del_irqfd gic__del_irqfd
+
 #endif /* ARM_COMMON__GIC_H */

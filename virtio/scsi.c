@@ -1,6 +1,7 @@
 #include "kvm/virtio-scsi.h"
 #include "kvm/virtio-pci-dev.h"
 #include "kvm/disk-image.h"
+#include "kvm/irq.h"
 #include "kvm/kvm.h"
 #include "kvm/pci.h"
 #include "kvm/ioeventfd.h"
@@ -97,22 +98,17 @@ static void notify_vq_gsi(struct kvm *kvm, void *dev, u32 vq, u32 gsi)
 {
 	struct vhost_vring_file file;
 	struct scsi_dev *sdev = dev;
-	struct kvm_irqfd irq;
 	int r;
 
 	if (sdev->vhost_fd == 0)
 		return;
 
-	irq = (struct kvm_irqfd) {
-		.gsi	= gsi,
-		.fd	= eventfd(0, 0),
-	};
 	file = (struct vhost_vring_file) {
 		.index	= vq,
-		.fd	= irq.fd,
+		.fd	= eventfd(0, 0),
 	};
 
-	r = ioctl(kvm->vm_fd, KVM_IRQFD, &irq);
+	r = irq__add_irqfd(kvm, gsi, file.fd, -1);
 	if (r < 0)
 		die_perror("KVM_IRQFD failed");
 

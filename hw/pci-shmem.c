@@ -127,7 +127,6 @@ static void callback_mmio_msix(struct kvm_cpu *vcpu, u64 addr, u8 *data, u32 len
 int pci_shmem__get_local_irqfd(struct kvm *kvm)
 {
 	int fd, gsi, r;
-	struct kvm_irqfd irqfd;
 
 	if (local_fd == 0) {
 		fd = eventfd(0, 0);
@@ -143,12 +142,7 @@ int pci_shmem__get_local_irqfd(struct kvm *kvm)
 			gsi = pci_shmem_pci_device.irq_line;
 		}
 
-		irqfd = (struct kvm_irqfd) {
-			.fd = fd,
-			.gsi = gsi,
-		};
-
-		r = ioctl(kvm->vm_fd, KVM_IRQFD, &irqfd);
+		r = irq__add_irqfd(kvm, gsi, fd, -1);
 		if (r < 0)
 			return r;
 

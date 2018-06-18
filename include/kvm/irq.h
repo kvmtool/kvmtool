@@ -7,6 +7,7 @@
 #include <linux/list.h>
 #include <linux/kvm.h>
 
+#include "kvm/kvm-arch.h"
 #include "kvm/msi.h"
 
 struct kvm;
@@ -34,5 +35,21 @@ void irq__update_msix_route(struct kvm *kvm, u32 gsi, struct msi_msg *msg);
 
 bool irq__can_signal_msi(struct kvm *kvm);
 int irq__signal_msi(struct kvm *kvm, struct kvm_msi *msi);
+
+/*
+ * The function takes two eventfd arguments, trigger_fd and resample_fd. If
+ * resample_fd is <= 0, resampling is disabled and the IRQ is edge-triggered
+ */
+int irq__common_add_irqfd(struct kvm *kvm, unsigned int gsi, int trigger_fd,
+			   int resample_fd);
+void irq__common_del_irqfd(struct kvm *kvm, unsigned int gsi, int trigger_fd);
+
+#ifndef irq__add_irqfd
+#define irq__add_irqfd irq__common_add_irqfd
+#endif
+
+#ifndef irq__del_irqfd
+#define irq__del_irqfd irq__common_del_irqfd
+#endif
 
 #endif

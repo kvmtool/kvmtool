@@ -170,6 +170,37 @@ void irq__update_msix_route(struct kvm *kvm, u32 gsi, struct msi_msg *msg)
 		die_perror("KVM_SET_GSI_ROUTING");
 }
 
+int irq__common_add_irqfd(struct kvm *kvm, unsigned int gsi, int trigger_fd,
+			   int resample_fd)
+{
+	struct kvm_irqfd irqfd = {
+		.fd		= trigger_fd,
+		.gsi		= gsi,
+		.flags		= resample_fd > 0 ? KVM_IRQFD_FLAG_RESAMPLE : 0,
+		.resamplefd	= resample_fd,
+	};
+
+	/* If we emulate MSI routing, translate the MSI to the corresponding IRQ */
+	if (msi_routing_ops->translate_gsi)
+		irqfd.gsi = msi_routing_ops->translate_gsi(kvm, gsi);
+
+	return ioctl(kvm->vm_fd, KVM_IRQFD, &irqfd);
+}
+
+void irq__common_del_irqfd(struct kvm *kvm, unsigned int gsi, int trigger_fd)
+{
+	struct kvm_irqfd irqfd = {
+		.fd		= trigger_fd,
+		.gsi		= gsi,
+		.flags		= KVM_IRQFD_FLAG_DEASSIGN,
+	};
+
+	if (msi_routing_ops->translate_gsi)
+		irqfd.gsi = msi_routing_ops->translate_gsi(kvm, gsi);
+
+	ioctl(kvm->vm_fd, KVM_IRQFD, &irqfd);
+}
+
 int __attribute__((weak)) irq__exit(struct kvm *kvm)
 {
 	free(irq_routing);

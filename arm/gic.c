@@ -17,6 +17,16 @@ static u64 gic_redists_base;
 static u64 gic_redists_size;
 static u64 gic_msi_base;
 static u64 gic_msi_size = 0;
+static bool vgic_is_init = false;
+
+struct kvm_irqfd_line {
+	unsigned int		gsi;
+	int			trigger_fd;
+	int			resample_fd;
+	struct list_head	list;
+};
+
+static LIST_HEAD(irqfd_lines);
 
 int irqchip_parser(const struct option *opt, const char *arg, int unset)
 {
@@ -33,6 +43,26 @@ int irqchip_parser(const struct option *opt, const char *arg, int unset)
 	} else {
 		pr_err("irqchip: unknown type \"%s\"\n", arg);
 		return -1;
+	}
+
+	return 0;
+}
+
+static int irq__setup_irqfd_lines(struct kvm *kvm)
+{
+	int ret;
+	struct kvm_irqfd_line *line, *tmp;
+
+	list_for_each_entry_safe(line, tmp, &irqfd_lines, list) {
+		ret = irq__common_add_irqfd(kvm, line->gsi, line->trigger_fd,
+					    line->resample_fd);
+		if (ret < 0) {
+			pr_err("Failed to register IRQFD");
+			return ret;
+		}
+
+		list_del(&line->list);
+		free(line);
 	}
 
 	return 0;
@@ -292,7 +322,9 @@ static int gic__init_gic(struct kvm *kvm)
 	kvm->msix_needs_devid = kvm__supports_vm_extension(kvm,
 							   KVM_CAP_MSI_DEVID);
 
-	return 0;
+	vgic_is_init = true;
+
+	return irq__setup_irqfd_lines(kvm);
 }
 late_init(gic__init_gic)
 
@@ -371,4 +403,46 @@ void kvm__irq_trigger(struct kvm *kvm, int irq)
 {
 	kvm__irq_line(kvm, irq, VIRTIO_IRQ_HIGH);
 	kvm__irq_line(kvm, irq, VIRTIO_IRQ_LOW);
+}
+
+int gic__add_irqfd(struct kvm *kvm, unsigned int gsi, int trigger_fd,
+		   int resample_fd)
+{
+	struct kvm_irqfd_line *line;
+
+	if (vgic_is_init)
+		return irq__common_add_irqfd(kvm, gsi, trigger_fd, resample_fd);
+
+	/* Postpone the routing setup until we have a distributor */
+	line = malloc(sizeof(*line));
+	if (!line)
+		return -ENOMEM;
+
+	*line = (struct kvm_irqfd_line) {
+		.gsi		= gsi,
+		.trigger_fd	= trigger_fd,
+		.resample_fd	= resample_fd,
+	};
+	list_add(&line->list, &irqfd_lines);
+
+	return 0;
+}
+
+void gic__del_irqfd(struct kvm *kvm, unsigned int gsi, int trigger_fd)
+{
+	struct kvm_irqfd_line *line;
+
+	if (vgic_is_init) {
+		irq__common_del_irqfd(kvm, gsi, trigger_fd);
+		return;
+	}
+
+	list_for_each_entry(line, &irqfd_lines, list) {
+		if (line->gsi != gsi)
+			continue;
+
+		list_del(&line->list);
+		free(line);
+		break;
+	}
 }
