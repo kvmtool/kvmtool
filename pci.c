@@ -8,8 +8,6 @@
 #include <linux/err.h>
 #include <assert.h>
 
-#define PCI_BAR_OFFSET(b)		(offsetof(struct pci_device_header, bar[b]))
-
 static u32 pci_config_address_bits;
 
 /* This is within our PCI gap - in an unused area.
@@ -131,59 +129,56 @@ static struct ioport_operations pci_config_data_ops = {
 
 void pci__config_wr(struct kvm *kvm, union pci_config_address addr, void *data, int size)
 {
-	u8 dev_num;
+	void *base;
+	u8 bar, offset;
+	struct pci_device_header *pci_hdr;
+	u8 dev_num = addr.device_number;
 
-	dev_num	= addr.device_number;
+	if (!pci_device_exists(addr.bus_number, dev_num, 0))
+		return;
 
-	if (pci_device_exists(0, dev_num, 0)) {
-		unsigned long offset;
+	offset = addr.w & PCI_DEV_CFG_MASK;
+	base = pci_hdr = device__find_dev(DEVICE_BUS_PCI, dev_num)->data;
 
-		offset = addr.w & 0xff;
-		if (offset < sizeof(struct pci_device_header)) {
-			void *p = device__find_dev(DEVICE_BUS_PCI, dev_num)->data;
-			struct pci_device_header *hdr = p;
-			u8 bar = (offset - PCI_BAR_OFFSET(0)) / (sizeof(u32));
-			u32 sz = cpu_to_le32(PCI_IO_SIZE);
+	if (pci_hdr->cfg_ops.write)
+		pci_hdr->cfg_ops.write(kvm, pci_hdr, offset, data, size);
 
-			if (bar < 6 && hdr->bar_size[bar])
-				sz = hdr->bar_size[bar];
+	/*
+	 * legacy hack: ignore writes to uninitialized regions (e.g. ROM BAR).
+	 * Not very nice but has been working so far.
+	 */
+	if (*(u32 *)(base + offset) == 0)
+		return;
 
-			/*
-			 * If the kernel masks the BAR it would expect to find the
-			 * size of the BAR there next time it reads from it.
-			 * When the kernel got the size it would write the address
-			 * back.
-			 */
-			if (*(u32 *)(p + offset)) {
-				/* See if kernel tries to mask one of the BARs */
-				if ((offset >= PCI_BAR_OFFSET(0)) &&
-				    (offset <= PCI_BAR_OFFSET(6)) &&
-				    (ioport__read32(data)  == 0xFFFFFFFF))
-					memcpy(p + offset, &sz, sizeof(sz));
-				    else
-					memcpy(p + offset, data, size);
-			}
-		}
+	bar = (offset - PCI_BAR_OFFSET(0)) / sizeof(u32);
+
+	/*
+	 * If the kernel masks the BAR it would expect to find the size of the
+	 * BAR there next time it reads from it. When the kernel got the size it
+	 * would write the address back.
+	 */
+	if (bar < 6 && ioport__read32(data) == 0xFFFFFFFF) {
+		u32 sz = pci_hdr->bar_size[bar];
+		memcpy(base + offset, &sz, sizeof(sz));
+	} else {
+		memcpy(base + offset, data, size);
 	}
 }
 
 void pci__config_rd(struct kvm *kvm, union pci_config_address addr, void *data, int size)
 {
-	u8 dev_num;
+	u8 offset;
+	struct pci_device_header *pci_hdr;
+	u8 dev_num = addr.device_number;
 
-	dev_num	= addr.device_number;
+	if (pci_device_exists(addr.bus_number, dev_num, 0)) {
+		pci_hdr = device__find_dev(DEVICE_BUS_PCI, dev_num)->data;
+		offset = addr.w & PCI_DEV_CFG_MASK;
 
-	if (pci_device_exists(0, dev_num, 0)) {
-		unsigned long offset;
+		if (pci_hdr->cfg_ops.read)
+			pci_hdr->cfg_ops.read(kvm, pci_hdr, offset, data, size);
 
-		offset = addr.w & 0xff;
-		if (offset < sizeof(struct pci_device_header)) {
-			void *p = device__find_dev(DEVICE_BUS_PCI, dev_num)->data;
-
-			memcpy(data, p + offset, size);
-		} else {
-			memset(data, 0x00, size);
-		}
+		memcpy(data, (void *)pci_hdr + offset, size);
 	} else {
 		memset(data, 0xff, size);
 	}
