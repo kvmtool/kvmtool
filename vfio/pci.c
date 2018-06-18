@@ -640,24 +640,27 @@ static int vfio_pci_fixup_cfg_space(struct vfio_device *vdev)
 	struct vfio_region_info *info;
 	struct vfio_pci_device *pdev = &vdev->pci;
 
-	/* Enable exclusively MMIO and bus mastering */
-	pdev->hdr.command &= ~PCI_COMMAND_IO;
-	pdev->hdr.command |= PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER;
-
 	/* Initialise the BARs */
 	for (i = VFIO_PCI_BAR0_REGION_INDEX; i <= VFIO_PCI_BAR5_REGION_INDEX; ++i) {
+		u64 base;
 		struct vfio_region *region = &vdev->regions[i];
-		u64 base = region->guest_phys_addr;
+
+		/* Construct a fake reg to match what we've mapped. */
+		if (region->is_ioport) {
+			base = (region->port_base & PCI_BASE_ADDRESS_IO_MASK) |
+				PCI_BASE_ADDRESS_SPACE_IO;
+		} else {
+			base = (region->guest_phys_addr &
+				PCI_BASE_ADDRESS_MEM_MASK) |
+				PCI_BASE_ADDRESS_SPACE_MEMORY;
+		}
+
+		pdev->hdr.bar[i] = base;
 
 		if (!base)
 			continue;
 
 		pdev->hdr.bar_size[i] = region->info.size;
-
-		/* Construct a fake reg to match what we've mapped. */
-		pdev->hdr.bar[i] = (base & PCI_BASE_ADDRESS_MEM_MASK) |
-					PCI_BASE_ADDRESS_SPACE_MEMORY |
-					PCI_BASE_ADDRESS_MEM_TYPE_32;
 	}
 
 	/* I really can't be bothered to support cardbus. */
@@ -794,6 +797,7 @@ static int vfio_pci_configure_bar(struct kvm *kvm, struct vfio_device *vdev,
 				  size_t nr)
 {
 	int ret;
+	u32 bar;
 	size_t map_size;
 	struct vfio_pci_device *pdev = &vdev->pci;
 	struct vfio_region *region = &vdev->regions[nr];
@@ -801,6 +805,10 @@ static int vfio_pci_configure_bar(struct kvm *kvm, struct vfio_device *vdev,
 	if (nr >= vdev->info.num_regions)
 		return 0;
 
+	bar = pdev->hdr.bar[nr];
+
+	region->vdev = vdev;
+	region->is_ioport = !!(bar & PCI_BASE_ADDRESS_SPACE_IO);
 	region->info = (struct vfio_region_info) {
 		.argsz = sizeof(region->info),
 		.index = nr,
@@ -828,14 +836,13 @@ static int vfio_pci_configure_bar(struct kvm *kvm, struct vfio_device *vdev,
 		}
 	}
 
-	/* Grab some MMIO space in the guest */
-	map_size = ALIGN(region->info.size, PAGE_SIZE);
-	region->guest_phys_addr = pci_get_io_space_block(map_size);
+	if (!region->is_ioport) {
+		/* Grab some MMIO space in the guest */
+		map_size = ALIGN(region->info.size, PAGE_SIZE);
+		region->guest_phys_addr = pci_get_io_space_block(map_size);
+	}
 
-	/*
-	 * Map the BARs into the guest. We'll later need to update
-	 * configuration space to reflect our allocation.
-	 */
+	/* Map the BARs into the guest or setup a trap region. */
 	ret = vfio_map_region(kvm, vdev, region);
 	if (ret)
 		return ret;

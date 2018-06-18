@@ -83,8 +83,11 @@ struct vfio_pci_device {
 
 struct vfio_region {
 	struct vfio_region_info		info;
+	struct vfio_device		*vdev;
 	u64				guest_phys_addr;
 	void				*host_addr;
+	u32				port_base;
+	int				is_ioport	:1;
 };
 
 struct vfio_device {
