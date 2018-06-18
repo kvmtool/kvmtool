@@ -79,7 +79,7 @@ void kvm__init_ram(struct kvm *kvm)
 		    "overlaps MMIO!\n",
 		    phys_size);
 
-	kvm__register_mem(kvm, phys_start, phys_size, host_mem);
+	kvm__register_ram(kvm, phys_start, phys_size, host_mem);
 }
 
 void kvm__arch_set_cmdline(char *cmdline, bool video)

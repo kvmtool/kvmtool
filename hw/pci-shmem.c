@@ -387,8 +387,8 @@ int pci_shmem__init(struct kvm *kvm)
 	if (mem == NULL)
 		return -EINVAL;
 
-	kvm__register_mem(kvm, shmem_region->phys_addr, shmem_region->size,
-			  mem);
+	kvm__register_dev_mem(kvm, shmem_region->phys_addr, shmem_region->size,
+			      mem);
 	return 0;
 }
 dev_init(pci_shmem__init);

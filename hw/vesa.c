@@ -73,7 +73,7 @@ struct framebuffer *vesa__init(struct kvm *kvm)
 	if (mem == MAP_FAILED)
 		ERR_PTR(-errno);
 
-	kvm__register_mem(kvm, VESA_MEM_ADDR, VESA_MEM_SIZE, mem);
+	kvm__register_dev_mem(kvm, VESA_MEM_ADDR, VESA_MEM_SIZE, mem);
 
 	vesafb = (struct framebuffer) {
 		.width			= VESA_WIDTH,

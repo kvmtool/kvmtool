@@ -182,7 +182,8 @@ core_exit(kvm__exit);
  * memory regions to it. Therefore, be careful if you use this function for
  * registering memory regions for emulating hardware.
  */
-int kvm__register_mem(struct kvm *kvm, u64 guest_phys, u64 size, void *userspace_addr)
+int kvm__register_mem(struct kvm *kvm, u64 guest_phys, u64 size,
+		      void *userspace_addr, enum kvm_mem_type type)
 {
 	struct kvm_userspace_memory_region mem;
 	struct kvm_mem_bank *bank;
@@ -196,6 +197,7 @@ int kvm__register_mem(struct kvm *kvm, u64 guest_phys, u64 size, void *userspace
 	bank->guest_phys_addr		= guest_phys;
 	bank->host_addr			= userspace_addr;
 	bank->size			= size;
+	bank->type			= type;
 
 	mem = (struct kvm_userspace_memory_region) {
 		.slot			= kvm->mem_slots++,
@@ -243,6 +245,33 @@ u64 host_to_guest_flat(struct kvm *kvm, void *ptr)
 
 	pr_warning("unable to translate host address %p to guest", ptr);
 	return 0;
+}
+
+/*
+ * Iterate over each registered memory bank. Call @fun for each bank with @data
+ * as argument. @type is a bitmask that allows to filter banks according to
+ * their type.
+ *
+ * If one call to @fun returns a non-zero value, stop iterating and return the
+ * value. Otherwise, return zero.
+ */
+int kvm__for_each_mem_bank(struct kvm *kvm, enum kvm_mem_type type,
+			   int (*fun)(struct kvm *kvm, struct kvm_mem_bank *bank, void *data),
+			   void *data)
+{
+	int ret;
+	struct kvm_mem_bank *bank;
+
+	list_for_each_entry(bank, &kvm->mem_banks, list) {
+		if (type != KVM_MEM_TYPE_ALL && !(bank->type & type))
+			continue;
+
+		ret = fun(kvm, bank, data);
+		if (ret)
+			break;
+	}
+
+	return ret;
 }
 
 int kvm__recommended_cpus(struct kvm *kvm)

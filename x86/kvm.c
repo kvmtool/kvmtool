@@ -98,7 +98,7 @@ void kvm__init_ram(struct kvm *kvm)
 		phys_size  = kvm->ram_size;
 		host_mem   = kvm->ram_start;
 
-		kvm__register_mem(kvm, phys_start, phys_size, host_mem);
+		kvm__register_ram(kvm, phys_start, phys_size, host_mem);
 	} else {
 		/* First RAM range from zero to the PCI gap: */
 
@@ -106,7 +106,7 @@ void kvm__init_ram(struct kvm *kvm)
 		phys_size  = KVM_32BIT_GAP_START;
 		host_mem   = kvm->ram_start;
 
-		kvm__register_mem(kvm, phys_start, phys_size, host_mem);
+		kvm__register_ram(kvm, phys_start, phys_size, host_mem);
 
 		/* Second RAM range from 4GB to the end of RAM: */
 
@@ -114,7 +114,7 @@ void kvm__init_ram(struct kvm *kvm)
 		phys_size  = kvm->ram_size - phys_start;
 		host_mem   = kvm->ram_start + phys_start;
 
-		kvm__register_mem(kvm, phys_start, phys_size, host_mem);
+		kvm__register_ram(kvm, phys_start, phys_size, host_mem);
 	}
 }
 
