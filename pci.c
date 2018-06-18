@@ -39,6 +39,9 @@ void pci__assign_irq(struct device_header *dev_hdr)
 	 */
 	pci_hdr->irq_pin	= 1;
 	pci_hdr->irq_line	= irq__alloc_line();
+
+	if (!pci_hdr->irq_type)
+		pci_hdr->irq_type = IRQ_TYPE_EDGE_RISING;
 }
 
 static void *pci_config_address_ptr(u16 port)

@@ -9,6 +9,7 @@
 #include "kvm/devices.h"
 #include "kvm/kvm.h"
 #include "kvm/msi.h"
+#include "kvm/fdt.h"
 
 /*
  * PCI Configuration Mechanism #1 I/O ports. See Section 3.7.4.1.
@@ -105,6 +106,11 @@ struct pci_device_header {
 	/* Private to lkvm */
 	u32		bar_size[6];
 	struct pci_config_operations	cfg_ops;
+	/*
+	 * PCI INTx# are level-triggered, but virtual device often feature
+	 * edge-triggered INTx# for convenience.
+	 */
+	enum irq_type	irq_type;
 };
 
 int pci__init(struct kvm *kvm);
