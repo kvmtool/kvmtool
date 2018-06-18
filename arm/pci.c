@@ -1,5 +1,6 @@
 #include "kvm/devices.h"
 #include "kvm/fdt.h"
+#include "kvm/kvm.h"
 #include "kvm/of_pci.h"
 #include "kvm/pci.h"
 #include "kvm/util.h"

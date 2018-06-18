@@ -146,6 +146,11 @@ void kvm_run_set_wrapper_sandbox(void)
 	OPT_BOOLEAN('\0', "no-dhcp", &(cfg)->no_dhcp, "Disable kernel"	\
 			" DHCP in rootfs mode"),			\
 									\
+	OPT_GROUP("VFIO options:"),					\
+	OPT_CALLBACK('\0', "vfio-pci", NULL, "[domain:]bus:dev.fn",	\
+		     "Assign a PCI device to the virtual machine",	\
+		     vfio_device_parser, kvm),				\
+									\
 	OPT_GROUP("Debug options:"),					\
 	OPT_BOOLEAN('\0', "debug", &do_debug_print,			\
 			"Enable debug messages"),			\

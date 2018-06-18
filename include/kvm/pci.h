@@ -7,7 +7,6 @@
 #include <endian.h>
 
 #include "kvm/devices.h"
-#include "kvm/kvm.h"
 #include "kvm/msi.h"
 #include "kvm/fdt.h"
 
@@ -21,6 +20,8 @@
 #define PCI_CONFIG_BUS_FORWARD	0xcfa
 #define PCI_IO_SIZE		0x100
 #define PCI_CFG_SIZE		(1ULL << 24)
+
+struct kvm;
 
 union pci_config_address {
 	struct {

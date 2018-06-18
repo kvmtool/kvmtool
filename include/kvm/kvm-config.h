@@ -2,6 +2,7 @@
 #define KVM_CONFIG_H_
 
 #include "kvm/disk-image.h"
+#include "kvm/vfio.h"
 #include "kvm/kvm-config-arch.h"
 
 #define DEFAULT_KVM_DEV		"/dev/kvm"
@@ -20,9 +21,11 @@
 struct kvm_config {
 	struct kvm_config_arch arch;
 	struct disk_image_params disk_image[MAX_DISK_IMAGES];
+	struct vfio_device_params *vfio_devices;
 	u64 ram_size;
 	u8  image_count;
 	u8 num_net_devices;
+	u8 num_vfio_devices;
 	bool virtio_rng;
 	int active_console;
 	int debug_iodelay;
