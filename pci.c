@@ -27,6 +27,19 @@ u32 pci_get_io_space_block(u32 size)
 	return block;
 }
 
+void *pci_find_cap(struct pci_device_header *hdr, u8 cap_type)
+{
+	u8 pos;
+	struct pci_cap_hdr *cap;
+
+	pci_for_each_cap(pos, cap, hdr) {
+		if (cap->type == cap_type)
+			return cap;
+	}
+
+	return NULL;
+}
+
 void pci__assign_irq(struct device_header *dev_hdr)
 {
 	struct pci_device_header *pci_hdr = dev_hdr->data;

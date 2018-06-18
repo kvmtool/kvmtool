@@ -58,6 +58,11 @@ struct msix_cap {
 	u32 pba_offset;
 };
 
+struct pci_cap_hdr {
+	u8	type;
+	u8	next;
+};
+
 #define PCI_BAR_OFFSET(b)	(offsetof(struct pci_device_header, bar[b]))
 #define PCI_DEV_CFG_SIZE	256
 #define PCI_DEV_CFG_MASK	(PCI_DEV_CFG_SIZE - 1)
@@ -113,6 +118,13 @@ struct pci_device_header {
 	enum irq_type	irq_type;
 };
 
+#define PCI_CAP(pci_hdr, pos) ((void *)(pci_hdr) + (pos))
+
+#define pci_for_each_cap(pos, cap, hdr)				\
+	for ((pos) = (hdr)->capabilities & ~3;			\
+	     (cap) = PCI_CAP(hdr, pos), (pos) != 0;		\
+	     (pos) = ((struct pci_cap_hdr *)(cap))->next & ~3)
+
 int pci__init(struct kvm *kvm);
 int pci__exit(struct kvm *kvm);
 struct pci_device_header *pci__find_dev(u8 dev_num);
@@ -120,5 +132,7 @@ u32 pci_get_io_space_block(u32 size);
 void pci__assign_irq(struct device_header *dev_hdr);
 void pci__config_wr(struct kvm *kvm, union pci_config_address addr, void *data, int size);
 void pci__config_rd(struct kvm *kvm, union pci_config_address addr, void *data, int size);
+
+void *pci_find_cap(struct pci_device_header *hdr, u8 cap_type);
 
 #endif /* KVM__PCI_H */
