@@ -379,6 +379,51 @@ static int vfio_unmap_mem_bank(struct kvm *kvm, struct kvm_mem_bank *bank, void 
 	return 0;
 }
 
+static int vfio_configure_reserved_regions(struct kvm *kvm,
+					   struct vfio_group *group)
+{
+	FILE *file;
+	int ret = 0;
+	char type[9];
+	char filename[PATH_MAX];
+	unsigned long long start, end;
+
+	snprintf(filename, PATH_MAX, IOMMU_GROUP_DIR "/%lu/reserved_regions",
+		 group->id);
+
+	/* reserved_regions might not be present on older systems */
+	if (access(filename, F_OK))
+		return 0;
+
+	file = fopen(filename, "r");
+	if (!file)
+		return -errno;
+
+	while (fscanf(file, "0x%llx 0x%llx %8s\n", &start, &end, type) == 3) {
+		ret = kvm__reserve_mem(kvm, start, end - start + 1);
+		if (ret)
+			break;
+	}
+
+	fclose(file);
+
+	return ret;
+}
+
+static int vfio_configure_groups(struct kvm *kvm)
+{
+	int ret;
+	struct vfio_group *group;
+
+	list_for_each_entry(group, &vfio_groups, list) {
+		ret = vfio_configure_reserved_regions(kvm, group);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static struct vfio_group *vfio_group_create(struct kvm *kvm, unsigned long id)
 {
 	int ret;
@@ -594,6 +639,10 @@ static int vfio__init(struct kvm *kvm)
 		return -ENOMEM;
 
 	ret = vfio_container_init(kvm);
+	if (ret)
+		return ret;
+
+	ret = vfio_configure_groups(kvm);
 	if (ret)
 		return ret;
 
