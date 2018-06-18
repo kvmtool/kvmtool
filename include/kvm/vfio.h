@@ -75,6 +75,7 @@ struct vfio_pci_device {
 	unsigned long			irq_modes;
 	int				intx_fd;
 	unsigned int			intx_gsi;
+	struct vfio_pci_msi_common	msi;
 	struct vfio_pci_msi_common	msix;
 	struct vfio_pci_msix_table	msix_table;
 	struct vfio_pci_msix_pba	msix_pba;

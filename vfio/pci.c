@@ -29,13 +29,14 @@ struct vfio_irq_eventfd {
 
 static void vfio_pci_disable_intx(struct kvm *kvm, struct vfio_device *vdev);
 
-static int vfio_pci_enable_msis(struct kvm *kvm, struct vfio_device *vdev)
+static int vfio_pci_enable_msis(struct kvm *kvm, struct vfio_device *vdev,
+				bool msix)
 {
 	size_t i;
 	int ret = 0;
 	int *eventfds;
 	struct vfio_pci_device *pdev = &vdev->pci;
-	struct vfio_pci_msi_common *msis = &pdev->msix;
+	struct vfio_pci_msi_common *msis = msix ? &pdev->msix : &pdev->msi;
 	struct vfio_irq_eventfd single = {
 		.irq = {
 			.argsz	= sizeof(single),
@@ -135,11 +136,12 @@ static int vfio_pci_enable_msis(struct kvm *kvm, struct vfio_device *vdev)
 	return ret;
 }
 
-static int vfio_pci_disable_msis(struct kvm *kvm, struct vfio_device *vdev)
+static int vfio_pci_disable_msis(struct kvm *kvm, struct vfio_device *vdev,
+				 bool msix)
 {
 	int ret;
 	struct vfio_pci_device *pdev = &vdev->pci;
-	struct vfio_pci_msi_common *msis = &pdev->msix;
+	struct vfio_pci_msi_common *msis = msix ? &pdev->msix : &pdev->msi;
 	struct vfio_irq_set irq_set = {
 		.argsz	= sizeof(irq_set),
 		.flags 	= VFIO_IRQ_SET_DATA_NONE | VFIO_IRQ_SET_ACTION_TRIGGER,
@@ -287,7 +289,7 @@ static void vfio_pci_msix_table_access(struct kvm_cpu *vcpu, u64 addr, u8 *data,
 		vfio_dev_err(vdev, "failed to configure MSIX vector %zu", vector);
 
 	/* Update the physical capability if necessary */
-	if (vfio_pci_enable_msis(kvm, vdev))
+	if (vfio_pci_enable_msis(kvm, vdev, true))
 		vfio_dev_err(vdev, "cannot enable MSIX");
 
 out_unlock:
@@ -318,12 +320,118 @@ static void vfio_pci_msix_cap_write(struct kvm *kvm,
 	enable = flags & PCI_MSIX_FLAGS_ENABLE;
 	msi_set_enabled(pdev->msix.virt_state, enable);
 
-	if (enable && vfio_pci_enable_msis(kvm, vdev))
+	if (enable && vfio_pci_enable_msis(kvm, vdev, true))
 		vfio_dev_err(vdev, "cannot enable MSIX");
-	else if (!enable && vfio_pci_disable_msis(kvm, vdev))
+	else if (!enable && vfio_pci_disable_msis(kvm, vdev, true))
 		vfio_dev_err(vdev, "cannot disable MSIX");
 
 	mutex_unlock(&pdev->msix.mutex);
+}
+
+static int vfio_pci_msi_vector_write(struct kvm *kvm, struct vfio_device *vdev,
+				     u8 off, u8 *data, u32 sz)
+{
+	size_t i;
+	u32 mask = 0;
+	size_t mask_pos, start, limit;
+	struct vfio_pci_msi_entry *entry;
+	struct vfio_pci_device *pdev = &vdev->pci;
+	struct msi_cap_64 *msi_cap_64 = PCI_CAP(&pdev->hdr, pdev->msi.pos);
+
+	if (!(msi_cap_64->ctrl & PCI_MSI_FLAGS_MASKBIT))
+		return 0;
+
+	if (msi_cap_64->ctrl & PCI_MSI_FLAGS_64BIT)
+		mask_pos = PCI_MSI_MASK_64;
+	else
+		mask_pos = PCI_MSI_MASK_32;
+
+	if (off >= mask_pos + 4 || off + sz <= mask_pos)
+		return 0;
+
+	/* Set mask to current state */
+	for (i = 0; i < pdev->msi.nr_entries; i++) {
+		entry = &pdev->msi.entries[i];
+		mask |= !!msi_is_masked(entry->virt_state) << i;
+	}
+
+	/* Update mask following the intersection of access and register */
+	start = max_t(size_t, off, mask_pos);
+	limit = min_t(size_t, off + sz, mask_pos + 4);
+
+	memcpy((void *)&mask + start - mask_pos, data + start - off,
+	       limit - start);
+
+	/* Update states if necessary */
+	for (i = 0; i < pdev->msi.nr_entries; i++) {
+		bool masked = mask & (1 << i);
+
+		entry = &pdev->msi.entries[i];
+		if (masked != msi_is_masked(entry->virt_state)) {
+			msi_set_masked(entry->virt_state, masked);
+			vfio_pci_update_msi_entry(kvm, vdev, entry);
+		}
+	}
+
+	return 1;
+}
+
+static void vfio_pci_msi_cap_write(struct kvm *kvm, struct vfio_device *vdev,
+				   u8 off, u8 *data, u32 sz)
+{
+	u8 ctrl;
+	struct msi_msg msg;
+	size_t i, nr_vectors;
+	struct vfio_pci_msi_entry *entry;
+	struct vfio_pci_device *pdev = &vdev->pci;
+	struct msi_cap_64 *msi_cap_64 = PCI_CAP(&pdev->hdr, pdev->msi.pos);
+
+	off -= pdev->msi.pos;
+
+	mutex_lock(&pdev->msi.mutex);
+
+	/* Check if the guest is trying to update mask bits */
+	if (vfio_pci_msi_vector_write(kvm, vdev, off, data, sz))
+		goto out_unlock;
+
+	/* Only modify routes when guest pokes the enable bit */
+	if (off > PCI_MSI_FLAGS || off + sz <= PCI_MSI_FLAGS)
+		goto out_unlock;
+
+	ctrl = *(u8 *)(data + PCI_MSI_FLAGS - off);
+
+	msi_set_enabled(pdev->msi.virt_state, ctrl & PCI_MSI_FLAGS_ENABLE);
+
+	if (!msi_is_enabled(pdev->msi.virt_state)) {
+		vfio_pci_disable_msis(kvm, vdev, false);
+		goto out_unlock;
+	}
+
+	/* Create routes for the requested vectors */
+	nr_vectors = 1 << ((ctrl & PCI_MSI_FLAGS_QSIZE) >> 4);
+
+	msg.address_lo = msi_cap_64->address_lo;
+	if (msi_cap_64->ctrl & PCI_MSI_FLAGS_64BIT) {
+		msg.address_hi = msi_cap_64->address_hi;
+		msg.data = msi_cap_64->data;
+	} else {
+		struct msi_cap_32 *msi_cap_32 = (void *)msi_cap_64;
+		msg.address_hi = 0;
+		msg.data = msi_cap_32->data;
+	}
+
+	for (i = 0; i < nr_vectors; i++) {
+		entry = &pdev->msi.entries[i];
+		entry->config.msg = msg;
+		vfio_pci_update_msi_entry(kvm, vdev, entry);
+	}
+
+	/* Update the physical capability if necessary */
+	if (vfio_pci_enable_msis(kvm, vdev, false))
+		vfio_dev_err(vdev, "cannot enable MSI");
+
+out_unlock:
+	mutex_unlock(&pdev->msi.mutex);
 }
 
 static void vfio_pci_cfg_read(struct kvm *kvm, struct pci_device_header *pci_hdr,
@@ -364,9 +472,24 @@ static void vfio_pci_cfg_write(struct kvm *kvm, struct pci_device_header *pci_hd
 	if (pdev->irq_modes & VFIO_PCI_IRQ_MODE_MSIX)
 		vfio_pci_msix_cap_write(kvm, vdev, offset, data, sz);
 
+	if (pdev->irq_modes & VFIO_PCI_IRQ_MODE_MSI)
+		vfio_pci_msi_cap_write(kvm, vdev, offset, data, sz);
+
 	if (pread(vdev->fd, base + offset, sz, info->offset + offset) != sz)
 		vfio_dev_warn(vdev, "Failed to read %d bytes from Configuration Space at 0x%x",
 			      sz, offset);
+}
+
+static ssize_t vfio_pci_msi_cap_size(struct msi_cap_64 *cap_hdr)
+{
+	size_t size = 10;
+
+	if (cap_hdr->ctrl & PCI_MSI_FLAGS_64BIT)
+		size += 4;
+	if (cap_hdr->ctrl & PCI_MSI_FLAGS_MASKBIT)
+		size += 10;
+
+	return size;
 }
 
 static ssize_t vfio_pci_cap_size(struct pci_cap_hdr *cap_hdr)
@@ -374,6 +497,8 @@ static ssize_t vfio_pci_cap_size(struct pci_cap_hdr *cap_hdr)
 	switch (cap_hdr->type) {
 	case PCI_CAP_ID_MSIX:
 		return PCI_CAP_MSIX_SIZEOF;
+	case PCI_CAP_ID_MSI:
+		return vfio_pci_msi_cap_size((void *)cap_hdr);
 	default:
 		pr_err("unknown PCI capability 0x%x", cap_hdr->type);
 		return 0;
@@ -441,6 +566,14 @@ static int vfio_pci_parse_caps(struct vfio_device *vdev)
 
 			pdev->msix.pos = pos;
 			pdev->irq_modes |= VFIO_PCI_IRQ_MODE_MSIX;
+			break;
+		case PCI_CAP_ID_MSI:
+			ret = vfio_pci_add_cap(vdev, virt_hdr, cap, pos);
+			if (ret)
+				return ret;
+
+			pdev->msi.pos = pos;
+			pdev->irq_modes |= VFIO_PCI_IRQ_MODE_MSI;
 			break;
 		}
 	}
@@ -644,6 +777,19 @@ out_free:
 	return ret;
 }
 
+static int vfio_pci_create_msi_cap(struct kvm *kvm, struct vfio_pci_device *pdev)
+{
+	struct msi_cap_64 *cap = PCI_CAP(&pdev->hdr, pdev->msi.pos);
+
+	pdev->msi.nr_entries = 1 << ((cap->ctrl & PCI_MSI_FLAGS_QMASK) >> 1),
+	pdev->msi.entries = calloc(pdev->msi.nr_entries,
+				   sizeof(struct vfio_pci_msi_entry));
+	if (!pdev->msi.entries)
+		return -ENOMEM;
+
+	return 0;
+}
+
 static int vfio_pci_configure_bar(struct kvm *kvm, struct vfio_device *vdev,
 				  size_t nr)
 {
@@ -712,6 +858,12 @@ static int vfio_pci_configure_dev_regions(struct kvm *kvm,
 
 	if (pdev->irq_modes & VFIO_PCI_IRQ_MODE_MSIX) {
 		ret = vfio_pci_create_msix_table(kvm, pdev);
+		if (ret)
+			return ret;
+	}
+
+	if (pdev->irq_modes & VFIO_PCI_IRQ_MODE_MSI) {
+		ret = vfio_pci_create_msi_cap(kvm, pdev);
 		if (ret)
 			return ret;
 	}
@@ -971,6 +1123,16 @@ static int vfio_pci_configure_dev_irqs(struct kvm *kvm, struct vfio_device *vdev
 			return ret;
 	}
 
+	if (pdev->irq_modes & VFIO_PCI_IRQ_MODE_MSI) {
+		pdev->msi.info = (struct vfio_irq_info) {
+			.argsz = sizeof(pdev->msi.info),
+			.index = VFIO_PCI_MSI_IRQ_INDEX,
+		};
+		ret = vfio_pci_init_msis(kvm, vdev, &pdev->msi);
+		if (ret)
+			return ret;
+	}
+
 	if (pdev->irq_modes & VFIO_PCI_IRQ_MODE_INTX)
 		ret = vfio_pci_enable_intx(kvm, vdev);
 
@@ -1019,4 +1181,6 @@ void vfio_pci_teardown_device(struct kvm *kvm, struct vfio_device *vdev)
 
 	free(pdev->msix.irq_set);
 	free(pdev->msix.entries);
+	free(pdev->msi.irq_set);
+	free(pdev->msi.entries);
 }

@@ -59,6 +59,29 @@ struct msix_cap {
 	u32 pba_offset;
 };
 
+struct msi_cap_64 {
+	u8 cap;
+	u8 next;
+	u16 ctrl;
+	u32 address_lo;
+	u32 address_hi;
+	u16 data;
+	u16 _align;
+	u32 mask_bits;
+	u32 pend_bits;
+};
+
+struct msi_cap_32 {
+	u8 cap;
+	u8 next;
+	u16 ctrl;
+	u32 address_lo;
+	u16 data;
+	u16 _align;
+	u32 mask_bits;
+	u32 pend_bits;
+};
+
 struct pci_cap_hdr {
 	u8	type;
 	u8	next;
