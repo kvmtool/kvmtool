@@ -364,7 +364,7 @@ all: $(PROGRAM) $(PROGRAM_ALIAS)
 
 # CFLAGS used when building objects
 # This is intentionally not assigned using :=
-c_flags	= -Wp,-MD,$(depfile) $(CFLAGS)
+c_flags	= -Wp,-MD,$(depfile) -Wp,-MT,$@ $(CFLAGS)
 
 # When building -static all objects are built with appropriate flags, which
 # may differ between static & dynamic .o.  The objects are separated into
