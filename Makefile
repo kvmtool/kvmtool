@@ -209,7 +209,13 @@ ifeq ($(call try-build,$(SOURCE_BFD),$(CFLAGS),$(LDFLAGS) -lbfd -static),y)
 	OBJS_STATOPT	+= symbol.o
 	LIBS_STATOPT	+= -lbfd
 else
-	NOTFOUND	+= bfd
+	ifeq ($(call try-build,$(SOURCE_BFD),$(CFLAGS),$(LDFLAGS) -lbfd),y)
+		CFLAGS_DYNOPT	+= -DCONFIG_HAS_BFD
+		OBJS_DYNOPT	+= symbol.o
+		LIBS_DYNOPT	+= -lbfd
+	else
+		NOTFOUND	+= bfd
+	endif
 endif
 
 ifeq (y,$(ARCH_HAS_FRAMEBUFFER))
