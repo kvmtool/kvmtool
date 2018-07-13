@@ -254,22 +254,24 @@ ifeq ($(call try-build,$(SOURCE_ZLIB),$(CFLAGS),$(LDFLAGS) -lz),y)
 	CFLAGS_DYNOPT	+= -DCONFIG_HAS_ZLIB
 	LIBS_DYNOPT	+= -lz
 else
-	NOTFOUND	+= zlib
-endif
-ifeq ($(call try-build,$(SOURCE_ZLIB),$(CFLAGS),$(LDFLAGS) -lz -static),y)
-	CFLAGS_STATOPT	+= -DCONFIG_HAS_ZLIB
-	LIBS_STATOPT	+= -lz
+	ifeq ($(call try-build,$(SOURCE_ZLIB),$(CFLAGS),$(LDFLAGS) -lz -static),y)
+		CFLAGS_STATOPT	+= -DCONFIG_HAS_ZLIB
+		LIBS_STATOPT	+= -lz
+	else
+		NOTFOUND	+= zlib
+	endif
 endif
 
 ifeq ($(call try-build,$(SOURCE_AIO),$(CFLAGS),$(LDFLAGS) -laio),y)
 	CFLAGS_DYNOPT	+= -DCONFIG_HAS_AIO
 	LIBS_DYNOPT	+= -laio
 else
-	NOTFOUND	+= aio
-endif
-ifeq ($(call try-build,$(SOURCE_AIO),$(CFLAGS),$(LDFLAGS) -laio -static),y)
-	CFLAGS_STATOPT	+= -DCONFIG_HAS_AIO
-	LIBS_STATOPT	+= -laio
+	ifeq ($(call try-build,$(SOURCE_AIO),$(CFLAGS),$(LDFLAGS) -laio -static),y)
+		CFLAGS_STATOPT	+= -DCONFIG_HAS_AIO
+		LIBS_STATOPT	+= -laio
+	else
+		NOTFOUND	+= aio
+	endif
 endif
 
 ifeq ($(LTO),1)
