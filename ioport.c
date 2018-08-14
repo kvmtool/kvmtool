@@ -133,6 +133,7 @@ int ioport__unregister(struct kvm *kvm, u16 port)
 	if (!entry)
 		goto done;
 
+	device__unregister(&entry->dev_hdr);
 	ioport_remove(&ioport_tree, entry);
 
 	free(entry);
@@ -155,6 +156,7 @@ static void ioport__unregister_all(void)
 	while (rb) {
 		rb_node = rb_int(rb);
 		entry = ioport_node(rb_node);
+		device__unregister(&entry->dev_hdr);
 		ioport_remove(&ioport_tree, entry);
 		free(entry);
 		rb = rb_first(&ioport_tree);
