@@ -63,6 +63,8 @@ extern struct kvm_ext kvm_req_ext[];
 
 static char kvm_dir[PATH_MAX];
 
+extern __thread struct kvm_cpu *current_kvm_cpu;
+
 static int set_dir(const char *fmt, va_list args)
 {
 	char tmp[PATH_MAX];
@@ -519,7 +521,7 @@ void kvm__pause(struct kvm *kvm)
 	if (pause_event < 0)
 		die("Failed creating pause notification event");
 	for (i = 0; i < kvm->nrcpus; i++) {
-		if (kvm->cpus[i]->is_running)
+		if (kvm->cpus[i]->is_running && kvm->cpus[i]->paused == 0)
 			pthread_kill(kvm->cpus[i]->thread, SIGKVMPAUSE);
 		else
 			paused_vcpus++;
@@ -543,5 +545,6 @@ void kvm__notify_paused(void)
 		die("Failed notifying of paused VCPU.");
 
 	mutex_lock(&pause_lock);
+	current_kvm_cpu->paused = 0;
 	mutex_unlock(&pause_lock);
 }

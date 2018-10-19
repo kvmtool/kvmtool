@@ -148,10 +148,8 @@ int kvm_cpu__start(struct kvm_cpu *cpu)
 		kvm_cpu__enable_singlestep(cpu);
 
 	while (cpu->is_running) {
-		if (cpu->paused) {
+		if (cpu->paused)
 			kvm__notify_paused();
-			cpu->paused = 0;
-		}
 
 		if (cpu->needs_nmi) {
 			kvm_cpu__arch_nmi(cpu);
