@@ -51,7 +51,19 @@ static void kvm_cpu_signal_handler(int signum)
 		if (current_kvm_cpu && current_kvm_cpu->is_running)
 			current_kvm_cpu->is_running = false;
 	} else if (signum == SIGKVMPAUSE) {
+		if (current_kvm_cpu->paused)
+			die("Pause signaled for already paused CPU\n");
+
+		/* pause_lock is held by kvm__pause() */
 		current_kvm_cpu->paused = 1;
+
+		/*
+		 * This is a blocking function and uses locks. It is safe
+		 * to call it for this signal as a second pause event should
+		 * not be send to this thread until it acquires and releases
+		 * the pause_lock.
+		 */
+		kvm__notify_paused();
 	}
 
 	/* For SIGKVMTASK cpu->task is already set */
@@ -148,9 +160,6 @@ int kvm_cpu__start(struct kvm_cpu *cpu)
 		kvm_cpu__enable_singlestep(cpu);
 
 	while (cpu->is_running) {
-		if (cpu->paused)
-			kvm__notify_paused();
-
 		if (cpu->needs_nmi) {
 			kvm_cpu__arch_nmi(cpu);
 			cpu->needs_nmi = 0;
