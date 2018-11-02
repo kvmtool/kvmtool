@@ -124,8 +124,15 @@ static inline bool virt_queue__available(struct virt_queue *vq)
 	if (!vq->vring.avail)
 		return 0;
 
-	if (vq->use_event_idx)
+	if (vq->use_event_idx) {
 		vring_avail_event(&vq->vring) = last_avail_idx;
+		/*
+		 * After the driver writes a new avail index, it reads the event
+		 * index to see if we need any notification. Ensure that it
+		 * reads the updated index, or else we'll miss the notification.
+		 */
+		mb();
+	}
 
 	return vq->vring.avail->idx != last_avail_idx;
 }
