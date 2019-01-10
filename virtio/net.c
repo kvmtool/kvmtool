@@ -518,7 +518,10 @@ static void set_guest_features(struct kvm *kvm, void *dev, u32 features)
 	conf->status = virtio_host_to_guest_u16(&ndev->vdev, conf->status);
 	conf->max_virtqueue_pairs = virtio_host_to_guest_u16(&ndev->vdev,
 							     conf->max_virtqueue_pairs);
+}
 
+static void virtio_net_start(struct net_dev *ndev)
+{
 	if (ndev->mode == NET_MODE_TAP) {
 		if (!virtio_net__tap_init(ndev))
 			die_perror("TAP device initialized failed because");
@@ -532,6 +535,12 @@ static void set_guest_features(struct kvm *kvm, void *dev, u32 features)
 						sizeof(struct virtio_net_hdr);
 		uip_init(&ndev->info);
 	}
+}
+
+static void notify_status(struct kvm *kvm, void *dev, u32 status)
+{
+	if (status & VIRTIO__STATUS_START)
+		virtio_net_start(dev);
 }
 
 static bool is_ctrl_vq(struct net_dev *ndev, u32 vq)
@@ -683,6 +692,7 @@ static struct virtio_ops net_dev_virtio_ops = {
 	.notify_vq		= notify_vq,
 	.notify_vq_gsi		= notify_vq_gsi,
 	.notify_vq_eventfd	= notify_vq_eventfd,
+	.notify_status		= notify_status,
 };
 
 static void virtio_net__vhost_init(struct kvm *kvm, struct net_dev *ndev)

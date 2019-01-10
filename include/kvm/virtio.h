@@ -7,6 +7,7 @@
 #include <linux/virtio_pci.h>
 
 #include <linux/types.h>
+#include <linux/virtio_config.h>
 #include <sys/uio.h>
 
 #include "kvm/barrier.h"
@@ -26,6 +27,20 @@
 #else
 #define VIRTIO_ENDIAN_HOST VIRTIO_ENDIAN_BE
 #endif
+
+/* Reserved status bits */
+#define VIRTIO_CONFIG_S_MASK \
+	(VIRTIO_CONFIG_S_ACKNOWLEDGE |	\
+	 VIRTIO_CONFIG_S_DRIVER |	\
+	 VIRTIO_CONFIG_S_DRIVER_OK |	\
+	 VIRTIO_CONFIG_S_FEATURES_OK |	\
+	 VIRTIO_CONFIG_S_FAILED)
+
+/* Kvmtool status bits */
+/* Start the device */
+#define VIRTIO__STATUS_START		(1 << 8)
+/* Stop the device */
+#define VIRTIO__STATUS_STOP		(1 << 9)
 
 struct virt_queue {
 	struct vring	vring;
@@ -162,6 +177,7 @@ struct virtio_device {
 	struct virtio_ops	*ops;
 	u16			endian;
 	u32			features;
+	u32			status;
 };
 
 struct virtio_ops {
@@ -178,7 +194,7 @@ struct virtio_ops {
 	void (*notify_vq_eventfd)(struct kvm *kvm, void *dev, u32 vq, u32 efd);
 	int (*signal_vq)(struct kvm *kvm, struct virtio_device *vdev, u32 queueid);
 	int (*signal_config)(struct kvm *kvm, struct virtio_device *vdev);
-	void (*notify_status)(struct kvm *kvm, void *dev, u8 status);
+	void (*notify_status)(struct kvm *kvm, void *dev, u32 status);
 	int (*init)(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 		    int device_id, int subsys_id, int class);
 	int (*exit)(struct kvm *kvm, struct virtio_device *vdev);
@@ -204,5 +220,7 @@ static inline void virtio_init_device_vq(struct virtio_device *vdev,
 
 void virtio_set_guest_features(struct kvm *kvm, struct virtio_device *vdev,
 			       void *dev, u32 features);
+void virtio_notify_status(struct kvm *kvm, struct virtio_device *vdev,
+			  void *dev, u8 status);
 
 #endif /* KVM__VIRTIO_H */

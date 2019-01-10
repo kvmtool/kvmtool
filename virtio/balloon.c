@@ -193,6 +193,10 @@ static void set_guest_features(struct kvm *kvm, void *dev, u32 features)
 	bdev->features = features;
 }
 
+static void notify_status(struct kvm *kvm, void *dev, u32 status)
+{
+}
+
 static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 page_size, u32 align,
 		   u32 pfn)
 {
@@ -244,6 +248,7 @@ struct virtio_ops bln_dev_virtio_ops = {
 	.get_host_features	= get_host_features,
 	.set_guest_features	= set_guest_features,
 	.init_vq		= init_vq,
+	.notify_status		= notify_status,
 	.notify_vq		= notify_vq,
 	.get_pfn_vq		= get_pfn_vq,
 	.get_size_vq		= get_size_vq,

@@ -162,8 +162,7 @@ static void virtio_mmio_config_out(struct kvm_cpu *vcpu,
 		vmmio->hdr.status = ioport__read32(data);
 		if (!vmmio->hdr.status) /* Sample endianness on reset */
 			vdev->endian = kvm_cpu__get_endianness(vcpu);
-		if (vdev->ops->notify_status)
-			vdev->ops->notify_status(kvm, vmmio->dev, vmmio->hdr.status);
+		virtio_notify_status(kvm, vdev, vmmio->dev, vmmio->hdr.status);
 		break;
 	case VIRTIO_MMIO_GUEST_FEATURES:
 		if (vmmio->hdr.guest_features_sel == 0) {

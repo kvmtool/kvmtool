@@ -285,8 +285,7 @@ static bool virtio_pci__io_out(struct ioport *ioport, struct kvm_cpu *vcpu, u16 
 		vpci->status = ioport__read8(data);
 		if (!vpci->status) /* Sample endianness on reset */
 			vdev->endian = kvm_cpu__get_endianness(vcpu);
-		if (vdev->ops->notify_status)
-			vdev->ops->notify_status(kvm, vpci->dev, vpci->status);
+		virtio_notify_status(kvm, vdev, vpci->dev, vpci->status);
 		break;
 	default:
 		ret = virtio_pci__specific_io_out(kvm, vdev, port, data, size, offset);

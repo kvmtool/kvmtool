@@ -214,6 +214,29 @@ void virtio_set_guest_features(struct kvm *kvm, struct virtio_device *vdev,
 	vdev->ops->set_guest_features(kvm, dev, features);
 }
 
+void virtio_notify_status(struct kvm *kvm, struct virtio_device *vdev,
+			  void *dev, u8 status)
+{
+	u32 ext_status = status;
+
+	vdev->status &= ~VIRTIO_CONFIG_S_MASK;
+	vdev->status |= status;
+
+	/* Add a few hints to help devices */
+	if ((status & VIRTIO_CONFIG_S_DRIVER_OK) &&
+	    !(vdev->status & VIRTIO__STATUS_START)) {
+		vdev->status |= VIRTIO__STATUS_START;
+		ext_status |= VIRTIO__STATUS_START;
+
+	} else if (!status && (vdev->status & VIRTIO__STATUS_START)) {
+		vdev->status &= ~VIRTIO__STATUS_START;
+		ext_status |= VIRTIO__STATUS_STOP;
+	}
+
+	if (vdev->ops->notify_status)
+		vdev->ops->notify_status(kvm, dev, ext_status);
+}
+
 int virtio_init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 		struct virtio_ops *ops, enum virtio_trans trans,
 		int device_id, int subsys_id, int class)
