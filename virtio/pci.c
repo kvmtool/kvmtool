@@ -72,6 +72,16 @@ free_ioport_evt:
 	return r;
 }
 
+static void virtio_pci_exit_vq(struct kvm *kvm, struct virtio_device *vdev,
+			       int vq)
+{
+	struct virtio_pci *vpci = vdev->virtio;
+
+	ioeventfd__del_event(vpci->port_addr + VIRTIO_PCI_QUEUE_NOTIFY, vq);
+	ioeventfd__del_event(vpci->mmio_addr + VIRTIO_PCI_QUEUE_NOTIFY, vq);
+	virtio_exit_vq(kvm, vdev, vpci->dev, vq);
+}
+
 static inline bool virtio_pci__msix_enabled(struct virtio_pci *vpci)
 {
 	return vpci->pci_hdr.msix.ctrl & cpu_to_le16(PCI_MSIX_FLAGS_ENABLE);
@@ -270,10 +280,15 @@ static bool virtio_pci__io_out(struct ioport *ioport, struct kvm_cpu *vcpu, u16 
 		break;
 	case VIRTIO_PCI_QUEUE_PFN:
 		val = ioport__read32(data);
-		virtio_pci__init_ioeventfd(kvm, vdev, vpci->queue_selector);
-		vdev->ops->init_vq(kvm, vpci->dev, vpci->queue_selector,
-				   1 << VIRTIO_PCI_QUEUE_ADDR_SHIFT,
-				   VIRTIO_PCI_VRING_ALIGN, val);
+		if (val) {
+			virtio_pci__init_ioeventfd(kvm, vdev,
+						   vpci->queue_selector);
+			vdev->ops->init_vq(kvm, vpci->dev, vpci->queue_selector,
+					   1 << VIRTIO_PCI_QUEUE_ADDR_SHIFT,
+					   VIRTIO_PCI_VRING_ALIGN, val);
+		} else {
+			virtio_pci_exit_vq(kvm, vdev, vpci->queue_selector);
+		}
 		break;
 	case VIRTIO_PCI_QUEUE_SEL:
 		vpci->queue_selector = ioport__read16(data);

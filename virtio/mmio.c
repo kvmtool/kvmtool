@@ -79,6 +79,15 @@ int virtio_mmio_signal_vq(struct kvm *kvm, struct virtio_device *vdev, u32 vq)
 	return 0;
 }
 
+static void virtio_mmio_exit_vq(struct kvm *kvm, struct virtio_device *vdev,
+				int vq)
+{
+	struct virtio_mmio *vmmio = vdev->virtio;
+
+	ioeventfd__del_event(vmmio->addr + VIRTIO_MMIO_QUEUE_NOTIFY, vq);
+	virtio_exit_vq(kvm, vdev, vmmio->dev, vq);
+}
+
 int virtio_mmio_signal_config(struct kvm *kvm, struct virtio_device *vdev)
 {
 	struct virtio_mmio *vmmio = vdev->virtio;
@@ -188,12 +197,17 @@ static void virtio_mmio_config_out(struct kvm_cpu *vcpu,
 		break;
 	case VIRTIO_MMIO_QUEUE_PFN:
 		val = ioport__read32(data);
-		virtio_mmio_init_ioeventfd(vmmio->kvm, vdev, vmmio->hdr.queue_sel);
-		vdev->ops->init_vq(vmmio->kvm, vmmio->dev,
-				   vmmio->hdr.queue_sel,
-				   vmmio->hdr.guest_page_size,
-				   vmmio->hdr.queue_align,
-				   val);
+		if (val) {
+			virtio_mmio_init_ioeventfd(vmmio->kvm, vdev,
+						   vmmio->hdr.queue_sel);
+			vdev->ops->init_vq(vmmio->kvm, vmmio->dev,
+					   vmmio->hdr.queue_sel,
+					   vmmio->hdr.guest_page_size,
+					   vmmio->hdr.queue_align,
+					   val);
+		} else {
+			virtio_mmio_exit_vq(kvm, vdev, vmmio->hdr.queue_sel);
+		}
 		break;
 	case VIRTIO_MMIO_QUEUE_NOTIFY:
 		val = ioport__read32(data);

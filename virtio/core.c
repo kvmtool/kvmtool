@@ -166,6 +166,16 @@ u16 virt_queue__get_inout_iov(struct kvm *kvm, struct virt_queue *queue,
 	return head;
 }
 
+void virtio_exit_vq(struct kvm *kvm, struct virtio_device *vdev,
+			   void *dev, int num)
+{
+	struct virt_queue *vq = vdev->ops->get_vq(kvm, dev, num);
+
+	if (vq->enabled && vdev->ops->exit_vq)
+		vdev->ops->exit_vq(kvm, dev, num);
+	memset(vq, 0, sizeof(*vq));
+}
+
 int virtio__get_dev_specific_field(int offset, bool msix, u32 *config_off)
 {
 	if (msix) {

@@ -51,6 +51,7 @@ struct virt_queue {
 	u16		last_used_signalled;
 	u16		endian;
 	bool		use_event_idx;
+	bool		enabled;
 };
 
 /*
@@ -187,6 +188,7 @@ struct virtio_ops {
 	int (*get_vq_count)(struct kvm *kvm, void *dev);
 	int (*init_vq)(struct kvm *kvm, void *dev, u32 vq, u32 page_size,
 		       u32 align, u32 pfn);
+	void (*exit_vq)(struct kvm *kvm, void *dev, u32 vq);
 	int (*notify_vq)(struct kvm *kvm, void *dev, u32 vq);
 	struct virt_queue *(*get_vq)(struct kvm *kvm, void *dev, u32 vq);
 	int (*get_size_vq)(struct kvm *kvm, void *dev, u32 vq);
@@ -217,8 +219,11 @@ static inline void virtio_init_device_vq(struct virtio_device *vdev,
 {
 	vq->endian = vdev->endian;
 	vq->use_event_idx = (vdev->features & VIRTIO_RING_F_EVENT_IDX);
+	vq->enabled = true;
 }
 
+void virtio_exit_vq(struct kvm *kvm, struct virtio_device *vdev, void *dev,
+		    int num);
 void virtio_set_guest_features(struct kvm *kvm, struct virtio_device *vdev,
 			       void *dev, u32 features);
 void virtio_notify_status(struct kvm *kvm, struct virtio_device *vdev,
