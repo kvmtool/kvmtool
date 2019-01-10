@@ -25,7 +25,7 @@ static struct thread_pool__job *thread_pool__job_pop_locked(void)
 		return NULL;
 
 	job = list_first_entry(&head, struct thread_pool__job, queue);
-	list_del(&job->queue);
+	list_del_init(&job->queue);
 
 	return job;
 }
@@ -172,4 +172,27 @@ void thread_pool__do_job(struct thread_pool__job *job)
 	mutex_lock(&job_mutex);
 	pthread_cond_signal(&job_cond);
 	mutex_unlock(&job_mutex);
+}
+
+void thread_pool__cancel_job(struct thread_pool__job *job)
+{
+	bool running;
+
+	/*
+	 * If the job is queued but not running, remove it. Otherwise, wait for
+	 * the signalcount to drop to 0, indicating that it has finished
+	 * running. We assume that nobody is queueing this job -
+	 * thread_pool__do_job() isn't called - while this function is running.
+	 */
+	do {
+		mutex_lock(&job_mutex);
+		if (list_empty(&job->queue)) {
+			running = job->signalcount > 0;
+		} else {
+			list_del_init(&job->queue);
+			job->signalcount = 0;
+			running = false;
+		}
+		mutex_unlock(&job_mutex);
+	} while (running);
 }
