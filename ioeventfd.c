@@ -172,7 +172,7 @@ int ioeventfd__add_event(struct ioevent *ioevent, int flags)
 		}
 	}
 
-	ioevent->flags = kvm_ioevent.flags;
+	new_ioevent->flags = kvm_ioevent.flags;
 	list_add_tail(&new_ioevent->list, &used_ioevents);
 
 	return 0;
@@ -192,7 +192,8 @@ int ioeventfd__del_event(u64 addr, u64 datamatch)
 		return -ENOSYS;
 
 	list_for_each_entry(ioevent, &used_ioevents, list) {
-		if (ioevent->io_addr == addr) {
+		if (ioevent->io_addr == addr &&
+		    ioevent->datamatch == datamatch) {
 			found = 1;
 			break;
 		}
@@ -202,6 +203,7 @@ int ioeventfd__del_event(u64 addr, u64 datamatch)
 		return -ENOENT;
 
 	kvm_ioevent = (struct kvm_ioeventfd) {
+		.fd			= ioevent->fd,
 		.addr			= ioevent->io_addr,
 		.len			= ioevent->io_len,
 		.datamatch		= ioevent->datamatch,
