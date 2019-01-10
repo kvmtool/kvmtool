@@ -1384,6 +1384,14 @@ static void set_guest_features(struct kvm *kvm, void *dev, u32 features)
 
 static void notify_status(struct kvm *kvm, void *dev, u32 status)
 {
+	struct p9_dev *p9dev = dev;
+	struct p9_fid *pfid, *next;
+
+	if (!(status & VIRTIO__STATUS_STOP))
+		return;
+
+	rbtree_postorder_for_each_entry_safe(pfid, next, &p9dev->fids, node)
+		close_fid(p9dev, pfid->fid);
 }
 
 static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 page_size, u32 align,
@@ -1411,6 +1419,13 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 page_size, u32 align,
 	thread_pool__init_job(&job->job_id, kvm, virtio_p9_do_io, job);
 
 	return 0;
+}
+
+static void exit_vq(struct kvm *kvm, void *dev, u32 vq)
+{
+	struct p9_dev *p9dev = dev;
+
+	thread_pool__cancel_job(&p9dev->jobs[vq].job_id);
 }
 
 static int notify_vq(struct kvm *kvm, void *dev, u32 vq)
@@ -1450,6 +1465,7 @@ struct virtio_ops p9_dev_virtio_ops = {
 	.get_host_features	= get_host_features,
 	.set_guest_features	= set_guest_features,
 	.init_vq		= init_vq,
+	.exit_vq		= exit_vq,
 	.notify_status		= notify_status,
 	.notify_vq		= notify_vq,
 	.get_vq			= get_vq,
