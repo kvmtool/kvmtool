@@ -326,15 +326,23 @@ int virtio_mmio_init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 	return 0;
 }
 
+int virtio_mmio_reset(struct kvm *kvm, struct virtio_device *vdev)
+{
+	int vq;
+	struct virtio_mmio *vmmio = vdev->virtio;
+
+	for (vq = 0; vq < vdev->ops->get_vq_count(kvm, vmmio->dev); vq++)
+		virtio_mmio_exit_vq(kvm, vdev, vq);
+
+	return 0;
+}
+
 int virtio_mmio_exit(struct kvm *kvm, struct virtio_device *vdev)
 {
 	struct virtio_mmio *vmmio = vdev->virtio;
-	int i;
 
+	virtio_mmio_reset(kvm, vdev);
 	kvm__deregister_mmio(kvm, vmmio->addr);
-
-	for (i = 0; i < VIRTIO_MMIO_MAX_VQ; i++)
-		ioeventfd__del_event(vmmio->addr + VIRTIO_MMIO_QUEUE_NOTIFY, i);
 
 	return 0;
 }

@@ -201,6 +201,7 @@ struct virtio_ops {
 	int (*init)(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 		    int device_id, int subsys_id, int class);
 	int (*exit)(struct kvm *kvm, struct virtio_device *vdev);
+	int (*reset)(struct kvm *kvm, struct virtio_device *vdev);
 };
 
 int virtio_init(struct kvm *kvm, void *dev, struct virtio_device *vdev,

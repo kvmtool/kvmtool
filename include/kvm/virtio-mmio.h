@@ -54,6 +54,7 @@ struct virtio_mmio {
 int virtio_mmio_signal_vq(struct kvm *kvm, struct virtio_device *vdev, u32 vq);
 int virtio_mmio_signal_config(struct kvm *kvm, struct virtio_device *vdev);
 int virtio_mmio_exit(struct kvm *kvm, struct virtio_device *vdev);
+int virtio_mmio_reset(struct kvm *kvm, struct virtio_device *vdev);
 int virtio_mmio_init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 		      int device_id, int subsys_id, int class);
 void virtio_mmio_assign_irq(struct device_header *dev_hdr);

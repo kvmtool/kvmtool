@@ -77,8 +77,8 @@ static void virtio_pci_exit_vq(struct kvm *kvm, struct virtio_device *vdev,
 {
 	struct virtio_pci *vpci = vdev->virtio;
 
-	ioeventfd__del_event(vpci->port_addr + VIRTIO_PCI_QUEUE_NOTIFY, vq);
 	ioeventfd__del_event(vpci->mmio_addr + VIRTIO_PCI_QUEUE_NOTIFY, vq);
+	ioeventfd__del_event(vpci->port_addr + VIRTIO_PCI_QUEUE_NOTIFY, vq);
 	virtio_exit_vq(kvm, vdev, vpci->dev, vq);
 }
 
@@ -522,19 +522,25 @@ free_ioport:
 	return r;
 }
 
+int virtio_pci__reset(struct kvm *kvm, struct virtio_device *vdev)
+{
+	int vq;
+	struct virtio_pci *vpci = vdev->virtio;
+
+	for (vq = 0; vq < vdev->ops->get_vq_count(kvm, vpci->dev); vq++)
+		virtio_pci_exit_vq(kvm, vdev, vq);
+
+	return 0;
+}
+
 int virtio_pci__exit(struct kvm *kvm, struct virtio_device *vdev)
 {
 	struct virtio_pci *vpci = vdev->virtio;
-	int i;
 
+	virtio_pci__reset(kvm, vdev);
 	kvm__deregister_mmio(kvm, vpci->mmio_addr);
 	kvm__deregister_mmio(kvm, vpci->msix_io_block);
 	ioport__unregister(kvm, vpci->port_addr);
-
-	for (i = 0; i < VIRTIO_PCI_MAX_VQ; i++) {
-		ioeventfd__del_event(vpci->port_addr + VIRTIO_PCI_QUEUE_NOTIFY, i);
-		ioeventfd__del_event(vpci->mmio_addr + VIRTIO_PCI_QUEUE_NOTIFY, i);
-	}
 
 	return 0;
 }
