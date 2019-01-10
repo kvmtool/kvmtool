@@ -11,6 +11,7 @@ struct kvm_config_arch {
 	bool		has_pmuv3;
 	u64		kaslr_seed;
 	enum irqchip_type irqchip;
+	u64		fw_addr;
 };
 
 int irqchip_parser(const struct option *opt, const char *arg, int unset);
@@ -30,6 +31,8 @@ int irqchip_parser(const struct option *opt, const char *arg, int unset);
         OPT_CALLBACK('\0', "irqchip", &(cfg)->irqchip,				\
 		     "[gicv2|gicv2m|gicv3|gicv3-its]",				\
 		     "Type of interrupt controller to emulate in the guest",	\
-		     irqchip_parser, NULL),
+		     irqchip_parser, NULL),					\
+	OPT_U64('\0', "firmware-address", &(cfg)->fw_addr,			\
+		"Address where firmware should be loaded"),
 
 #endif /* ARM_COMMON__KVM_CONFIG_ARCH_H */

@@ -169,9 +169,68 @@ bool kvm__arch_load_kernel_image(struct kvm *kvm, int fd_kernel, int fd_initrd,
 	return true;
 }
 
+static bool validate_fw_addr(struct kvm *kvm, u64 fw_addr)
+{
+	u64 ram_phys;
+
+	ram_phys = host_to_guest_flat(kvm, kvm->ram_start);
+
+	if (fw_addr < ram_phys || fw_addr >= ram_phys + kvm->ram_size) {
+		pr_err("Provide --firmware-address an address in RAM: "
+		       "0x%016llx - 0x%016llx",
+		       ram_phys, ram_phys + kvm->ram_size);
+
+		return false;
+	}
+
+	return true;
+}
+
 bool kvm__load_firmware(struct kvm *kvm, const char *firmware_filename)
 {
-	return false;
+	u64 fw_addr = kvm->cfg.arch.fw_addr;
+	void *host_pos;
+	void *limit;
+	ssize_t fw_sz;
+	int fd;
+
+	limit = kvm->ram_start + kvm->ram_size;
+
+	/* For default firmware address, lets load it at the begining of RAM */
+	if (fw_addr == 0)
+		fw_addr = ARM_MEMORY_AREA;
+
+	if (!validate_fw_addr(kvm, fw_addr))
+		die("Bad firmware destination: 0x%016llx", fw_addr);
+
+	fd = open(firmware_filename, O_RDONLY);
+	if (fd < 0)
+		return false;
+
+	host_pos = guest_flat_to_host(kvm, fw_addr);
+	if (!host_pos || host_pos < kvm->ram_start)
+		return false;
+
+	fw_sz = read_file(fd, host_pos, limit - host_pos);
+	if (fw_sz < 0)
+		die("failed to load firmware");
+	close(fd);
+
+	/* Kernel isn't loaded by kvm, point start address to firmware */
+	kvm->arch.kern_guest_start = fw_addr;
+
+	/* Load dtb just after the firmware image*/
+	host_pos += fw_sz;
+	if (host_pos + FDT_MAX_SIZE > limit)
+		die("not enough space to load fdt");
+
+	kvm->arch.dtb_guest_start = ALIGN(host_to_guest_flat(kvm, host_pos),
+					  FDT_ALIGN);
+	pr_info("Placing fdt at 0x%llx - 0x%llx",
+		kvm->arch.dtb_guest_start,
+		kvm->arch.dtb_guest_start + FDT_MAX_SIZE);
+
+	return true;
 }
 
 int kvm__arch_setup_firmware(struct kvm *kvm)
