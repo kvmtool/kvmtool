@@ -14,16 +14,6 @@
 #include <linux/sizes.h>
 #include <linux/psci.h>
 
-bool kvm__load_firmware(struct kvm *kvm, const char *firmware_filename)
-{
-	return false;
-}
-
-int kvm__arch_setup_firmware(struct kvm *kvm)
-{
-	return 0;
-}
-
 static void dump_fdt(const char *dtb_file, void *fdt)
 {
 	int count, fd;
