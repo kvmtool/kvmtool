@@ -25,6 +25,11 @@
 #define RTC_REG_C			0x0C
 #define RTC_REG_D			0x0D
 
+/*
+ * Register D Bits
+ */
+#define RTC_REG_D_VRT			(1 << 7)
+
 struct rtc_device {
 	u8			cmos_idx;
 	u8			cmos_data[128];
@@ -139,6 +144,9 @@ int rtc__init(struct kvm *kvm)
 		ioport__unregister(kvm, 0x0071);
 		return r;
 	}
+
+	/* Set the VRT bit in Register D to indicate valid RAM and time */
+	rtc.cmos_data[RTC_REG_D] = RTC_REG_D_VRT;
 
 	return r;
 }
