@@ -184,11 +184,11 @@ static int notify_vq(struct kvm *kvm, void *dev, u32 vq)
 	return 0;
 }
 
-static int get_pfn_vq(struct kvm *kvm, void *dev, u32 vq)
+static struct virt_queue *get_vq(struct kvm *kvm, void *dev, u32 vq)
 {
 	struct con_dev *cdev = dev;
 
-	return cdev->vqs[vq].pfn;
+	return &cdev->vqs[vq];
 }
 
 static int get_size_vq(struct kvm *kvm, void *dev, u32 vq)
@@ -215,7 +215,7 @@ static struct virtio_ops con_dev_virtio_ops = {
 	.init_vq		= init_vq,
 	.notify_status		= notify_status,
 	.notify_vq		= notify_vq,
-	.get_pfn_vq		= get_pfn_vq,
+	.get_vq			= get_vq,
 	.get_size_vq		= get_size_vq,
 	.set_size_vq		= set_size_vq,
 };

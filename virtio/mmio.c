@@ -111,6 +111,7 @@ static void virtio_mmio_config_in(struct kvm_cpu *vcpu,
 				  struct virtio_device *vdev)
 {
 	struct virtio_mmio *vmmio = vdev->virtio;
+	struct virt_queue *vq;
 	u32 val = 0;
 
 	switch (addr) {
@@ -129,9 +130,9 @@ static void virtio_mmio_config_in(struct kvm_cpu *vcpu,
 		ioport__write32(data, val);
 		break;
 	case VIRTIO_MMIO_QUEUE_PFN:
-		val = vdev->ops->get_pfn_vq(vmmio->kvm, vmmio->dev,
-					    vmmio->hdr.queue_sel);
-		ioport__write32(data, val);
+		vq = vdev->ops->get_vq(vmmio->kvm, vmmio->dev,
+				       vmmio->hdr.queue_sel);
+		ioport__write32(data, vq->pfn);
 		break;
 	case VIRTIO_MMIO_QUEUE_NUM_MAX:
 		val = vdev->ops->get_size_vq(vmmio->kvm, vmmio->dev,

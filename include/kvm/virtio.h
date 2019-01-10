@@ -188,7 +188,7 @@ struct virtio_ops {
 	int (*init_vq)(struct kvm *kvm, void *dev, u32 vq, u32 page_size,
 		       u32 align, u32 pfn);
 	int (*notify_vq)(struct kvm *kvm, void *dev, u32 vq);
-	int (*get_pfn_vq)(struct kvm *kvm, void *dev, u32 vq);
+	struct virt_queue *(*get_vq)(struct kvm *kvm, void *dev, u32 vq);
 	int (*get_size_vq)(struct kvm *kvm, void *dev, u32 vq);
 	int (*set_size_vq)(struct kvm *kvm, void *dev, u32 vq, int size);
 	void (*notify_vq_gsi)(struct kvm *kvm, void *dev, u32 vq, u32 gsi);

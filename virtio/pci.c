@@ -113,6 +113,7 @@ static bool virtio_pci__io_in(struct ioport *ioport, struct kvm_cpu *vcpu, u16 p
 	bool ret = true;
 	struct virtio_device *vdev;
 	struct virtio_pci *vpci;
+	struct virt_queue *vq;
 	struct kvm *kvm;
 	u32 val;
 
@@ -127,8 +128,8 @@ static bool virtio_pci__io_in(struct ioport *ioport, struct kvm_cpu *vcpu, u16 p
 		ioport__write32(data, val);
 		break;
 	case VIRTIO_PCI_QUEUE_PFN:
-		val = vdev->ops->get_pfn_vq(kvm, vpci->dev, vpci->queue_selector);
-		ioport__write32(data, val);
+		vq = vdev->ops->get_vq(kvm, vpci->dev, vpci->queue_selector);
+		ioport__write32(data, vq->pfn);
 		break;
 	case VIRTIO_PCI_QUEUE_NUM:
 		val = vdev->ops->get_size_vq(kvm, vpci->dev, vpci->queue_selector);
