@@ -184,6 +184,7 @@ struct virtio_ops {
 	u8 *(*get_config)(struct kvm *kvm, void *dev);
 	u32 (*get_host_features)(struct kvm *kvm, void *dev);
 	void (*set_guest_features)(struct kvm *kvm, void *dev, u32 features);
+	int (*get_vq_count)(struct kvm *kvm, void *dev);
 	int (*init_vq)(struct kvm *kvm, void *dev, u32 vq, u32 page_size,
 		       u32 align, u32 pfn);
 	int (*notify_vq)(struct kvm *kvm, void *dev, u32 vq);

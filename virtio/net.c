@@ -681,10 +681,18 @@ static int set_size_vq(struct kvm *kvm, void *dev, u32 vq, int size)
 	return size;
 }
 
+static int get_vq_count(struct kvm *kvm, void *dev)
+{
+	struct net_dev *ndev = dev;
+
+	return ndev->queue_pairs * 2 + 1;
+}
+
 static struct virtio_ops net_dev_virtio_ops = {
 	.get_config		= get_config,
 	.get_host_features	= get_host_features,
 	.set_guest_features	= set_guest_features,
+	.get_vq_count		= get_vq_count,
 	.init_vq		= init_vq,
 	.get_pfn_vq		= get_pfn_vq,
 	.get_size_vq		= get_size_vq,

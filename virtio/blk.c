@@ -248,10 +248,16 @@ static int set_size_vq(struct kvm *kvm, void *dev, u32 vq, int size)
 	return size;
 }
 
+static int get_vq_count(struct kvm *kvm, void *dev)
+{
+	return NUM_VIRT_QUEUES;
+}
+
 static struct virtio_ops blk_dev_virtio_ops = {
 	.get_config		= get_config,
 	.get_host_features	= get_host_features,
 	.set_guest_features	= set_guest_features,
+	.get_vq_count		= get_vq_count,
 	.init_vq		= init_vq,
 	.notify_status		= notify_status,
 	.notify_vq		= notify_vq,

@@ -167,6 +167,11 @@ static int set_size_vq(struct kvm *kvm, void *dev, u32 vq, int size)
 	return size;
 }
 
+static int get_vq_count(struct kvm *kvm, void *dev)
+{
+	return NUM_VIRT_QUEUES;
+}
+
 static struct virtio_ops scsi_dev_virtio_ops = {
 	.get_config		= get_config,
 	.get_host_features	= get_host_features,
@@ -179,6 +184,7 @@ static struct virtio_ops scsi_dev_virtio_ops = {
 	.notify_vq		= notify_vq,
 	.notify_vq_gsi		= notify_vq_gsi,
 	.notify_vq_eventfd	= notify_vq_eventfd,
+	.get_vq_count		= get_vq_count,
 };
 
 static void virtio_scsi_vhost_init(struct kvm *kvm, struct scsi_dev *sdev)

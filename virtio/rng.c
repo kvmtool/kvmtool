@@ -141,6 +141,11 @@ static int set_size_vq(struct kvm *kvm, void *dev, u32 vq, int size)
 	return size;
 }
 
+static int get_vq_count(struct kvm *kvm, void *dev)
+{
+	return NUM_VIRT_QUEUES;
+}
+
 static struct virtio_ops rng_dev_virtio_ops = {
 	.get_config		= get_config,
 	.get_host_features	= get_host_features,
@@ -150,6 +155,7 @@ static struct virtio_ops rng_dev_virtio_ops = {
 	.get_pfn_vq		= get_pfn_vq,
 	.get_size_vq		= get_size_vq,
 	.set_size_vq		= set_size_vq,
+	.get_vq_count		= get_vq_count,
 };
 
 int virtio_rng__init(struct kvm *kvm)
