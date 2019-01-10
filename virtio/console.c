@@ -35,8 +35,6 @@ struct con_dev {
 	struct virt_queue		vqs[VIRTIO_CONSOLE_NUM_QUEUES];
 	struct virtio_console_config	config;
 	u32				features;
-
-	pthread_cond_t			poll_cond;
 	int				vq_ready;
 
 	struct thread_pool__job		jobs[VIRTIO_CONSOLE_NUM_QUEUES];
@@ -44,7 +42,6 @@ struct con_dev {
 
 static struct con_dev cdev = {
 	.mutex				= MUTEX_INITIALIZER,
-	.poll_cond			= PTHREAD_COND_INITIALIZER,
 
 	.vq_ready			= 0,
 
@@ -68,15 +65,9 @@ static void virtio_console__inject_interrupt_callback(struct kvm *kvm, void *par
 	u16 head;
 	int len;
 
-	if (kvm->cfg.active_console != CONSOLE_VIRTIO)
-		return;
-
 	mutex_lock(&cdev.mutex);
 
 	vq = param;
-
-	if (!cdev.vq_ready)
-		pthread_cond_wait(&cdev.poll_cond, &cdev.mutex.mutex);
 
 	if (term_readable(0) && virt_queue__available(vq)) {
 		head = virt_queue__get_iov(vq, iov, &out, &in, kvm);
@@ -90,8 +81,13 @@ static void virtio_console__inject_interrupt_callback(struct kvm *kvm, void *par
 
 void virtio_console__inject_interrupt(struct kvm *kvm)
 {
-	virtio_console__inject_interrupt_callback(kvm,
-					&cdev.vqs[VIRTIO_CONSOLE_RX_QUEUE]);
+	if (kvm->cfg.active_console != CONSOLE_VIRTIO)
+		return;
+
+	mutex_lock(&cdev.mutex);
+	if (cdev.vq_ready)
+		thread_pool__do_job(&cdev.jobs[VIRTIO_CONSOLE_RX_QUEUE]);
+	mutex_unlock(&cdev.mutex);
 }
 
 static void virtio_console_handle_callback(struct kvm *kvm, void *param)
@@ -168,11 +164,22 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 page_size, u32 align,
 		/* Tell the waiting poll thread that we're ready to go */
 		mutex_lock(&cdev.mutex);
 		cdev.vq_ready = 1;
-		pthread_cond_signal(&cdev.poll_cond);
 		mutex_unlock(&cdev.mutex);
 	}
 
 	return 0;
+}
+
+static void exit_vq(struct kvm *kvm, void *dev, u32 vq)
+{
+	if (vq == VIRTIO_CONSOLE_RX_QUEUE) {
+		mutex_lock(&cdev.mutex);
+		cdev.vq_ready = 0;
+		mutex_unlock(&cdev.mutex);
+		thread_pool__cancel_job(&cdev.jobs[vq]);
+	} else if (vq == VIRTIO_CONSOLE_TX_QUEUE) {
+		thread_pool__cancel_job(&cdev.jobs[vq]);
+	}
 }
 
 static int notify_vq(struct kvm *kvm, void *dev, u32 vq)
@@ -213,6 +220,7 @@ static struct virtio_ops con_dev_virtio_ops = {
 	.set_guest_features	= set_guest_features,
 	.get_vq_count		= get_vq_count,
 	.init_vq		= init_vq,
+	.exit_vq		= exit_vq,
 	.notify_status		= notify_status,
 	.notify_vq		= notify_vq,
 	.get_vq			= get_vq,
