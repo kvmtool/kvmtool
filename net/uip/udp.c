@@ -164,10 +164,7 @@ static void *uip_udp_socket_thread(void *p)
 	kvm__set_thread_name("uip-udp");
 
 	info = p;
-
-	do {
-		payload = malloc(UIP_MAX_UDP_PAYLOAD);
-	} while (!payload);
+	payload = info->udp_buf;
 
 	while (1) {
 		nfds = epoll_wait(info->udp_epollfd, events, UIP_UDP_MAX_EVENTS, -1);
@@ -196,7 +193,11 @@ static void *uip_udp_socket_thread(void *p)
 		}
 	}
 
-	free(payload);
+	mutex_lock(&info->udp_socket_lock);
+	free(info->udp_buf);
+	info->udp_buf = NULL;
+	mutex_unlock(&info->udp_socket_lock);
+
 	pthread_exit(NULL);
 	return NULL;
 }
@@ -232,8 +233,36 @@ int uip_tx_do_ipv4_udp(struct uip_tx_arg *arg)
 	if (ret)
 		return -1;
 
-	if (!info->udp_thread)
+	if (!info->udp_thread) {
+		info->udp_buf = malloc(UIP_MAX_UDP_PAYLOAD);
+		if (!info->udp_buf)
+			return -1;
+
 		pthread_create(&info->udp_thread, NULL, uip_udp_socket_thread, (void *)info);
+	}
 
 	return 0;
+}
+
+void uip_udp_exit(struct uip_info *info)
+{
+	struct uip_udp_socket *sk, *next;
+
+	mutex_lock(&info->udp_socket_lock);
+	if (info->udp_thread) {
+		pthread_cancel(info->udp_thread);
+		pthread_join(info->udp_thread, NULL);
+		info->udp_thread = 0;
+		free(info->udp_buf);
+	}
+	if (info->udp_epollfd > 0) {
+		close(info->udp_epollfd);
+		info->udp_epollfd = 0;
+	}
+
+	list_for_each_entry_safe(sk, next, &info->udp_socket_head, list) {
+		close(sk->fd);
+		free(sk);
+	}
+	mutex_unlock(&info->udp_socket_lock);
 }

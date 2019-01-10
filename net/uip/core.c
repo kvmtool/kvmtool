@@ -154,3 +154,20 @@ int uip_init(struct uip_info *info)
 
 	return 0;
 }
+
+void uip_exit(struct uip_info *info)
+{
+	struct uip_buf *buf, *next;
+
+	uip_udp_exit(info);
+	uip_tcp_exit(info);
+	uip_dhcp_exit(info);
+
+	list_for_each_entry_safe(buf, next, &info->buf_head, list) {
+		free(buf->vnet);
+		free(buf->eth);
+		list_del(&buf->list);
+		free(buf);
+	}
+	uip_static_init(info);
+}

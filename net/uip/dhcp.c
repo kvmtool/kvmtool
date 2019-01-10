@@ -200,3 +200,9 @@ int uip_tx_do_ipv4_udp_dhcp(struct uip_tx_arg *arg)
 
 	return 0;
 }
+
+void uip_dhcp_exit(struct uip_info *info)
+{
+	free(info->domain_name);
+	info->domain_name = NULL;
+}

@@ -18,6 +18,7 @@ static int uip_tcp_socket_close(struct uip_tcp_socket *sk, int how)
 		list_del(&sk->list);
 		mutex_unlock(sk->lock);
 
+		free(sk->buf);
 		free(sk);
 	}
 
@@ -92,6 +93,24 @@ static struct uip_tcp_socket *uip_tcp_socket_alloc(struct uip_tx_arg *arg, u32 s
 	mutex_unlock(sk_lock);
 
 	return sk;
+}
+
+/* Caller holds the sk lock */
+static void uip_tcp_socket_free(struct uip_tcp_socket *sk)
+{
+	/*
+	 * Here we assume that the virtqueues are already inactive so we don't
+	 * race with uip_tx_do_ipv4_tcp. We are racing with
+	 * uip_tcp_socket_thread though, but holding the sk lock ensures that it
+	 * cannot free data concurrently.
+	 */
+	if (sk->thread) {
+		pthread_cancel(sk->thread);
+		pthread_join(sk->thread, NULL);
+	}
+
+	sk->write_done = sk->read_done = 1;
+	uip_tcp_socket_close(sk, SHUT_RDWR);
 }
 
 static int uip_tcp_payload_send(struct uip_tcp_socket *sk, u8 flag, u16 payload_len)
@@ -175,20 +194,16 @@ static void *uip_tcp_socket_thread(void *p)
 {
 	struct uip_tcp_socket *sk;
 	int len, left, ret;
-	u8 *payload, *pos;
+	u8 *pos;
 
 	kvm__set_thread_name("uip-tcp");
 
 	sk = p;
 
-	payload = malloc(UIP_MAX_TCP_PAYLOAD);
-	if (!payload)
-		goto out;
-
 	while (1) {
-		pos = payload;
+		pos = sk->buf;
 
-		ret = read(sk->fd, payload, UIP_MAX_TCP_PAYLOAD);
+		ret = read(sk->fd, sk->buf, UIP_MAX_TCP_PAYLOAD);
 
 		if (ret <= 0 || ret > UIP_MAX_TCP_PAYLOAD)
 			goto out;
@@ -224,7 +239,6 @@ out:
 
 	sk->read_done = 1;
 
-	free(payload);
 	pthread_exit(NULL);
 
 	return NULL;
@@ -232,8 +246,18 @@ out:
 
 static int uip_tcp_socket_receive(struct uip_tcp_socket *sk)
 {
-	if (sk->thread == 0)
-		return pthread_create(&sk->thread, NULL, uip_tcp_socket_thread, (void *)sk);
+	int ret;
+
+	if (sk->thread == 0) {
+		sk->buf = malloc(UIP_MAX_TCP_PAYLOAD);
+		if (!sk->buf)
+			return -ENOMEM;
+		ret = pthread_create(&sk->thread, NULL, uip_tcp_socket_thread,
+				     (void *)sk);
+		if (ret)
+			free(sk->buf);
+		return ret;
+	}
 
 	return 0;
 }
@@ -345,4 +369,14 @@ int uip_tx_do_ipv4_tcp(struct uip_tx_arg *arg)
 
 out:
 	return 0;
+}
+
+void uip_tcp_exit(struct uip_info *info)
+{
+	struct uip_tcp_socket *sk, *next;
+
+	mutex_lock(&info->tcp_socket_lock);
+	list_for_each_entry_safe(sk, next, &info->tcp_socket_head, list)
+		uip_tcp_socket_free(sk);
+	mutex_unlock(&info->tcp_socket_lock);
 }

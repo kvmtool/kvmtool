@@ -196,6 +196,7 @@ struct uip_info {
 	struct list_head buf_head;
 	struct mutex buf_lock;
 	pthread_t udp_thread;
+	u8 *udp_buf;
 	int udp_epollfd;
 	int buf_free_nr;
 	int buf_used_nr;
@@ -249,6 +250,7 @@ struct uip_tcp_socket {
 	int read_done;
 	u32 dip, sip;
 	u8 *payload;
+	u8 *buf;
 	int fd;
 };
 
@@ -336,6 +338,9 @@ int uip_tx(struct iovec *iov, u16 out, struct uip_info *info);
 int uip_rx(struct iovec *iov, u16 in, struct uip_info *info);
 void uip_static_init(struct uip_info *info);
 int uip_init(struct uip_info *info);
+void uip_exit(struct uip_info *info);
+void uip_tcp_exit(struct uip_info *info);
+void uip_udp_exit(struct uip_info *info);
 
 int uip_tx_do_ipv4_udp_dhcp(struct uip_tx_arg *arg);
 int uip_tx_do_ipv4_icmp(struct uip_tx_arg *arg);
@@ -359,4 +364,5 @@ int uip_udp_make_pkg(struct uip_info *info, struct uip_udp_socket *sk, struct ui
 bool uip_udp_is_dhcp(struct uip_udp *udp);
 
 int uip_dhcp_get_dns(struct uip_info *info);
+void uip_dhcp_exit(struct uip_info *info);
 #endif /* KVM__UIP_H */
