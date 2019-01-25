@@ -113,8 +113,8 @@ bool kvm__arch_load_kernel_image(struct kvm *kvm, int fd_kernel, int fd_initrd,
 		die_perror("kernel read");
 	}
 	kernel_end = pos + file_size;
-	pr_info("Loaded kernel to 0x%llx (%zd bytes)",
-		kvm->arch.kern_guest_start, file_size);
+	pr_debug("Loaded kernel to 0x%llx (%zd bytes)",
+		 kvm->arch.kern_guest_start, file_size);
 
 	/*
 	 * Now load backwards from the end of memory so the kernel
@@ -129,9 +129,9 @@ bool kvm__arch_load_kernel_image(struct kvm *kvm, int fd_kernel, int fd_initrd,
 		die("fdt overlaps with kernel image.");
 
 	kvm->arch.dtb_guest_start = guest_addr;
-	pr_info("Placing fdt at 0x%llx - 0x%llx",
-		kvm->arch.dtb_guest_start,
-		host_to_guest_flat(kvm, limit));
+	pr_debug("Placing fdt at 0x%llx - 0x%llx",
+		 kvm->arch.dtb_guest_start,
+		 host_to_guest_flat(kvm, limit));
 	limit = pos;
 
 	/* ... and finally the initrd, if we have one. */
@@ -159,9 +159,9 @@ bool kvm__arch_load_kernel_image(struct kvm *kvm, int fd_kernel, int fd_initrd,
 
 		kvm->arch.initrd_guest_start = initrd_start;
 		kvm->arch.initrd_size = file_size;
-		pr_info("Loaded initrd to 0x%llx (%llu bytes)",
-			kvm->arch.initrd_guest_start,
-			kvm->arch.initrd_size);
+		pr_debug("Loaded initrd to 0x%llx (%llu bytes)",
+			 kvm->arch.initrd_guest_start,
+			 kvm->arch.initrd_size);
 	} else {
 		kvm->arch.initrd_size = 0;
 	}

@@ -26,7 +26,7 @@ static void dump_fdt(const char *dtb_file, void *fdt)
 	if (count < 0)
 		die_perror("Failed to dump dtb");
 
-	pr_info("Wrote %d bytes to dtb %s\n", count, dtb_file);
+	pr_debug("Wrote %d bytes to dtb %s", count, dtb_file);
 	close(fd);
 }
 
