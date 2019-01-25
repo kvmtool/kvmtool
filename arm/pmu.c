@@ -18,7 +18,7 @@ static int set_pmu_attr(struct kvm *kvm, int vcpu_idx,
 	if (!ret) {
 		ret = ioctl(fd, KVM_SET_DEVICE_ATTR, attr);
 		if (ret)
-			pr_err("PMU KVM_SET_DEVICE_ATTR failed (%d)\n", ret);
+			perror("PMU KVM_SET_DEVICE_ATTR failed");
 	} else {
 		pr_err("Unsupported PMU on vcpu%d\n", vcpu_idx);
 	}
