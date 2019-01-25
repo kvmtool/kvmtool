@@ -35,6 +35,5 @@ else
 	VC=unset
 fi
 test "$VN" = "$VC" || {
-	echo >&2 "KVMTOOLS_VERSION = $VN"
 	echo "KVMTOOLS_VERSION = $VN" >$GVF
 }
