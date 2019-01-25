@@ -132,14 +132,11 @@ static int setup_fdt(struct kvm *kvm)
 	_FDT(fdt_begin_node(fdt, "chosen"));
 	_FDT(fdt_property_cell(fdt, "linux,pci-probe-only", 1));
 
+	/* Pass on our amended command line to a Linux kernel only. */
 	if (kvm->cfg.firmware_filename) {
-		/*
-		 * When using a firmware, command line is not passed through DT,
-		 * or the firmware can add it itself
-		 */
 		if (kvm->cfg.kernel_cmdline)
-			pr_warning("Ignoring custom bootargs: %s\n",
-				   kvm->cfg.kernel_cmdline);
+			_FDT(fdt_property_string(fdt, "bootargs",
+						 kvm->cfg.kernel_cmdline));
 	} else
 		_FDT(fdt_property_string(fdt, "bootargs",
 					 kvm->cfg.real_cmdline));
