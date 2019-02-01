@@ -3,7 +3,11 @@
 #
 
 ifeq ($(strip $(V)),)
-	E = @echo
+	ifeq ($(findstring s,$(filter-out --%,$(MAKEFLAGS))),)
+		E = @echo
+	else
+		E = @\#
+	endif
 	Q = @
 else
 	E = @\#
