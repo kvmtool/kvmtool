@@ -25,6 +25,8 @@ enum irq_type {
 	IRQ_TYPE_LEVEL_MASK	= (IRQ_TYPE_LEVEL_LOW | IRQ_TYPE_LEVEL_HIGH),
 };
 
+extern char *fdt_stdout_path;
+
 /* Helper for the various bits of code that generate FDT nodes */
 #define _FDT(exp)							\
 	do {								\

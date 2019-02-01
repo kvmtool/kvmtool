@@ -366,6 +366,9 @@ static bool serial8250_in(struct ioport *ioport, struct kvm_cpu *vcpu, u16 port,
 }
 
 #ifdef CONFIG_HAS_LIBFDT
+
+char *fdt_stdout_path = NULL;
+
 #define DEVICE_NAME_MAX_LEN 32
 static
 void serial8250_generate_fdt_node(struct ioport *ioport, void *fdt,
@@ -382,6 +385,12 @@ void serial8250_generate_fdt_node(struct ioport *ioport, void *fdt,
 	};
 
 	snprintf(dev_name, DEVICE_NAME_MAX_LEN, "U6_16550A@%llx", addr);
+
+	if (!fdt_stdout_path) {
+		fdt_stdout_path = malloc(strlen(dev_name) + 2);
+		/* Assumes that this node is a child of the root node. */
+		sprintf(fdt_stdout_path, "/%s", dev_name);
+	}
 
 	_FDT(fdt_begin_node(fdt, dev_name));
 	_FDT(fdt_property_string(fdt, "compatible", "ns16550a"));

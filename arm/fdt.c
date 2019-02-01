@@ -142,6 +142,7 @@ static int setup_fdt(struct kvm *kvm)
 					 kvm->cfg.real_cmdline));
 
 	_FDT(fdt_property_u64(fdt, "kaslr-seed", kvm->cfg.arch.kaslr_seed));
+	_FDT(fdt_property_string(fdt, "stdout-path", "serial0"));
 
 	/* Initrd */
 	if (kvm->arch.initrd_size != 0) {
@@ -206,6 +207,15 @@ static int setup_fdt(struct kvm *kvm)
 	_FDT(fdt_property_cell(fdt, "cpu_on", fns->cpu_on));
 	_FDT(fdt_property_cell(fdt, "migrate", fns->migrate));
 	_FDT(fdt_end_node(fdt));
+
+	if (fdt_stdout_path) {
+		_FDT(fdt_begin_node(fdt, "aliases"));
+		_FDT(fdt_property_string(fdt, "serial0", fdt_stdout_path));
+		_FDT(fdt_end_node(fdt));
+
+		free(fdt_stdout_path);
+		fdt_stdout_path = NULL;
+	}
 
 	/* Finalise. */
 	_FDT(fdt_end_node(fdt));
