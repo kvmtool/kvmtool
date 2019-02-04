@@ -331,7 +331,7 @@ static bool virtio_net__tap_init(struct net_dev *ndev)
 			goto fail;
 	} else if (!skipconf) {
 		memset(&ifr, 0, sizeof(ifr));
-		strncpy(ifr.ifr_name, ndev->tap_name, sizeof(ndev->tap_name));
+		strncpy(ifr.ifr_name, ndev->tap_name, sizeof(ifr.ifr_name));
 		sin.sin_addr.s_addr = inet_addr(params->host_ip);
 		memcpy(&(ifr.ifr_addr), &sin, sizeof(ifr.ifr_addr));
 		ifr.ifr_addr.sa_family = AF_INET;
@@ -343,7 +343,7 @@ static bool virtio_net__tap_init(struct net_dev *ndev)
 
 	if (!skipconf) {
 		memset(&ifr, 0, sizeof(ifr));
-		strncpy(ifr.ifr_name, ndev->tap_name, sizeof(ndev->tap_name));
+		strncpy(ifr.ifr_name, ndev->tap_name, sizeof(ifr.ifr_name));
 		ioctl(sock, SIOCGIFFLAGS, &ifr);
 		ifr.ifr_flags |= IFF_UP | IFF_RUNNING;
 		if (ioctl(sock, SIOCSIFFLAGS, &ifr) < 0)
@@ -372,7 +372,7 @@ static void virtio_net__tap_exit(struct net_dev *ndev)
 		return;
 
 	sock = socket(AF_INET, SOCK_STREAM, 0);
-	strncpy(ifr.ifr_name, ndev->tap_name, sizeof(ndev->tap_name));
+	strncpy(ifr.ifr_name, ndev->tap_name, sizeof(ifr.ifr_name));
 	ioctl(sock, SIOCGIFFLAGS, &ifr);
 	ifr.ifr_flags &= ~(IFF_UP | IFF_RUNNING);
 	if (ioctl(sock, SIOCGIFFLAGS, &ifr) < 0)
