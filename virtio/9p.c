@@ -322,6 +322,7 @@ static void virtio_p9_create(struct p9_dev *p9dev,
 	struct p9_qid qid;
 	struct p9_fid *dfid;
 	char full_path[PATH_MAX];
+	char *tmp_path;
 	u32 dfid_val, flags, mode, gid;
 
 	virtio_p9_pdu_readf(pdu, "dsddd", &dfid_val,
@@ -332,7 +333,13 @@ static void virtio_p9_create(struct p9_dev *p9dev,
 		goto err_out;
 
 	size = sizeof(dfid->abs_path) - (dfid->path - dfid->abs_path);
-	ret = snprintf(dfid->path, size, "%s/%s", dfid->path, name);
+
+	tmp_path = strdup(dfid->path);
+	if (!tmp_path)
+		goto err_out;
+
+	ret = snprintf(dfid->path, size, "%s/%s", tmp_path, name);
+	free(tmp_path);
 	if (ret >= (int)size) {
 		errno = ENAMETOOLONG;
 		if (size > 0)
