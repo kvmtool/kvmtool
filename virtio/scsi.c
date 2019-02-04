@@ -8,6 +8,7 @@
 #include "kvm/guest_compat.h"
 #include "kvm/virtio-pci.h"
 #include "kvm/virtio.h"
+#include "kvm/strbuf.h"
 
 #include <linux/kernel.h>
 #include <linux/virtio_scsi.h>
@@ -255,7 +256,7 @@ static int virtio_scsi_init_one(struct kvm *kvm, struct disk_image *disk)
 		},
 		.kvm			= kvm,
 	};
-	strncpy((char *)&sdev->target.vhost_wwpn, disk->wwpn, sizeof(sdev->target.vhost_wwpn));
+	strlcpy((char *)&sdev->target.vhost_wwpn, disk->wwpn, sizeof(sdev->target.vhost_wwpn));
 	sdev->target.vhost_tpgt = strtol(disk->tpgt, NULL, 0);
 
 	virtio_init(kvm, sdev, &sdev->vdev, &scsi_dev_virtio_ops,

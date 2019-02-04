@@ -8,6 +8,7 @@
 #include "kvm/uip.h"
 #include "kvm/guest_compat.h"
 #include "kvm/iovec.h"
+#include "kvm/strbuf.h"
 
 #include <linux/vhost.h>
 #include <linux/virtio_net.h>
@@ -283,12 +284,12 @@ static int virtio_net_request_tap(struct net_dev *ndev, struct ifreq *ifr,
 	memset(ifr, 0, sizeof(*ifr));
 	ifr->ifr_flags = IFF_TAP | IFF_NO_PI | IFF_VNET_HDR;
 	if (tapname)
-		strncpy(ifr->ifr_name, tapname, sizeof(ifr->ifr_name));
+		strlcpy(ifr->ifr_name, tapname, sizeof(ifr->ifr_name));
 
 	ret = ioctl(ndev->tap_fd, TUNSETIFF, ifr);
 
 	if (ret >= 0)
-		strncpy(ndev->tap_name, ifr->ifr_name, sizeof(ndev->tap_name));
+		strlcpy(ndev->tap_name, ifr->ifr_name, sizeof(ndev->tap_name));
 	return ret;
 }
 
