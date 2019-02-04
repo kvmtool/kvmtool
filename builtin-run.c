@@ -300,7 +300,7 @@ static const char *find_kernel(void)
 			k++;
 			continue;
 		}
-		strncpy(kernel, *k, PATH_MAX);
+		strlcpy(kernel, *k, PATH_MAX);
 		return kernel;
 	}
 
@@ -418,7 +418,7 @@ static void resolve_program(const char *src, char *dst, size_t len)
 			die("Pathname too long: %s -> %s\n", src, resolved_path);
 
 	} else
-		strncpy(dst, src, len);
+		strlcpy(dst, src, len);
 }
 
 static void kvm_run_write_sandbox_cmd(struct kvm *kvm, const char **argv, int argc)
