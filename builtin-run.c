@@ -414,7 +414,9 @@ static void resolve_program(const char *src, char *dst, size_t len)
 		if (!realpath(src, resolved_path))
 			die("Unable to resolve program %s: %s\n", src, strerror(errno));
 
-		snprintf(dst, len, "/host%s", resolved_path);
+		if (snprintf(dst, len, "/host%s", resolved_path) >= (int)len)
+			die("Pathname too long: %s -> %s\n", src, resolved_path);
+
 	} else
 		strncpy(dst, src, len);
 }
