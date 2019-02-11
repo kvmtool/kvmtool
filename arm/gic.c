@@ -182,6 +182,8 @@ static int gic__create_device(struct kvm *kvm, enum irqchip_type type)
 		gic_device.type = KVM_DEV_TYPE_ARM_VGIC_V3;
 		dist_attr.attr  = KVM_VGIC_V3_ADDR_TYPE_DIST;
 		break;
+	case IRQCHIP_AUTO:
+		return -ENODEV;
 	}
 
 	err = ioctl(kvm->vm_fd, KVM_CREATE_DEVICE, &gic_device);
@@ -199,6 +201,8 @@ static int gic__create_device(struct kvm *kvm, enum irqchip_type type)
 	case IRQCHIP_GICV3:
 		err = ioctl(gic_fd, KVM_SET_DEVICE_ATTR, &redist_attr);
 		break;
+	case IRQCHIP_AUTO:
+		return -ENODEV;
 	}
 	if (err)
 		goto out_err;
@@ -249,9 +253,21 @@ static int gic__create_irqchip(struct kvm *kvm)
 
 int gic__create(struct kvm *kvm, enum irqchip_type type)
 {
+	enum irqchip_type try;
 	int err;
 
 	switch (type) {
+	case IRQCHIP_AUTO:
+		for (try = IRQCHIP_GICV3_ITS; try >= IRQCHIP_GICV2; try--) {
+			err = gic__create(kvm, try);
+			if (!err)
+				break;
+		}
+		if (err)
+			return err;
+
+		kvm->cfg.arch.irqchip = try;
+		return 0;
 	case IRQCHIP_GICV2M:
 		gic_msi_size = KVM_VGIC_V2M_SIZE;
 		gic_msi_base = ARM_GIC_CPUI_BASE - gic_msi_size;
