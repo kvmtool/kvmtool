@@ -184,7 +184,7 @@ bool kvm__emulate_io(struct kvm_cpu *vcpu, u16 port, void *data, int direction, 
 	void *ptr = data;
 	struct kvm *kvm = vcpu->kvm;
 
-	br_read_lock();
+	br_read_lock(kvm);
 	entry = ioport_search(&ioport_tree, port);
 	if (!entry)
 		goto out;
@@ -201,7 +201,7 @@ bool kvm__emulate_io(struct kvm_cpu *vcpu, u16 port, void *data, int direction, 
 	}
 
 out:
-	br_read_unlock();
+	br_read_unlock(kvm);
 
 	if (ret)
 		return true;

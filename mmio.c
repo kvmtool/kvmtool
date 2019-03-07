@@ -124,7 +124,7 @@ bool kvm__emulate_mmio(struct kvm_cpu *vcpu, u64 phys_addr, u8 *data, u32 len, u
 {
 	struct mmio_mapping *mmio;
 
-	br_read_lock();
+	br_read_lock(vcpu->kvm);
 	mmio = mmio_search(&mmio_tree, phys_addr, len);
 
 	if (mmio)
@@ -135,7 +135,7 @@ bool kvm__emulate_mmio(struct kvm_cpu *vcpu, u64 phys_addr, u8 *data, u32 len, u
 				to_direction(is_write),
 				(unsigned long long)phys_addr, len);
 	}
-	br_read_unlock();
+	br_read_unlock(vcpu->kvm);
 
 	return true;
 }
