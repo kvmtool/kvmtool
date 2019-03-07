@@ -21,13 +21,11 @@
 
 #include "kvm/rwsem.h"
 
-DECLARE_RWSEM(brlock_sem);
+#define br_read_lock(kvm)	down_read(&(kvm)->brlock_sem);
+#define br_read_unlock(kvm)	up_read(&(kvm)->brlock_sem);
 
-#define br_read_lock(kvm)	down_read(&brlock_sem);
-#define br_read_unlock(kvm)	up_read(&brlock_sem);
-
-#define br_write_lock(kvm)	down_write(&brlock_sem);
-#define br_write_unlock(kvm)	up_write(&brlock_sem);
+#define br_write_lock(kvm)	down_write(&(kvm)->brlock_sem);
+#define br_write_unlock(kvm)	up_write(&(kvm)->brlock_sem);
 
 #else
 

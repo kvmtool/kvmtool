@@ -160,6 +160,10 @@ struct kvm *kvm__new(void)
 	kvm->sys_fd = -1;
 	kvm->vm_fd = -1;
 
+#ifdef KVM_BRLOCK_DEBUG
+	kvm->brlock_sem = (pthread_rwlock_t) PTHREAD_RWLOCK_INITIALIZER;
+#endif
+
 	return kvm;
 }
 
