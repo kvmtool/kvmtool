@@ -98,7 +98,6 @@ OBJS	+= util/read-write.o
 OBJS	+= util/util.o
 OBJS	+= virtio/9p.o
 OBJS	+= virtio/9p-pdu.o
-OBJS	+= hw/vesa.o
 OBJS	+= hw/pci-shmem.o
 OBJS	+= kvm-ipc.o
 OBJS	+= builtin-sandbox.o
@@ -223,6 +222,8 @@ else
 endif
 
 ifeq (y,$(ARCH_HAS_FRAMEBUFFER))
+	OBJS	+= hw/vesa.o
+
 	CFLAGS_GTK3 := $(shell pkg-config --cflags gtk+-3.0 2>/dev/null)
 	LDFLAGS_GTK3 := $(shell pkg-config --libs gtk+-3.0 2>/dev/null)
 	ifeq ($(call try-build,$(SOURCE_GTK3),$(CFLAGS) $(CFLAGS_GTK3),$(LDFLAGS) $(LDFLAGS_GTK3)),y)
