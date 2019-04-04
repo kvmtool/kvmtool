@@ -66,20 +66,31 @@ ssize_t raw_image__write_async(struct disk_image *disk, u64 sector,
 			   offset, disk->evt, param);
 }
 
-static void *disk_aio_thread(void *param)
+static int disk_aio_get_events(struct disk_image *disk)
 {
-	struct disk_image *disk = param;
 	struct io_event event[AIO_MAX];
 	struct timespec notime = {0};
 	int nr, i;
+
+	do {
+		nr = io_getevents(disk->ctx, 1, ARRAY_SIZE(event), event, &notime);
+		for (i = 0; i < nr; i++)
+			disk->disk_req_cb(event[i].data, event[i].res);
+	} while (nr > 0);
+
+	return 0;
+}
+
+static void *disk_aio_thread(void *param)
+{
+	struct disk_image *disk = param;
 	u64 dummy;
 
 	kvm__set_thread_name("disk-image-io");
 
 	while (read(disk->evt, &dummy, sizeof(dummy)) > 0) {
-		nr = io_getevents(disk->ctx, 1, ARRAY_SIZE(event), event, &notime);
-		for (i = 0; i < nr; i++)
-			disk->disk_req_cb(event[i].data, event[i].res);
+		if (disk_aio_get_events(disk))
+			break;
 	}
 
 	return NULL;
