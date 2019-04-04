@@ -72,6 +72,7 @@ int main(int argc, char *argv[])
 		} while (corpse != child);
 	}
 
+	sync();
 	reboot(RB_AUTOBOOT);
 
 	printf("Init failed: %s\n", strerror(errno));
