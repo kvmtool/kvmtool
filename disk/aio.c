@@ -99,7 +99,6 @@ static void *disk_aio_thread(void *param)
 int disk_aio_setup(struct disk_image *disk)
 {
 	int r;
-	pthread_t thread;
 
 	/* No need to setup AIO if the disk ops won't make use of it */
 	if (!disk->ops->async)
@@ -110,7 +109,7 @@ int disk_aio_setup(struct disk_image *disk)
 		return -errno;
 
 	io_setup(AIO_MAX, &disk->ctx);
-	r = pthread_create(&thread, NULL, disk_aio_thread, disk);
+	r = pthread_create(&disk->thread, NULL, disk_aio_thread, disk);
 	if (r) {
 		r = -errno;
 		close(disk->evt);
@@ -126,6 +125,8 @@ void disk_aio_destroy(struct disk_image *disk)
 	if (!disk->async)
 		return;
 
+	pthread_cancel(disk->thread);
+	pthread_join(disk->thread, NULL);
 	close(disk->evt);
 	io_destroy(disk->ctx);
 }

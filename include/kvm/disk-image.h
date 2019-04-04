@@ -69,6 +69,7 @@ struct disk_image {
 #ifdef CONFIG_HAS_AIO
 	io_context_t			ctx;
 	int				evt;
+	pthread_t			thread;
 #endif /* CONFIG_HAS_AIO */
 	const char			*wwpn;
 	const char			*tpgt;
