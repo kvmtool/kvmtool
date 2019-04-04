@@ -139,8 +139,10 @@ static struct disk_image *disk_image__open(const char *filename, bool readonly, 
 
 	/* blk device ?*/
 	disk = blkdev__probe(filename, flags, &st);
-	if (!IS_ERR_OR_NULL(disk))
+	if (!IS_ERR_OR_NULL(disk)) {
+		disk->readonly = readonly;
 		return disk;
+	}
 
 	fd = open(filename, flags);
 	if (fd < 0)
@@ -150,13 +152,16 @@ static struct disk_image *disk_image__open(const char *filename, bool readonly, 
 	disk = qcow_probe(fd, true);
 	if (!IS_ERR_OR_NULL(disk)) {
 		pr_warning("Forcing read-only support for QCOW");
+		disk->readonly = true;
 		return disk;
 	}
 
 	/* raw image ?*/
 	disk = raw_image__probe(fd, &st, readonly);
-	if (!IS_ERR_OR_NULL(disk))
+	if (!IS_ERR_OR_NULL(disk)) {
+		disk->readonly = readonly;
 		return disk;
+	}
 
 	if (close(fd) < 0)
 		pr_warning("close() failed");

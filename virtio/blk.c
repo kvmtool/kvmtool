@@ -148,10 +148,13 @@ static u8 *get_config(struct kvm *kvm, void *dev)
 
 static u32 get_host_features(struct kvm *kvm, void *dev)
 {
+	struct blk_dev *bdev = dev;
+
 	return	1UL << VIRTIO_BLK_F_SEG_MAX
 		| 1UL << VIRTIO_BLK_F_FLUSH
 		| 1UL << VIRTIO_RING_F_EVENT_IDX
-		| 1UL << VIRTIO_RING_F_INDIRECT_DESC;
+		| 1UL << VIRTIO_RING_F_INDIRECT_DESC
+		| (bdev->disk->readonly ? 1UL << VIRTIO_BLK_F_RO : 0);
 }
 
 static void set_guest_features(struct kvm *kvm, void *dev, u32 features)

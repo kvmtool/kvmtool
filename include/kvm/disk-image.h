@@ -59,6 +59,7 @@ struct disk_image {
 	void				*priv;
 	void				*disk_req_cb_param;
 	void				(*disk_req_cb)(void *param, long len);
+	bool				readonly;
 	bool				async;
 	int				evt;
 #ifdef CONFIG_HAS_AIO
