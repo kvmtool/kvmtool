@@ -248,6 +248,8 @@ static void exit_vq(struct kvm *kvm, void *dev, u32 vq)
 	close(bdev->io_efd);
 	pthread_cancel(bdev->io_thread);
 	pthread_join(bdev->io_thread, NULL);
+
+	disk_image__wait(bdev->disk);
 }
 
 static int notify_vq(struct kvm *kvm, void *dev, u32 vq)
