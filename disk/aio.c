@@ -2,45 +2,31 @@
 #include <pthread.h>
 #include <sys/eventfd.h>
 
+#include "kvm/brlock.h"
 #include "kvm/disk-image.h"
 #include "kvm/kvm.h"
 #include "linux/list.h"
 
 #define AIO_MAX 256
 
-static int aio_pwritev(io_context_t ctx, struct iocb *iocb, int fd,
-		       const struct iovec *iov, int iovcnt, off_t offset,
-		       int ev, void *param)
+static int aio_submit(struct disk_image *disk, int nr, struct iocb **ios)
 {
-	struct iocb *ios[1] = { iocb };
 	int ret;
 
-	io_prep_pwritev(iocb, fd, iov, iovcnt, offset);
-	io_set_eventfd(iocb, ev);
-	iocb->data = param;
-
+	__sync_fetch_and_add(&disk->aio_inflight, nr);
+	/*
+	 * A wmb() is needed here, to ensure disk_aio_thread() sees this
+	 * increase after receiving the events. It is included in the
+	 * __sync_fetch_and_add (as a full barrier).
+	 */
 restart:
-	ret = io_submit(ctx, 1, ios);
+	ret = io_submit(disk->ctx, nr, ios);
 	if (ret == -EAGAIN)
 		goto restart;
-	return ret;
-}
+	else if (ret <= 0)
+		/* disk_aio_thread() is never going to see those */
+		__sync_fetch_and_sub(&disk->aio_inflight, nr);
 
-static int aio_preadv(io_context_t ctx, struct iocb *iocb, int fd,
-		      const struct iovec *iov, int iovcnt, off_t offset,
-		      int ev, void *param)
-{
-	struct iocb *ios[1] = { iocb };
-	int ret;
-
-	io_prep_preadv(iocb, fd, iov, iovcnt, offset);
-	io_set_eventfd(iocb, ev);
-	iocb->data = param;
-
-restart:
-	ret = io_submit(ctx, 1, ios);
-	if (ret == -EAGAIN)
-		goto restart;
 	return ret;
 }
 
@@ -48,22 +34,49 @@ ssize_t raw_image__read_async(struct disk_image *disk, u64 sector,
 			      const struct iovec *iov, int iovcount,
 			      void *param)
 {
-	u64 offset = sector << SECTOR_SHIFT;
 	struct iocb iocb;
+	u64 offset = sector << SECTOR_SHIFT;
+	struct iocb *ios[1] = { &iocb };
 
-	return aio_preadv(disk->ctx, &iocb, disk->fd, iov, iovcount,
-			  offset, disk->evt, param);
+	io_prep_preadv(&iocb, disk->fd, iov, iovcount, offset);
+	io_set_eventfd(&iocb, disk->evt);
+	iocb.data = param;
+
+	return aio_submit(disk, 1, ios);
 }
 
 ssize_t raw_image__write_async(struct disk_image *disk, u64 sector,
 			       const struct iovec *iov, int iovcount,
 			       void *param)
 {
-	u64 offset = sector << SECTOR_SHIFT;
 	struct iocb iocb;
+	u64 offset = sector << SECTOR_SHIFT;
+	struct iocb *ios[1] = { &iocb };
 
-	return aio_pwritev(disk->ctx, &iocb, disk->fd, iov, iovcount,
-			   offset, disk->evt, param);
+	io_prep_pwritev(&iocb, disk->fd, iov, iovcount, offset);
+	io_set_eventfd(&iocb, disk->evt);
+	iocb.data = param;
+
+	return aio_submit(disk, 1, ios);
+}
+
+/*
+ * When this function returns there are no in-flight I/O. Caller ensures that
+ * io_submit() isn't called concurrently.
+ *
+ * Returns an inaccurate number of I/O that was in-flight when the function was
+ * called.
+ */
+int raw_image__wait(struct disk_image *disk)
+{
+	u64 inflight = disk->aio_inflight;
+
+	while (disk->aio_inflight) {
+		usleep(100);
+		barrier();
+	}
+
+	return inflight;
 }
 
 static int disk_aio_get_events(struct disk_image *disk)
@@ -76,6 +89,11 @@ static int disk_aio_get_events(struct disk_image *disk)
 		nr = io_getevents(disk->ctx, 1, ARRAY_SIZE(event), event, &notime);
 		for (i = 0; i < nr; i++)
 			disk->disk_req_cb(event[i].data, event[i].res);
+
+		/* Pairs with wmb() in aio_submit() */
+		rmb();
+		__sync_fetch_and_sub(&disk->aio_inflight, nr);
+
 	} while (nr > 0);
 
 	return 0;

@@ -201,6 +201,14 @@ error:
 	return err;
 }
 
+int disk_image__wait(struct disk_image *disk)
+{
+	if (disk->ops->wait)
+		return disk->ops->wait(disk);
+
+	return 0;
+}
+
 int disk_image__flush(struct disk_image *disk)
 {
 	if (disk->ops->flush)

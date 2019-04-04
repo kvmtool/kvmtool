@@ -67,6 +67,7 @@ int raw_image__close(struct disk_image *disk)
 static struct disk_image_operations raw_image_regular_ops = {
 	.read	= raw_image__read,
 	.write	= raw_image__write,
+	.wait	= raw_image__wait,
 	.async	= true,
 };
 
@@ -78,6 +79,7 @@ struct disk_image_operations ro_ops = {
 
 struct disk_image_operations ro_ops_nowrite = {
 	.read	= raw_image__read,
+	.wait	= raw_image__wait,
 	.async	= true,
 };
 

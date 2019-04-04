@@ -9,6 +9,7 @@
 static struct disk_image_operations blk_dev_ops = {
 	.read	= raw_image__read,
 	.write	= raw_image__write,
+	.wait	= raw_image__wait,
 	.async	= true,
 };
 
