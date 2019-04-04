@@ -276,10 +276,12 @@ endif
 ifeq ($(call try-build,$(SOURCE_AIO),$(CFLAGS),$(LDFLAGS) -laio),y)
 	CFLAGS_DYNOPT	+= -DCONFIG_HAS_AIO
 	LIBS_DYNOPT	+= -laio
+	OBJS_DYNOPT	+= disk/aio.o
 else
 	ifeq ($(call try-build,$(SOURCE_AIO),$(CFLAGS),$(LDFLAGS) -laio -static),y)
 		CFLAGS_STATOPT	+= -DCONFIG_HAS_AIO
 		LIBS_STATOPT	+= -laio
+		OBJS_STATOPT	+= disk/aio.o
 	else
 		NOTFOUND	+= aio
 	endif

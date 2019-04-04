@@ -19,6 +19,10 @@
 #include <unistd.h>
 #include <fcntl.h>
 
+#ifdef CONFIG_HAS_AIO
+#include <libaio.h>
+#endif
+
 #define SECTOR_SHIFT		9
 #define SECTOR_SIZE		(1UL << SECTOR_SHIFT)
 
@@ -61,10 +65,10 @@ struct disk_image {
 	void				(*disk_req_cb)(void *param, long len);
 	bool				readonly;
 	bool				async;
-	int				evt;
 #ifdef CONFIG_HAS_AIO
 	io_context_t			ctx;
-#endif
+	int				evt;
+#endif /* CONFIG_HAS_AIO */
 	const char			*wwpn;
 	const char			*tpgt;
 	int				debug_iodelay;
@@ -84,14 +88,39 @@ ssize_t disk_image__get_serial(struct disk_image *disk, void *buffer, ssize_t *l
 struct disk_image *raw_image__probe(int fd, struct stat *st, bool readonly);
 struct disk_image *blkdev__probe(const char *filename, int flags, struct stat *st);
 
-ssize_t raw_image__read(struct disk_image *disk, u64 sector,
-				const struct iovec *iov, int iovcount, void *param);
-ssize_t raw_image__write(struct disk_image *disk, u64 sector,
-				const struct iovec *iov, int iovcount, void *param);
+ssize_t raw_image__read_sync(struct disk_image *disk, u64 sector,
+			     const struct iovec *iov, int iovcount, void *param);
+ssize_t raw_image__write_sync(struct disk_image *disk, u64 sector,
+			      const struct iovec *iov, int iovcount, void *param);
 ssize_t raw_image__read_mmap(struct disk_image *disk, u64 sector,
 				const struct iovec *iov, int iovcount, void *param);
 ssize_t raw_image__write_mmap(struct disk_image *disk, u64 sector,
 				const struct iovec *iov, int iovcount, void *param);
 int raw_image__close(struct disk_image *disk);
 void disk_image__set_callback(struct disk_image *disk, void (*disk_req_cb)(void *param, long len));
+
+#ifdef CONFIG_HAS_AIO
+int disk_aio_setup(struct disk_image *disk);
+void disk_aio_destroy(struct disk_image *disk);
+ssize_t raw_image__read_async(struct disk_image *disk, u64 sector,
+			      const struct iovec *iov, int iovcount, void *param);
+ssize_t raw_image__write_async(struct disk_image *disk, u64 sector,
+			       const struct iovec *iov, int iovcount, void *param);
+
+#define raw_image__read		raw_image__read_async
+#define raw_image__write	raw_image__write_async
+
+#else /* !CONFIG_HAS_AIO */
+static inline int disk_aio_setup(struct disk_image *disk)
+{
+	/* No-op */
+	return 0;
+}
+static inline void disk_aio_destroy(struct disk_image *disk)
+{
+}
+#define raw_image__read		raw_image__read_sync
+#define raw_image__write	raw_image__write_sync
+#endif /* CONFIG_HAS_AIO */
+
 #endif /* KVM__DISK_IMAGE_H */
