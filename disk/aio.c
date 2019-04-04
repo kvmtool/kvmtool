@@ -90,6 +90,10 @@ int disk_aio_setup(struct disk_image *disk)
 	int r;
 	pthread_t thread;
 
+	/* No need to setup AIO if the disk ops won't make use of it */
+	if (!disk->ops->async)
+		return 0;
+
 	disk->evt = eventfd(0, 0);
 	if (disk->evt < 0)
 		return -errno;
@@ -101,11 +105,16 @@ int disk_aio_setup(struct disk_image *disk)
 		close(disk->evt);
 		return r;
 	}
+
+	disk->async = true;
 	return 0;
 }
 
 void disk_aio_destroy(struct disk_image *disk)
 {
+	if (!disk->async)
+		return;
+
 	close(disk->evt);
 	io_destroy(disk->ctx);
 }

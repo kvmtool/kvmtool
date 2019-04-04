@@ -9,6 +9,7 @@
 static struct disk_image_operations blk_dev_ops = {
 	.read	= raw_image__read,
 	.write	= raw_image__write,
+	.async	= true,
 };
 
 static bool is_mounted(struct stat *st)
@@ -35,7 +36,6 @@ static bool is_mounted(struct stat *st)
 
 struct disk_image *blkdev__probe(const char *filename, int flags, struct stat *st)
 {
-	struct disk_image *disk;
 	int fd, r;
 	u64 size;
 
@@ -67,10 +67,5 @@ struct disk_image *blkdev__probe(const char *filename, int flags, struct stat *s
 	 * mmap large disk. There is not enough virtual address space
 	 * in 32-bit host. However, this works on 64-bit host.
 	 */
-	disk = disk_image__new(fd, size, &blk_dev_ops, DISK_IMAGE_REGULAR);
-#ifdef CONFIG_HAS_AIO
-		if (!IS_ERR_OR_NULL(disk))
-			disk->async = 1;
-#endif
-	return disk;
+	return disk_image__new(fd, size, &blk_dev_ops, DISK_IMAGE_REGULAR);
 }

@@ -42,6 +42,7 @@ struct disk_image_operations {
 			int iovcount, void *param);
 	int (*flush)(struct disk_image *disk);
 	int (*close)(struct disk_image *disk);
+	bool async;
 };
 
 struct disk_image_params {
