@@ -1018,30 +1018,7 @@ static int vfio_pci_enable_intx(struct kvm *kvm, struct vfio_device *vdev)
 	struct vfio_irq_eventfd	trigger;
 	struct vfio_irq_eventfd	unmask;
 	struct vfio_pci_device *pdev = &vdev->pci;
-	int gsi = pdev->hdr.irq_line - KVM_IRQ_OFFSET;
-
-	struct vfio_irq_info irq_info = {
-		.argsz = sizeof(irq_info),
-		.index = VFIO_PCI_INTX_IRQ_INDEX,
-	};
-
-	vfio_pci_reserve_irq_fds(2);
-
-	ret = ioctl(vdev->fd, VFIO_DEVICE_GET_IRQ_INFO, &irq_info);
-	if (ret || irq_info.count == 0) {
-		vfio_dev_err(vdev, "no INTx reported by VFIO");
-		return -ENODEV;
-	}
-
-	if (!(irq_info.flags & VFIO_IRQ_INFO_EVENTFD)) {
-		vfio_dev_err(vdev, "interrupt not eventfd capable");
-		return -EINVAL;
-	}
-
-	if (!(irq_info.flags & VFIO_IRQ_INFO_AUTOMASKED)) {
-		vfio_dev_err(vdev, "INTx interrupt not AUTOMASKED");
-		return -EINVAL;
-	}
+	int gsi = pdev->intx_gsi;
 
 	/*
 	 * PCI IRQ is level-triggered, so we use two eventfds. trigger_fd
@@ -1097,8 +1074,6 @@ static int vfio_pci_enable_intx(struct kvm *kvm, struct vfio_device *vdev)
 
 	pdev->intx_fd = trigger_fd;
 	pdev->unmask_fd = unmask_fd;
-	/* Guest is going to ovewrite our irq_line... */
-	pdev->intx_gsi = gsi;
 
 	return 0;
 
@@ -1115,6 +1090,39 @@ err_close:
 	close(trigger_fd);
 	close(unmask_fd);
 	return ret;
+}
+
+static int vfio_pci_init_intx(struct kvm *kvm, struct vfio_device *vdev)
+{
+	int ret;
+	struct vfio_pci_device *pdev = &vdev->pci;
+	struct vfio_irq_info irq_info = {
+		.argsz = sizeof(irq_info),
+		.index = VFIO_PCI_INTX_IRQ_INDEX,
+	};
+
+	vfio_pci_reserve_irq_fds(2);
+
+	ret = ioctl(vdev->fd, VFIO_DEVICE_GET_IRQ_INFO, &irq_info);
+	if (ret || irq_info.count == 0) {
+		vfio_dev_err(vdev, "no INTx reported by VFIO");
+		return -ENODEV;
+	}
+
+	if (!(irq_info.flags & VFIO_IRQ_INFO_EVENTFD)) {
+		vfio_dev_err(vdev, "interrupt not eventfd capable");
+		return -EINVAL;
+	}
+
+	if (!(irq_info.flags & VFIO_IRQ_INFO_AUTOMASKED)) {
+		vfio_dev_err(vdev, "INTx interrupt not AUTOMASKED");
+		return -EINVAL;
+	}
+
+	/* Guest is going to ovewrite our irq_line... */
+	pdev->intx_gsi = pdev->hdr.irq_line - KVM_IRQ_OFFSET;
+
+	return 0;
 }
 
 static int vfio_pci_configure_dev_irqs(struct kvm *kvm, struct vfio_device *vdev)
@@ -1142,8 +1150,13 @@ static int vfio_pci_configure_dev_irqs(struct kvm *kvm, struct vfio_device *vdev
 			return ret;
 	}
 
-	if (pdev->irq_modes & VFIO_PCI_IRQ_MODE_INTX)
+	if (pdev->irq_modes & VFIO_PCI_IRQ_MODE_INTX) {
+		ret = vfio_pci_init_intx(kvm, vdev);
+		if (ret)
+			return ret;
+
 		ret = vfio_pci_enable_intx(kvm, vdev);
+	}
 
 	return ret;
 }
