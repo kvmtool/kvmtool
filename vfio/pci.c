@@ -28,6 +28,7 @@ struct vfio_irq_eventfd {
 	msi_update_state(state, val, VFIO_PCI_MSI_STATE_EMPTY)
 
 static void vfio_pci_disable_intx(struct kvm *kvm, struct vfio_device *vdev);
+static int vfio_pci_enable_intx(struct kvm *kvm, struct vfio_device *vdev);
 
 static int vfio_pci_enable_msis(struct kvm *kvm, struct vfio_device *vdev,
 				bool msix)
@@ -50,17 +51,14 @@ static int vfio_pci_enable_msis(struct kvm *kvm, struct vfio_device *vdev,
 	if (!msi_is_enabled(msis->virt_state))
 		return 0;
 
-	if (pdev->irq_modes & VFIO_PCI_IRQ_MODE_INTX) {
+	if (pdev->irq_modes & VFIO_PCI_IRQ_MODE_INTX)
 		/*
 		 * PCI (and VFIO) forbids enabling INTx, MSI or MSIX at the same
 		 * time. Since INTx has to be enabled from the start (we don't
-		 * have a reliable way to know when the user starts using it),
+		 * have a reliable way to know when the guest starts using it),
 		 * disable it now.
 		 */
 		vfio_pci_disable_intx(kvm, vdev);
-		/* Permanently disable INTx */
-		pdev->irq_modes &= ~VFIO_PCI_IRQ_MODE_INTX;
-	}
 
 	eventfds = (void *)msis->irq_set + sizeof(struct vfio_irq_set);
 
@@ -162,7 +160,16 @@ static int vfio_pci_disable_msis(struct kvm *kvm, struct vfio_device *vdev,
 	msi_set_enabled(msis->phys_state, false);
 	msi_set_empty(msis->phys_state, true);
 
-	return 0;
+	/*
+	 * When MSI or MSIX is disabled, this might be called when
+	 * PCI driver detects the MSI interrupt failure and wants to
+	 * rollback to INTx mode.  Thus enable INTx if the device
+	 * supports INTx mode in this case.
+	 */
+	if (pdev->irq_modes & VFIO_PCI_IRQ_MODE_INTX)
+		ret = vfio_pci_enable_intx(kvm, vdev);
+
+	return ret >= 0 ? 0 : ret;
 }
 
 static int vfio_pci_update_msi_entry(struct kvm *kvm, struct vfio_device *vdev,
@@ -1002,6 +1009,9 @@ static void vfio_pci_disable_intx(struct kvm *kvm, struct vfio_device *vdev)
 		.index	= VFIO_PCI_INTX_IRQ_INDEX,
 	};
 
+	if (pdev->intx_fd == -1)
+		return;
+
 	pr_debug("user requested MSI, disabling INTx %d", gsi);
 
 	ioctl(vdev->fd, VFIO_DEVICE_SET_IRQS, &irq_set);
@@ -1009,6 +1019,7 @@ static void vfio_pci_disable_intx(struct kvm *kvm, struct vfio_device *vdev)
 
 	close(pdev->intx_fd);
 	close(pdev->unmask_fd);
+	pdev->intx_fd = -1;
 }
 
 static int vfio_pci_enable_intx(struct kvm *kvm, struct vfio_device *vdev)
@@ -1019,6 +1030,9 @@ static int vfio_pci_enable_intx(struct kvm *kvm, struct vfio_device *vdev)
 	struct vfio_irq_eventfd	unmask;
 	struct vfio_pci_device *pdev = &vdev->pci;
 	int gsi = pdev->intx_gsi;
+
+	if (pdev->intx_fd != -1)
+		return 0;
 
 	/*
 	 * PCI IRQ is level-triggered, so we use two eventfds. trigger_fd
@@ -1121,6 +1135,8 @@ static int vfio_pci_init_intx(struct kvm *kvm, struct vfio_device *vdev)
 
 	/* Guest is going to ovewrite our irq_line... */
 	pdev->intx_gsi = pdev->hdr.irq_line - KVM_IRQ_OFFSET;
+
+	pdev->intx_fd = -1;
 
 	return 0;
 }
