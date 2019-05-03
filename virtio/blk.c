@@ -161,7 +161,6 @@ static void set_guest_features(struct kvm *kvm, void *dev, u32 features)
 {
 	struct blk_dev *bdev = dev;
 	struct virtio_blk_config *conf = &bdev->blk_config;
-	struct virtio_blk_geometry *geo = &conf->geometry;
 
 	bdev->features = features;
 
@@ -170,7 +169,8 @@ static void set_guest_features(struct kvm *kvm, void *dev, u32 features)
 	conf->seg_max = virtio_host_to_guest_u32(&bdev->vdev, conf->seg_max);
 
 	/* Geometry */
-	geo->cylinders = virtio_host_to_guest_u16(&bdev->vdev, geo->cylinders);
+	conf->geometry.cylinders = virtio_host_to_guest_u16(&bdev->vdev,
+						conf->geometry.cylinders);
 
 	conf->blk_size = virtio_host_to_guest_u32(&bdev->vdev, conf->blk_size);
 	conf->min_io_size = virtio_host_to_guest_u16(&bdev->vdev, conf->min_io_size);
