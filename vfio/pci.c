@@ -952,7 +952,7 @@ static int vfio_pci_init_msis(struct kvm *kvm, struct vfio_device *vdev,
 	size_t nr_entries = msis->nr_entries;
 
 	ret = ioctl(vdev->fd, VFIO_DEVICE_GET_IRQ_INFO, &msis->info);
-	if (ret || &msis->info.count == 0) {
+	if (ret || msis->info.count == 0) {
 		vfio_dev_err(vdev, "no MSI reported by VFIO");
 		return -ENODEV;
 	}
