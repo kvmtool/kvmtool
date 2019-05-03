@@ -557,11 +557,6 @@ static int vfio_pci_parse_caps(struct vfio_device *vdev)
 	pdev->hdr.capabilities = 0;
 
 	for (; pos; pos = next) {
-		if (pos >= PCI_DEV_CFG_SIZE) {
-			vfio_dev_warn(vdev, "ignoring cap outside of config space");
-			return -EINVAL;
-		}
-
 		cap = PCI_CAP(&pdev->hdr, pos);
 		next = cap->next;
 
