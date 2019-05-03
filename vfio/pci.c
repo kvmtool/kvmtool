@@ -9,10 +9,15 @@
 #include <sys/time.h>
 
 /* Wrapper around UAPI vfio_irq_set */
-struct vfio_irq_eventfd {
+union vfio_irq_eventfd {
 	struct vfio_irq_set	irq;
-	int			fd;
+	u8 buffer[sizeof(struct vfio_irq_set) + sizeof(int)];
 };
+
+static void set_vfio_irq_eventd_payload(union vfio_irq_eventfd *evfd, int fd)
+{
+	memcpy(&evfd->irq.data, &fd, sizeof(fd));
+}
 
 #define msi_is_enabled(state)		((state) & VFIO_PCI_MSI_STATE_ENABLED)
 #define msi_is_masked(state)		((state) & VFIO_PCI_MSI_STATE_MASKED)
@@ -38,7 +43,7 @@ static int vfio_pci_enable_msis(struct kvm *kvm, struct vfio_device *vdev,
 	int *eventfds;
 	struct vfio_pci_device *pdev = &vdev->pci;
 	struct vfio_pci_msi_common *msis = msix ? &pdev->msix : &pdev->msi;
-	struct vfio_irq_eventfd single = {
+	union vfio_irq_eventfd single = {
 		.irq = {
 			.argsz	= sizeof(single),
 			.flags	= VFIO_IRQ_SET_DATA_EVENTFD |
@@ -117,7 +122,7 @@ static int vfio_pci_enable_msis(struct kvm *kvm, struct vfio_device *vdev,
 			continue;
 
 		single.irq.start = i;
-		single.fd = fd;
+		set_vfio_irq_eventd_payload(&single, fd);
 
 		ret = ioctl(vdev->fd, VFIO_DEVICE_SET_IRQS, &single);
 		if (ret < 0) {
@@ -1021,8 +1026,8 @@ static int vfio_pci_enable_intx(struct kvm *kvm, struct vfio_device *vdev)
 {
 	int ret;
 	int trigger_fd, unmask_fd;
-	struct vfio_irq_eventfd	trigger;
-	struct vfio_irq_eventfd	unmask;
+	union vfio_irq_eventfd	trigger;
+	union vfio_irq_eventfd	unmask;
 	struct vfio_pci_device *pdev = &vdev->pci;
 	int gsi = pdev->intx_gsi;
 
@@ -1058,7 +1063,7 @@ static int vfio_pci_enable_intx(struct kvm *kvm, struct vfio_device *vdev)
 		.start	= 0,
 		.count	= 1,
 	};
-	trigger.fd = trigger_fd;
+	set_vfio_irq_eventd_payload(&trigger, trigger_fd);
 
 	ret = ioctl(vdev->fd, VFIO_DEVICE_SET_IRQS, &trigger);
 	if (ret < 0) {
@@ -1073,7 +1078,7 @@ static int vfio_pci_enable_intx(struct kvm *kvm, struct vfio_device *vdev)
 		.start	= 0,
 		.count	= 1,
 	};
-	unmask.fd = unmask_fd;
+	set_vfio_irq_eventd_payload(&unmask, unmask_fd);
 
 	ret = ioctl(vdev->fd, VFIO_DEVICE_SET_IRQS, &unmask);
 	if (ret < 0) {
