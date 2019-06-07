@@ -18,5 +18,6 @@
 #define ARM_CPU_CTRL_SCTLR_EL1	0
 
 void kvm_cpu__select_features(struct kvm *kvm, struct kvm_vcpu_init *init);
+int kvm_cpu__configure_features(struct kvm_cpu *vcpu);
 
 #endif /* KVM__KVM_CPU_ARCH_H */

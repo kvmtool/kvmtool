@@ -136,6 +136,24 @@ void kvm_cpu__select_features(struct kvm *kvm, struct kvm_vcpu_init *init)
 		init->features[0] |= 1UL << KVM_ARM_VCPU_PTRAUTH_ADDRESS;
 		init->features[0] |= 1UL << KVM_ARM_VCPU_PTRAUTH_GENERIC;
 	}
+
+	/* Enable SVE if available */
+	if (kvm__supports_extension(kvm, KVM_CAP_ARM_SVE))
+		init->features[0] |= 1UL << KVM_ARM_VCPU_SVE;
+}
+
+int kvm_cpu__configure_features(struct kvm_cpu *vcpu)
+{
+	if (kvm__supports_extension(vcpu->kvm, KVM_CAP_ARM_SVE)) {
+		int feature = KVM_ARM_VCPU_SVE;
+
+		if (ioctl(vcpu->vcpu_fd, KVM_ARM_VCPU_FINALIZE, &feature)) {
+			pr_err("KVM_ARM_VCPU_FINALIZE: %s", strerror(errno));
+			return -1;
+		}
+	}
+
+	return 0;
 }
 
 void kvm_cpu__reset_vcpu(struct kvm_cpu *vcpu)
