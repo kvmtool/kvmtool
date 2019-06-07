@@ -101,9 +101,9 @@ int kvm__get_sock_by_instance(const char *name)
 
 	r = connect(s, (struct sockaddr *)&local, len);
 	if (r < 0 && errno == ECONNREFUSED) {
-		/* Tell the user clean ghost socket file */
-		pr_err("\"%s\" could be a ghost socket file, please remove it",
-				sock_file);
+		/* Clean up the ghost socket file */
+		unlink(local.sun_path);
+		pr_info("Removed ghost socket file \"%s\".", sock_file);
 		return r;
 	} else if (r < 0) {
 		return r;
