@@ -43,10 +43,6 @@ static int kvm__create_socket(struct kvm *kvm)
 
 	snprintf(full_name, sizeof(full_name), "%s/%s%s",
 		 kvm__get_dir(), kvm->cfg.guest_name, KVM_SOCK_SUFFIX);
-	if (access(full_name, F_OK) == 0) {
-		pr_err("Socket file %s already exist", full_name);
-		return -EEXIST;
-	}
 
 	s = socket(AF_UNIX, SOCK_STREAM, 0);
 	if (s < 0) {
@@ -58,6 +54,33 @@ static int kvm__create_socket(struct kvm *kvm)
 	strlcpy(local.sun_path, full_name, sizeof(local.sun_path));
 	len = strlen(local.sun_path) + sizeof(local.sun_family);
 	r = bind(s, (struct sockaddr *)&local, len);
+	/* Check for an existing socket file */
+	if (r < 0 && errno == EADDRINUSE) {
+		r = connect(s, (struct sockaddr *)&local, len);
+		if (r == 0) {
+			/*
+			 * If we could connect, there is already a guest
+			 * using this same name. This should not happen
+			 * for PID derived names, but could happen for user
+			 * provided guest names.
+			 */
+			pr_err("Guest socket file %s already exists.",
+			       full_name);
+			r = -EEXIST;
+			goto fail;
+		}
+		if (errno == ECONNREFUSED) {
+			/*
+			 * This is a ghost socket file, with no-one listening
+			 * on the other end. Since kvmtool will only bind
+			 * above when creating a new guest, there is no
+			 * danger in just removing the file and re-trying.
+			 */
+			unlink(full_name);
+			pr_info("Removed ghost socket file \"%s\".", full_name);
+			r = bind(s, (struct sockaddr *)&local, len);
+		}
+	}
 	if (r < 0) {
 		perror("bind");
 		goto fail;
