@@ -25,11 +25,23 @@ fi
 
 cp -- "$LINUX_ROOT/include/uapi/linux/kvm.h" include/linux
 
+unset KVMTOOL_PATH
+
+copy_optional_arch () {
+	local src="$LINUX_ROOT/arch/$arch/include/uapi/$1"
+
+	if [ -r "$src" ]
+	then
+		cp -- "$src" "$KVMTOOL_PATH/include/asm/"
+	fi
+}
+
 for arch in arm arm64 mips powerpc x86
 do
 	case "$arch" in
 		arm) KVMTOOL_PATH=arm/aarch32 ;;
-		arm64) KVMTOOL_PATH=arm/aarch64 ;;
+		arm64)	KVMTOOL_PATH=arm/aarch64
+			copy_optional_arch asm/sve_context.h ;;
 		*) KVMTOOL_PATH=$arch ;;
 	esac
 	cp -- "$LINUX_ROOT/arch/$arch/include/uapi/asm/kvm.h" \
