@@ -68,6 +68,11 @@ struct kvm_cpu *kvm_cpu__arch_init(struct kvm *kvm, unsigned long cpu_id)
 		vcpu_init.features[0] |= (1UL << KVM_ARM_VCPU_PSCI_0_2);
 	}
 
+	/* Enable pointer authentication if available */
+	if (kvm__supports_extension(kvm, KVM_CAP_ARM_PTRAUTH_ADDRESS) &&
+	    kvm__supports_extension(kvm, KVM_CAP_ARM_PTRAUTH_GENERIC))
+			vcpu_init.features[0] |= ARM_VCPU_PTRAUTH_FEATURE;
+
 	/*
 	 * If the preferred target ioctl is successful then
 	 * use preferred target else try each and every target type
