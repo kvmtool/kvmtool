@@ -7,6 +7,8 @@
 # using the lib/modules/`uname -r`/source link.
 ########################################################################
 
+set -ue
+
 if [ "$#" -ge 1 ]
 then
 	LINUX_ROOT="$1"
