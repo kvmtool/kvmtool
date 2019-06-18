@@ -111,3 +111,9 @@ added automatically by issuing the command
  git config format.subjectprefix "PATCH kvmtool"
 
 in the git repository.
+
+Maintainers
+-----------
+
+kvmtool is maintained by Will Deacon <will@kernel.org> and Julien Thierry
+<julien.thierry@arm.com>.
