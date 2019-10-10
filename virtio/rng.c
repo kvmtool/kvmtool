@@ -103,6 +103,7 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 page_size, u32 align,
 	job = &rdev->jobs[vq];
 
 	vring_init(&queue->vring, VIRTIO_RNG_QUEUE_SIZE, p, align);
+	virtio_init_device_vq(&rdev->vdev, queue);
 
 	*job = (struct rng_dev_job) {
 		.vq	= queue,

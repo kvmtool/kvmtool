@@ -72,6 +72,7 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 page_size, u32 align,
 	p		= virtio_get_vq(kvm, queue->pfn, page_size);
 
 	vring_init(&queue->vring, VIRTIO_SCSI_QUEUE_SIZE, p, align);
+	virtio_init_device_vq(&sdev->vdev, queue);
 
 	if (sdev->vhost_fd == 0)
 		return 0;

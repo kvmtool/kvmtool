@@ -212,6 +212,7 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 page_size, u32 align,
 
 	thread_pool__init_job(&bdev->jobs[vq], kvm, virtio_bln_do_io, queue);
 	vring_init(&queue->vring, VIRTIO_BLN_QUEUE_SIZE, p, align);
+	virtio_init_device_vq(&bdev->vdev, queue);
 
 	return 0;
 }
