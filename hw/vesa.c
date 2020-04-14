@@ -63,22 +63,25 @@ struct framebuffer *vesa__init(struct kvm *kvm)
 
 	if (!kvm->cfg.vnc && !kvm->cfg.sdl && !kvm->cfg.gtk)
 		return NULL;
-	r = pci_get_io_port_block(PCI_IO_SIZE);
-	r = ioport__register(kvm, r, &vesa_io_ops, PCI_IO_SIZE, NULL);
+	vesa_base_addr = pci_get_io_port_block(PCI_IO_SIZE);
+	r = ioport__register(kvm, vesa_base_addr, &vesa_io_ops, PCI_IO_SIZE, NULL);
 	if (r < 0)
-		return ERR_PTR(r);
+		goto out_error;
 
-	vesa_base_addr			= (u16)r;
 	vesa_pci_device.bar[0]		= cpu_to_le32(vesa_base_addr | PCI_BASE_ADDRESS_SPACE_IO);
 	r = device__register(&vesa_device);
 	if (r < 0)
-		return ERR_PTR(r);
+		goto unregister_ioport;
 
 	mem = mmap(NULL, VESA_MEM_SIZE, PROT_RW, MAP_ANON_NORESERVE, -1, 0);
-	if (mem == MAP_FAILED)
-		return ERR_PTR(-errno);
+	if (mem == MAP_FAILED) {
+		r = -errno;
+		goto unregister_device;
+	}
 
-	kvm__register_dev_mem(kvm, VESA_MEM_ADDR, VESA_MEM_SIZE, mem);
+	r = kvm__register_dev_mem(kvm, VESA_MEM_ADDR, VESA_MEM_SIZE, mem);
+	if (r < 0)
+		goto unmap_dev;
 
 	vesafb = (struct framebuffer) {
 		.width			= VESA_WIDTH,
@@ -90,4 +93,13 @@ struct framebuffer *vesa__init(struct kvm *kvm)
 		.kvm			= kvm,
 	};
 	return fb__register(&vesafb);
+
+unmap_dev:
+	munmap(mem, VESA_MEM_SIZE);
+unregister_device:
+	device__unregister(&vesa_device);
+unregister_ioport:
+	ioport__unregister(kvm, vesa_base_addr);
+out_error:
+	return ERR_PTR(r);
 }
