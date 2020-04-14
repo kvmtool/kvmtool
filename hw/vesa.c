@@ -58,6 +58,9 @@ struct framebuffer *vesa__init(struct kvm *kvm)
 	char *mem;
 	int r;
 
+	BUILD_BUG_ON(!is_power_of_two(VESA_MEM_SIZE));
+	BUILD_BUG_ON(VESA_MEM_SIZE < VESA_BPP/8 * VESA_WIDTH * VESA_HEIGHT);
+
 	if (!kvm->cfg.vnc && !kvm->cfg.sdl && !kvm->cfg.gtk)
 		return NULL;
 

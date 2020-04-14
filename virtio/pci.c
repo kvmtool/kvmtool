@@ -435,6 +435,9 @@ int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 	vpci->kvm = kvm;
 	vpci->dev = dev;
 
+	BUILD_BUG_ON(!is_power_of_two(IOPORT_SIZE));
+	BUILD_BUG_ON(!is_power_of_two(PCI_IO_SIZE));
+
 	r = ioport__register(kvm, IOPORT_EMPTY, &virtio_pci__io_ops, IOPORT_SIZE, vdev);
 	if (r < 0)
 		return r;

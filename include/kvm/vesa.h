@@ -5,8 +5,12 @@
 #define VESA_HEIGHT	480
 
 #define VESA_MEM_ADDR	0xd0000000
-#define VESA_MEM_SIZE	(4*VESA_WIDTH*VESA_HEIGHT)
 #define VESA_BPP	32
+/*
+ * We actually only need VESA_BPP/8*VESA_WIDTH*VESA_HEIGHT bytes. But the memory
+ * size must be a power of 2, so we round up.
+ */
+#define VESA_MEM_SIZE	(1 << 21)
 
 struct kvm;
 struct biosregs;
