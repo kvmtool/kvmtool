@@ -645,16 +645,19 @@ static int vfio_pci_parse_cfg_space(struct vfio_device *vdev)
 static int vfio_pci_fixup_cfg_space(struct vfio_device *vdev)
 {
 	int i;
+	u64 base;
 	ssize_t hdr_sz;
 	struct msix_cap *msix;
 	struct vfio_region_info *info;
 	struct vfio_pci_device *pdev = &vdev->pci;
+	struct vfio_region *region;
 
 	/* Initialise the BARs */
 	for (i = VFIO_PCI_BAR0_REGION_INDEX; i <= VFIO_PCI_BAR5_REGION_INDEX; ++i) {
-		u64 base;
-		struct vfio_region *region = &vdev->regions[i];
+		if ((u32)i == vdev->info.num_regions)
+			break;
 
+		region = &vdev->regions[i];
 		/* Construct a fake reg to match what we've mapped. */
 		if (region->is_ioport) {
 			base = (region->port_base & PCI_BASE_ADDRESS_IO_MASK) |
@@ -853,11 +856,12 @@ static int vfio_pci_configure_bar(struct kvm *kvm, struct vfio_device *vdev,
 	u32 bar;
 	size_t map_size;
 	struct vfio_pci_device *pdev = &vdev->pci;
-	struct vfio_region *region = &vdev->regions[nr];
+	struct vfio_region *region;
 
 	if (nr >= vdev->info.num_regions)
 		return 0;
 
+	region = &vdev->regions[nr];
 	bar = pdev->hdr.bar[nr];
 
 	region->vdev = vdev;
