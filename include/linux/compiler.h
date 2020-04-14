@@ -14,7 +14,7 @@
 #define __packed	__attribute__((packed))
 #define __iomem
 #define __force
-#define __must_check
+#define __must_check	__attribute__((warn_unused_result))
 #define unlikely
 
 #endif

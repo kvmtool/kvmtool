@@ -910,7 +910,7 @@ done:
 
 static int virtio_net__init_one(struct virtio_net_params *params)
 {
-	int i, err;
+	int i, r;
 	struct net_dev *ndev;
 	struct virtio_ops *ops;
 	enum virtio_trans trans = VIRTIO_DEFAULT_TRANS(params->kvm);
@@ -919,13 +919,11 @@ static int virtio_net__init_one(struct virtio_net_params *params)
 	if (ndev == NULL)
 		return -ENOMEM;
 
-	ops = malloc(sizeof(*ops));
-	if (ops == NULL) {
-		err = -ENOMEM;
-		goto err_free_ndev;
-	}
-
 	list_add_tail(&ndev->list, &ndevs);
+
+	ops = malloc(sizeof(*ops));
+	if (ops == NULL)
+		return -ENOMEM;
 
 	ndev->kvm = params->kvm;
 	ndev->params = params;
@@ -969,8 +967,12 @@ static int virtio_net__init_one(struct virtio_net_params *params)
 				   virtio_trans_name(trans));
 	}
 
-	virtio_init(params->kvm, ndev, &ndev->vdev, ops, trans,
-		    PCI_DEVICE_ID_VIRTIO_NET, VIRTIO_ID_NET, PCI_CLASS_NET);
+	r = virtio_init(params->kvm, ndev, &ndev->vdev, ops, trans,
+			PCI_DEVICE_ID_VIRTIO_NET, VIRTIO_ID_NET, PCI_CLASS_NET);
+	if (r < 0) {
+		free(ops);
+		return r;
+	}
 
 	if (params->vhost)
 		virtio_net__vhost_init(params->kvm, ndev);
@@ -979,19 +981,17 @@ static int virtio_net__init_one(struct virtio_net_params *params)
 		compat_id = virtio_compat_add_message("virtio-net", "CONFIG_VIRTIO_NET");
 
 	return 0;
-
-err_free_ndev:
-	free(ndev);
-	return err;
 }
 
 int virtio_net__init(struct kvm *kvm)
 {
-	int i;
+	int i, r;
 
 	for (i = 0; i < kvm->cfg.num_net_devices; i++) {
 		kvm->cfg.net_params[i].kvm = kvm;
-		virtio_net__init_one(&kvm->cfg.net_params[i]);
+		r = virtio_net__init_one(&kvm->cfg.net_params[i]);
+		if (r < 0)
+			goto cleanup;
 	}
 
 	if (kvm->cfg.num_net_devices == 0 && kvm->cfg.no_net == 0) {
@@ -1007,10 +1007,16 @@ int virtio_net__init(struct kvm *kvm)
 		str_to_mac(kvm->cfg.guest_mac, net_params.guest_mac);
 		str_to_mac(kvm->cfg.host_mac, net_params.host_mac);
 
-		virtio_net__init_one(&net_params);
+		r = virtio_net__init_one(&net_params);
+		if (r < 0)
+			goto cleanup;
 	}
 
 	return 0;
+
+cleanup:
+	virtio_net__exit(kvm);
+	return r;
 }
 virtio_dev_init(virtio_net__init);
 
@@ -1018,15 +1024,18 @@ int virtio_net__exit(struct kvm *kvm)
 {
 	struct virtio_net_params *params;
 	struct net_dev *ndev;
-	struct list_head *ptr;
+	struct list_head *ptr, *n;
 
-	list_for_each(ptr, &ndevs) {
+	list_for_each_safe(ptr, n, &ndevs) {
 		ndev = list_entry(ptr, struct net_dev, list);
 		params = ndev->params;
 		/* Cleanup any tap device which attached to bridge */
 		if (ndev->mode == NET_MODE_TAP &&
 		    strcmp(params->downscript, "none"))
 			virtio_net_exec_script(params->downscript, ndev->tap_name);
+
+		list_del(&ndev->list);
+		free(ndev);
 	}
 	return 0;
 }

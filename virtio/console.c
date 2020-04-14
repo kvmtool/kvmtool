@@ -230,12 +230,17 @@ static struct virtio_ops con_dev_virtio_ops = {
 
 int virtio_console__init(struct kvm *kvm)
 {
+	int r;
+
 	if (kvm->cfg.active_console != CONSOLE_VIRTIO)
 		return 0;
 
-	virtio_init(kvm, &cdev, &cdev.vdev, &con_dev_virtio_ops,
-		    VIRTIO_DEFAULT_TRANS(kvm), PCI_DEVICE_ID_VIRTIO_CONSOLE,
-		    VIRTIO_ID_CONSOLE, PCI_CLASS_CONSOLE);
+	r = virtio_init(kvm, &cdev, &cdev.vdev, &con_dev_virtio_ops,
+			VIRTIO_DEFAULT_TRANS(kvm), PCI_DEVICE_ID_VIRTIO_CONSOLE,
+			VIRTIO_ID_CONSOLE, PCI_CLASS_CONSOLE);
+	if (r < 0)
+		return r;
+
 	if (compat_id == -1)
 		compat_id = virtio_compat_add_message("virtio-console", "CONFIG_VIRTIO_CONSOLE");
 

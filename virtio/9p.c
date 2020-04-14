@@ -1551,11 +1551,14 @@ int virtio_9p_img_name_parser(const struct option *opt, const char *arg, int uns
 int virtio_9p__init(struct kvm *kvm)
 {
 	struct p9_dev *p9dev;
+	int r;
 
 	list_for_each_entry(p9dev, &devs, list) {
-		virtio_init(kvm, p9dev, &p9dev->vdev, &p9_dev_virtio_ops,
-			    VIRTIO_DEFAULT_TRANS(kvm), PCI_DEVICE_ID_VIRTIO_9P,
-			    VIRTIO_ID_9P, PCI_CLASS_9P);
+		r = virtio_init(kvm, p9dev, &p9dev->vdev, &p9_dev_virtio_ops,
+				VIRTIO_DEFAULT_TRANS(kvm), PCI_DEVICE_ID_VIRTIO_9P,
+				VIRTIO_ID_9P, PCI_CLASS_9P);
+		if (r < 0)
+			return r;
 	}
 
 	return 0;

@@ -74,7 +74,7 @@ struct framebuffer *vesa__init(struct kvm *kvm)
 
 	mem = mmap(NULL, VESA_MEM_SIZE, PROT_RW, MAP_ANON_NORESERVE, -1, 0);
 	if (mem == MAP_FAILED)
-		ERR_PTR(-errno);
+		return ERR_PTR(-errno);
 
 	kvm__register_dev_mem(kvm, VESA_MEM_ADDR, VESA_MEM_SIZE, mem);
 

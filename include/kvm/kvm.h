@@ -8,6 +8,7 @@
 
 #include <stdbool.h>
 #include <linux/types.h>
+#include <linux/compiler.h>
 #include <time.h>
 #include <signal.h>
 #include <sys/prctl.h>

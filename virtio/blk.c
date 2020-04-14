@@ -306,6 +306,7 @@ static struct virtio_ops blk_dev_virtio_ops = {
 static int virtio_blk__init_one(struct kvm *kvm, struct disk_image *disk)
 {
 	struct blk_dev *bdev;
+	int r;
 
 	if (!disk)
 		return -EINVAL;
@@ -323,11 +324,13 @@ static int virtio_blk__init_one(struct kvm *kvm, struct disk_image *disk)
 		.kvm			= kvm,
 	};
 
-	virtio_init(kvm, bdev, &bdev->vdev, &blk_dev_virtio_ops,
-		    VIRTIO_DEFAULT_TRANS(kvm), PCI_DEVICE_ID_VIRTIO_BLK,
-		    VIRTIO_ID_BLOCK, PCI_CLASS_BLK);
-
 	list_add_tail(&bdev->list, &bdevs);
+
+	r = virtio_init(kvm, bdev, &bdev->vdev, &blk_dev_virtio_ops,
+			VIRTIO_DEFAULT_TRANS(kvm), PCI_DEVICE_ID_VIRTIO_BLK,
+			VIRTIO_ID_BLOCK, PCI_CLASS_BLK);
+	if (r < 0)
+		return r;
 
 	disk_image__set_callback(bdev->disk, virtio_blk_complete);
 
@@ -359,7 +362,8 @@ int virtio_blk__init(struct kvm *kvm)
 
 	return 0;
 cleanup:
-	return virtio_blk__exit(kvm);
+	virtio_blk__exit(kvm);
+	return r;
 }
 virtio_dev_init(virtio_blk__init);
 
