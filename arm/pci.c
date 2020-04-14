@@ -30,7 +30,7 @@ void pci__generate_fdt_nodes(void *fdt)
 	struct of_interrupt_map_entry irq_map[OF_PCI_IRQ_MAP_MAX];
 	unsigned nentries = 0;
 	/* Bus range */
-	u32 bus_range[] = { cpu_to_fdt32(0), cpu_to_fdt32(1), };
+	u32 bus_range[] = { cpu_to_fdt32(0), cpu_to_fdt32(0), };
 	/* Configuration Space */
 	u64 cfg_reg_prop[] = { cpu_to_fdt64(KVM_PCI_CFG_AREA),
 			       cpu_to_fdt64(ARM_PCI_CFG_SIZE), };
