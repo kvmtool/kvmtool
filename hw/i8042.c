@@ -349,10 +349,6 @@ static struct ioport_operations kbd_ops = {
 
 int kbd__init(struct kvm *kvm)
 {
-#ifndef CONFIG_X86
-	return 0;
-#endif
-
 	kbd_reset();
 	state.kvm = kvm;
 	ioport__register(kvm, I8042_DATA_REG, &kbd_ops, 2, NULL);
