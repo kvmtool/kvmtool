@@ -22,6 +22,7 @@ CC	:= $(CROSS_COMPILE)gcc
 CFLAGS	:=
 LD	:= $(CROSS_COMPILE)ld
 LDFLAGS	:=
+OBJCOPY	:= $(CROSS_COMPILE)objcopy
 
 FIND	:= find
 CSCOPE	:= cscope
@@ -480,7 +481,7 @@ x86/bios/bios.bin.elf: x86/bios/entry.S x86/bios/e820.c x86/bios/int10.c x86/bio
 
 x86/bios/bios.bin: x86/bios/bios.bin.elf
 	$(E) "  OBJCOPY " $@
-	$(Q) objcopy -O binary -j .text x86/bios/bios.bin.elf x86/bios/bios.bin
+	$(Q) $(OBJCOPY) -O binary -j .text x86/bios/bios.bin.elf x86/bios/bios.bin
 
 x86/bios/bios-rom.o: x86/bios/bios-rom.S x86/bios/bios.bin x86/bios/bios-rom.h
 	$(E) "  CC      " $@
