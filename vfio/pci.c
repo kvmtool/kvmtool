@@ -920,8 +920,10 @@ static int vfio_pci_configure_dev_regions(struct kvm *kvm,
 
 	for (i = VFIO_PCI_BAR0_REGION_INDEX; i <= VFIO_PCI_BAR5_REGION_INDEX; ++i) {
 		/* Ignore top half of 64-bit BAR */
-		if (i % 2 && is_64bit)
+		if (is_64bit) {
+			is_64bit = false;
 			continue;
+		}
 
 		ret = vfio_pci_configure_bar(kvm, vdev, i);
 		if (ret)
