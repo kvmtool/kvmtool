@@ -715,17 +715,44 @@ static int vfio_pci_fixup_cfg_space(struct vfio_device *vdev)
 	return 0;
 }
 
-static int vfio_pci_create_msix_table(struct kvm *kvm,
-				      struct vfio_pci_device *pdev)
+static int vfio_pci_get_region_info(struct vfio_device *vdev, u32 index,
+				    struct vfio_region_info *info)
+{
+	int ret;
+
+	*info = (struct vfio_region_info) {
+		.argsz = sizeof(*info),
+		.index = index,
+	};
+
+	ret = ioctl(vdev->fd, VFIO_DEVICE_GET_REGION_INFO, info);
+	if (ret) {
+		ret = -errno;
+		vfio_dev_err(vdev, "cannot get info for BAR %u", index);
+		return ret;
+	}
+
+	if (info->size && !is_power_of_two(info->size)) {
+		vfio_dev_err(vdev, "region is not power of two: 0x%llx",
+				info->size);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int vfio_pci_create_msix_table(struct kvm *kvm, struct vfio_device *vdev)
 {
 	int ret;
 	size_t i;
-	size_t mmio_size;
+	size_t map_size;
 	size_t nr_entries;
 	struct vfio_pci_msi_entry *entries;
+	struct vfio_pci_device *pdev = &vdev->pci;
 	struct vfio_pci_msix_pba *pba = &pdev->msix_pba;
 	struct vfio_pci_msix_table *table = &pdev->msix_table;
 	struct msix_cap *msix = PCI_CAP(&pdev->hdr, pdev->msix.pos);
+	struct vfio_region_info info;
 
 	table->bar = msix->table_offset & PCI_MSIX_TABLE_BIR;
 	pba->bar = msix->pba_offset & PCI_MSIX_TABLE_BIR;
@@ -744,15 +771,31 @@ static int vfio_pci_create_msix_table(struct kvm *kvm,
 	for (i = 0; i < nr_entries; i++)
 		entries[i].config.ctrl = PCI_MSIX_ENTRY_CTRL_MASKBIT;
 
+	ret = vfio_pci_get_region_info(vdev, table->bar, &info);
+	if (ret)
+		return ret;
+	if (!info.size)
+		return -EINVAL;
+	map_size = info.size;
+
+	if (table->bar != pba->bar) {
+		ret = vfio_pci_get_region_info(vdev, pba->bar, &info);
+		if (ret)
+			return ret;
+		if (!info.size)
+			return -EINVAL;
+		map_size += info.size;
+	}
+
 	/*
 	 * To ease MSI-X cap configuration in case they share the same BAR,
 	 * collapse table and pending array. The size of the BAR regions must be
 	 * powers of two.
 	 */
-	mmio_size = roundup_pow_of_two(table->size + pba->size);
-	table->guest_phys_addr = pci_get_mmio_block(mmio_size);
+	map_size = ALIGN(map_size, PAGE_SIZE);
+	table->guest_phys_addr = pci_get_mmio_block(map_size);
 	if (!table->guest_phys_addr) {
-		pr_err("cannot allocate IO space");
+		pr_err("cannot allocate MMIO space");
 		ret = -ENOMEM;
 		goto out_free;
 	}
@@ -816,17 +859,10 @@ static int vfio_pci_configure_bar(struct kvm *kvm, struct vfio_device *vdev,
 
 	region->vdev = vdev;
 	region->is_ioport = !!(bar & PCI_BASE_ADDRESS_SPACE_IO);
-	region->info = (struct vfio_region_info) {
-		.argsz = sizeof(region->info),
-		.index = nr,
-	};
 
-	ret = ioctl(vdev->fd, VFIO_DEVICE_GET_REGION_INFO, &region->info);
-	if (ret) {
-		ret = -errno;
-		vfio_dev_err(vdev, "cannot get info for BAR %zu", nr);
+	ret = vfio_pci_get_region_info(vdev, nr, &region->info);
+	if (ret)
 		return ret;
-	}
 
 	/* Ignore invalid or unimplemented regions */
 	if (!region->info.size)
@@ -871,7 +907,7 @@ static int vfio_pci_configure_dev_regions(struct kvm *kvm,
 		return ret;
 
 	if (pdev->irq_modes & VFIO_PCI_IRQ_MODE_MSIX) {
-		ret = vfio_pci_create_msix_table(kvm, pdev);
+		ret = vfio_pci_create_msix_table(kvm, vdev);
 		if (ret)
 			return ret;
 	}
