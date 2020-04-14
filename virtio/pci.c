@@ -438,18 +438,19 @@ int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 	BUILD_BUG_ON(!is_power_of_two(IOPORT_SIZE));
 	BUILD_BUG_ON(!is_power_of_two(PCI_IO_SIZE));
 
-	r = ioport__register(kvm, IOPORT_EMPTY, &virtio_pci__io_ops, IOPORT_SIZE, vdev);
+	r = pci_get_io_port_block(IOPORT_SIZE);
+	r = ioport__register(kvm, r, &virtio_pci__io_ops, IOPORT_SIZE, vdev);
 	if (r < 0)
 		return r;
 	vpci->port_addr = (u16)r;
 
-	vpci->mmio_addr = pci_get_io_space_block(IOPORT_SIZE);
+	vpci->mmio_addr = pci_get_mmio_block(IOPORT_SIZE);
 	r = kvm__register_mmio(kvm, vpci->mmio_addr, IOPORT_SIZE, false,
 			       virtio_pci__io_mmio_callback, vpci);
 	if (r < 0)
 		goto free_ioport;
 
-	vpci->msix_io_block = pci_get_io_space_block(PCI_IO_SIZE * 2);
+	vpci->msix_io_block = pci_get_mmio_block(PCI_IO_SIZE * 2);
 	r = kvm__register_mmio(kvm, vpci->msix_io_block, PCI_IO_SIZE * 2, false,
 			       virtio_pci__msix_mmio_callback, vpci);
 	if (r < 0)

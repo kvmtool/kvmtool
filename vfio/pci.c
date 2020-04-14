@@ -750,7 +750,7 @@ static int vfio_pci_create_msix_table(struct kvm *kvm,
 	 * powers of two.
 	 */
 	mmio_size = roundup_pow_of_two(table->size + pba->size);
-	table->guest_phys_addr = pci_get_io_space_block(mmio_size);
+	table->guest_phys_addr = pci_get_mmio_block(mmio_size);
 	if (!table->guest_phys_addr) {
 		pr_err("cannot allocate IO space");
 		ret = -ENOMEM;
@@ -846,7 +846,7 @@ static int vfio_pci_configure_bar(struct kvm *kvm, struct vfio_device *vdev,
 	if (!region->is_ioport) {
 		/* Grab some MMIO space in the guest */
 		map_size = ALIGN(region->info.size, PAGE_SIZE);
-		region->guest_phys_addr = pci_get_io_space_block(map_size);
+		region->guest_phys_addr = pci_get_mmio_block(map_size);
 	}
 
 	/* Map the BARs into the guest or setup a trap region. */

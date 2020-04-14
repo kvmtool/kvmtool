@@ -14,10 +14,7 @@
 
 /* some ports we reserve for own use */
 #define IOPORT_DBG			0xe0
-#define IOPORT_START			0x6200
 #define IOPORT_SIZE			0x400
-
-#define IOPORT_EMPTY			USHRT_MAX
 
 struct kvm;
 

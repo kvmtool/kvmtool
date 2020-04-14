@@ -63,8 +63,8 @@ struct framebuffer *vesa__init(struct kvm *kvm)
 
 	if (!kvm->cfg.vnc && !kvm->cfg.sdl && !kvm->cfg.gtk)
 		return NULL;
-
-	r = ioport__register(kvm, IOPORT_EMPTY, &vesa_io_ops, IOPORT_SIZE, NULL);
+	r = pci_get_io_port_block(IOPORT_SIZE);
+	r = ioport__register(kvm, r, &vesa_io_ops, IOPORT_SIZE, NULL);
 	if (r < 0)
 		return ERR_PTR(r);
 

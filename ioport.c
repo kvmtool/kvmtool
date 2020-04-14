@@ -16,23 +16,7 @@
 
 #define ioport_node(n) rb_entry(n, struct ioport, node)
 
-DEFINE_MUTEX(ioport_mutex);
-
-static u16			free_io_port_idx; /* protected by ioport_mutex */
-
 static struct rb_root		ioport_tree = RB_ROOT;
-
-static u16 ioport__find_free_port(void)
-{
-	u16 free_port;
-
-	mutex_lock(&ioport_mutex);
-	free_port = IOPORT_START + free_io_port_idx * IOPORT_SIZE;
-	free_io_port_idx++;
-	mutex_unlock(&ioport_mutex);
-
-	return free_port;
-}
 
 static struct ioport *ioport_search(struct rb_root *root, u64 addr)
 {
@@ -85,8 +69,6 @@ int ioport__register(struct kvm *kvm, u16 port, struct ioport_operations *ops, i
 	int r;
 
 	br_write_lock(kvm);
-	if (port == IOPORT_EMPTY)
-		port = ioport__find_free_port();
 
 	entry = ioport_search(&ioport_tree, port);
 	if (entry) {

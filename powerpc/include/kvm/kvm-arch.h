@@ -34,7 +34,7 @@
 #define KVM_MMIO_START			PPC_MMIO_START
 
 /*
- * This is the address that pci_get_io_space_block() starts allocating
+ * This is the address that pci_get_io_port_block() starts allocating
  * from.  Note that this is a PCI bus address.
  */
 #define KVM_IOPORT_AREA			0x0
