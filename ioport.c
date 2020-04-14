@@ -68,14 +68,6 @@ int ioport__register(struct kvm *kvm, u16 port, struct ioport_operations *ops, i
 	struct ioport *entry;
 	int r;
 
-	br_write_lock(kvm);
-
-	entry = ioport_search(&ioport_tree, port);
-	if (entry) {
-		pr_warning("ioport re-registered: %x", port);
-		ioport_remove(&ioport_tree, entry);
-	}
-
 	entry = malloc(sizeof(*entry));
 	if (entry == NULL)
 		return -ENOMEM;
@@ -90,6 +82,7 @@ int ioport__register(struct kvm *kvm, u16 port, struct ioport_operations *ops, i
 		},
 	};
 
+	br_write_lock(kvm);
 	r = ioport_insert(&ioport_tree, entry);
 	if (r < 0)
 		goto out_free;
