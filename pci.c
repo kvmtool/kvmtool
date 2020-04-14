@@ -149,6 +149,8 @@ void pci__config_wr(struct kvm *kvm, union pci_config_address addr, void *data, 
 	u8 bar, offset;
 	struct pci_device_header *pci_hdr;
 	u8 dev_num = addr.device_number;
+	u32 value = 0;
+	u32 mask;
 
 	if (!pci_device_exists(addr.bus_number, dev_num, 0))
 		return;
@@ -169,13 +171,41 @@ void pci__config_wr(struct kvm *kvm, union pci_config_address addr, void *data, 
 	bar = (offset - PCI_BAR_OFFSET(0)) / sizeof(u32);
 
 	/*
-	 * If the kernel masks the BAR it would expect to find the size of the
-	 * BAR there next time it reads from it. When the kernel got the size it
-	 * would write the address back.
+	 * If the kernel masks the BAR, it will expect to find the size of the
+	 * BAR there next time it reads from it. After the kernel reads the
+	 * size, it will write the address back.
 	 */
-	if (bar < 6 && ioport__read32(data) == 0xFFFFFFFF) {
-		u32 sz = pci_hdr->bar_size[bar];
-		memcpy(base + offset, &sz, sizeof(sz));
+	if (bar < 6) {
+		if (pci_hdr->bar[bar] & PCI_BASE_ADDRESS_SPACE_IO)
+			mask = (u32)PCI_BASE_ADDRESS_IO_MASK;
+		else
+			mask = (u32)PCI_BASE_ADDRESS_MEM_MASK;
+		/*
+		 * According to the PCI local bus specification REV 3.0:
+		 * The number of upper bits that a device actually implements
+		 * depends on how much of the address space the device will
+		 * respond to. A device that wants a 1 MB memory address space
+		 * (using a 32-bit base address register) would build the top
+		 * 12 bits of the address register, hardwiring the other bits
+		 * to 0.
+		 *
+		 * Furthermore, software can determine how much address space
+		 * the device requires by writing a value of all 1's to the
+		 * register and then reading the value back. The device will
+		 * return 0's in all don't-care address bits, effectively
+		 * specifying the address space required.
+		 *
+		 * Software computes the size of the address space with the
+		 * formula S = ~B + 1, where S is the memory size and B is the
+		 * value read from the BAR. This means that the BAR value that
+		 * kvmtool should return is B = ~(S - 1).
+		 */
+		memcpy(&value, data, size);
+		if (value == 0xffffffff)
+			value = ~(pci_hdr->bar_size[bar] - 1);
+		/* Preserve the special bits. */
+		value = (value & mask) | (pci_hdr->bar[bar] & ~mask);
+		memcpy(base + offset, &value, size);
 	} else {
 		memcpy(base + offset, data, size);
 	}
