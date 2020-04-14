@@ -472,6 +472,9 @@ static void vfio_pci_cfg_write(struct kvm *kvm, struct pci_device_header *pci_hd
 	struct vfio_device *vdev;
 	void *base = pci_hdr;
 
+	if (offset == PCI_ROM_ADDRESS)
+		return;
+
 	pdev = container_of(pci_hdr, struct vfio_pci_device, hdr);
 	vdev = container_of(pdev, struct vfio_device, pci);
 	info = &vdev->regions[VFIO_PCI_CONFIG_REGION_INDEX].info;
