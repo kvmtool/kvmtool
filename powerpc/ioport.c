@@ -12,9 +12,10 @@
 
 #include <stdlib.h>
 
-void ioport__setup_arch(struct kvm *kvm)
+int ioport__setup_arch(struct kvm *kvm)
 {
 	/* PPC has no legacy ioports to set up */
+	return 0;
 }
 
 void ioport__map_irq(u8 *irq)

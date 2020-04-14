@@ -70,7 +70,9 @@ struct framebuffer *vesa__init(struct kvm *kvm)
 
 	vesa_base_addr			= (u16)r;
 	vesa_pci_device.bar[0]		= cpu_to_le32(vesa_base_addr | PCI_BASE_ADDRESS_SPACE_IO);
-	device__register(&vesa_device);
+	r = device__register(&vesa_device);
+	if (r < 0)
+		return ERR_PTR(r);
 
 	mem = mmap(NULL, VESA_MEM_SIZE, PROT_RW, MAP_ANON_NORESERVE, -1, 0);
 	if (mem == MAP_FAILED)

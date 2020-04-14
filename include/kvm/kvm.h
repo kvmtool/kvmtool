@@ -128,9 +128,9 @@ static inline int kvm__reserve_mem(struct kvm *kvm, u64 guest_phys, u64 size)
 				 KVM_MEM_TYPE_RESERVED);
 }
 
-int kvm__register_mmio(struct kvm *kvm, u64 phys_addr, u64 phys_addr_len, bool coalesce,
-		       void (*mmio_fn)(struct kvm_cpu *vcpu, u64 addr, u8 *data, u32 len, u8 is_write, void *ptr),
-			void *ptr);
+int __must_check kvm__register_mmio(struct kvm *kvm, u64 phys_addr, u64 phys_addr_len, bool coalesce,
+				    void (*mmio_fn)(struct kvm_cpu *vcpu, u64 addr, u8 *data, u32 len, u8 is_write, void *ptr),
+				    void *ptr);
 bool kvm__deregister_mmio(struct kvm *kvm, u64 phys_addr);
 void kvm__reboot(struct kvm *kvm);
 void kvm__pause(struct kvm *kvm);

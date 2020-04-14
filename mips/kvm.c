@@ -100,8 +100,9 @@ void kvm__irq_trigger(struct kvm *kvm, int irq)
 		die_perror("KVM_IRQ_LINE ioctl");
 }
 
-void ioport__setup_arch(struct kvm *kvm)
+int ioport__setup_arch(struct kvm *kvm)
 {
+	return 0;
 }
 
 bool kvm__arch_cpu_supports_vm(void)

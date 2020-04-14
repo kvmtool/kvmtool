@@ -73,7 +73,7 @@ int ioport__register(struct kvm *kvm, u16 port, struct ioport_operations *ops, i
 	entry = ioport_search(&ioport_tree, port);
 	if (entry) {
 		pr_warning("ioport re-registered: %x", port);
-		rb_int_erase(&ioport_tree, &entry->node);
+		ioport_remove(&ioport_tree, entry);
 	}
 
 	entry = malloc(sizeof(*entry));
@@ -91,16 +91,21 @@ int ioport__register(struct kvm *kvm, u16 port, struct ioport_operations *ops, i
 	};
 
 	r = ioport_insert(&ioport_tree, entry);
-	if (r < 0) {
-		free(entry);
-		br_write_unlock(kvm);
-		return r;
-	}
-
-	device__register(&entry->dev_hdr);
+	if (r < 0)
+		goto out_free;
+	r = device__register(&entry->dev_hdr);
+	if (r < 0)
+		goto out_remove;
 	br_write_unlock(kvm);
 
 	return port;
+
+out_remove:
+	ioport_remove(&ioport_tree, entry);
+out_free:
+	free(entry);
+	br_write_unlock(kvm);
+	return r;
 }
 
 int ioport__unregister(struct kvm *kvm, u16 port)
@@ -196,9 +201,7 @@ out:
 
 int ioport__init(struct kvm *kvm)
 {
-	ioport__setup_arch(kvm);
-
-	return 0;
+	return ioport__setup_arch(kvm);
 }
 dev_base_init(ioport__init);
 

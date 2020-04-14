@@ -292,13 +292,16 @@ int virtio_mmio_init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 		     int device_id, int subsys_id, int class)
 {
 	struct virtio_mmio *vmmio = vdev->virtio;
+	int r;
 
 	vmmio->addr	= virtio_mmio_get_io_space_block(VIRTIO_MMIO_IO_SIZE);
 	vmmio->kvm	= kvm;
 	vmmio->dev	= dev;
 
-	kvm__register_mmio(kvm, vmmio->addr, VIRTIO_MMIO_IO_SIZE,
-			   false, virtio_mmio_mmio_callback, vdev);
+	r = kvm__register_mmio(kvm, vmmio->addr, VIRTIO_MMIO_IO_SIZE,
+			       false, virtio_mmio_mmio_callback, vdev);
+	if (r < 0)
+		return r;
 
 	vmmio->hdr = (struct virtio_mmio_hdr) {
 		.magic		= {'v', 'i', 'r', 't'},
@@ -313,7 +316,11 @@ int virtio_mmio_init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 		.data		= generate_virtio_mmio_fdt_node,
 	};
 
-	device__register(&vmmio->dev_hdr);
+	r = device__register(&vmmio->dev_hdr);
+	if (r < 0) {
+		kvm__deregister_mmio(kvm, vmmio->addr);
+		return r;
+	}
 
 	/*
 	 * Instantiate guest virtio-mmio devices using kernel command line
