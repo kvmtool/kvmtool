@@ -421,7 +421,7 @@ static void virtio_pci__io_mmio_callback(struct kvm_cpu *vcpu,
 {
 	struct virtio_pci *vpci = ptr;
 	int direction = is_write ? KVM_EXIT_IO_OUT : KVM_EXIT_IO_IN;
-	u16 port = vpci->port_addr + (addr & (IOPORT_SIZE - 1));
+	u16 port = vpci->port_addr + (addr & (PCI_IO_SIZE - 1));
 
 	kvm__emulate_io(vcpu, port, data, direction, len, 1);
 }
@@ -435,17 +435,16 @@ int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 	vpci->kvm = kvm;
 	vpci->dev = dev;
 
-	BUILD_BUG_ON(!is_power_of_two(IOPORT_SIZE));
 	BUILD_BUG_ON(!is_power_of_two(PCI_IO_SIZE));
 
-	r = pci_get_io_port_block(IOPORT_SIZE);
-	r = ioport__register(kvm, r, &virtio_pci__io_ops, IOPORT_SIZE, vdev);
+	r = pci_get_io_port_block(PCI_IO_SIZE);
+	r = ioport__register(kvm, r, &virtio_pci__io_ops, PCI_IO_SIZE, vdev);
 	if (r < 0)
 		return r;
 	vpci->port_addr = (u16)r;
 
-	vpci->mmio_addr = pci_get_mmio_block(IOPORT_SIZE);
-	r = kvm__register_mmio(kvm, vpci->mmio_addr, IOPORT_SIZE, false,
+	vpci->mmio_addr = pci_get_mmio_block(PCI_IO_SIZE);
+	r = kvm__register_mmio(kvm, vpci->mmio_addr, PCI_IO_SIZE, false,
 			       virtio_pci__io_mmio_callback, vpci);
 	if (r < 0)
 		goto free_ioport;
@@ -475,8 +474,8 @@ int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 							| PCI_BASE_ADDRESS_SPACE_MEMORY),
 		.status			= cpu_to_le16(PCI_STATUS_CAP_LIST),
 		.capabilities		= (void *)&vpci->pci_hdr.msix - (void *)&vpci->pci_hdr,
-		.bar_size[0]		= cpu_to_le32(IOPORT_SIZE),
-		.bar_size[1]		= cpu_to_le32(IOPORT_SIZE),
+		.bar_size[0]		= cpu_to_le32(PCI_IO_SIZE),
+		.bar_size[1]		= cpu_to_le32(PCI_IO_SIZE),
 		.bar_size[2]		= cpu_to_le32(PCI_IO_SIZE*2),
 	};
 

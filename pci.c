@@ -20,7 +20,7 @@ static u16 io_port_blocks		= PCI_IOPORT_START;
 
 u16 pci_get_io_port_block(u32 size)
 {
-	u16 port = ALIGN(io_port_blocks, IOPORT_SIZE);
+	u16 port = ALIGN(io_port_blocks, PCI_IO_SIZE);
 
 	io_port_blocks = port + size;
 	return port;
