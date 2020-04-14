@@ -69,6 +69,7 @@ struct framebuffer *vesa__init(struct kvm *kvm)
 		goto out_error;
 
 	vesa_pci_device.bar[0]		= cpu_to_le32(vesa_base_addr | PCI_BASE_ADDRESS_SPACE_IO);
+	vesa_pci_device.bar_size[0]	= PCI_IO_SIZE;
 	r = device__register(&vesa_device);
 	if (r < 0)
 		goto unregister_ioport;
