@@ -31,7 +31,6 @@
 #include "kvm/sdl.h"
 #include "kvm/vnc.h"
 #include "kvm/guest_compat.h"
-#include "kvm/pci-shmem.h"
 #include "kvm/kvm-ipc.h"
 #include "kvm/builtin-debug.h"
 
@@ -99,10 +98,6 @@ void kvm_run_set_wrapper_sandbox(void)
 	OPT_INTEGER('c', "cpus", &(cfg)->nrcpus, "Number of CPUs"),	\
 	OPT_U64('m', "mem", &(cfg)->ram_size, "Virtual machine memory"	\
 		" size in MiB."),					\
-	OPT_CALLBACK('\0', "shmem", NULL,				\
-		     "[pci:]<addr>:<size>[:handle=<handle>][:create]",	\
-		     "Share host shmem with guest via pci device",	\
-		     shmem_parser, NULL),				\
 	OPT_CALLBACK('d', "disk", kvm, "image or rootfs_dir", "Disk "	\
 			" image or rootfs directory", img_name_parser,	\
 			kvm),						\
