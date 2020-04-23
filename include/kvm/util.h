@@ -106,6 +106,29 @@ static inline unsigned long roundup_pow_of_two(unsigned long x)
 
 #define is_power_of_two(x)	((x) > 0 ? ((x) & ((x) - 1)) == 0 : 0)
 
+/**
+ * pow2_size: return the number of bits needed to store values
+ * @x: number of distinct values to store (or number of bytes)
+ *
+ * Determines the number of bits needed to store @x different values.
+ * Could be used to determine the number of address bits needed to
+ * store @x bytes.
+ *
+ * Example:
+ * pow2_size(255) => 8
+ * pow2_size(256) => 8
+ * pow2_size(257) => 9
+ *
+ * Return: number of bits
+ */
+static inline int pow2_size(unsigned long x)
+{
+	if (x <= 1)
+		return x;
+
+	return sizeof(x) * 8 - __builtin_clzl(x - 1);
+}
+
 struct kvm;
 void *mmap_hugetlbfs(struct kvm *kvm, const char *htlbfs_path, u64 size);
 void *mmap_anon_or_hugetlbfs(struct kvm *kvm, const char *hugetlbfs_path, u64 size);

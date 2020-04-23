@@ -170,6 +170,7 @@ ifeq ($(ARCH), arm)
 	CFLAGS		+= -march=armv7-a
 
 	ARCH_WANT_LIBFDT := y
+	ARCH_HAS_FLASH_MEM := y
 endif
 
 # ARM64
@@ -182,6 +183,7 @@ ifeq ($(ARCH), arm64)
 	ARCH_INCLUDE	+= -Iarm/aarch64/include
 
 	ARCH_WANT_LIBFDT := y
+	ARCH_HAS_FLASH_MEM := y
 endif
 
 ifeq ($(ARCH),mips)
@@ -259,6 +261,10 @@ ifeq (y,$(ARCH_HAS_FRAMEBUFFER))
 		CFLAGS_STATOPT	+= -DCONFIG_HAS_SDL
 		LIBS_STATOPT	+= -lSDL
 	endif
+endif
+
+ifeq (y,$(ARCH_HAS_FLASH_MEM))
+	OBJS	+= hw/cfi_flash.o
 endif
 
 ifeq ($(call try-build,$(SOURCE_ZLIB),$(CFLAGS),$(LDFLAGS) -lz),y)

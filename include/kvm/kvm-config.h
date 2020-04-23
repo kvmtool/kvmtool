@@ -35,6 +35,7 @@ struct kvm_config {
 	const char *vmlinux_filename;
 	const char *initrd_filename;
 	const char *firmware_filename;
+	const char *flash_filename;
 	const char *console;
 	const char *dev;
 	const char *network;
