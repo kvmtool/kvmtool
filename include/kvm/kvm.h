@@ -40,10 +40,12 @@ enum kvm_mem_type {
 	KVM_MEM_TYPE_RAM	= 1 << 0,
 	KVM_MEM_TYPE_DEVICE	= 1 << 1,
 	KVM_MEM_TYPE_RESERVED	= 1 << 2,
+	KVM_MEM_TYPE_READONLY	= 1 << 3,
 
 	KVM_MEM_TYPE_ALL	= KVM_MEM_TYPE_RAM
 				| KVM_MEM_TYPE_DEVICE
 				| KVM_MEM_TYPE_RESERVED
+				| KVM_MEM_TYPE_READONLY
 };
 
 struct kvm_ext {
@@ -158,17 +160,19 @@ u64 host_to_guest_flat(struct kvm *kvm, void *ptr);
 bool kvm__arch_load_kernel_image(struct kvm *kvm, int fd_kernel, int fd_initrd,
 				 const char *kernel_cmdline);
 
+#define add_read_only(type, str)					\
+	(((type) & KVM_MEM_TYPE_READONLY) ? str " (read-only)" : str)
 static inline const char *kvm_mem_type_to_string(enum kvm_mem_type type)
 {
-	switch (type) {
+	switch (type & ~KVM_MEM_TYPE_READONLY) {
 	case KVM_MEM_TYPE_ALL:
 		return "(all)";
 	case KVM_MEM_TYPE_RAM:
-		return "RAM";
+		return add_read_only(type, "RAM");
 	case KVM_MEM_TYPE_DEVICE:
-		return "device";
+		return add_read_only(type, "device");
 	case KVM_MEM_TYPE_RESERVED:
-		return "reserved";
+		return add_read_only(type, "reserved");
 	}
 
 	return "???";

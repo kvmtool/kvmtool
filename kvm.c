@@ -242,6 +242,7 @@ int kvm__register_mem(struct kvm *kvm, u64 guest_phys, u64 size,
 	struct kvm_mem_bank *bank;
 	struct list_head *prev_entry;
 	u32 slot;
+	u32 flags = 0;
 	int ret;
 
 	mutex_lock(&kvm->mem_banks_lock);
@@ -313,9 +314,13 @@ int kvm__register_mem(struct kvm *kvm, u64 guest_phys, u64 size,
 	bank->type			= type;
 	bank->slot			= slot;
 
+	if (type & KVM_MEM_TYPE_READONLY)
+		flags |= KVM_MEM_READONLY;
+
 	if (type != KVM_MEM_TYPE_RESERVED) {
 		mem = (struct kvm_userspace_memory_region) {
 			.slot			= slot,
+			.flags			= flags,
 			.guest_phys_addr	= guest_phys,
 			.memory_size		= size,
 			.userspace_addr		= (unsigned long)userspace_addr,
