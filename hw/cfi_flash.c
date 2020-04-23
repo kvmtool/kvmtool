@@ -8,6 +8,7 @@
 
 #include "kvm/kvm.h"
 #include "kvm/kvm-arch.h"
+#include "kvm/kvm-cpu.h"
 #include "kvm/devices.h"
 #include "kvm/fdt.h"
 #include "kvm/mutex.h"
@@ -139,6 +140,7 @@ struct cfi_flash_device {
 	enum cfi_flash_state	state;
 	enum cfi_read_mode	read_mode;
 	u8			sr;
+	bool			is_mapped;
 };
 
 static int nr_erase_blocks(struct cfi_flash_device *sfdev)
@@ -437,6 +439,43 @@ static void cfi_flash_write(struct cfi_flash_device *sfdev, u16 command,
 	}
 }
 
+/*
+ * If we are in ARRAY_READ mode, we can map the flash array directly
+ * into the guest, just as read-only. This greatly improves read
+ * performance, and avoids problems with exits due to accesses from
+ * load instructions without syndrome information (on ARM).
+ * Also it could allow code to be executed XIP in there.
+ */
+static int map_flash_memory(struct kvm *kvm, struct cfi_flash_device *sfdev)
+{
+	int ret;
+
+	ret = kvm__register_mem(kvm, sfdev->base_addr, sfdev->size,
+				sfdev->flash_memory,
+				KVM_MEM_TYPE_RAM | KVM_MEM_TYPE_READONLY);
+	if (!ret)
+		sfdev->is_mapped = true;
+
+	return ret;
+}
+
+/*
+ * Any write access changing the read mode would need to bring us back to
+ * "trap everything", as the CFI query read need proper handholding.
+ */
+static int unmap_flash_memory(struct kvm *kvm, struct cfi_flash_device *sfdev)
+{
+	int ret;
+
+	ret = kvm__destroy_mem(kvm, sfdev->base_addr, sfdev->size,
+			       sfdev->flash_memory);
+
+	if (!ret)
+		sfdev->is_mapped = false;
+
+	return ret;
+}
+
 static void cfi_flash_mmio(struct kvm_cpu *vcpu,
 			   u64 addr, u8 *data, u32 len, u8 is_write,
 			   void *context)
@@ -466,6 +505,12 @@ static void cfi_flash_mmio(struct kvm_cpu *vcpu,
 	mutex_lock(&sfdev->mutex);
 
 	cfi_flash_write(sfdev, value & 0xffff, faddr, data, len);
+
+	/* Adjust our mapping status accordingly. */
+	if (!sfdev->is_mapped && sfdev->read_mode == READ_ARRAY)
+		map_flash_memory(vcpu->kvm, sfdev);
+	else if (sfdev->is_mapped && sfdev->read_mode != READ_ARRAY)
+		unmap_flash_memory(vcpu->kvm, sfdev);
 
 	mutex_unlock(&sfdev->mutex);
 }
@@ -542,6 +587,8 @@ static struct cfi_flash_device *create_flash_device_file(struct kvm *kvm,
 	sfdev->state = READY;
 	sfdev->read_mode = READ_ARRAY;
 	sfdev->sr = CFI_STATUS_READY;
+
+	map_flash_memory(kvm, sfdev);
 
 	value = roundup(nr_erase_blocks(sfdev), BITS_PER_LONG) / 8;
 	sfdev->lock_bm = malloc(value);
