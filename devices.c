@@ -1,7 +1,6 @@
 #include "kvm/devices.h"
 #include "kvm/kvm.h"
 #include "kvm/pci.h"
-#include "kvm/virtio-mmio.h"
 
 #include <linux/err.h>
 #include <linux/rbtree.h>
@@ -32,9 +31,6 @@ int device__register(struct device_header *dev)
 	switch (dev->bus_type) {
 	case DEVICE_BUS_PCI:
 		pci__assign_irq(dev);
-		break;
-	case DEVICE_BUS_MMIO:
-		virtio_mmio_assign_irq(dev);
 		break;
 	default:
 		break;
