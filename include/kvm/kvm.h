@@ -1,6 +1,7 @@
 #ifndef KVM__KVM_H
 #define KVM__KVM_H
 
+#include "kvm/mutex.h"
 #include "kvm/kvm-arch.h"
 #include "kvm/kvm-config.h"
 #include "kvm/util-init.h"
@@ -56,6 +57,7 @@ struct kvm_mem_bank {
 	void			*host_addr;
 	u64			size;
 	enum kvm_mem_type	type;
+	u32			slot;
 };
 
 struct kvm {
@@ -72,6 +74,7 @@ struct kvm {
 	u64			ram_size;
 	void			*ram_start;
 	u64			ram_pagesize;
+	struct mutex		mem_banks_lock;
 	struct list_head	mem_banks;
 
 	bool			nmi_disabled;
@@ -106,6 +109,7 @@ void kvm__irq_line(struct kvm *kvm, int irq, int level);
 void kvm__irq_trigger(struct kvm *kvm, int irq);
 bool kvm__emulate_io(struct kvm_cpu *vcpu, u16 port, void *data, int direction, int size, u32 count);
 bool kvm__emulate_mmio(struct kvm_cpu *vcpu, u64 phys_addr, u8 *data, u32 len, u8 is_write);
+int kvm__destroy_mem(struct kvm *kvm, u64 guest_phys, u64 size, void *userspace_addr);
 int kvm__register_mem(struct kvm *kvm, u64 guest_phys, u64 size, void *userspace_addr,
 		      enum kvm_mem_type type);
 static inline int kvm__register_ram(struct kvm *kvm, u64 guest_phys, u64 size,

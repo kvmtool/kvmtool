@@ -256,8 +256,14 @@ int vfio_map_region(struct kvm *kvm, struct vfio_device *vdev,
 
 void vfio_unmap_region(struct kvm *kvm, struct vfio_region *region)
 {
+	u64 map_size;
+
 	if (region->host_addr) {
+		map_size = ALIGN(region->info.size, PAGE_SIZE);
+		kvm__destroy_mem(kvm, region->guest_phys_addr, map_size,
+				 region->host_addr);
 		munmap(region->host_addr, region->info.size);
+		region->host_addr = NULL;
 	} else if (region->is_ioport) {
 		ioport__unregister(kvm, region->port_base);
 	} else {

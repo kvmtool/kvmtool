@@ -157,6 +157,7 @@ struct kvm *kvm__new(void)
 	if (!kvm)
 		return ERR_PTR(-ENOMEM);
 
+	mutex_init(&kvm->mem_banks_lock);
 	kvm->sys_fd = -1;
 	kvm->vm_fd = -1;
 
@@ -183,20 +184,84 @@ int kvm__exit(struct kvm *kvm)
 }
 core_exit(kvm__exit);
 
+int kvm__destroy_mem(struct kvm *kvm, u64 guest_phys, u64 size,
+		     void *userspace_addr)
+{
+	struct kvm_userspace_memory_region mem;
+	struct kvm_mem_bank *bank;
+	int ret;
+
+	mutex_lock(&kvm->mem_banks_lock);
+	list_for_each_entry(bank, &kvm->mem_banks, list)
+		if (bank->guest_phys_addr == guest_phys &&
+		    bank->size == size && bank->host_addr == userspace_addr)
+			break;
+
+	if (&bank->list == &kvm->mem_banks) {
+		pr_err("Region [%llx-%llx] not found", guest_phys,
+		       guest_phys + size - 1);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (bank->type == KVM_MEM_TYPE_RESERVED) {
+		pr_err("Cannot delete reserved region [%llx-%llx]",
+		       guest_phys, guest_phys + size - 1);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	mem = (struct kvm_userspace_memory_region) {
+		.slot			= bank->slot,
+		.guest_phys_addr	= guest_phys,
+		.memory_size		= 0,
+		.userspace_addr		= (unsigned long)userspace_addr,
+	};
+
+	ret = ioctl(kvm->vm_fd, KVM_SET_USER_MEMORY_REGION, &mem);
+	if (ret < 0) {
+		ret = -errno;
+		goto out;
+	}
+
+	list_del(&bank->list);
+	free(bank);
+	kvm->mem_slots--;
+	ret = 0;
+
+out:
+	mutex_unlock(&kvm->mem_banks_lock);
+	return ret;
+}
+
 int kvm__register_mem(struct kvm *kvm, u64 guest_phys, u64 size,
 		      void *userspace_addr, enum kvm_mem_type type)
 {
 	struct kvm_userspace_memory_region mem;
 	struct kvm_mem_bank *merged = NULL;
 	struct kvm_mem_bank *bank;
+	struct list_head *prev_entry;
+	u32 slot;
 	int ret;
 
-	/* Check for overlap */
+	mutex_lock(&kvm->mem_banks_lock);
+	/* Check for overlap and find first empty slot. */
+	slot = 0;
+	prev_entry = &kvm->mem_banks;
 	list_for_each_entry(bank, &kvm->mem_banks, list) {
 		u64 bank_end = bank->guest_phys_addr + bank->size - 1;
 		u64 end = guest_phys + size - 1;
-		if (guest_phys > bank_end || end < bank->guest_phys_addr)
+		if (guest_phys > bank_end || end < bank->guest_phys_addr) {
+			/*
+			 * Keep the banks sorted ascending by slot, so it's
+			 * easier for us to find a free slot.
+			 */
+			if (bank->slot == slot) {
+				slot++;
+				prev_entry = &bank->list;
+			}
 			continue;
+		}
 
 		/* Merge overlapping reserved regions */
 		if (bank->type == KVM_MEM_TYPE_RESERVED &&
@@ -226,38 +291,50 @@ int kvm__register_mem(struct kvm *kvm, u64 guest_phys, u64 size,
 		       kvm_mem_type_to_string(bank->type), bank->guest_phys_addr,
 		       bank->guest_phys_addr + bank->size - 1);
 
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
-	if (merged)
-		return 0;
+	if (merged) {
+		ret = 0;
+		goto out;
+	}
 
 	bank = malloc(sizeof(*bank));
-	if (!bank)
-		return -ENOMEM;
+	if (!bank) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	INIT_LIST_HEAD(&bank->list);
 	bank->guest_phys_addr		= guest_phys;
 	bank->host_addr			= userspace_addr;
 	bank->size			= size;
 	bank->type			= type;
+	bank->slot			= slot;
 
 	if (type != KVM_MEM_TYPE_RESERVED) {
 		mem = (struct kvm_userspace_memory_region) {
-			.slot			= kvm->mem_slots++,
+			.slot			= slot,
 			.guest_phys_addr	= guest_phys,
 			.memory_size		= size,
 			.userspace_addr		= (unsigned long)userspace_addr,
 		};
 
 		ret = ioctl(kvm->vm_fd, KVM_SET_USER_MEMORY_REGION, &mem);
-		if (ret < 0)
-			return -errno;
+		if (ret < 0) {
+			ret = -errno;
+			goto out;
+		}
 	}
 
-	list_add(&bank->list, &kvm->mem_banks);
+	list_add(&bank->list, prev_entry);
+	kvm->mem_slots++;
+	ret = 0;
 
-	return 0;
+out:
+	mutex_unlock(&kvm->mem_banks_lock);
+	return ret;
 }
 
 void *guest_flat_to_host(struct kvm *kvm, u64 offset)
