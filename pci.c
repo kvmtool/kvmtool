@@ -49,10 +49,8 @@ void *pci_find_cap(struct pci_device_header *hdr, u8 cap_type)
 	return NULL;
 }
 
-void pci__assign_irq(struct device_header *dev_hdr)
+int pci__assign_irq(struct pci_device_header *pci_hdr)
 {
-	struct pci_device_header *pci_hdr = dev_hdr->data;
-
 	/*
 	 * PCI supports only INTA#,B#,C#,D# per device.
 	 *
@@ -64,6 +62,8 @@ void pci__assign_irq(struct device_header *dev_hdr)
 
 	if (!pci_hdr->irq_type)
 		pci_hdr->irq_type = IRQ_TYPE_EDGE_RISING;
+
+	return pci_hdr->irq_line;
 }
 
 static void *pci_config_address_ptr(u16 port)

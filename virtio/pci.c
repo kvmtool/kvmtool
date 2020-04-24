@@ -524,12 +524,11 @@ int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 	if (irq__can_signal_msi(kvm))
 		vpci->features |= VIRTIO_PCI_F_SIGNAL_MSI;
 
+	vpci->legacy_irq_line = pci__assign_irq(&vpci->pci_hdr);
+
 	r = device__register(&vpci->dev_hdr);
 	if (r < 0)
 		goto free_msix_mmio;
-
-	/* save the IRQ that device__register() has allocated */
-	vpci->legacy_irq_line = vpci->pci_hdr.irq_line;
 
 	return 0;
 

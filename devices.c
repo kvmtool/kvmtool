@@ -1,6 +1,5 @@
 #include "kvm/devices.h"
 #include "kvm/kvm.h"
-#include "kvm/pci.h"
 
 #include <linux/err.h>
 #include <linux/rbtree.h>
@@ -27,14 +26,6 @@ int device__register(struct device_header *dev)
 
 	bus = &device_trees[dev->bus_type];
 	dev->dev_num = bus->dev_num++;
-
-	switch (dev->bus_type) {
-	case DEVICE_BUS_PCI:
-		pci__assign_irq(dev);
-		break;
-	default:
-		break;
-	}
 
 	node = &bus->root.rb_node;
 	while (*node) {
