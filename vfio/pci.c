@@ -434,6 +434,14 @@ static void vfio_pci_msi_cap_write(struct kvm *kvm, struct vfio_device *vdev,
 
 	for (i = 0; i < nr_vectors; i++) {
 		entry = &pdev->msi.entries[i];
+
+		/*
+		 * Set the MSI data value as required by the PCI local
+		 * bus specifications, MSI capability, "Message Data".
+		 */
+		msg.data &= ~(nr_vectors - 1);
+		msg.data |= i;
+
 		entry->config.msg = msg;
 		vfio_pci_update_msi_entry(kvm, vdev, entry);
 	}
