@@ -467,6 +467,7 @@ static int vfio_pci_bar_activate(struct kvm *kvm,
 	struct vfio_pci_msix_pba *pba = &pdev->msix_pba;
 	struct vfio_pci_msix_table *table = &pdev->msix_table;
 	struct vfio_region *region;
+	u32 bar_addr;
 	bool has_msix;
 	int ret;
 
@@ -475,7 +476,14 @@ static int vfio_pci_bar_activate(struct kvm *kvm,
 	region = &vdev->regions[bar_num];
 	has_msix = pdev->irq_modes & VFIO_PCI_IRQ_MODE_MSIX;
 
+	bar_addr = pci__bar_address(pci_hdr, bar_num);
+	if (pci__bar_is_io(pci_hdr, bar_num))
+		region->port_base = bar_addr;
+	else
+		region->guest_phys_addr = bar_addr;
+
 	if (has_msix && (u32)bar_num == table->bar) {
+		table->guest_phys_addr = region->guest_phys_addr;
 		ret = kvm__register_mmio(kvm, table->guest_phys_addr,
 					 table->size, false,
 					 vfio_pci_msix_table_access, pdev);
@@ -490,6 +498,10 @@ static int vfio_pci_bar_activate(struct kvm *kvm,
 	}
 
 	if (has_msix && (u32)bar_num == pba->bar) {
+		if (pba->bar == table->bar)
+			pba->guest_phys_addr = table->guest_phys_addr + table->size;
+		else
+			pba->guest_phys_addr = region->guest_phys_addr;
 		ret = kvm__register_mmio(kvm, pba->guest_phys_addr,
 					 pba->size, false,
 					 vfio_pci_msix_pba_access, pdev);

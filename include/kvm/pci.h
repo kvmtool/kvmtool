@@ -11,6 +11,17 @@
 #include "kvm/msi.h"
 #include "kvm/fdt.h"
 
+#define pci_dev_err(pci_hdr, fmt, ...) \
+	pr_err("[%04x:%04x] " fmt, pci_hdr->vendor_id, pci_hdr->device_id, ##__VA_ARGS__)
+#define pci_dev_warn(pci_hdr, fmt, ...) \
+	pr_warning("[%04x:%04x] " fmt, pci_hdr->vendor_id, pci_hdr->device_id, ##__VA_ARGS__)
+#define pci_dev_info(pci_hdr, fmt, ...) \
+	pr_info("[%04x:%04x] " fmt, pci_hdr->vendor_id, pci_hdr->device_id, ##__VA_ARGS__)
+#define pci_dev_dbg(pci_hdr, fmt, ...) \
+	pr_debug("[%04x:%04x] " fmt, pci_hdr->vendor_id, pci_hdr->device_id, ##__VA_ARGS__)
+#define pci_dev_die(pci_hdr, fmt, ...) \
+	die("[%04x:%04x] " fmt, pci_hdr->vendor_id, pci_hdr->device_id, ##__VA_ARGS__)
+
 /*
  * PCI Configuration Mechanism #1 I/O ports. See Section 3.7.4.1.
  * ("Configuration Mechanism #1") of the PCI Local Bus Specification 2.1 for
@@ -142,7 +153,8 @@ struct pci_device_header {
 	};
 
 	/* Private to lkvm */
-	u32		bar_size[6];
+	u32			bar_size[6];
+	bool			bar_active[6];
 	bar_activate_fn_t	bar_activate_fn;
 	bar_deactivate_fn_t	bar_deactivate_fn;
 	void *data;
