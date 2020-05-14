@@ -119,6 +119,9 @@ static bool pci_config_data_out(struct ioport *ioport, struct kvm_cpu *vcpu, u16
 {
 	union pci_config_address pci_config_address;
 
+	if (size > 4)
+		size = 4;
+
 	pci_config_address.w = ioport__read32(&pci_config_address_bits);
 	/*
 	 * If someone accesses PCI configuration space offsets that are not
@@ -134,6 +137,9 @@ static bool pci_config_data_out(struct ioport *ioport, struct kvm_cpu *vcpu, u16
 static bool pci_config_data_in(struct ioport *ioport, struct kvm_cpu *vcpu, u16 port, void *data, int size)
 {
 	union pci_config_address pci_config_address;
+
+	if (size > 4)
+		size = 4;
 
 	pci_config_address.w = ioport__read32(&pci_config_address_bits);
 	/*
@@ -247,6 +253,9 @@ static void pci_config_mmio_access(struct kvm_cpu *vcpu, u64 addr, u8 *data,
 	addr			-= KVM_PCI_CFG_AREA;
 	cfg_addr.w		= (u32)addr;
 	cfg_addr.enable_bit	= 1;
+
+	if (len > 4)
+		len = 4;
 
 	if (is_write)
 		pci__config_wr(kvm, cfg_addr, data, len);
