@@ -369,7 +369,7 @@ int spapr_populate_pci_devices(struct kvm *kvm,
 				of_pci_b_ddddd(devid) |
 				of_pci_b_fff(fn) |
 				of_pci_b_rrrrrrrr(bars[i]));
-			reg[n+1].size = cpu_to_be64(hdr->bar_size[i]);
+			reg[n+1].size = cpu_to_be64(pci__bar_size(hdr, i));
 			reg[n+1].addr = 0;
 
 			assigned_addresses[n].phys_hi = cpu_to_be32(

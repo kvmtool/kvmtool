@@ -5,6 +5,7 @@
 #include <linux/kvm.h>
 #include <linux/pci_regs.h>
 #include <endian.h>
+#include <stdbool.h>
 
 #include "kvm/devices.h"
 #include "kvm/msi.h"
@@ -160,5 +161,57 @@ void pci__config_wr(struct kvm *kvm, union pci_config_address addr, void *data, 
 void pci__config_rd(struct kvm *kvm, union pci_config_address addr, void *data, int size);
 
 void *pci_find_cap(struct pci_device_header *hdr, u8 cap_type);
+
+static inline bool __pci__memory_space_enabled(u16 command)
+{
+	return command & PCI_COMMAND_MEMORY;
+}
+
+static inline bool pci__memory_space_enabled(struct pci_device_header *pci_hdr)
+{
+	return __pci__memory_space_enabled(pci_hdr->command);
+}
+
+static inline bool __pci__io_space_enabled(u16 command)
+{
+	return command & PCI_COMMAND_IO;
+}
+
+static inline bool pci__io_space_enabled(struct pci_device_header *pci_hdr)
+{
+	return __pci__io_space_enabled(pci_hdr->command);
+}
+
+static inline bool __pci__bar_is_io(u32 bar)
+{
+	return bar & PCI_BASE_ADDRESS_SPACE_IO;
+}
+
+static inline bool pci__bar_is_io(struct pci_device_header *pci_hdr, int bar_num)
+{
+	return __pci__bar_is_io(pci_hdr->bar[bar_num]);
+}
+
+static inline bool pci__bar_is_memory(struct pci_device_header *pci_hdr, int bar_num)
+{
+	return !pci__bar_is_io(pci_hdr, bar_num);
+}
+
+static inline u32 __pci__bar_address(u32 bar)
+{
+	if (__pci__bar_is_io(bar))
+		return bar & PCI_BASE_ADDRESS_IO_MASK;
+	return bar & PCI_BASE_ADDRESS_MEM_MASK;
+}
+
+static inline u32 pci__bar_address(struct pci_device_header *pci_hdr, int bar_num)
+{
+	return __pci__bar_address(pci_hdr->bar[bar_num]);
+}
+
+static inline u32 pci__bar_size(struct pci_device_header *pci_hdr, int bar_num)
+{
+	return pci_hdr->bar_size[bar_num];
+}
 
 #endif /* KVM__PCI_H */

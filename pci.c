@@ -185,7 +185,7 @@ void pci__config_wr(struct kvm *kvm, union pci_config_address addr, void *data, 
 	 * size, it will write the address back.
 	 */
 	if (bar < 6) {
-		if (pci_hdr->bar[bar] & PCI_BASE_ADDRESS_SPACE_IO)
+		if (pci__bar_is_io(pci_hdr, bar))
 			mask = (u32)PCI_BASE_ADDRESS_IO_MASK;
 		else
 			mask = (u32)PCI_BASE_ADDRESS_MEM_MASK;
@@ -211,7 +211,7 @@ void pci__config_wr(struct kvm *kvm, union pci_config_address addr, void *data, 
 		 */
 		memcpy(&value, data, size);
 		if (value == 0xffffffff)
-			value = ~(pci_hdr->bar_size[bar] - 1);
+			value = ~(pci__bar_size(pci_hdr, bar) - 1);
 		/* Preserve the special bits. */
 		value = (value & mask) | (pci_hdr->bar[bar] & ~mask);
 		memcpy(base + offset, &value, size);
