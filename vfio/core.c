@@ -202,14 +202,11 @@ static int vfio_setup_trap_region(struct kvm *kvm, struct vfio_device *vdev,
 				  struct vfio_region *region)
 {
 	if (region->is_ioport) {
-		int port = pci_get_io_port_block(region->info.size);
-
-		port = ioport__register(kvm, port, &vfio_ioport_ops,
-					region->info.size, region);
+		int port = ioport__register(kvm, region->port_base,
+					   &vfio_ioport_ops, region->info.size,
+					   region);
 		if (port < 0)
 			return port;
-
-		region->port_base = port;
 		return 0;
 	}
 
