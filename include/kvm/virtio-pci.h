@@ -24,8 +24,6 @@ struct virtio_pci {
 	void			*dev;
 	struct kvm		*kvm;
 
-	u16			port_addr;
-	u32			mmio_addr;
 	u8			status;
 	u8			isr;
 	u32			features;
@@ -43,7 +41,6 @@ struct virtio_pci {
 	u32			config_gsi;
 	u32			vq_vector[VIRTIO_PCI_MAX_VQ];
 	u32			gsis[VIRTIO_PCI_MAX_VQ];
-	u32			msix_io_block;
 	u64			msix_pba;
 	struct msix_table	msix_table[VIRTIO_PCI_MAX_VQ + VIRTIO_PCI_MAX_CONFIG];
 
