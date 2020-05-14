@@ -226,6 +226,15 @@ int vfio_map_region(struct kvm *kvm, struct vfio_device *vdev,
 	if (!(region->info.flags & VFIO_REGION_INFO_FLAG_MMAP))
 		return vfio_setup_trap_region(kvm, vdev, region);
 
+	/*
+	 * KVM_SET_USER_MEMORY_REGION will fail because the guest physical
+	 * address isn't page aligned, let's emulate the region ourselves.
+	 */
+	if (region->guest_phys_addr & (PAGE_SIZE - 1))
+		return kvm__register_mmio(kvm, region->guest_phys_addr,
+					  region->info.size, false,
+					  vfio_mmio_access, region);
+
 	if (region->info.flags & VFIO_REGION_INFO_FLAG_READ)
 		prot |= PROT_READ;
 	if (region->info.flags & VFIO_REGION_INFO_FLAG_WRITE)
