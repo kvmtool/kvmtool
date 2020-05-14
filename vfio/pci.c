@@ -3,6 +3,8 @@
 #include "kvm/kvm-cpu.h"
 #include "kvm/vfio.h"
 
+#include <assert.h>
+
 #include <sys/ioctl.h>
 #include <sys/eventfd.h>
 #include <sys/resource.h>
@@ -478,7 +480,10 @@ static void vfio_pci_cfg_write(struct kvm *kvm, struct pci_device_header *pci_hd
 	struct vfio_region_info *info;
 	struct vfio_pci_device *pdev;
 	struct vfio_device *vdev;
-	void *base = pci_hdr;
+	u32 tmp;
+
+	/* Make sure a larger size will not overrun tmp on the stack. */
+	assert(sz <= 4);
 
 	if (offset == PCI_ROM_ADDRESS)
 		return;
@@ -498,7 +503,7 @@ static void vfio_pci_cfg_write(struct kvm *kvm, struct pci_device_header *pci_hd
 	if (pdev->irq_modes & VFIO_PCI_IRQ_MODE_MSI)
 		vfio_pci_msi_cap_write(kvm, vdev, offset, data, sz);
 
-	if (pread(vdev->fd, base + offset, sz, info->offset + offset) != sz)
+	if (pread(vdev->fd, &tmp, sz, info->offset + offset) != sz)
 		vfio_dev_warn(vdev, "Failed to read %d bytes from Configuration Space at 0x%x",
 			      sz, offset);
 }
