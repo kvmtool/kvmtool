@@ -6,7 +6,9 @@
 
 #define RB_INT_INIT(l, h) \
 	(struct rb_int_node){.low = l, .high = h}
-#define rb_int(n) rb_entry(n, struct rb_int_node, node)
+#define rb_int(n)	rb_entry(n, struct rb_int_node, node)
+#define rb_int_start(n)	((n)->low)
+#define rb_int_end(n)	((n)->low + (n)->high - 1)
 
 struct rb_int_node {
 	struct rb_node	node;

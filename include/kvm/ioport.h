@@ -22,6 +22,8 @@ struct ioport {
 	struct ioport_operations	*ops;
 	void				*priv;
 	struct device_header		dev_hdr;
+	u32				refcount;
+	bool				remove;
 };
 
 struct ioport_operations {
