@@ -61,8 +61,6 @@ struct framebuffer *vesa__init(struct kvm *kvm)
 	BUILD_BUG_ON(!is_power_of_two(VESA_MEM_SIZE));
 	BUILD_BUG_ON(VESA_MEM_SIZE < VESA_BPP/8 * VESA_WIDTH * VESA_HEIGHT);
 
-	if (!kvm->cfg.vnc && !kvm->cfg.sdl && !kvm->cfg.gtk)
-		return NULL;
 	vesa_base_addr = pci_get_io_port_block(PCI_IO_SIZE);
 	r = ioport__register(kvm, vesa_base_addr, &vesa_io_ops, PCI_IO_SIZE, NULL);
 	if (r < 0)
