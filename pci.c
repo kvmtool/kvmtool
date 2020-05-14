@@ -163,6 +163,42 @@ static struct ioport_operations pci_config_data_ops = {
 	.io_out	= pci_config_data_out,
 };
 
+static void pci_config_command_wr(struct kvm *kvm,
+				  struct pci_device_header *pci_hdr,
+				  u16 new_command)
+{
+	int i;
+	bool toggle_io, toggle_mem;
+
+	toggle_io = (pci_hdr->command ^ new_command) & PCI_COMMAND_IO;
+	toggle_mem = (pci_hdr->command ^ new_command) & PCI_COMMAND_MEMORY;
+
+	for (i = 0; i < 6; i++) {
+		if (!pci_bar_is_implemented(pci_hdr, i))
+			continue;
+
+		if (toggle_io && pci__bar_is_io(pci_hdr, i)) {
+			if (__pci__io_space_enabled(new_command))
+				pci_hdr->bar_activate_fn(kvm, pci_hdr, i,
+							 pci_hdr->data);
+			else
+				pci_hdr->bar_deactivate_fn(kvm, pci_hdr, i,
+							   pci_hdr->data);
+		}
+
+		if (toggle_mem && pci__bar_is_memory(pci_hdr, i)) {
+			if (__pci__memory_space_enabled(new_command))
+				pci_hdr->bar_activate_fn(kvm, pci_hdr, i,
+							 pci_hdr->data);
+			else
+				pci_hdr->bar_deactivate_fn(kvm, pci_hdr, i,
+							   pci_hdr->data);
+		}
+	}
+
+	pci_hdr->command = new_command;
+}
+
 void pci__config_wr(struct kvm *kvm, union pci_config_address addr, void *data, int size)
 {
 	void *base;
@@ -187,6 +223,12 @@ void pci__config_wr(struct kvm *kvm, union pci_config_address addr, void *data, 
 	 */
 	if (*(u32 *)(base + offset) == 0)
 		return;
+
+	if (offset == PCI_COMMAND) {
+		memcpy(&value, data, size);
+		pci_config_command_wr(kvm, pci_hdr, (u16)value);
+		return;
+	}
 
 	bar = (offset - PCI_BAR_OFFSET(0)) / sizeof(u32);
 
