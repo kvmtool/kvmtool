@@ -130,23 +130,55 @@ static struct ioport_operations cmos_ram_index_ioport_ops = {
 	.io_out		= cmos_ram_index_out,
 };
 
+#ifdef CONFIG_HAS_LIBFDT
+static void generate_rtc_fdt_node(void *fdt,
+				  struct device_header *dev_hdr,
+				  void (*generate_irq_prop)(void *fdt,
+							    u8 irq,
+							    enum irq_type))
+{
+	u64 reg_prop[2] = { cpu_to_fdt64(0x70), cpu_to_fdt64(2) };
+
+	_FDT(fdt_begin_node(fdt, "rtc"));
+	_FDT(fdt_property_string(fdt, "compatible", "motorola,mc146818"));
+	_FDT(fdt_property(fdt, "reg", reg_prop, sizeof(reg_prop)));
+	_FDT(fdt_end_node(fdt));
+}
+#else
+#define generate_rtc_fdt_node NULL
+#endif
+
+struct device_header rtc_dev_hdr = {
+	.bus_type = DEVICE_BUS_IOPORT,
+	.data = generate_rtc_fdt_node,
+};
+
 int rtc__init(struct kvm *kvm)
 {
-	int r = 0;
+	int r;
+
+	r = device__register(&rtc_dev_hdr);
+	if (r < 0)
+		return r;
 
 	/* PORT 0070-007F - CMOS RAM/RTC (REAL TIME CLOCK) */
 	r = ioport__register(kvm, 0x0070, &cmos_ram_index_ioport_ops, 1, NULL);
 	if (r < 0)
-		return r;
+		goto out_device;
 
 	r = ioport__register(kvm, 0x0071, &cmos_ram_data_ioport_ops, 1, NULL);
-	if (r < 0) {
-		ioport__unregister(kvm, 0x0071);
-		return r;
-	}
+	if (r < 0)
+		goto out_ioport;
 
 	/* Set the VRT bit in Register D to indicate valid RAM and time */
 	rtc.cmos_data[RTC_REG_D] = RTC_REG_D_VRT;
+
+	return r;
+
+out_ioport:
+	ioport__unregister(kvm, 0x0070);
+out_device:
+	device__unregister(&rtc_dev_hdr);
 
 	return r;
 }
