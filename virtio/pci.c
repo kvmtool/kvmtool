@@ -11,6 +11,7 @@
 #include <sys/ioctl.h>
 #include <linux/virtio_pci.h>
 #include <linux/byteorder.h>
+#include <assert.h>
 #include <string.h>
 
 static u16 virtio_pci__port_addr(struct virtio_pci *vpci)
@@ -462,6 +463,66 @@ static void virtio_pci__io_mmio_callback(struct kvm_cpu *vcpu,
 		virtio_pci__data_out(vcpu, vdev, addr - mmio_addr, data, len);
 }
 
+static int virtio_pci__bar_activate(struct kvm *kvm,
+				    struct pci_device_header *pci_hdr,
+				    int bar_num, void *data)
+{
+	struct virtio_device *vdev = data;
+	u32 bar_addr, bar_size;
+	int r = -EINVAL;
+
+	assert(bar_num <= 2);
+
+	bar_addr = pci__bar_address(pci_hdr, bar_num);
+	bar_size = pci__bar_size(pci_hdr, bar_num);
+
+	switch (bar_num) {
+	case 0:
+		r = ioport__register(kvm, bar_addr, &virtio_pci__io_ops,
+				     bar_size, vdev);
+		if (r > 0)
+			r = 0;
+		break;
+	case 1:
+		r =  kvm__register_mmio(kvm, bar_addr, bar_size, false,
+					virtio_pci__io_mmio_callback, vdev);
+		break;
+	case 2:
+		r =  kvm__register_mmio(kvm, bar_addr, bar_size, false,
+					virtio_pci__msix_mmio_callback, vdev);
+		break;
+	}
+
+	return r;
+}
+
+static int virtio_pci__bar_deactivate(struct kvm *kvm,
+				      struct pci_device_header *pci_hdr,
+				      int bar_num, void *data)
+{
+	u32 bar_addr;
+	bool success;
+	int r = -EINVAL;
+
+	assert(bar_num <= 2);
+
+	bar_addr = pci__bar_address(pci_hdr, bar_num);
+
+	switch (bar_num) {
+	case 0:
+		r = ioport__unregister(kvm, bar_addr);
+		break;
+	case 1:
+	case 2:
+		success = kvm__deregister_mmio(kvm, bar_addr);
+		/* kvm__deregister_mmio fails when the region is not found. */
+		r = (success ? 0 : -ENOENT);
+		break;
+	}
+
+	return r;
+}
+
 int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 		     int device_id, int subsys_id, int class)
 {
@@ -476,23 +537,8 @@ int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 	BUILD_BUG_ON(!is_power_of_two(PCI_IO_SIZE));
 
 	port_addr = pci_get_io_port_block(PCI_IO_SIZE);
-	r = ioport__register(kvm, port_addr, &virtio_pci__io_ops, PCI_IO_SIZE,
-			     vdev);
-	if (r < 0)
-		return r;
-	port_addr = (u16)r;
-
 	mmio_addr = pci_get_mmio_block(PCI_IO_SIZE);
-	r = kvm__register_mmio(kvm, mmio_addr, PCI_IO_SIZE, false,
-			       virtio_pci__io_mmio_callback, vdev);
-	if (r < 0)
-		goto free_ioport;
-
 	msix_io_block = pci_get_mmio_block(PCI_IO_SIZE * 2);
-	r = kvm__register_mmio(kvm, msix_io_block, PCI_IO_SIZE * 2, false,
-			       virtio_pci__msix_mmio_callback, vdev);
-	if (r < 0)
-		goto free_mmio;
 
 	vpci->pci_hdr = (struct pci_device_header) {
 		.vendor_id		= cpu_to_le16(PCI_VENDOR_ID_REDHAT_QUMRANET),
@@ -517,6 +563,12 @@ int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 		.bar_size[1]		= cpu_to_le32(PCI_IO_SIZE),
 		.bar_size[2]		= cpu_to_le32(PCI_IO_SIZE*2),
 	};
+
+	r = pci__register_bar_regions(kvm, &vpci->pci_hdr,
+				      virtio_pci__bar_activate,
+				      virtio_pci__bar_deactivate, vdev);
+	if (r < 0)
+		return r;
 
 	vpci->dev_hdr = (struct device_header) {
 		.bus_type		= DEVICE_BUS_PCI,
@@ -550,17 +602,9 @@ int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 
 	r = device__register(&vpci->dev_hdr);
 	if (r < 0)
-		goto free_msix_mmio;
+		return r;
 
 	return 0;
-
-free_msix_mmio:
-	kvm__deregister_mmio(kvm, msix_io_block);
-free_mmio:
-	kvm__deregister_mmio(kvm, mmio_addr);
-free_ioport:
-	ioport__unregister(kvm, port_addr);
-	return r;
 }
 
 int virtio_pci__reset(struct kvm *kvm, struct virtio_device *vdev)

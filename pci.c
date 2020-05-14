@@ -66,6 +66,11 @@ int pci__assign_irq(struct pci_device_header *pci_hdr)
 	return pci_hdr->irq_line;
 }
 
+static bool pci_bar_is_implemented(struct pci_device_header *pci_hdr, int bar_num)
+{
+	return pci__bar_size(pci_hdr, bar_num);
+}
+
 static void *pci_config_address_ptr(u16 port)
 {
 	unsigned long offset;
@@ -271,6 +276,40 @@ struct pci_device_header *pci__find_dev(u8 dev_num)
 		return NULL;
 
 	return hdr->data;
+}
+
+int pci__register_bar_regions(struct kvm *kvm, struct pci_device_header *pci_hdr,
+			      bar_activate_fn_t bar_activate_fn,
+			      bar_deactivate_fn_t bar_deactivate_fn, void *data)
+{
+	int i, r;
+
+	assert(bar_activate_fn && bar_deactivate_fn);
+
+	pci_hdr->bar_activate_fn = bar_activate_fn;
+	pci_hdr->bar_deactivate_fn = bar_deactivate_fn;
+	pci_hdr->data = data;
+
+	for (i = 0; i < 6; i++) {
+		if (!pci_bar_is_implemented(pci_hdr, i))
+			continue;
+
+		if (pci__bar_is_io(pci_hdr, i) &&
+		    pci__io_space_enabled(pci_hdr)) {
+			r = bar_activate_fn(kvm, pci_hdr, i, data);
+			if (r < 0)
+				return r;
+		}
+
+		if (pci__bar_is_memory(pci_hdr, i) &&
+		    pci__memory_space_enabled(pci_hdr)) {
+			r = bar_activate_fn(kvm, pci_hdr, i, data);
+			if (r < 0)
+				return r;
+		}
+	}
+
+	return 0;
 }
 
 int pci__init(struct kvm *kvm)

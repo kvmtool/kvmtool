@@ -89,11 +89,18 @@ struct pci_cap_hdr {
 	u8	next;
 };
 
+struct pci_device_header;
+
+typedef int (*bar_activate_fn_t)(struct kvm *kvm,
+				 struct pci_device_header *pci_hdr,
+				 int bar_num, void *data);
+typedef int (*bar_deactivate_fn_t)(struct kvm *kvm,
+				   struct pci_device_header *pci_hdr,
+				   int bar_num, void *data);
+
 #define PCI_BAR_OFFSET(b)	(offsetof(struct pci_device_header, bar[b]))
 #define PCI_DEV_CFG_SIZE	256
 #define PCI_DEV_CFG_MASK	(PCI_DEV_CFG_SIZE - 1)
-
-struct pci_device_header;
 
 struct pci_config_operations {
 	void (*write)(struct kvm *kvm, struct pci_device_header *pci_hdr,
@@ -136,6 +143,9 @@ struct pci_device_header {
 
 	/* Private to lkvm */
 	u32		bar_size[6];
+	bar_activate_fn_t	bar_activate_fn;
+	bar_deactivate_fn_t	bar_deactivate_fn;
+	void *data;
 	struct pci_config_operations	cfg_ops;
 	/*
 	 * PCI INTx# are level-triggered, but virtual device often feature
@@ -161,6 +171,10 @@ void pci__config_wr(struct kvm *kvm, union pci_config_address addr, void *data, 
 void pci__config_rd(struct kvm *kvm, union pci_config_address addr, void *data, int size);
 
 void *pci_find_cap(struct pci_device_header *hdr, u8 cap_type);
+
+int pci__register_bar_regions(struct kvm *kvm, struct pci_device_header *pci_hdr,
+			      bar_activate_fn_t bar_activate_fn,
+			      bar_deactivate_fn_t bar_deactivate_fn, void *data);
 
 static inline bool __pci__memory_space_enabled(u16 command)
 {

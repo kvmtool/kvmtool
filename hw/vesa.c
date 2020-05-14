@@ -18,6 +18,31 @@
 #include <inttypes.h>
 #include <unistd.h>
 
+static struct pci_device_header vesa_pci_device = {
+	.vendor_id	= cpu_to_le16(PCI_VENDOR_ID_REDHAT_QUMRANET),
+	.device_id	= cpu_to_le16(PCI_DEVICE_ID_VESA),
+	.header_type	= PCI_HEADER_TYPE_NORMAL,
+	.revision_id	= 0,
+	.class[2]	= 0x03,
+	.subsys_vendor_id = cpu_to_le16(PCI_SUBSYSTEM_VENDOR_ID_REDHAT_QUMRANET),
+	.subsys_id	= cpu_to_le16(PCI_SUBSYSTEM_ID_VESA),
+	.bar[1]		= cpu_to_le32(VESA_MEM_ADDR | PCI_BASE_ADDRESS_SPACE_MEMORY),
+	.bar_size[1]	= VESA_MEM_SIZE,
+};
+
+static struct device_header vesa_device = {
+	.bus_type	= DEVICE_BUS_PCI,
+	.data		= &vesa_pci_device,
+};
+
+static struct framebuffer vesafb = {
+	.width		= VESA_WIDTH,
+	.height		= VESA_HEIGHT,
+	.depth		= VESA_BPP,
+	.mem_addr	= VESA_MEM_ADDR,
+	.mem_size	= VESA_MEM_SIZE,
+};
+
 static bool vesa_pci_io_in(struct ioport *ioport, struct kvm_cpu *vcpu, u16 port, void *data, int size)
 {
 	return true;
@@ -33,24 +58,19 @@ static struct ioport_operations vesa_io_ops = {
 	.io_out			= vesa_pci_io_out,
 };
 
-static struct pci_device_header vesa_pci_device = {
-	.vendor_id		= cpu_to_le16(PCI_VENDOR_ID_REDHAT_QUMRANET),
-	.device_id		= cpu_to_le16(PCI_DEVICE_ID_VESA),
-	.header_type		= PCI_HEADER_TYPE_NORMAL,
-	.revision_id		= 0,
-	.class[2]		= 0x03,
-	.subsys_vendor_id	= cpu_to_le16(PCI_SUBSYSTEM_VENDOR_ID_REDHAT_QUMRANET),
-	.subsys_id		= cpu_to_le16(PCI_SUBSYSTEM_ID_VESA),
-	.bar[1]			= cpu_to_le32(VESA_MEM_ADDR | PCI_BASE_ADDRESS_SPACE_MEMORY),
-	.bar_size[1]		= VESA_MEM_SIZE,
-};
+static int vesa__bar_activate(struct kvm *kvm, struct pci_device_header *pci_hdr,
+			      int bar_num, void *data)
+{
+	/* We don't support remapping of the framebuffer. */
+	return 0;
+}
 
-static struct device_header vesa_device = {
-	.bus_type	= DEVICE_BUS_PCI,
-	.data		= &vesa_pci_device,
-};
-
-static struct framebuffer vesafb;
+static int vesa__bar_deactivate(struct kvm *kvm, struct pci_device_header *pci_hdr,
+				int bar_num, void *data)
+{
+	/* We don't support remapping of the framebuffer. */
+	return -EINVAL;
+}
 
 struct framebuffer *vesa__init(struct kvm *kvm)
 {
@@ -68,6 +88,11 @@ struct framebuffer *vesa__init(struct kvm *kvm)
 
 	vesa_pci_device.bar[0]		= cpu_to_le32(vesa_base_addr | PCI_BASE_ADDRESS_SPACE_IO);
 	vesa_pci_device.bar_size[0]	= PCI_IO_SIZE;
+	r = pci__register_bar_regions(kvm, &vesa_pci_device, vesa__bar_activate,
+				      vesa__bar_deactivate, NULL);
+	if (r < 0)
+		goto unregister_ioport;
+
 	r = device__register(&vesa_device);
 	if (r < 0)
 		goto unregister_ioport;
@@ -82,15 +107,8 @@ struct framebuffer *vesa__init(struct kvm *kvm)
 	if (r < 0)
 		goto unmap_dev;
 
-	vesafb = (struct framebuffer) {
-		.width			= VESA_WIDTH,
-		.height			= VESA_HEIGHT,
-		.depth			= VESA_BPP,
-		.mem			= mem,
-		.mem_addr		= VESA_MEM_ADDR,
-		.mem_size		= VESA_MEM_SIZE,
-		.kvm			= kvm,
-	};
+	vesafb.mem = mem;
+	vesafb.kvm = kvm;
 	return fb__register(&vesafb);
 
 unmap_dev:
