@@ -37,7 +37,7 @@ u16 uip_csum_udp(struct uip_udp *udp)
 	struct uip_pseudo_hdr hdr;
 	struct uip_ip *ip;
 	int udp_len;
-	u8 *pad;
+	u8 *udp_hdr = (u8 *)udp + offsetof(struct uip_udp, sport);
 
 	ip	  = &udp->ip;
 
@@ -50,13 +50,12 @@ u16 uip_csum_udp(struct uip_udp *udp)
 	udp_len	  = uip_udp_len(udp);
 
 	if (udp_len % 2) {
-		pad = (u8 *)&udp->sport + udp_len;
-		*pad = 0;
-		memcpy((u8 *)&udp->sport + udp_len + 1, &hdr, sizeof(hdr));
-		return uip_csum(0, (u8 *)&udp->sport, udp_len + 1 + sizeof(hdr));
+		udp_hdr[udp_len] = 0;		/* zero padding */
+		memcpy(udp_hdr + udp_len + 1, &hdr, sizeof(hdr));
+		return uip_csum(0, udp_hdr, udp_len + 1 + sizeof(hdr));
 	} else {
-		memcpy((u8 *)&udp->sport + udp_len, &hdr, sizeof(hdr));
-		return uip_csum(0, (u8 *)&udp->sport, udp_len + sizeof(hdr));
+		memcpy(udp_hdr + udp_len, &hdr, sizeof(hdr));
+		return uip_csum(0, udp_hdr, udp_len + sizeof(hdr));
 	}
 
 }
@@ -66,7 +65,7 @@ u16 uip_csum_tcp(struct uip_tcp *tcp)
 	struct uip_pseudo_hdr hdr;
 	struct uip_ip *ip;
 	u16 tcp_len;
-	u8 *pad;
+	u8 *tcp_hdr = (u8 *)tcp + offsetof(struct uip_tcp, sport);
 
 	ip	  = &tcp->ip;
 	tcp_len   = ntohs(ip->len) - uip_ip_hdrlen(ip);
@@ -81,12 +80,11 @@ u16 uip_csum_tcp(struct uip_tcp *tcp)
 		pr_warning("tcp_len(%d) is too large", tcp_len);
 
 	if (tcp_len % 2) {
-		pad = (u8 *)&tcp->sport + tcp_len;
-		*pad = 0;
-		memcpy((u8 *)&tcp->sport + tcp_len + 1, &hdr, sizeof(hdr));
-		return uip_csum(0, (u8 *)&tcp->sport, tcp_len + 1 + sizeof(hdr));
+		tcp_hdr[tcp_len] = 0;		/* zero padding */
+		memcpy(tcp_hdr + tcp_len + 1, &hdr, sizeof(hdr));
+		return uip_csum(0, tcp_hdr, tcp_len + 1 + sizeof(hdr));
 	} else {
-		memcpy((u8 *)&tcp->sport + tcp_len, &hdr, sizeof(hdr));
-		return uip_csum(0, (u8 *)&tcp->sport, tcp_len + sizeof(hdr));
+		memcpy(tcp_hdr + tcp_len, &hdr, sizeof(hdr));
+		return uip_csum(0, tcp_hdr, tcp_len + sizeof(hdr));
 	}
 }
