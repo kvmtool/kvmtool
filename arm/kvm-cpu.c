@@ -46,6 +46,10 @@ struct kvm_cpu *kvm_cpu__arch_init(struct kvm *kvm, unsigned long cpu_id)
 		.features = ARM_VCPU_FEATURE_FLAGS(kvm, cpu_id)
 	};
 
+	if (kvm->cfg.arch.aarch32_guest &&
+	    !kvm__supports_extension(kvm, KVM_CAP_ARM_EL1_32BIT))
+		die("32bit guests are not supported\n");
+
 	vcpu = calloc(1, sizeof(struct kvm_cpu));
 	if (!vcpu)
 		return NULL;
