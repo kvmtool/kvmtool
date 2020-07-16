@@ -15,6 +15,7 @@ unsigned long long kvm__arch_get_kern_offset(struct kvm *kvm, int fd)
 	struct arm64_image_header header;
 	off_t cur_offset;
 	ssize_t size;
+	const char *warn_str;
 
 	/* the 32bit kernel offset is a well known value */
 	if (kvm->cfg.arch.aarch32_guest)
@@ -22,8 +23,10 @@ unsigned long long kvm__arch_get_kern_offset(struct kvm *kvm, int fd)
 
 	cur_offset = lseek(fd, 0, SEEK_CUR);
 	if (cur_offset == (off_t)-1 ||
-	    lseek(fd, 0, SEEK_SET) == (off_t)-1)
-		die("Failed to seek in image file");
+	    lseek(fd, 0, SEEK_SET) == (off_t)-1) {
+		warn_str = "Failed to seek in kernel image file";
+		goto fail;
+	}
 
 	size = xread(fd, &header, sizeof(header));
 	if (size < 0 || (size_t)size < sizeof(header))
@@ -37,7 +40,9 @@ unsigned long long kvm__arch_get_kern_offset(struct kvm *kvm, int fd)
 	if (le64_to_cpu(header.image_size))
 		return le64_to_cpu(header.text_offset);
 
-	pr_warning("Image size is 0, assuming TEXT_OFFSET to be 0x80000");
+	warn_str = "Image size is 0";
+fail:
+	pr_warning("%s, assuming TEXT_OFFSET to be 0x80000", warn_str);
 	return 0x80000;
 }
 
