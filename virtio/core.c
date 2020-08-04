@@ -33,13 +33,6 @@ void virt_queue__used_idx_advance(struct virt_queue *queue, u16 jump)
 	wmb();
 	idx += jump;
 	queue->vring.used->idx = virtio_host_to_guest_u16(queue, idx);
-
-	/*
-	 * Use wmb to assure used idx has been increased before we signal the guest.
-	 * Without a wmb here the guest may ignore the queue since it won't see
-	 * an updated idx.
-	 */
-	wmb();
 }
 
 struct vring_used_elem *
@@ -193,6 +186,14 @@ int virtio__get_dev_specific_field(int offset, bool msix, u32 *config_off)
 bool virtio_queue__should_signal(struct virt_queue *vq)
 {
 	u16 old_idx, new_idx, event_idx;
+
+	/*
+	 * Use mb to assure used idx has been increased before we signal the
+	 * guest, and we don't read a stale value for used_event. Without a mb
+	 * here we might not send a notification that we need to send, or the
+	 * guest may ignore the queue since it won't see an updated idx.
+	 */
+	mb();
 
 	if (!vq->use_event_idx) {
 		/*
