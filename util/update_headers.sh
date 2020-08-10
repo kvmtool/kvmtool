@@ -36,10 +36,9 @@ copy_optional_arch () {
 	fi
 }
 
-for arch in arm arm64 mips powerpc x86
+for arch in arm64 mips powerpc x86
 do
 	case "$arch" in
-		arm) KVMTOOL_PATH=arm/aarch32 ;;
 		arm64)	KVMTOOL_PATH=arm/aarch64
 			copy_optional_arch asm/sve_context.h ;;
 		*) KVMTOOL_PATH=$arch ;;
