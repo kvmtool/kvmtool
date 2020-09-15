@@ -26,6 +26,7 @@ struct kvm_config {
 	u8  image_count;
 	u8 num_net_devices;
 	u8 num_vfio_devices;
+	u64 vsock_cid;
 	bool virtio_rng;
 	int active_console;
 	int debug_iodelay;
