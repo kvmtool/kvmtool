@@ -69,7 +69,7 @@ void ioport__map_irq(u8 *irq)
 {
 }
 
-int ioport__setup_arch(struct kvm *kvm)
+static int ioport__setup_arch(struct kvm *kvm)
 {
 	int r;
 
@@ -150,3 +150,4 @@ int ioport__setup_arch(struct kvm *kvm)
 
 	return 0;
 }
+dev_base_init(ioport__setup_arch);

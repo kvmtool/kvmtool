@@ -35,7 +35,6 @@ struct ioport_operations {
 							    enum irq_type));
 };
 
-int ioport__setup_arch(struct kvm *kvm);
 void ioport__map_irq(u8 *irq);
 
 int __must_check ioport__register(struct kvm *kvm, u16 port, struct ioport_operations *ops,

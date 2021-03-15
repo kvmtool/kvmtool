@@ -221,12 +221,6 @@ out:
 	return !kvm->cfg.ioport_debug;
 }
 
-int ioport__init(struct kvm *kvm)
-{
-	return ioport__setup_arch(kvm);
-}
-dev_base_init(ioport__init);
-
 int ioport__exit(struct kvm *kvm)
 {
 	ioport__unregister_all();
