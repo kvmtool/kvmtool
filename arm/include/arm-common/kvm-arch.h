@@ -14,8 +14,8 @@
  * +-------+----+-------+-------+--------+-----+---------+---......
  * |  PCI  |////| plat  |       |        |     |         |
  * |  I/O  |////| MMIO: | Flash | virtio | GIC |   PCI   |  DRAM
- * | space |////| UART  |       |  MMIO  |     |  (AXI)  |
- * |       |////|       |       |        |     |         |
+ * | space |////| UART, |       |  MMIO  |     |  (AXI)  |
+ * |       |////| RTC   |       |        |     |         |
  * +-------+----+-------+-------+--------+-----+---------+---......
  */
 
@@ -30,6 +30,9 @@
 
 #define ARM_UART_MMIO_BASE	ARM_MMIO_AREA
 #define ARM_UART_MMIO_SIZE	0x10000
+
+#define ARM_RTC_MMIO_BASE	(ARM_UART_MMIO_BASE + ARM_UART_MMIO_SIZE)
+#define ARM_RTC_MMIO_SIZE	0x10000
 
 #define KVM_FLASH_MMIO_BASE	(ARM_MMIO_AREA + 0x1000000)
 #define KVM_FLASH_MAX_SIZE	0x1000000
