@@ -13,8 +13,8 @@
  * 0      64K  16M     32M     48M            1GB       2GB
  * +-------+----+-------+-------+--------+-----+---------+---......
  * |  PCI  |////| plat  |       |        |     |         |
- * |  I/O  |////| MMIO  | Flash | virtio | GIC |   PCI   |  DRAM
- * | space |////|       |       |  MMIO  |     |  (AXI)  |
+ * |  I/O  |////| MMIO: | Flash | virtio | GIC |   PCI   |  DRAM
+ * | space |////| UART  |       |  MMIO  |     |  (AXI)  |
  * |       |////|       |       |        |     |         |
  * +-------+----+-------+-------+--------+-----+---------+---......
  */
@@ -27,6 +27,9 @@
 #define KVM_IOPORT_AREA		ARM_IOPORT_AREA
 #define ARM_IOPORT_SIZE		(1U << 16)
 
+
+#define ARM_UART_MMIO_BASE	ARM_MMIO_AREA
+#define ARM_UART_MMIO_SIZE	0x10000
 
 #define KVM_FLASH_MMIO_BASE	(ARM_MMIO_AREA + 0x1000000)
 #define KVM_FLASH_MAX_SIZE	0x1000000
