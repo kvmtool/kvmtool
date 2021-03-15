@@ -19,13 +19,14 @@ static DEFINE_MUTEX(mmio_lock);
 
 struct mmio_mapping {
 	struct rb_int_node	node;
-	void			(*mmio_fn)(struct kvm_cpu *vcpu, u64 addr, u8 *data, u32 len, u8 is_write, void *ptr);
+	mmio_handler_fn		mmio_fn;
 	void			*ptr;
 	u32			refcount;
 	bool			remove;
 };
 
 static struct rb_root mmio_tree = RB_ROOT;
+static struct rb_root pio_tree = RB_ROOT;
 
 static struct mmio_mapping *mmio_search(struct rb_root *root, u64 addr, u64 len)
 {
@@ -103,9 +104,14 @@ static void mmio_put(struct kvm *kvm, struct rb_root *root, struct mmio_mapping 
 	mutex_unlock(&mmio_lock);
 }
 
-int kvm__register_mmio(struct kvm *kvm, u64 phys_addr, u64 phys_addr_len, bool coalesce,
-		       void (*mmio_fn)(struct kvm_cpu *vcpu, u64 addr, u8 *data, u32 len, u8 is_write, void *ptr),
-			void *ptr)
+static bool trap_is_mmio(unsigned int flags)
+{
+	return (flags & IOTRAP_BUS_MASK) == DEVICE_BUS_MMIO;
+}
+
+int kvm__register_iotrap(struct kvm *kvm, u64 phys_addr, u64 phys_addr_len,
+			 mmio_handler_fn mmio_fn, void *ptr,
+			 unsigned int flags)
 {
 	struct mmio_mapping *mmio;
 	struct kvm_coalesced_mmio_zone zone;
@@ -127,7 +133,7 @@ int kvm__register_mmio(struct kvm *kvm, u64 phys_addr, u64 phys_addr_len, bool c
 		.remove		= false,
 	};
 
-	if (coalesce) {
+	if (trap_is_mmio(flags) && (flags & IOTRAP_COALESCE)) {
 		zone = (struct kvm_coalesced_mmio_zone) {
 			.addr	= phys_addr,
 			.size	= phys_addr_len,
@@ -138,19 +144,29 @@ int kvm__register_mmio(struct kvm *kvm, u64 phys_addr, u64 phys_addr_len, bool c
 			return -errno;
 		}
 	}
+
 	mutex_lock(&mmio_lock);
-	ret = mmio_insert(&mmio_tree, mmio);
+	if (trap_is_mmio(flags))
+		ret = mmio_insert(&mmio_tree, mmio);
+	else
+		ret = mmio_insert(&pio_tree, mmio);
 	mutex_unlock(&mmio_lock);
 
 	return ret;
 }
 
-bool kvm__deregister_mmio(struct kvm *kvm, u64 phys_addr)
+bool kvm__deregister_iotrap(struct kvm *kvm, u64 phys_addr, unsigned int flags)
 {
 	struct mmio_mapping *mmio;
+	struct rb_root *tree;
+
+	if (trap_is_mmio(flags))
+		tree = &mmio_tree;
+	else
+		tree = &pio_tree;
 
 	mutex_lock(&mmio_lock);
-	mmio = mmio_search_single(&mmio_tree, phys_addr);
+	mmio = mmio_search_single(tree, phys_addr);
 	if (mmio == NULL) {
 		mutex_unlock(&mmio_lock);
 		return false;
@@ -167,7 +183,7 @@ bool kvm__deregister_mmio(struct kvm *kvm, u64 phys_addr)
 	 * called mmio_put(). This will trigger use-after-free errors on VCPU0.
 	 */
 	if (mmio->refcount == 0)
-		mmio_deregister(kvm, &mmio_tree, mmio);
+		mmio_deregister(kvm, tree, mmio);
 	else
 		mmio->remove = true;
 	mutex_unlock(&mmio_lock);
@@ -175,7 +191,8 @@ bool kvm__deregister_mmio(struct kvm *kvm, u64 phys_addr)
 	return true;
 }
 
-bool kvm__emulate_mmio(struct kvm_cpu *vcpu, u64 phys_addr, u8 *data, u32 len, u8 is_write)
+bool kvm__emulate_mmio(struct kvm_cpu *vcpu, u64 phys_addr, u8 *data,
+		       u32 len, u8 is_write)
 {
 	struct mmio_mapping *mmio;
 
@@ -192,5 +209,33 @@ bool kvm__emulate_mmio(struct kvm_cpu *vcpu, u64 phys_addr, u8 *data, u32 len, u
 	mmio_put(vcpu->kvm, &mmio_tree, mmio);
 
 out:
+	return true;
+}
+
+bool kvm__emulate_pio(struct kvm_cpu *vcpu, u16 port, void *data,
+		     int direction, int size, u32 count)
+{
+	struct mmio_mapping *mmio;
+	bool is_write = direction == KVM_EXIT_IO_OUT;
+
+	mmio = mmio_get(&pio_tree, port, size);
+	if (!mmio) {
+		if (vcpu->kvm->cfg.ioport_debug) {
+			fprintf(stderr, "IO error: %s port=%x, size=%d, count=%u\n",
+				to_direction(direction), port, size, count);
+
+			return false;
+		}
+		return true;
+	}
+
+	while (count--) {
+		mmio->mmio_fn(vcpu, port, data, size, is_write, mmio->ptr);
+
+		data += size;
+	}
+
+	mmio_put(vcpu->kvm, &pio_tree, mmio);
+
 	return true;
 }

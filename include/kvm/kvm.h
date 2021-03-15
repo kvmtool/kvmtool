@@ -27,10 +27,23 @@
 #define PAGE_SIZE (sysconf(_SC_PAGE_SIZE))
 #endif
 
+/*
+ * We are reusing the existing DEVICE_BUS_MMIO and DEVICE_BUS_IOPORT constants
+ * from kvm/devices.h to differentiate between registering an I/O port and an
+ * MMIO region.
+ * To avoid collisions with future additions of more bus types, we reserve
+ * a generous 4 bits for the bus mask here.
+ */
+#define IOTRAP_BUS_MASK		0xf
+#define IOTRAP_COALESCE		(1U << 4)
+
 #define DEFINE_KVM_EXT(ext)		\
 	.name = #ext,			\
 	.code = ext
 
+struct kvm_cpu;
+typedef void (*mmio_handler_fn)(struct kvm_cpu *vcpu, u64 addr, u8 *data,
+				u32 len, u8 is_write, void *ptr);
 typedef void (*fdt_irq_fn)(void *fdt, u8 irq, enum irq_type irq_type);
 
 enum {
@@ -113,6 +126,8 @@ void kvm__irq_line(struct kvm *kvm, int irq, int level);
 void kvm__irq_trigger(struct kvm *kvm, int irq);
 bool kvm__emulate_io(struct kvm_cpu *vcpu, u16 port, void *data, int direction, int size, u32 count);
 bool kvm__emulate_mmio(struct kvm_cpu *vcpu, u64 phys_addr, u8 *data, u32 len, u8 is_write);
+bool kvm__emulate_pio(struct kvm_cpu *vcpu, u16 port, void *data,
+		      int direction, int size, u32 count);
 int kvm__destroy_mem(struct kvm *kvm, u64 guest_phys, u64 size, void *userspace_addr);
 int kvm__register_mem(struct kvm *kvm, u64 guest_phys, u64 size, void *userspace_addr,
 		      enum kvm_mem_type type);
@@ -136,10 +151,36 @@ static inline int kvm__reserve_mem(struct kvm *kvm, u64 guest_phys, u64 size)
 				 KVM_MEM_TYPE_RESERVED);
 }
 
-int __must_check kvm__register_mmio(struct kvm *kvm, u64 phys_addr, u64 phys_addr_len, bool coalesce,
-				    void (*mmio_fn)(struct kvm_cpu *vcpu, u64 addr, u8 *data, u32 len, u8 is_write, void *ptr),
-				    void *ptr);
-bool kvm__deregister_mmio(struct kvm *kvm, u64 phys_addr);
+int __must_check kvm__register_iotrap(struct kvm *kvm, u64 phys_addr, u64 len,
+				      mmio_handler_fn mmio_fn, void *ptr,
+				      unsigned int flags);
+
+static inline
+int __must_check kvm__register_mmio(struct kvm *kvm, u64 phys_addr,
+				    u64 phys_addr_len, bool coalesce,
+				    mmio_handler_fn mmio_fn, void *ptr)
+{
+	return kvm__register_iotrap(kvm, phys_addr, phys_addr_len, mmio_fn, ptr,
+			DEVICE_BUS_MMIO | (coalesce ? IOTRAP_COALESCE : 0));
+}
+static inline
+int __must_check kvm__register_pio(struct kvm *kvm, u16 port, u16 len,
+				   mmio_handler_fn mmio_fn, void *ptr)
+{
+	return kvm__register_iotrap(kvm, port, len, mmio_fn, ptr,
+				    DEVICE_BUS_IOPORT);
+}
+
+bool kvm__deregister_iotrap(struct kvm *kvm, u64 phys_addr, unsigned int flags);
+static inline bool kvm__deregister_mmio(struct kvm *kvm, u64 phys_addr)
+{
+	return kvm__deregister_iotrap(kvm, phys_addr, DEVICE_BUS_MMIO);
+}
+static inline bool kvm__deregister_pio(struct kvm *kvm, u16 port)
+{
+	return kvm__deregister_iotrap(kvm, port, DEVICE_BUS_IOPORT);
+}
+
 void kvm__reboot(struct kvm *kvm);
 void kvm__pause(struct kvm *kvm);
 void kvm__continue(struct kvm *kvm);

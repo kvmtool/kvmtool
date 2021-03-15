@@ -162,7 +162,8 @@ bool kvm__emulate_io(struct kvm_cpu *vcpu, u16 port, void *data, int direction, 
 
 	entry = ioport_get(&ioport_tree, port);
 	if (!entry)
-		goto out;
+		return kvm__emulate_pio(vcpu, port, data, direction,
+					size, count);
 
 	ops	= entry->ops;
 
@@ -177,7 +178,6 @@ bool kvm__emulate_io(struct kvm_cpu *vcpu, u16 port, void *data, int direction, 
 
 	ioport_put(&ioport_tree, entry);
 
-out:
 	if (ret)
 		return true;
 
