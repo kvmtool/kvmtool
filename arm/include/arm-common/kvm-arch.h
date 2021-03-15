@@ -7,14 +7,33 @@
 
 #include "arm-common/gic.h"
 
+/*
+ * The memory map used for ARM guests (not to scale):
+ *
+ * 0      64K  16M     32M     48M            1GB       2GB
+ * +-------+----+-------+-------+--------+-----+---------+---......
+ * |  PCI  |////| plat  |       |        |     |         |
+ * |  I/O  |////| MMIO  | Flash | virtio | GIC |   PCI   |  DRAM
+ * | space |////|       |       |  MMIO  |     |  (AXI)  |
+ * |       |////|       |       |        |     |         |
+ * +-------+----+-------+-------+--------+-----+---------+---......
+ */
+
 #define ARM_IOPORT_AREA		_AC(0x0000000000000000, UL)
-#define ARM_FLASH_AREA		_AC(0x0000000002000000, UL)
-#define ARM_MMIO_AREA		_AC(0x0000000003000000, UL)
+#define ARM_MMIO_AREA		_AC(0x0000000001000000, UL)
 #define ARM_AXI_AREA		_AC(0x0000000040000000, UL)
 #define ARM_MEMORY_AREA		_AC(0x0000000080000000, UL)
 
-#define ARM_LOMAP_MAX_MEMORY	((1ULL << 32) - ARM_MEMORY_AREA)
-#define ARM_HIMAP_MAX_MEMORY	((1ULL << 40) - ARM_MEMORY_AREA)
+#define KVM_IOPORT_AREA		ARM_IOPORT_AREA
+#define ARM_IOPORT_SIZE		(1U << 16)
+
+
+#define KVM_FLASH_MMIO_BASE	(ARM_MMIO_AREA + 0x1000000)
+#define KVM_FLASH_MAX_SIZE	0x1000000
+
+#define KVM_VIRTIO_MMIO_AREA	(KVM_FLASH_MMIO_BASE + KVM_FLASH_MAX_SIZE)
+#define ARM_VIRTIO_MMIO_SIZE	(ARM_AXI_AREA - \
+				(KVM_VIRTIO_MMIO_AREA + ARM_GIC_SIZE))
 
 #define ARM_GIC_DIST_BASE	(ARM_AXI_AREA - ARM_GIC_DIST_SIZE)
 #define ARM_GIC_CPUI_BASE	(ARM_GIC_DIST_BASE - ARM_GIC_CPUI_SIZE)
@@ -22,19 +41,17 @@
 #define ARM_GIC_DIST_SIZE	0x10000
 #define ARM_GIC_CPUI_SIZE	0x20000
 
-#define KVM_FLASH_MMIO_BASE	ARM_FLASH_AREA
-#define KVM_FLASH_MAX_SIZE	(ARM_MMIO_AREA - ARM_FLASH_AREA)
 
-#define ARM_IOPORT_SIZE		(1U << 16)
-#define ARM_VIRTIO_MMIO_SIZE	(ARM_AXI_AREA - (ARM_MMIO_AREA + ARM_GIC_SIZE))
+#define KVM_PCI_CFG_AREA	ARM_AXI_AREA
 #define ARM_PCI_CFG_SIZE	(1ULL << 24)
+#define KVM_PCI_MMIO_AREA	(KVM_PCI_CFG_AREA + ARM_PCI_CFG_SIZE)
 #define ARM_PCI_MMIO_SIZE	(ARM_MEMORY_AREA - \
 				(ARM_AXI_AREA + ARM_PCI_CFG_SIZE))
 
-#define KVM_IOPORT_AREA		ARM_IOPORT_AREA
-#define KVM_PCI_CFG_AREA	ARM_AXI_AREA
-#define KVM_PCI_MMIO_AREA	(KVM_PCI_CFG_AREA + ARM_PCI_CFG_SIZE)
-#define KVM_VIRTIO_MMIO_AREA	ARM_MMIO_AREA
+
+#define ARM_LOMAP_MAX_MEMORY	((1ULL << 32) - ARM_MEMORY_AREA)
+#define ARM_HIMAP_MAX_MEMORY	((1ULL << 40) - ARM_MEMORY_AREA)
+
 
 #define KVM_IOEVENTFD_HAS_PIO	0
 
