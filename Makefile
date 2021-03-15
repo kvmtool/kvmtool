@@ -56,7 +56,6 @@ OBJS	+= framebuffer.o
 OBJS	+= guest_compat.o
 OBJS	+= hw/rtc.o
 OBJS	+= hw/serial.o
-OBJS	+= ioport.o
 OBJS	+= irq.o
 OBJS	+= kvm-cpu.o
 OBJS	+= kvm.o

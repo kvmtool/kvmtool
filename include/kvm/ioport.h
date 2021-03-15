@@ -1,13 +1,8 @@
 #ifndef KVM__IOPORT_H
 #define KVM__IOPORT_H
 
-#include "kvm/devices.h"
 #include "kvm/kvm-cpu.h"
-#include "kvm/rbtree-interval.h"
-#include "kvm/fdt.h"
 
-#include <stdbool.h>
-#include <limits.h>
 #include <asm/types.h>
 #include <linux/types.h>
 #include <linux/byteorder.h>
@@ -15,29 +10,7 @@
 /* some ports we reserve for own use */
 #define IOPORT_DBG			0xe0
 
-struct kvm;
-
-struct ioport {
-	struct rb_int_node		node;
-	struct ioport_operations	*ops;
-	void				*priv;
-	struct device_header		dev_hdr;
-	u32				refcount;
-	bool				remove;
-};
-
-struct ioport_operations {
-	bool (*io_in)(struct ioport *ioport, struct kvm_cpu *vcpu, u16 port, void *data, int size);
-	bool (*io_out)(struct ioport *ioport, struct kvm_cpu *vcpu, u16 port, void *data, int size);
-};
-
 void ioport__map_irq(u8 *irq);
-
-int __must_check ioport__register(struct kvm *kvm, u16 port, struct ioport_operations *ops,
-				  int count, void *param);
-int ioport__unregister(struct kvm *kvm, u16 port);
-int ioport__init(struct kvm *kvm);
-int ioport__exit(struct kvm *kvm);
 
 static inline u8 ioport__read8(u8 *data)
 {

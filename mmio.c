@@ -212,7 +212,7 @@ out:
 	return true;
 }
 
-bool kvm__emulate_pio(struct kvm_cpu *vcpu, u16 port, void *data,
+bool kvm__emulate_io(struct kvm_cpu *vcpu, u16 port, void *data,
 		     int direction, int size, u32 count)
 {
 	struct mmio_mapping *mmio;
