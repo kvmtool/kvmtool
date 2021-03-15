@@ -81,7 +81,7 @@ out_free_buf:
 	return ret;
 }
 
-static bool _vfio_ioport_in(struct vfio_region *region, u32 offset,
+static bool vfio_ioport_in(struct vfio_region *region, u32 offset,
 			    void *data, int len)
 {
 	struct vfio_device *vdev = region->vdev;
@@ -115,7 +115,7 @@ static bool _vfio_ioport_in(struct vfio_region *region, u32 offset,
 	return true;
 }
 
-static bool _vfio_ioport_out(struct vfio_region *region, u32 offset,
+static bool vfio_ioport_out(struct vfio_region *region, u32 offset,
 			     void *data, int len)
 {
 	struct vfio_device *vdev = region->vdev;
@@ -155,29 +155,10 @@ static void vfio_ioport_mmio(struct kvm_cpu *vcpu, u64 addr, u8 *data, u32 len,
 	u32 offset = addr - region->port_base;
 
 	if (is_write)
-		_vfio_ioport_out(region, offset, data, len);
+		vfio_ioport_out(region, offset, data, len);
 	else
-		_vfio_ioport_in(region, offset, data, len);
+		vfio_ioport_in(region, offset, data, len);
 }
-
-static bool vfio_ioport_out(struct ioport *ioport, struct kvm_cpu *vcpu,
-			    u16 port, void *data, int len)
-{
-	vfio_ioport_mmio(vcpu, port, data, len, true, ioport->priv);
-	return true;
-}
-
-static bool vfio_ioport_in(struct ioport *ioport, struct kvm_cpu *vcpu,
-			   u16 port, void *data, int len)
-{
-	vfio_ioport_mmio(vcpu, port, data, len, false, ioport->priv);
-	return true;
-}
-
-static struct ioport_operations vfio_ioport_ops = {
-	.io_in	= vfio_ioport_in,
-	.io_out	= vfio_ioport_out,
-};
 
 static void vfio_mmio_access(struct kvm_cpu *vcpu, u64 addr, u8 *data, u32 len,
 			     u8 is_write, void *ptr)
@@ -223,9 +204,11 @@ static int vfio_setup_trap_region(struct kvm *kvm, struct vfio_device *vdev,
 				  struct vfio_region *region)
 {
 	if (region->is_ioport) {
-		int port = ioport__register(kvm, region->port_base,
-					   &vfio_ioport_ops, region->info.size,
-					   region);
+		int port;
+
+		port = kvm__register_pio(kvm, region->port_base,
+					 region->info.size, vfio_ioport_mmio,
+					 region);
 		if (port < 0)
 			return port;
 		return 0;
@@ -292,7 +275,7 @@ void vfio_unmap_region(struct kvm *kvm, struct vfio_region *region)
 		munmap(region->host_addr, region->info.size);
 		region->host_addr = NULL;
 	} else if (region->is_ioport) {
-		ioport__unregister(kvm, region->port_base);
+		kvm__deregister_pio(kvm, region->port_base);
 	} else {
 		kvm__deregister_mmio(kvm, region->guest_phys_addr);
 	}
