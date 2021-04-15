@@ -43,11 +43,6 @@ void pmu__generate_fdt_nodes(void *fdt, struct kvm *kvm)
 	if (!kvm->cfg.arch.has_pmuv3)
 		return;
 
-	if (!kvm__supports_extension(kvm, KVM_CAP_ARM_PMU_V3)) {
-		pr_info("PMU unsupported\n");
-		return;
-	}
-
 	for (i = 0; i < kvm->nrcpus; i++) {
 		struct kvm_device_attr pmu_attr;
 

@@ -50,6 +50,10 @@ struct kvm_cpu *kvm_cpu__arch_init(struct kvm *kvm, unsigned long cpu_id)
 	    !kvm__supports_extension(kvm, KVM_CAP_ARM_EL1_32BIT))
 		die("32bit guests are not supported\n");
 
+	if (kvm->cfg.arch.has_pmuv3 &&
+	    !kvm__supports_extension(kvm, KVM_CAP_ARM_PMU_V3))
+		die("PMUv3 is not supported");
+
 	vcpu = calloc(1, sizeof(struct kvm_cpu));
 	if (!vcpu)
 		return NULL;
