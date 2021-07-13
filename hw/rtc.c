@@ -1,5 +1,6 @@
 #include "kvm/rtc.h"
 
+#include "kvm/fdt.h"
 #include "kvm/ioport.h"
 #include "kvm/kvm.h"
 

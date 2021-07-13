@@ -44,7 +44,6 @@
 struct kvm_cpu;
 typedef void (*mmio_handler_fn)(struct kvm_cpu *vcpu, u64 addr, u8 *data,
 				u32 len, u8 is_write, void *ptr);
-typedef void (*fdt_irq_fn)(void *fdt, u8 irq, enum irq_type irq_type);
 
 enum {
 	KVM_VMSTATE_RUNNING,
