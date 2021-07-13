@@ -313,7 +313,7 @@ out_unlock:
 }
 
 static void vfio_pci_msix_cap_write(struct kvm *kvm,
-				    struct vfio_device *vdev, u8 off,
+				    struct vfio_device *vdev, u16 off,
 				    void *data, int sz)
 {
 	struct vfio_pci_device *pdev = &vdev->pci;
@@ -345,7 +345,7 @@ static void vfio_pci_msix_cap_write(struct kvm *kvm,
 }
 
 static int vfio_pci_msi_vector_write(struct kvm *kvm, struct vfio_device *vdev,
-				     u8 off, u8 *data, u32 sz)
+				     u16 off, u8 *data, u32 sz)
 {
 	size_t i;
 	u32 mask = 0;
@@ -393,7 +393,7 @@ static int vfio_pci_msi_vector_write(struct kvm *kvm, struct vfio_device *vdev,
 }
 
 static void vfio_pci_msi_cap_write(struct kvm *kvm, struct vfio_device *vdev,
-				   u8 off, u8 *data, u32 sz)
+				   u16 off, u8 *data, u32 sz)
 {
 	u8 ctrl;
 	struct msi_msg msg;
@@ -553,7 +553,7 @@ out:
 }
 
 static void vfio_pci_cfg_read(struct kvm *kvm, struct pci_device_header *pci_hdr,
-			      u8 offset, void *data, int sz)
+			      u16 offset, void *data, int sz)
 {
 	struct vfio_region_info *info;
 	struct vfio_pci_device *pdev;
@@ -571,7 +571,7 @@ static void vfio_pci_cfg_read(struct kvm *kvm, struct pci_device_header *pci_hdr
 }
 
 static void vfio_pci_cfg_write(struct kvm *kvm, struct pci_device_header *pci_hdr,
-			       u8 offset, void *data, int sz)
+			       u16 offset, void *data, int sz)
 {
 	struct vfio_region_info *info;
 	struct vfio_pci_device *pdev;
@@ -658,15 +658,15 @@ static int vfio_pci_parse_caps(struct vfio_device *vdev)
 {
 	int ret;
 	size_t size;
-	u8 pos, next;
+	u16 pos, next;
 	struct pci_cap_hdr *cap;
-	u8 virt_hdr[PCI_DEV_CFG_SIZE];
+	u8 virt_hdr[PCI_DEV_CFG_SIZE_LEGACY];
 	struct vfio_pci_device *pdev = &vdev->pci;
 
 	if (!(pdev->hdr.status & PCI_STATUS_CAP_LIST))
 		return 0;
 
-	memset(virt_hdr, 0, PCI_DEV_CFG_SIZE);
+	memset(virt_hdr, 0, PCI_DEV_CFG_SIZE_LEGACY);
 
 	pos = pdev->hdr.capabilities & ~3;
 
@@ -699,7 +699,7 @@ static int vfio_pci_parse_caps(struct vfio_device *vdev)
 
 	/* Wipe remaining capabilities */
 	pos = PCI_STD_HEADER_SIZEOF;
-	size = PCI_DEV_CFG_SIZE - PCI_STD_HEADER_SIZEOF;
+	size = PCI_DEV_CFG_SIZE_LEGACY - PCI_STD_HEADER_SIZEOF;
 	memcpy((void *)&pdev->hdr + pos, virt_hdr + pos, size);
 
 	return 0;
@@ -707,7 +707,7 @@ static int vfio_pci_parse_caps(struct vfio_device *vdev)
 
 static int vfio_pci_parse_cfg_space(struct vfio_device *vdev)
 {
-	ssize_t sz = PCI_DEV_CFG_SIZE;
+	ssize_t sz = PCI_DEV_CFG_SIZE_LEGACY;
 	struct vfio_region_info *info;
 	struct vfio_pci_device *pdev = &vdev->pci;
 
@@ -812,7 +812,11 @@ static int vfio_pci_fixup_cfg_space(struct vfio_device *vdev)
 
 	/* Install our fake Configuration Space */
 	info = &vdev->regions[VFIO_PCI_CONFIG_REGION_INDEX].info;
-	hdr_sz = PCI_DEV_CFG_SIZE;
+	/*
+	 * We don't touch the extended configuration space, let's be cautious
+	 * and not overwrite it all with zeros, or bad things might happen.
+	 */
+	hdr_sz = PCI_DEV_CFG_SIZE_LEGACY;
 	if (pwrite(vdev->fd, &pdev->hdr, hdr_sz, info->offset) != hdr_sz) {
 		vfio_dev_err(vdev, "failed to write %zd bytes to Config Space",
 			     hdr_sz);

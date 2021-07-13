@@ -62,7 +62,7 @@ void pci__generate_fdt_nodes(void *fdt)
 	_FDT(fdt_property_cell(fdt, "#address-cells", 0x3));
 	_FDT(fdt_property_cell(fdt, "#size-cells", 0x2));
 	_FDT(fdt_property_cell(fdt, "#interrupt-cells", 0x1));
-	_FDT(fdt_property_string(fdt, "compatible", "pci-host-cam-generic"));
+	_FDT(fdt_property_string(fdt, "compatible", "pci-host-ecam-generic"));
 	_FDT(fdt_property(fdt, "dma-coherent", NULL, 0));
 
 	_FDT(fdt_property(fdt, "bus-range", bus_range, sizeof(bus_range)));

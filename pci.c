@@ -353,7 +353,8 @@ static void pci_config_bar_wr(struct kvm *kvm,
 void pci__config_wr(struct kvm *kvm, union pci_config_address addr, void *data, int size)
 {
 	void *base;
-	u8 bar, offset;
+	u8 bar;
+	u16 offset;
 	struct pci_device_header *pci_hdr;
 	u8 dev_num = addr.device_number;
 	u32 value = 0;
@@ -392,7 +393,7 @@ void pci__config_wr(struct kvm *kvm, union pci_config_address addr, void *data, 
 
 void pci__config_rd(struct kvm *kvm, union pci_config_address addr, void *data, int size)
 {
-	u8 offset;
+	u16 offset;
 	struct pci_device_header *pci_hdr;
 	u8 dev_num = addr.device_number;
 

@@ -49,7 +49,7 @@
 
 
 #define KVM_PCI_CFG_AREA	ARM_AXI_AREA
-#define ARM_PCI_CFG_SIZE	(1ULL << 24)
+#define ARM_PCI_CFG_SIZE	(1ULL << 28)
 #define KVM_PCI_MMIO_AREA	(KVM_PCI_CFG_AREA + ARM_PCI_CFG_SIZE)
 #define ARM_PCI_MMIO_SIZE	(ARM_MEMORY_AREA - \
 				(ARM_AXI_AREA + ARM_PCI_CFG_SIZE))
@@ -76,6 +76,8 @@
 	((kvm)->cfg.arch.virtio_trans_pci ? VIRTIO_PCI : VIRTIO_MMIO)
 
 #define VIRTIO_RING_ENDIAN	(VIRTIO_ENDIAN_LE | VIRTIO_ENDIAN_BE)
+
+#define ARCH_HAS_PCI_EXP	1
 
 static inline bool arm_addr_in_ioport_region(u64 phys_addr)
 {
