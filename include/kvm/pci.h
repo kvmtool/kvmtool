@@ -46,6 +46,8 @@ struct kvm;
 #define PCI_DEV_CFG_SIZE_EXTENDED 	4096
 
 #ifdef ARCH_HAS_PCI_EXP
+#define arch_has_pci_exp()	(true)
+
 #define PCI_CFG_SIZE		PCI_CFG_SIZE_EXTENDED
 #define PCI_DEV_CFG_SIZE	PCI_DEV_CFG_SIZE_EXTENDED
 
@@ -73,6 +75,8 @@ union pci_config_address {
 };
 
 #else
+#define arch_has_pci_exp()	(false)
+
 #define PCI_CFG_SIZE		PCI_CFG_SIZE_LEGACY
 #define PCI_DEV_CFG_SIZE	PCI_DEV_CFG_SIZE_LEGACY
 
@@ -143,6 +147,24 @@ struct pci_cap_hdr {
 	u8	next;
 };
 
+struct pci_exp_cap {
+	u8 cap;
+	u8 next;
+	u16 cap_reg;
+	u32 dev_cap;
+	u16 dev_ctrl;
+	u16 dev_status;
+	u32 link_cap;
+	u16 link_ctrl;
+	u16 link_status;
+	u32 slot_cap;
+	u16 slot_ctrl;
+	u16 slot_status;
+	u16 root_ctrl;
+	u16 root_cap;
+	u32 root_status;
+};
+
 struct pci_device_header;
 
 typedef int (*bar_activate_fn_t)(struct kvm *kvm,
@@ -188,6 +210,8 @@ struct pci_device_header {
 			u8		min_gnt;
 			u8		max_lat;
 			struct msix_cap msix;
+			/* Used only by architectures which support PCIE */
+			struct pci_exp_cap pci_exp;
 		} __attribute__((packed));
 		/* Pad to PCI config space size */
 		u8	__pad[PCI_DEV_CFG_SIZE];

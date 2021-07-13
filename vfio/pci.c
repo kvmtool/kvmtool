@@ -12,6 +12,11 @@
 
 #include <assert.h>
 
+/* Some distros don't have the define. */
+#ifndef PCI_CAP_EXP_RC_ENDPOINT_SIZEOF_V1
+#define PCI_CAP_EXP_RC_ENDPOINT_SIZEOF_V1	12
+#endif
+
 /* Wrapper around UAPI vfio_irq_set */
 union vfio_irq_eventfd {
 	struct vfio_irq_set	irq;
@@ -623,6 +628,12 @@ static ssize_t vfio_pci_cap_size(struct pci_cap_hdr *cap_hdr)
 		return PCI_CAP_MSIX_SIZEOF;
 	case PCI_CAP_ID_MSI:
 		return vfio_pci_msi_cap_size((void *)cap_hdr);
+	case PCI_CAP_ID_EXP:
+		/*
+		 * We don't emulate any of the link, slot and root complex
+		 * properties, so ignore them.
+		 */
+		return PCI_CAP_EXP_RC_ENDPOINT_SIZEOF_V1;
 	default:
 		pr_err("unknown PCI capability 0x%x", cap_hdr->type);
 		return 0;
@@ -693,6 +704,13 @@ static int vfio_pci_parse_caps(struct vfio_device *vdev)
 
 			pdev->msi.pos = pos;
 			pdev->irq_modes |= VFIO_PCI_IRQ_MODE_MSI;
+			break;
+		case PCI_CAP_ID_EXP:
+			if (!arch_has_pci_exp())
+				continue;
+			ret = vfio_pci_add_cap(vdev, virt_hdr, cap, pos);
+			if (ret)
+				return ret;
 			break;
 		}
 	}
