@@ -3,6 +3,7 @@
 #include <asm/image.h>
 
 #include <linux/byteorder.h>
+#include <kvm/util.h>
 
 /*
  * Return the TEXT_OFFSET value that the guest kernel expects. Note
@@ -59,5 +60,22 @@ int kvm__arch_get_ipa_limit(struct kvm *kvm)
 
 int kvm__get_vm_type(struct kvm *kvm)
 {
-	return KVM_VM_TYPE_ARM_IPA_SIZE(kvm__arch_get_ipa_limit(kvm));
+	unsigned int ipa_bits, max_ipa_bits;
+	unsigned long max_ipa;
+
+	/* If we're running on an old kernel, use 0 as the VM type */
+	max_ipa_bits = kvm__arch_get_ipa_limit(kvm);
+	if (!max_ipa_bits)
+		return 0;
+
+	/* Otherwise, compute the minimal required IPA size */
+	max_ipa = ARM_MEMORY_AREA + kvm->cfg.ram_size - 1;
+	ipa_bits = max(32, fls_long(max_ipa));
+	pr_debug("max_ipa %lx ipa_bits %d max_ipa_bits %d",
+		 max_ipa, ipa_bits, max_ipa_bits);
+
+	if (ipa_bits > max_ipa_bits)
+		die("Memory too large for this system (needs %d bits, %d available)", ipa_bits, max_ipa_bits);
+
+	return KVM_VM_TYPE_ARM_IPA_SIZE(ipa_bits);
 }
