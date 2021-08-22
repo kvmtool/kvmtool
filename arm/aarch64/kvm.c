@@ -46,3 +46,18 @@ fail:
 	return 0x80000;
 }
 
+int kvm__arch_get_ipa_limit(struct kvm *kvm)
+{
+	int ret;
+
+	ret = ioctl(kvm->sys_fd, KVM_CHECK_EXTENSION, KVM_CAP_ARM_VM_IPA_SIZE);
+	if (ret <= 0)
+		ret = 0;
+
+	return ret;
+}
+
+int kvm__get_vm_type(struct kvm *kvm)
+{
+	return KVM_VM_TYPE_ARM_IPA_SIZE(kvm__arch_get_ipa_limit(kvm));
+}
