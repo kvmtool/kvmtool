@@ -7,12 +7,20 @@
 #include "kvm/irq.h"
 #include "kvm/virtio.h"
 #include "kvm/ioeventfd.h"
+#include "kvm/util.h"
 
 #include <sys/ioctl.h>
 #include <linux/virtio_pci.h>
 #include <linux/byteorder.h>
 #include <assert.h>
 #include <string.h>
+
+#define ALIGN_UP(x, s)		ALIGN((x) + (s) - 1, (s))
+#define VIRTIO_NR_MSIX		(VIRTIO_PCI_MAX_VQ + VIRTIO_PCI_MAX_CONFIG)
+#define VIRTIO_MSIX_TABLE_SIZE	(VIRTIO_NR_MSIX * 16)
+#define VIRTIO_MSIX_PBA_SIZE	(ALIGN_UP(VIRTIO_MSIX_TABLE_SIZE, 64) / 8)
+#define VIRTIO_MSIX_BAR_SIZE	(1UL << fls_long(VIRTIO_MSIX_TABLE_SIZE + \
+						 VIRTIO_MSIX_PBA_SIZE))
 
 static u16 virtio_pci__port_addr(struct virtio_pci *vpci)
 {
@@ -333,18 +341,27 @@ static void virtio_pci__msix_mmio_callback(struct kvm_cpu *vcpu,
 	struct virtio_pci *vpci = vdev->virtio;
 	struct msix_table *table;
 	u32 msix_io_addr = virtio_pci__msix_io_addr(vpci);
+	u32 pba_offset;
 	int vecnum;
 	size_t offset;
 
-	if (addr > msix_io_addr + PCI_IO_SIZE) {
+	BUILD_BUG_ON(VIRTIO_NR_MSIX > (sizeof(vpci->msix_pba) * 8));
+
+	pba_offset = vpci->pci_hdr.msix.pba_offset & ~PCI_MSIX_TABLE_BIR;
+	if (addr >= msix_io_addr + pba_offset) {
+		/* Read access to PBA */
 		if (is_write)
 			return;
-		table  = (struct msix_table *)&vpci->msix_pba;
-		offset = addr - (msix_io_addr + PCI_IO_SIZE);
-	} else {
-		table  = vpci->msix_table;
-		offset = addr - msix_io_addr;
+		offset = addr - (msix_io_addr + pba_offset);
+		if ((offset + len) > sizeof (vpci->msix_pba))
+			return;
+		memcpy(data, (void *)&vpci->msix_pba + offset, len);
+		return;
 	}
+
+	table  = vpci->msix_table;
+	offset = addr - msix_io_addr;
+
 	vecnum = offset / sizeof(struct msix_table);
 	offset = offset % sizeof(struct msix_table);
 
@@ -520,7 +537,7 @@ int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 
 	port_addr = pci_get_io_port_block(PCI_IO_SIZE);
 	mmio_addr = pci_get_mmio_block(PCI_IO_SIZE);
-	msix_io_block = pci_get_mmio_block(PCI_IO_SIZE * 2);
+	msix_io_block = pci_get_mmio_block(VIRTIO_MSIX_BAR_SIZE);
 
 	vpci->pci_hdr = (struct pci_device_header) {
 		.vendor_id		= cpu_to_le16(PCI_VENDOR_ID_REDHAT_QUMRANET),
@@ -543,7 +560,7 @@ int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 		.capabilities		= (void *)&vpci->pci_hdr.msix - (void *)&vpci->pci_hdr,
 		.bar_size[0]		= cpu_to_le32(PCI_IO_SIZE),
 		.bar_size[1]		= cpu_to_le32(PCI_IO_SIZE),
-		.bar_size[2]		= cpu_to_le32(PCI_IO_SIZE*2),
+		.bar_size[2]		= cpu_to_le32(VIRTIO_MSIX_BAR_SIZE),
 	};
 
 	r = pci__register_bar_regions(kvm, &vpci->pci_hdr,
@@ -560,8 +577,9 @@ int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 	vpci->pci_hdr.msix.cap = PCI_CAP_ID_MSIX;
 	vpci->pci_hdr.msix.next = 0;
 	/*
-	 * We at most have VIRTIO_PCI_MAX_VQ entries for virt queue,
-	 * VIRTIO_PCI_MAX_CONFIG entries for config.
+	 * We at most have VIRTIO_NR_MSIX entries (VIRTIO_PCI_MAX_VQ
+	 * entries for virt queue, VIRTIO_PCI_MAX_CONFIG entries for
+	 * config).
 	 *
 	 * To quote the PCI spec:
 	 *
@@ -570,11 +588,11 @@ int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 	 * For example, a returned value of "00000000011"
 	 * indicates a table size of 4.
 	 */
-	vpci->pci_hdr.msix.ctrl = cpu_to_le16(VIRTIO_PCI_MAX_VQ + VIRTIO_PCI_MAX_CONFIG - 1);
+	vpci->pci_hdr.msix.ctrl = cpu_to_le16(VIRTIO_NR_MSIX - 1);
 
 	/* Both table and PBA are mapped to the same BAR (2) */
 	vpci->pci_hdr.msix.table_offset = cpu_to_le32(2);
-	vpci->pci_hdr.msix.pba_offset = cpu_to_le32(2 | PCI_IO_SIZE);
+	vpci->pci_hdr.msix.pba_offset = cpu_to_le32(2 | VIRTIO_MSIX_TABLE_SIZE);
 	vpci->config_vector = 0;
 
 	if (irq__can_signal_msi(kvm))
