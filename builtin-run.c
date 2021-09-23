@@ -513,6 +513,9 @@ static struct kvm *kvm_cmd_run_init(int argc, const char **argv)
 
 	kvm->nr_disks = kvm->cfg.image_count;
 
+	if (kvm->cfg.kernel_filename && kvm->cfg.firmware_filename)
+		die("Only one of --kernel or --firmware can be specified");
+
 	if (!kvm->cfg.kernel_filename && !kvm->cfg.firmware_filename) {
 		kvm->cfg.kernel_filename = find_kernel();
 
