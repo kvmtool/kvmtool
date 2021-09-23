@@ -528,8 +528,10 @@ static struct kvm *kvm_cmd_run_init(int argc, const char **argv)
 		}
 	}
 
-	kvm->cfg.vmlinux_filename = find_vmlinux();
-	kvm->vmlinux = kvm->cfg.vmlinux_filename;
+	if (kvm->cfg.kernel_filename) {
+		kvm->cfg.vmlinux_filename = find_vmlinux();
+		kvm->vmlinux = kvm->cfg.vmlinux_filename;
+	}
 
 	if (kvm->cfg.nrcpus == 0)
 		kvm->cfg.nrcpus = nr_online_cpus;
