@@ -16,20 +16,20 @@ int disk_img_name_parser(const struct option *opt, const char *arg, int unset)
 	char *sep;
 	struct kvm *kvm = opt->ptr;
 
-	if (kvm->cfg.image_count >= MAX_DISK_IMAGES)
+	if (kvm->nr_disks >= MAX_DISK_IMAGES)
 		die("Currently only 4 images are supported");
 
-	kvm->cfg.disk_image[kvm->cfg.image_count].filename = arg;
+	kvm->cfg.disk_image[kvm->nr_disks].filename = arg;
 	cur = arg;
 
 	if (strncmp(arg, "scsi:", 5) == 0) {
 		sep = strstr(arg, ":");
 		if (sep)
-			kvm->cfg.disk_image[kvm->cfg.image_count].wwpn = sep + 1;
+			kvm->cfg.disk_image[kvm->nr_disks].wwpn = sep + 1;
 		sep = strstr(sep + 1, ":");
 		if (sep) {
 			*sep = 0;
-			kvm->cfg.disk_image[kvm->cfg.image_count].tpgt = sep + 1;
+			kvm->cfg.disk_image[kvm->nr_disks].tpgt = sep + 1;
 		}
 		cur = sep + 1;
 	}
@@ -38,15 +38,15 @@ int disk_img_name_parser(const struct option *opt, const char *arg, int unset)
 		sep = strstr(cur, ",");
 		if (sep) {
 			if (strncmp(sep + 1, "ro", 2) == 0)
-				kvm->cfg.disk_image[kvm->cfg.image_count].readonly = true;
+				kvm->cfg.disk_image[kvm->nr_disks].readonly = true;
 			else if (strncmp(sep + 1, "direct", 6) == 0)
-				kvm->cfg.disk_image[kvm->cfg.image_count].direct = true;
+				kvm->cfg.disk_image[kvm->nr_disks].direct = true;
 			*sep = 0;
 			cur = sep + 1;
 		}
 	} while (sep);
 
-	kvm->cfg.image_count++;
+	kvm->nr_disks++;
 
 	return 0;
 }
@@ -152,7 +152,7 @@ static struct disk_image **disk_image__open_all(struct kvm *kvm)
 	void *err;
 	int i;
 	struct disk_image_params *params = (struct disk_image_params *)&kvm->cfg.disk_image;
-	int count = kvm->cfg.image_count;
+	int count = kvm->nr_disks;
 
 	if (!count)
 		return ERR_PTR(-EINVAL);
@@ -328,7 +328,7 @@ void disk_image__set_callback(struct disk_image *disk,
 
 int disk_image__init(struct kvm *kvm)
 {
-	if (kvm->cfg.image_count) {
+	if (kvm->nr_disks) {
 		kvm->disks = disk_image__open_all(kvm);
 		if (IS_ERR(kvm->disks))
 			return PTR_ERR(kvm->disks);

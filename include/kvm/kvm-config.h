@@ -23,7 +23,6 @@ struct kvm_config {
 	struct disk_image_params disk_image[MAX_DISK_IMAGES];
 	struct vfio_device_params *vfio_devices;
 	u64 ram_size;
-	u8  image_count;
 	u8 num_net_devices;
 	u8 num_vfio_devices;
 	u64 vsock_cid;

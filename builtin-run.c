@@ -526,8 +526,6 @@ static struct kvm *kvm_cmd_run_init(int argc, const char **argv)
 
 	kvm_run_validate_cfg(kvm);
 
-	kvm->nr_disks = kvm->cfg.image_count;
-
 	if (!kvm->cfg.kernel_filename && !kvm->cfg.firmware_filename) {
 		kvm->cfg.kernel_filename = find_kernel();
 
