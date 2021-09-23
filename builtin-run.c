@@ -516,6 +516,9 @@ static struct kvm *kvm_cmd_run_init(int argc, const char **argv)
 	if (kvm->cfg.kernel_filename && kvm->cfg.firmware_filename)
 		die("Only one of --kernel or --firmware can be specified");
 
+	if (kvm->cfg.firmware_filename && kvm->cfg.initrd_filename)
+		pr_warning("Ignoring initrd file when loading a firmware image");
+
 	if (!kvm->cfg.kernel_filename && !kvm->cfg.firmware_filename) {
 		kvm->cfg.kernel_filename = find_kernel();
 
