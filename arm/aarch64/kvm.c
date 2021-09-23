@@ -35,8 +35,10 @@ unsigned long long kvm__arch_get_kern_offset(struct kvm *kvm, int fd)
 
 	lseek(fd, cur_offset, SEEK_SET);
 
-	if (memcmp(&header.magic, ARM64_IMAGE_MAGIC, sizeof(header.magic)))
-		pr_warning("Kernel image magic not matching");
+	if (memcmp(&header.magic, ARM64_IMAGE_MAGIC, sizeof(header.magic))) {
+		warn_str = "Kernel image magic not matching";
+		goto fail;
+	}
 
 	if (le64_to_cpu(header.image_size))
 		return le64_to_cpu(header.text_offset);
