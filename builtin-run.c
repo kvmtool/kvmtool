@@ -455,6 +455,54 @@ static void kvm_run_write_sandbox_cmd(struct kvm *kvm, const char **argv, int ar
 	close(fd);
 }
 
+static void kvm_run_set_real_cmdline(struct kvm *kvm)
+{
+	static char real_cmdline[2048];
+	bool video;
+
+	video = kvm->cfg.vnc || kvm->cfg.sdl || kvm->cfg.gtk;
+
+	memset(real_cmdline, 0, sizeof(real_cmdline));
+	kvm__arch_set_cmdline(real_cmdline, video);
+
+	if (video) {
+		strcat(real_cmdline, " console=tty0");
+	} else {
+		switch (kvm->cfg.active_console) {
+		case CONSOLE_HV:
+			/* Fallthrough */
+		case CONSOLE_VIRTIO:
+			strcat(real_cmdline, " console=hvc0");
+			break;
+		case CONSOLE_8250:
+			strcat(real_cmdline, " console=ttyS0");
+			break;
+		}
+	}
+
+	if (kvm->cfg.using_rootfs) {
+		strcat(real_cmdline, " rw rootflags=trans=virtio,version=9p2000.L,cache=loose rootfstype=9p");
+		if (kvm->cfg.custom_rootfs) {
+#ifdef CONFIG_GUEST_PRE_INIT
+			strcat(real_cmdline, " init=/virt/pre_init");
+#else
+			strcat(real_cmdline, " init=/virt/init");
+#endif
+			if (!kvm->cfg.no_dhcp)
+				strcat(real_cmdline, "  ip=dhcp");
+		}
+	} else if (!kvm->cfg.kernel_cmdline || !strstr(kvm->cfg.kernel_cmdline, "root=")) {
+		strlcat(real_cmdline, " root=/dev/vda rw ", sizeof(real_cmdline));
+	}
+
+	if (kvm->cfg.kernel_cmdline) {
+		strcat(real_cmdline, " ");
+		strlcat(real_cmdline, kvm->cfg.kernel_cmdline, sizeof(real_cmdline));
+	}
+
+	kvm->cfg.real_cmdline = real_cmdline;
+}
+
 static void kvm_run_validate_cfg(struct kvm *kvm)
 {
 	if (kvm->cfg.kernel_filename && kvm->cfg.firmware_filename)
@@ -470,10 +518,9 @@ static void kvm_run_validate_cfg(struct kvm *kvm)
 
 static struct kvm *kvm_cmd_run_init(int argc, const char **argv)
 {
-	static char real_cmdline[2048], default_name[20];
+	static char default_name[20];
 	unsigned int nr_online_cpus;
 	struct kvm *kvm = kvm__new();
-	bool video;
 
 	if (IS_ERR(kvm))
 		return kvm;
@@ -586,26 +633,6 @@ static struct kvm *kvm_cmd_run_init(int argc, const char **argv)
 	if (!kvm->cfg.network)
                 kvm->cfg.network = DEFAULT_NETWORK;
 
-	video = kvm->cfg.vnc || kvm->cfg.sdl || kvm->cfg.gtk;
-
-	memset(real_cmdline, 0, sizeof(real_cmdline));
-	kvm__arch_set_cmdline(real_cmdline, video);
-
-	if (video) {
-		strcat(real_cmdline, " console=tty0");
-	} else {
-		switch (kvm->cfg.active_console) {
-		case CONSOLE_HV:
-			/* Fallthrough */
-		case CONSOLE_VIRTIO:
-			strcat(real_cmdline, " console=hvc0");
-			break;
-		case CONSOLE_8250:
-			strcat(real_cmdline, " console=ttyS0");
-			break;
-		}
-	}
-
 	if (!kvm->cfg.guest_name) {
 		if (kvm->cfg.custom_rootfs) {
 			kvm->cfg.guest_name = kvm->cfg.custom_rootfs_name;
@@ -629,32 +656,13 @@ static struct kvm *kvm_cmd_run_init(int argc, const char **argv)
 		kvm->cfg.using_rootfs = kvm->cfg.custom_rootfs = 1;
 	}
 
-	if (kvm->cfg.using_rootfs) {
-		strcat(real_cmdline, " rw rootflags=trans=virtio,version=9p2000.L,cache=loose rootfstype=9p");
-		if (kvm->cfg.custom_rootfs) {
-			kvm_run_set_sandbox(kvm);
-
-#ifdef CONFIG_GUEST_PRE_INIT
-			strcat(real_cmdline, " init=/virt/pre_init");
-#else
-			strcat(real_cmdline, " init=/virt/init");
-#endif
-
-			if (!kvm->cfg.no_dhcp)
-				strcat(real_cmdline, "  ip=dhcp");
-			if (kvm_setup_guest_init(kvm->cfg.custom_rootfs_name))
-				die("Failed to setup init for guest.");
-		}
-	} else if (!kvm->cfg.kernel_cmdline || !strstr(kvm->cfg.kernel_cmdline, "root=")) {
-		strlcat(real_cmdline, " root=/dev/vda rw ", sizeof(real_cmdline));
+	if (kvm->cfg.custom_rootfs) {
+		kvm_run_set_sandbox(kvm);
+		if (kvm_setup_guest_init(kvm->cfg.custom_rootfs_name))
+			die("Failed to setup init for guest.");
 	}
 
-	if (kvm->cfg.kernel_cmdline) {
-		strcat(real_cmdline, " ");
-		strlcat(real_cmdline, kvm->cfg.kernel_cmdline, sizeof(real_cmdline));
-	}
-
-	kvm->cfg.real_cmdline = real_cmdline;
+	kvm_run_set_real_cmdline(kvm);
 
 	if (kvm->cfg.kernel_filename) {
 		printf("  # %s run -k %s -m %Lu -c %d --name %s\n", KVM_BINARY_NAME,
