@@ -108,6 +108,9 @@ void kvm_run_set_wrapper_sandbox(void)
 	OPT_BOOLEAN('\0', "sdl", &(cfg)->sdl, "Enable SDL framebuffer"),\
 	OPT_BOOLEAN('\0', "rng", &(cfg)->virtio_rng, "Enable virtio"	\
 			" Random Number Generator"),			\
+	OPT_BOOLEAN('\0', "nodefaults", &(cfg)->nodefaults, "Disable"   \
+			" implicit configuration that cannot be"	\
+			" disabled otherwise"),				\
 	OPT_CALLBACK('\0', "9p", NULL, "dir_to_share,tag_name",		\
 		     "Enable virtio 9p to share files between host and"	\
 		     " guest", virtio_9p_rootdir_parser, kvm),		\
@@ -642,7 +645,10 @@ static struct kvm *kvm_cmd_run_init(int argc, const char **argv)
 		}
 	}
 
-	if (!kvm->cfg.using_rootfs && !kvm->cfg.disk_image[0].filename && !kvm->cfg.initrd_filename) {
+	if (!kvm->cfg.nodefaults &&
+	    !kvm->cfg.using_rootfs &&
+	    !kvm->cfg.disk_image[0].filename &&
+	    !kvm->cfg.initrd_filename) {
 		char tmp[PATH_MAX];
 
 		kvm_setup_create_new(kvm->cfg.custom_rootfs_name);
@@ -662,7 +668,10 @@ static struct kvm *kvm_cmd_run_init(int argc, const char **argv)
 			die("Failed to setup init for guest.");
 	}
 
-	kvm_run_set_real_cmdline(kvm);
+	if (kvm->cfg.nodefaults)
+		kvm->cfg.real_cmdline = kvm->cfg.kernel_cmdline;
+	else
+		kvm_run_set_real_cmdline(kvm);
 
 	if (kvm->cfg.kernel_filename) {
 		printf("  # %s run -k %s -m %Lu -c %d --name %s\n", KVM_BINARY_NAME,

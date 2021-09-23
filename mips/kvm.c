@@ -131,7 +131,8 @@ static void kvm__mips_install_cmdline(struct kvm *kvm)
 			(unsigned long long)kvm->ram_size - KVM_MMIO_START,
 			(unsigned long long)(KVM_MMIO_START + KVM_MMIO_SIZE));
 
-	strcat(p + cmdline_offset, kvm->cfg.real_cmdline); /* maximum size is 2K */
+	if (kvm->cfg.real_cmdline)
+		strcat(p + cmdline_offset, kvm->cfg.real_cmdline); /* maximum size is 2K */
 
 	while (p[cmdline_offset]) {
 		if (!isspace(p[cmdline_offset])) {
