@@ -455,6 +455,19 @@ static void kvm_run_write_sandbox_cmd(struct kvm *kvm, const char **argv, int ar
 	close(fd);
 }
 
+static void kvm_run_validate_cfg(struct kvm *kvm)
+{
+	if (kvm->cfg.kernel_filename && kvm->cfg.firmware_filename)
+		die("Only one of --kernel or --firmware can be specified");
+
+	if ((kvm->cfg.vnc && (kvm->cfg.sdl || kvm->cfg.gtk)) ||
+	    (kvm->cfg.sdl && kvm->cfg.gtk))
+		die("Only one of --vnc, --sdl or --gtk can be specified");
+
+	if (kvm->cfg.firmware_filename && kvm->cfg.initrd_filename)
+		pr_warning("Ignoring initrd file when loading a firmware image");
+}
+
 static struct kvm *kvm_cmd_run_init(int argc, const char **argv)
 {
 	static char real_cmdline[2048], default_name[20];
@@ -511,13 +524,9 @@ static struct kvm *kvm_cmd_run_init(int argc, const char **argv)
 
 	}
 
+	kvm_run_validate_cfg(kvm);
+
 	kvm->nr_disks = kvm->cfg.image_count;
-
-	if (kvm->cfg.kernel_filename && kvm->cfg.firmware_filename)
-		die("Only one of --kernel or --firmware can be specified");
-
-	if (kvm->cfg.firmware_filename && kvm->cfg.initrd_filename)
-		pr_warning("Ignoring initrd file when loading a firmware image");
 
 	if (!kvm->cfg.kernel_filename && !kvm->cfg.firmware_filename) {
 		kvm->cfg.kernel_filename = find_kernel();
@@ -552,13 +561,6 @@ static struct kvm *kvm_cmd_run_init(int argc, const char **argv)
 	if (!kvm->cfg.console)
 		kvm->cfg.console = DEFAULT_CONSOLE;
 
-	video = kvm->cfg.vnc || kvm->cfg.sdl || kvm->cfg.gtk;
-	if (video) {
-		if ((kvm->cfg.vnc && (kvm->cfg.sdl || kvm->cfg.gtk)) ||
-		    (kvm->cfg.sdl && kvm->cfg.gtk))
-			die("Only one of --vnc, --sdl or --gtk can be specified");
-	}
-
 	if (!strncmp(kvm->cfg.console, "virtio", 6))
 		kvm->cfg.active_console  = CONSOLE_VIRTIO;
 	else if (!strncmp(kvm->cfg.console, "serial", 6))
@@ -585,6 +587,8 @@ static struct kvm *kvm_cmd_run_init(int argc, const char **argv)
 
 	if (!kvm->cfg.network)
                 kvm->cfg.network = DEFAULT_NETWORK;
+
+	video = kvm->cfg.vnc || kvm->cfg.sdl || kvm->cfg.gtk;
 
 	memset(real_cmdline, 0, sizeof(real_cmdline));
 	kvm__arch_set_cmdline(real_cmdline, video);
