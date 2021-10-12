@@ -42,16 +42,18 @@ static int gicv2m_update_routing(struct kvm *kvm,
 {
 	int spi;
 
-	if (entry->type != KVM_IRQ_ROUTING_MSI)
-		return -EINVAL;
+	if (entry->type != KVM_IRQ_ROUTING_MSI) {
+		errno = EINVAL;
+		return -errno;
+	}
 
 	if (!entry->u.msi.address_hi && !entry->u.msi.address_lo)
 		return 0;
 
 	spi = entry->u.msi.data & GICV2M_SPI_MASK;
 	if (spi < v2m.first_spi || spi >= v2m.first_spi + v2m.num_spis) {
-		pr_err("invalid SPI number %d", spi);
-		return -EINVAL;
+		errno = EINVAL;
+		return -errno;
 	}
 
 	v2m.spis[spi - v2m.first_spi] = entry->gsi;
