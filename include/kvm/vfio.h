@@ -48,7 +48,7 @@ struct vfio_pci_msix_table {
 
 struct vfio_pci_msix_pba {
 	size_t				size;
-	off_t				offset; /* in VFIO device fd */
+	off_t				fd_offset; /* in VFIO device fd */
 	unsigned int			bar;
 	u32				guest_phys_addr;
 };

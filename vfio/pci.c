@@ -256,7 +256,7 @@ static void vfio_pci_msix_pba_access(struct kvm_cpu *vcpu, u64 addr, u8 *data,
 	 * TODO: emulate PBA. Hardware MSI-X is never masked, so reading the PBA
 	 * is completely useless here. Note that Linux doesn't use PBA.
 	 */
-	if (pread(vdev->fd, data, len, pba->offset + offset) != (ssize_t)len)
+	if (pread(vdev->fd, data, len, pba->fd_offset + offset) != (ssize_t)len)
 		vfio_dev_err(vdev, "cannot access MSIX PBA\n");
 }
 
@@ -815,8 +815,8 @@ static int vfio_pci_fixup_cfg_space(struct vfio_device *vdev)
 	if (msix) {
 		/* Add a shortcut to the PBA region for the MMIO handler */
 		int pba_index = VFIO_PCI_BAR0_REGION_INDEX + pdev->msix_pba.bar;
-		pdev->msix_pba.offset = vdev->regions[pba_index].info.offset +
-					(msix->pba_offset & PCI_MSIX_PBA_OFFSET);
+		pdev->msix_pba.fd_offset = vdev->regions[pba_index].info.offset +
+					   (msix->pba_offset & PCI_MSIX_PBA_OFFSET);
 
 		/* Tidy up the capability */
 		msix->table_offset &= PCI_MSIX_TABLE_BIR;
