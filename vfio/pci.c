@@ -1,3 +1,5 @@
+#include "linux/sizes.h"
+
 #include "kvm/irq.h"
 #include "kvm/kvm.h"
 #include "kvm/kvm-cpu.h"
@@ -926,7 +928,7 @@ static int vfio_pci_create_msix_table(struct kvm *kvm, struct vfio_device *vdev)
 	if (!info.size)
 		return -EINVAL;
 
-	map_size = ALIGN(info.size, PAGE_SIZE);
+	map_size = ALIGN(info.size, MAX_PAGE_SIZE);
 	table->guest_phys_addr = pci_get_mmio_block(map_size);
 	if (!table->guest_phys_addr) {
 		pr_err("cannot allocate MMIO space");
@@ -958,7 +960,7 @@ static int vfio_pci_create_msix_table(struct kvm *kvm, struct vfio_device *vdev)
 		if (!info.size)
 			return -EINVAL;
 
-		map_size = ALIGN(info.size, PAGE_SIZE);
+		map_size = ALIGN(info.size, MAX_PAGE_SIZE);
 		pba->guest_phys_addr = pci_get_mmio_block(map_size);
 		if (!pba->guest_phys_addr) {
 			pr_err("cannot allocate MMIO space");

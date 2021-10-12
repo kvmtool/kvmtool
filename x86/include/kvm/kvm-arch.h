@@ -5,6 +5,7 @@
 
 #include <stdbool.h>
 #include <linux/types.h>
+#include <linux/sizes.h>
 #include <time.h>
 
 /*
@@ -29,6 +30,8 @@
 #define KVM_VM_TYPE		0
 
 #define KVM_IOEVENTFD_HAS_PIO	1
+
+#define MAX_PAGE_SIZE		SZ_4K
 
 #define VIRTIO_DEFAULT_TRANS(kvm)	VIRTIO_PCI
 

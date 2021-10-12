@@ -1,6 +1,7 @@
 #ifndef KVM__KVM_ARCH_H
 #define KVM__KVM_ARCH_H
 
+#include <linux/sizes.h>
 
 /*
  * Guest memory map is:
@@ -35,6 +36,8 @@
 #define KVM_IOEVENTFD_HAS_PIO	0
 
 #define VIRTIO_DEFAULT_TRANS(kvm)	VIRTIO_PCI
+
+#define MAX_PAGE_SIZE		SZ_64K
 
 #include <stdbool.h>
 
