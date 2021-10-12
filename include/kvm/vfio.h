@@ -50,6 +50,7 @@ struct vfio_pci_msix_pba {
 	size_t				size;
 	off_t				fd_offset; /* in VFIO device fd */
 	unsigned int			bar;
+	u32				bar_offset; /* in the shared BAR */
 	u32				guest_phys_addr;
 };
 

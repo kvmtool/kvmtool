@@ -502,7 +502,7 @@ static int vfio_pci_bar_activate(struct kvm *kvm,
 
 	if (has_msix && (u32)bar_num == pba->bar) {
 		if (pba->bar == table->bar)
-			pba->guest_phys_addr = table->guest_phys_addr + table->size;
+			pba->guest_phys_addr = table->guest_phys_addr + pba->bar_offset;
 		else
 			pba->guest_phys_addr = region->guest_phys_addr;
 		ret = kvm__register_mmio(kvm, pba->guest_phys_addr,
@@ -815,15 +815,21 @@ static int vfio_pci_fixup_cfg_space(struct vfio_device *vdev)
 	if (msix) {
 		/* Add a shortcut to the PBA region for the MMIO handler */
 		int pba_index = VFIO_PCI_BAR0_REGION_INDEX + pdev->msix_pba.bar;
+		u32 pba_bar_offset = msix->pba_offset & PCI_MSIX_PBA_OFFSET;
+
 		pdev->msix_pba.fd_offset = vdev->regions[pba_index].info.offset +
-					   (msix->pba_offset & PCI_MSIX_PBA_OFFSET);
+					   pba_bar_offset;
 
 		/* Tidy up the capability */
 		msix->table_offset &= PCI_MSIX_TABLE_BIR;
-		msix->pba_offset &= PCI_MSIX_PBA_BIR;
-		if (pdev->msix_table.bar == pdev->msix_pba.bar)
-			msix->pba_offset |= pdev->msix_table.size &
-					    PCI_MSIX_PBA_OFFSET;
+		if (pdev->msix_table.bar == pdev->msix_pba.bar) {
+			/* Keep the same offset as the MSIX cap. */
+			pdev->msix_pba.bar_offset = pba_bar_offset;
+		} else {
+			/* PBA is at the start of the BAR. */
+			msix->pba_offset &= PCI_MSIX_PBA_BIR;
+			pdev->msix_pba.bar_offset = 0;
+		}
 	}
 
 	/* Install our fake Configuration Space */
@@ -892,12 +898,11 @@ static int vfio_pci_create_msix_table(struct kvm *kvm, struct vfio_device *vdev)
 	table->bar = msix->table_offset & PCI_MSIX_TABLE_BIR;
 	pba->bar = msix->pba_offset & PCI_MSIX_TABLE_BIR;
 
-	/*
-	 * KVM needs memory regions to be multiple of and aligned on PAGE_SIZE.
-	 */
 	nr_entries = (msix->ctrl & PCI_MSIX_FLAGS_QSIZE) + 1;
-	table->size = ALIGN(nr_entries * PCI_MSIX_ENTRY_SIZE, PAGE_SIZE);
-	pba->size = ALIGN(DIV_ROUND_UP(nr_entries, 64), PAGE_SIZE);
+
+	/* MSIX table and PBA must support QWORD accesses. */
+	table->size = ALIGN(nr_entries * PCI_MSIX_ENTRY_SIZE, 8);
+	pba->size = ALIGN(DIV_ROUND_UP(nr_entries, 64), 8);
 
 	entries = calloc(nr_entries, sizeof(struct vfio_pci_msi_entry));
 	if (!entries)
@@ -911,23 +916,8 @@ static int vfio_pci_create_msix_table(struct kvm *kvm, struct vfio_device *vdev)
 		return ret;
 	if (!info.size)
 		return -EINVAL;
-	map_size = info.size;
 
-	if (table->bar != pba->bar) {
-		ret = vfio_pci_get_region_info(vdev, pba->bar, &info);
-		if (ret)
-			return ret;
-		if (!info.size)
-			return -EINVAL;
-		map_size += info.size;
-	}
-
-	/*
-	 * To ease MSI-X cap configuration in case they share the same BAR,
-	 * collapse table and pending array. The size of the BAR regions must be
-	 * powers of two.
-	 */
-	map_size = ALIGN(map_size, PAGE_SIZE);
+	map_size = ALIGN(info.size, PAGE_SIZE);
 	table->guest_phys_addr = pci_get_mmio_block(map_size);
 	if (!table->guest_phys_addr) {
 		pr_err("cannot allocate MMIO space");
@@ -943,7 +933,30 @@ static int vfio_pci_create_msix_table(struct kvm *kvm, struct vfio_device *vdev)
 	 * between MSI-X table and PBA. For the sake of isolation, create a
 	 * virtual PBA.
 	 */
-	pba->guest_phys_addr = table->guest_phys_addr + table->size;
+	if (table->bar == pba->bar) {
+		u32 pba_bar_offset = msix->pba_offset & PCI_MSIX_PBA_OFFSET;
+
+		/* Sanity checks. */
+		if (table->size > pba_bar_offset)
+			die("MSIX table overlaps with PBA");
+		if (pba_bar_offset + pba->size > info.size)
+			die("PBA exceeds the size of the region");
+		pba->guest_phys_addr = table->guest_phys_addr + pba_bar_offset;
+	} else {
+		ret = vfio_pci_get_region_info(vdev, pba->bar, &info);
+		if (ret)
+			return ret;
+		if (!info.size)
+			return -EINVAL;
+
+		map_size = ALIGN(info.size, PAGE_SIZE);
+		pba->guest_phys_addr = pci_get_mmio_block(map_size);
+		if (!pba->guest_phys_addr) {
+			pr_err("cannot allocate MMIO space");
+			ret = -ENOMEM;
+			goto out_free;
+		}
+	}
 
 	pdev->msix.entries = entries;
 	pdev->msix.nr_entries = nr_entries;
