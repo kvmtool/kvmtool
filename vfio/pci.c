@@ -249,6 +249,11 @@ static void vfio_pci_msix_pba_access(struct kvm_cpu *vcpu, u64 addr, u8 *data,
 	u64 offset = addr - pba->guest_phys_addr;
 	struct vfio_device *vdev = container_of(pdev, struct vfio_device, pci);
 
+	if (offset >= pba->size) {
+		vfio_dev_err(vdev, "access outside of the MSIX PBA");
+		return;
+	}
+
 	if (is_write)
 		return;
 
@@ -269,6 +274,10 @@ static void vfio_pci_msix_table_access(struct kvm_cpu *vcpu, u64 addr, u8 *data,
 	struct vfio_device *vdev = container_of(pdev, struct vfio_device, pci);
 
 	u64 offset = addr - pdev->msix_table.guest_phys_addr;
+	if (offset >= pdev->msix_table.size) {
+		vfio_dev_err(vdev, "access outside of the MSI-X table");
+		return;
+	}
 
 	size_t vector = offset / PCI_MSIX_ENTRY_SIZE;
 	off_t field = offset % PCI_MSIX_ENTRY_SIZE;
