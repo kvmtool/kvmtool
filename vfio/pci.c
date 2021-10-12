@@ -10,8 +10,6 @@
 #include <sys/resource.h>
 #include <sys/time.h>
 
-#include <assert.h>
-
 /* Some distros don't have the define. */
 #ifndef PCI_CAP_EXP_RC_ENDPOINT_SIZEOF_V1
 #define PCI_CAP_EXP_RC_ENDPOINT_SIZEOF_V1	12
