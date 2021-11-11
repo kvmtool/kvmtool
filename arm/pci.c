@@ -80,6 +80,16 @@ void pci__generate_fdt_nodes(void *fdt)
 		u8 irq = pci_hdr->irq_line;
 		u32 irq_flags = pci_hdr->irq_type;
 
+		/*
+		 * Avoid adding entries in "interrupt-map" for devices that
+		 * will be using advance interrupt mechanisms like MSI or
+		 * MSI-X instead of legacy interrupt pins INTA#..INTD#
+		 */
+		if (pin == 0) {
+			dev_hdr = device__next_dev(dev_hdr);
+			continue;
+		}
+
 		*entry = (struct of_interrupt_map_entry) {
 			.pci_irq_mask = {
 				.pci_addr = {
