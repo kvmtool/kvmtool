@@ -17,6 +17,7 @@ export E Q
 
 include config/utilities.mak
 include config/feature-tests.mak
+-include $(OUTPUT)KVMTOOLS-VERSION-FILE
 
 CC	:= $(CROSS_COMPILE)gcc
 CFLAGS	:=
@@ -559,5 +560,4 @@ ifneq ($(MAKECMDGOALS),clean)
 
 KVMTOOLS-VERSION-FILE:
 	@$(SHELL_PATH) util/KVMTOOLS-VERSION-GEN $(OUTPUT)
--include $(OUTPUT)KVMTOOLS-VERSION-FILE
 endif
