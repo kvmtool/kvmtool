@@ -61,7 +61,7 @@ int pci__assign_irq(struct pci_device_header *pci_hdr)
 	pci_hdr->irq_line	= irq__alloc_line();
 
 	if (!pci_hdr->irq_type)
-		pci_hdr->irq_type = IRQ_TYPE_EDGE_RISING;
+		pci_hdr->irq_type = IRQ_TYPE_LEVEL_HIGH;
 
 	return pci_hdr->irq_line;
 }
