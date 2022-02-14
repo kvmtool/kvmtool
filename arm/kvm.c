@@ -218,6 +218,8 @@ bool kvm__load_firmware(struct kvm *kvm, const char *firmware_filename)
 
 	/* Kernel isn't loaded by kvm, point start address to firmware */
 	kvm->arch.kern_guest_start = fw_addr;
+	pr_debug("Loaded firmware to 0x%llx (%zd bytes)",
+		 kvm->arch.kern_guest_start, fw_sz);
 
 	/* Load dtb just after the firmware image*/
 	host_pos += fw_sz;
@@ -226,9 +228,9 @@ bool kvm__load_firmware(struct kvm *kvm, const char *firmware_filename)
 
 	kvm->arch.dtb_guest_start = ALIGN(host_to_guest_flat(kvm, host_pos),
 					  FDT_ALIGN);
-	pr_info("Placing fdt at 0x%llx - 0x%llx",
-		kvm->arch.dtb_guest_start,
-		kvm->arch.dtb_guest_start + FDT_MAX_SIZE);
+	pr_debug("Placing fdt at 0x%llx - 0x%llx",
+		 kvm->arch.dtb_guest_start,
+		 kvm->arch.dtb_guest_start + FDT_MAX_SIZE);
 
 	return true;
 }
