@@ -6,6 +6,7 @@
 #include "kvm/util.h"
 
 #include "arm-common/pci.h"
+#include "arm-common/gic.h"
 
 /*
  * An entry in the interrupt-map table looks like:
@@ -24,8 +25,9 @@ struct of_interrupt_map_entry {
 	struct of_gic_irq		gic_irq;
 } __attribute__((packed));
 
-void pci__generate_fdt_nodes(void *fdt)
+void pci__generate_fdt_nodes(void *fdt, struct kvm *kvm)
 {
+	enum irqchip_type irqchip = kvm->cfg.arch.irqchip;
 	struct device_header *dev_hdr;
 	struct of_interrupt_map_entry irq_map[OF_PCI_IRQ_MAP_MAX];
 	unsigned nentries = 0;
@@ -68,7 +70,9 @@ void pci__generate_fdt_nodes(void *fdt)
 	_FDT(fdt_property(fdt, "bus-range", bus_range, sizeof(bus_range)));
 	_FDT(fdt_property(fdt, "reg", &cfg_reg_prop, sizeof(cfg_reg_prop)));
 	_FDT(fdt_property(fdt, "ranges", ranges, sizeof(ranges)));
-	_FDT(fdt_property_cell(fdt, "msi-parent", PHANDLE_MSI));
+
+	if (irqchip == IRQCHIP_GICV2M || irqchip == IRQCHIP_GICV3_ITS)
+		_FDT(fdt_property_cell(fdt, "msi-parent", PHANDLE_MSI));
 
 	/* Generate the interrupt map ... */
 	dev_hdr = device__first_dev(DEVICE_BUS_PCI);

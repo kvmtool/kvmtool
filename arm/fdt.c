@@ -190,7 +190,7 @@ static int setup_fdt(struct kvm *kvm)
 	}
 
 	/* PCI host controller */
-	pci__generate_fdt_nodes(fdt);
+	pci__generate_fdt_nodes(fdt, kvm);
 
 	/* PSCI firmware */
 	_FDT(fdt_begin_node(fdt, "psci"));
