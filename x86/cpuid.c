@@ -8,7 +8,7 @@
 
 #define	MAX_KVM_CPUID_ENTRIES		100
 
-static void filter_cpuid(struct kvm_cpuid2 *kvm_cpuid)
+static void filter_cpuid(struct kvm_cpuid2 *kvm_cpuid, int cpu_id)
 {
 	unsigned int signature[3];
 	unsigned int i;
@@ -28,6 +28,8 @@ static void filter_cpuid(struct kvm_cpuid2 *kvm_cpuid)
 			entry->edx = signature[2];
 			break;
 		case 1:
+			entry->ebx &= ~(0xff << 24);
+			entry->ebx |= cpu_id << 24;
 			/* Set X86_FEATURE_HYPERVISOR */
 			if (entry->index == 0)
 				entry->ecx |= (1 << 31);
@@ -80,7 +82,7 @@ void kvm_cpu__setup_cpuid(struct kvm_cpu *vcpu)
 	if (ioctl(vcpu->kvm->sys_fd, KVM_GET_SUPPORTED_CPUID, kvm_cpuid) < 0)
 		die_perror("KVM_GET_SUPPORTED_CPUID failed");
 
-	filter_cpuid(kvm_cpuid);
+	filter_cpuid(kvm_cpuid, vcpu->cpu_id);
 
 	if (ioctl(vcpu->vcpu_fd, KVM_SET_CPUID2, kvm_cpuid) < 0)
 		die_perror("KVM_SET_CPUID2 failed");
