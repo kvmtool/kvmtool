@@ -184,7 +184,7 @@ int mptable__init(struct kvm *kvm)
 		mpc_intsrc = last_addr;
 		mptable_add_irq_src(mpc_intsrc, pcibusid, srcbusirq, ioapicid, pci_hdr->irq_line);
 
-		last_addr = (void *)&mpc_intsrc[dev_hdr->dev_num];
+		last_addr = (void *)&mpc_intsrc[1];
 		nentries++;
 		dev_hdr = device__next_dev(dev_hdr);
 	}
