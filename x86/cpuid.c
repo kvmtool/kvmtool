@@ -2,6 +2,7 @@
 
 #include "kvm/kvm.h"
 #include "kvm/util.h"
+#include "kvm/cpufeature.h"
 
 #include <sys/ioctl.h>
 #include <stdlib.h>
@@ -10,7 +11,7 @@
 
 static void filter_cpuid(struct kvm_cpuid2 *kvm_cpuid)
 {
-	unsigned int signature[3];
+	struct cpuid_regs regs;
 	unsigned int i;
 
 	/*
@@ -22,10 +23,13 @@ static void filter_cpuid(struct kvm_cpuid2 *kvm_cpuid)
 		switch (entry->function) {
 		case 0:
 			/* Vendor name */
-			memcpy(signature, "LKVMLKVMLKVM", 12);
-			entry->ebx = signature[0];
-			entry->ecx = signature[1];
-			entry->edx = signature[2];
+			regs = (struct cpuid_regs) {
+				.eax		= 0x00,
+			};
+			host_cpuid(&regs);
+			entry->ebx = regs.ebx;
+			entry->ecx = regs.ecx;
+			entry->edx = regs.edx;
 			break;
 		case 1:
 			/* Set X86_FEATURE_HYPERVISOR */
