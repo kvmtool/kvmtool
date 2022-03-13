@@ -20,4 +20,9 @@ static inline int kvm_cpu__configure_features(struct kvm_cpu *vcpu)
 	return 0;
 }
 
+static inline int kvm_cpu__teardown_pvtime(struct kvm *kvm)
+{
+	return 0;
+}
+
 #endif /* KVM__KVM_CPU_ARCH_H */
