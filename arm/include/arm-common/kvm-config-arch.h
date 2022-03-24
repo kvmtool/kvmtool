@@ -12,6 +12,7 @@ struct kvm_config_arch {
 	u64		kaslr_seed;
 	enum irqchip_type irqchip;
 	u64		fw_addr;
+	bool no_pvtime;
 };
 
 int irqchip_parser(const struct option *opt, const char *arg, int unset);

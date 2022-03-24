@@ -48,13 +48,13 @@ int kvm_cpu__setup_pvtime(struct kvm_cpu *vcpu)
 	bool has_stolen_time;
 	u64 pvtime_guest_addr = ARM_PVTIME_BASE + vcpu->cpu_id *
 		ARM_PVTIME_STRUCT_SIZE;
-	struct kvm_config *kvm_cfg = NULL;
+	struct kvm_config_arch *kvm_cfg = NULL;
 	struct kvm_device_attr pvtime_attr = (struct kvm_device_attr) {
 		.group	= KVM_ARM_VCPU_PVTIME_CTRL,
 		.attr	= KVM_ARM_VCPU_PVTIME_IPA
 	};
 
-	kvm_cfg = &vcpu->kvm->cfg;
+	kvm_cfg = &vcpu->kvm->cfg.arch;
 	if (kvm_cfg->no_pvtime)
 		return 0;
 

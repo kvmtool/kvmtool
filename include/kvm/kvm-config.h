@@ -62,7 +62,6 @@ struct kvm_config {
 	bool no_dhcp;
 	bool ioport_debug;
 	bool mmio_debug;
-	bool no_pvtime;
 };
 
 #endif
