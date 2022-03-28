@@ -9,6 +9,7 @@ struct kvm_config_arch {
 	bool		virtio_trans_pci;
 	bool		aarch32_guest;
 	bool		has_pmuv3;
+	bool		mte_disabled;
 	u64		kaslr_seed;
 	enum irqchip_type irqchip;
 	u64		fw_addr;

@@ -6,6 +6,7 @@
 struct kvm;
 unsigned long long kvm__arch_get_kern_offset(struct kvm *kvm, int fd);
 int kvm__arch_get_ipa_limit(struct kvm *kvm);
+void kvm__arch_enable_mte(struct kvm *kvm);
 
 #define ARM_MAX_MEMORY(kvm)	({					\
 	u64 max_ram;							\

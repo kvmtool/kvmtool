@@ -81,3 +81,25 @@ int kvm__get_vm_type(struct kvm *kvm)
 
 	return KVM_VM_TYPE_ARM_IPA_SIZE(ipa_bits);
 }
+
+void kvm__arch_enable_mte(struct kvm *kvm)
+{
+	struct kvm_enable_cap cap = {
+		.cap = KVM_CAP_ARM_MTE,
+	};
+
+	if (kvm->cfg.arch.mte_disabled) {
+		pr_debug("MTE disabled by user");
+		return;
+	}
+
+	if (!kvm__supports_extension(kvm, KVM_CAP_ARM_MTE)) {
+		pr_debug("MTE capability not available");
+		return;
+	}
+
+	if (ioctl(kvm->vm_fd, KVM_ENABLE_CAP, &cap))
+		die_perror("KVM_ENABLE_CAP(KVM_CAP_ARM_MTE)");
+
+	pr_debug("MTE capability enabled");
+}
