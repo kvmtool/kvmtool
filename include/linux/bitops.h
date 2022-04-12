@@ -1,6 +1,8 @@
 #ifndef _KVM_LINUX_BITOPS_H_
 #define _KVM_LINUX_BITOPS_H_
 
+#include <bits/wordsize.h>
+
 #include <linux/kernel.h>
 #include <linux/compiler.h>
 #include <asm/hweight.h>
