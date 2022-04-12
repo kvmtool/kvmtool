@@ -49,34 +49,19 @@ static void set_pmu_attr(struct kvm_cpu *vcpu, void *addr, u64 attr)
  */
 #define PMU_ID_MAXLEN		12
 
-/*
- * In the case of homogeneous systems, there only one hardware PMU, and all
- * VCPUs will use the same PMU, regardless of where the attribute gets set.
- *
- * For heterogeneous systems, the assumption is that the user has pinned the VM
- * (via taskset or similar) to a set of CPUs that share the same hardware PMU.
- * This simplifies things for kvmtool, as correctness is not affected by setting
- * the PMU for each VCPU from the main thread, instead of setting it from each
- * individual VCPU thread.
- */
-static int find_pmu(void)
+static int find_pmu_cpumask(struct kvm *kvm, cpumask_t *cpumask)
 {
+	cpumask_t pmu_cpumask, tmp;
 	char buf[PMU_ID_MAXLEN];
 	struct dirent *dirent;
 	char *cpulist, *path;
 	int pmu_id = -ENXIO;
 	unsigned long val;
-	cpumask_t cpumask;
 	ssize_t fd_sz;
-	int this_cpu;
 	int fd, ret;
 	DIR *dir;
 
-	memset(buf, 0, PMU_ID_MAXLEN);
-
-	this_cpu = sched_getcpu();
-	if (this_cpu < 0)
-		return -errno;
+	memset(buf, 0, sizeof(buf));
 
 	cpulist = calloc(1, PAGE_SIZE);
 	if (!cpulist)
@@ -112,14 +97,26 @@ static int find_pmu(void)
 		}
 		close(fd);
 
-		ret = cpulist_parse(cpulist, &cpumask);
+		ret = cpulist_parse(cpulist, &pmu_cpumask);
 		if (ret) {
 			pmu_id = ret;
 			goto out_free;
 		}
 
-		if (!cpumask_test_cpu(this_cpu, &cpumask))
+		if (!cpumask_and(&tmp, cpumask, &pmu_cpumask))
 			goto next_dir;
+
+		/*
+		 * One CPU cannot more than one PMU, hence the set of CPUs which
+		 * share PMU A and the set of CPUs which share PMU B are
+		 * disjoint. If the target CPUs and the current PMU have at
+		 * least one CPU in common, but the target CPUs is not a subset
+		 * of the current PMU, then a PMU which is associated with all
+		 * the target CPUs does not exist. Stop searching for a PMU when
+		 * this happens.
+		 */
+		if (!cpumask_subset(cpumask, &pmu_cpumask))
+			goto out_free;
 
 		strcpy(&path[strlen(path) - 4], "type");
 		fd = open(path, O_RDONLY);
@@ -154,6 +151,46 @@ out_free:
 	return pmu_id;
 }
 
+/*
+ * In the case of homogeneous systems, there only one hardware PMU, and all
+ * VCPUs will use the same PMU, regardless of the physical CPUs on which the
+ * VCPU threads will be executing.
+ *
+ * For heterogeneous systems, there are 2 ways for the user to ensure that the
+ * VM runs on CPUs that have the same PMU:
+ *
+ * 1. By pinning the entire VM to the desired CPUs, in which case kvmtool will
+ * choose the PMU associated with the CPU on which the main thread is executing
+ * (the thread that calls find_pmu()).
+ *
+ * 2. By setting the affinity mask for the VCPUs with the --vcpu-affinity
+ * command line argument. All CPUs in the affinity mask must have the same PMU,
+ * otherwise kvmtool will not be able to set a PMU.
+ */
+static int find_pmu(struct kvm *kvm)
+{
+	cpumask_t *cpumask;
+	int i, this_cpu;
+
+	cpumask = calloc(1, cpumask_size());
+	if (!cpumask)
+		die_perror("calloc");
+
+	if (!kvm->arch.vcpu_affinity_cpuset) {
+		this_cpu = sched_getcpu();
+		if (this_cpu < 0)
+			return -errno;
+		cpumask_set_cpu(this_cpu, cpumask);
+	} else {
+		for (i = 0; i < CPU_SETSIZE; i ++) {
+			if (CPU_ISSET(i, kvm->arch.vcpu_affinity_cpuset))
+				cpumask_set_cpu(i, cpumask);
+		}
+	}
+
+	return find_pmu_cpumask(kvm, cpumask);
+}
+
 void pmu__generate_fdt_nodes(void *fdt, struct kvm *kvm)
 {
 	const char compatible[] = "arm,armv8-pmuv3";
@@ -174,7 +211,7 @@ void pmu__generate_fdt_nodes(void *fdt, struct kvm *kvm)
 		return;
 
 	if (pmu_has_attr(kvm->cpus[0], KVM_ARM_VCPU_PMU_V3_SET_PMU)) {
-		pmu_id = find_pmu();
+		pmu_id = find_pmu(kvm);
 		if (pmu_id < 0) {
 			pr_debug("Failed to find a PMU (errno: %d), "
 				 "PMU events might not work", -pmu_id);

@@ -2,6 +2,11 @@
 #define ARM_COMMON__KVM_ARCH_H
 
 #include <stdbool.h>
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+#include <sched.h>
+
 #include <linux/const.h>
 #include <linux/types.h>
 
@@ -105,6 +110,8 @@ struct kvm_arch {
 	u64	initrd_guest_start;
 	u64	initrd_size;
 	u64	dtb_guest_start;
+
+	cpu_set_t *vcpu_affinity_cpuset;
 };
 
 #endif /* ARM_COMMON__KVM_ARCH_H */

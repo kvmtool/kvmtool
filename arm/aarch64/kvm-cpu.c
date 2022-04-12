@@ -88,7 +88,16 @@ static void reset_vcpu_aarch64(struct kvm_cpu *vcpu)
 {
 	struct kvm *kvm = vcpu->kvm;
 	struct kvm_one_reg reg;
+	cpu_set_t *affinity;
 	u64 data;
+	int ret;
+
+	affinity = kvm->arch.vcpu_affinity_cpuset;
+	if (affinity) {
+		ret = sched_setaffinity(0, sizeof(cpu_set_t), affinity);
+		if (ret == -1)
+			die_perror("sched_setaffinity");
+	}
 
 	reg.addr = (u64)&data;
 

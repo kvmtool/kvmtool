@@ -3,7 +3,39 @@
 #include <asm/image.h>
 
 #include <linux/byteorder.h>
+#include <linux/cpumask.h>
+
 #include <kvm/util.h>
+
+int vcpu_affinity_parser(const struct option *opt, const char *arg, int unset)
+{
+	struct kvm *kvm = opt->ptr;
+	const char *cpulist = arg;
+	cpumask_t *cpumask;
+	int cpu, ret;
+
+	kvm->cfg.arch.vcpu_affinity = cpulist;
+
+	cpumask = calloc(1, cpumask_size());
+	if (!cpumask)
+		die_perror("calloc");
+
+	ret = cpulist_parse(cpulist, cpumask);
+	if (ret) {
+		free(cpumask);
+		return ret;
+	}
+
+	kvm->arch.vcpu_affinity_cpuset = CPU_ALLOC(NR_CPUS);
+	if (!kvm->arch.vcpu_affinity_cpuset)
+		die_perror("CPU_ALLOC");
+	CPU_ZERO_S(CPU_ALLOC_SIZE(NR_CPUS), kvm->arch.vcpu_affinity_cpuset);
+
+	for_each_cpu(cpu, cpumask)
+		CPU_SET(cpu, kvm->arch.vcpu_affinity_cpuset);
+
+	return 0;
+}
 
 /*
  * Return the TEXT_OFFSET value that the guest kernel expects. Note

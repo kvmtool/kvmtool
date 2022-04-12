@@ -11,6 +11,11 @@ typedef struct cpumask { DECLARE_BITMAP(bits, NR_CPUS); } cpumask_t;
 
 #define cpumask_bits(maskp)	((maskp)->bits)
 
+static inline unsigned int cpumask_size(void)
+{
+	return BITS_TO_LONGS(NR_CPUS) * sizeof(long);
+}
+
 static inline void cpumask_set_cpu(int cpu, cpumask_t *dstp)
 {
 	set_bit(cpu, cpumask_bits(dstp));
