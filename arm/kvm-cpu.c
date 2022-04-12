@@ -43,7 +43,7 @@ struct kvm_cpu *kvm_cpu__arch_init(struct kvm *kvm, unsigned long cpu_id)
 	unsigned int i;
 	struct kvm_vcpu_init preferred_init;
 	struct kvm_vcpu_init vcpu_init = {
-		.features = ARM_VCPU_FEATURE_FLAGS(kvm, cpu_id)
+		.features = {},
 	};
 
 	vcpu = calloc(1, sizeof(struct kvm_cpu));
@@ -62,6 +62,10 @@ struct kvm_cpu *kvm_cpu__arch_init(struct kvm *kvm, unsigned long cpu_id)
 			     vcpu->vcpu_fd, 0);
 	if (vcpu->kvm_run == MAP_FAILED)
 		die("unable to mmap vcpu fd");
+
+	/* VCPU 0 is the boot CPU, the others start in a poweroff state. */
+	if (cpu_id > 0)
+		vcpu_init.features[0] |= (1UL << KVM_ARM_VCPU_POWER_OFF);
 
 	/* Set KVM_ARM_VCPU_PSCI_0_2 if available */
 	if (kvm__supports_extension(kvm, KVM_CAP_ARM_PSCI_0_2)) {
