@@ -2,10 +2,16 @@
 #ifndef KVM__LINUX_KERNEL_H_
 #define KVM__LINUX_KERNEL_H_
 
+#include "asm/kernel.h"
+
+#define __round_mask(x, y)	((__typeof__(x))((y)-1))
+#define round_down(x, y)	((x) & ~__round_mask(x, y))
+
 #define DIV_ROUND_UP(n,d) (((n) + (d) - 1) / (d))
 
 #define ALIGN(x,a)		__ALIGN_MASK(x,(typeof(x))(a)-1)
 #define __ALIGN_MASK(x,mask)	(((x)+(mask))&~(mask))
+#define IS_ALIGNED(x, a)	(((x) & ((typeof(x))(a) - 1)) == 0)
 
 #ifndef offsetof
 #define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
