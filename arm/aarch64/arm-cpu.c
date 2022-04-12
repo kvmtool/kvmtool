@@ -5,7 +5,8 @@
 
 #include "arm-common/gic.h"
 #include "arm-common/timer.h"
-#include "arm-common/pmu.h"
+
+#include "asm/pmu.h"
 
 #include <linux/byteorder.h>
 #include <linux/types.h>
