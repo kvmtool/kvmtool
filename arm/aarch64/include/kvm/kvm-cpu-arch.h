@@ -6,9 +6,7 @@
 #include "arm-common/kvm-cpu-arch.h"
 
 #define ARM_VCPU_FEATURE_FLAGS(kvm, cpuid)	{				\
-	[0] = ((!!(cpuid) << KVM_ARM_VCPU_POWER_OFF) |				\
-	       (!!(kvm)->cfg.arch.aarch32_guest << KVM_ARM_VCPU_EL1_32BIT) |	\
-	       (!!(kvm)->cfg.arch.has_pmuv3 << KVM_ARM_VCPU_PMU_V3))		\
+	[0] = (!!(cpuid) << KVM_ARM_VCPU_POWER_OFF),				\
 }
 
 #define ARM_MPIDR_HWID_BITMASK	0xFF00FFFFFFUL
