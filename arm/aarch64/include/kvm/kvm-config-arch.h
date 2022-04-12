@@ -5,7 +5,9 @@
 	OPT_BOOLEAN('\0', "aarch32", &(cfg)->aarch32_guest,		\
 			"Run AArch32 guest"),				\
 	OPT_BOOLEAN('\0', "pmu", &(cfg)->has_pmuv3,			\
-			"Create PMUv3 device"),				\
+			"Create PMUv3 device. The emulated PMU will be" \
+			" set to the PMU associated with the"		\
+			" main thread"),				\
 	OPT_BOOLEAN('\0', "disable-mte", &(cfg)->mte_disabled,		\
 			"Disable Memory Tagging Extension"),		\
 	OPT_U64('\0', "kaslr-seed", &(cfg)->kaslr_seed,			\

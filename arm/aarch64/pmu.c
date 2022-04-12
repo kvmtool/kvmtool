@@ -1,3 +1,9 @@
+#include <dirent.h>
+#include <sched.h>
+
+#include "linux/cpumask.h"
+#include "linux/err.h"
+
 #include "kvm/fdt.h"
 #include "kvm/kvm.h"
 #include "kvm/kvm-cpu.h"
@@ -6,6 +12,17 @@
 #include "arm-common/gic.h"
 
 #include "asm/pmu.h"
+
+static bool pmu_has_attr(struct kvm_cpu *vcpu, u64 attr)
+{
+	struct kvm_device_attr pmu_attr = {
+		.group	= KVM_ARM_VCPU_PMU_V3_CTRL,
+		.attr	= attr,
+	};
+	int ret = ioctl(vcpu->vcpu_fd, KVM_HAS_DEVICE_ATTR, &pmu_attr);
+
+	return ret == 0;
+}
 
 static void set_pmu_attr(struct kvm_cpu *vcpu, void *addr, u64 attr)
 {
@@ -16,8 +33,7 @@ static void set_pmu_attr(struct kvm_cpu *vcpu, void *addr, u64 attr)
 	};
 	int ret;
 
-	ret = ioctl(vcpu->vcpu_fd, KVM_HAS_DEVICE_ATTR, &pmu_attr);
-	if (!ret) {
+	if (pmu_has_attr(vcpu, attr)) {
 		ret = ioctl(vcpu->vcpu_fd, KVM_SET_DEVICE_ATTR, &pmu_attr);
 		if (ret)
 			die_perror("PMU KVM_SET_DEVICE_ATTR");
@@ -26,11 +42,124 @@ static void set_pmu_attr(struct kvm_cpu *vcpu, void *addr, u64 attr)
 	}
 }
 
+#define SYS_EVENT_SOURCE	"/sys/bus/event_source/devices/"
+/*
+ * int is 32 bits and INT_MAX translates in decimal to 2 * 10^9.
+ * Make room for newline and NUL.
+ */
+#define PMU_ID_MAXLEN		12
+
+/*
+ * In the case of homogeneous systems, there only one hardware PMU, and all
+ * VCPUs will use the same PMU, regardless of where the attribute gets set.
+ *
+ * For heterogeneous systems, the assumption is that the user has pinned the VM
+ * (via taskset or similar) to a set of CPUs that share the same hardware PMU.
+ * This simplifies things for kvmtool, as correctness is not affected by setting
+ * the PMU for each VCPU from the main thread, instead of setting it from each
+ * individual VCPU thread.
+ */
+static int find_pmu(void)
+{
+	char buf[PMU_ID_MAXLEN];
+	struct dirent *dirent;
+	char *cpulist, *path;
+	int pmu_id = -ENXIO;
+	unsigned long val;
+	cpumask_t cpumask;
+	ssize_t fd_sz;
+	int this_cpu;
+	int fd, ret;
+	DIR *dir;
+
+	memset(buf, 0, PMU_ID_MAXLEN);
+
+	this_cpu = sched_getcpu();
+	if (this_cpu < 0)
+		return -errno;
+
+	cpulist = calloc(1, PAGE_SIZE);
+	if (!cpulist)
+		die_perror("calloc");
+
+	path = calloc(1, PAGE_SIZE);
+	if (!path)
+		die_perror("calloc");
+
+	dir = opendir(SYS_EVENT_SOURCE);
+	if (!dir) {
+		pmu_id = -errno;
+		goto out_free;
+	}
+
+	/* Make the compiler happy by copying the NUL terminating byte. */
+	strncpy(path, SYS_EVENT_SOURCE, strlen(SYS_EVENT_SOURCE) + 1);
+
+	while ((dirent = readdir(dir))) {
+		if (dirent->d_type != DT_LNK)
+			continue;
+
+		strcat(path, dirent->d_name);
+		strcat(path, "/cpus");
+		fd = open(path, O_RDONLY);
+		if (fd < 0)
+			goto next_dir;
+
+		fd_sz = read_file(fd, cpulist, PAGE_SIZE);
+		if (fd_sz < 0) {
+			pmu_id = -errno;
+			goto out_free;
+		}
+		close(fd);
+
+		ret = cpulist_parse(cpulist, &cpumask);
+		if (ret) {
+			pmu_id = ret;
+			goto out_free;
+		}
+
+		if (!cpumask_test_cpu(this_cpu, &cpumask))
+			goto next_dir;
+
+		strcpy(&path[strlen(path) - 4], "type");
+		fd = open(path, O_RDONLY);
+		if (fd < 0)
+			goto next_dir;
+
+		fd_sz = read_file(fd, buf, PMU_ID_MAXLEN - 1);
+		if (fd_sz < 0) {
+			pmu_id = -errno;
+			goto out_free;
+		}
+		close(fd);
+
+		val = strtoul(buf, NULL, 10);
+		if (val > INT_MAX) {
+			pmu_id = -EOVERFLOW;
+			goto out_free;
+		}
+		pmu_id = (int)val;
+		pr_debug("Using PMU %s (id %d)", dirent->d_name, pmu_id);
+		break;
+
+next_dir:
+		/* Reset path. */
+		memset(&path[strlen(SYS_EVENT_SOURCE)], '\0',
+		       strlen(path) - strlen(SYS_EVENT_SOURCE));
+	}
+
+out_free:
+	free(path);
+	free(cpulist);
+	return pmu_id;
+}
+
 void pmu__generate_fdt_nodes(void *fdt, struct kvm *kvm)
 {
 	const char compatible[] = "arm,armv8-pmuv3";
 	int irq = KVM_ARM_PMUv3_PPI;
 	struct kvm_cpu *vcpu;
+	int pmu_id = -ENXIO;
 	int i;
 
 	u32 cpu_mask = (((1 << kvm->nrcpus) - 1) << GIC_FDT_IRQ_PPI_CPU_SHIFT) \
@@ -44,9 +173,23 @@ void pmu__generate_fdt_nodes(void *fdt, struct kvm *kvm)
 	if (!kvm->cfg.arch.has_pmuv3)
 		return;
 
+	if (pmu_has_attr(kvm->cpus[0], KVM_ARM_VCPU_PMU_V3_SET_PMU)) {
+		pmu_id = find_pmu();
+		if (pmu_id < 0) {
+			pr_debug("Failed to find a PMU (errno: %d), "
+				 "PMU events might not work", -pmu_id);
+		}
+	}
+
 	for (i = 0; i < kvm->nrcpus; i++) {
 		vcpu = kvm->cpus[i];
 		set_pmu_attr(vcpu, &irq, KVM_ARM_VCPU_PMU_V3_IRQ);
+		/*
+		 * PMU IDs 0-5 are reserved; a positive value means a PMU was
+		 * found.
+		 */
+		if (pmu_id > 0)
+			set_pmu_attr(vcpu, &pmu_id, KVM_ARM_VCPU_PMU_V3_SET_PMU);
 		set_pmu_attr(vcpu, NULL, KVM_ARM_VCPU_PMU_V3_INIT);
 	}
 
