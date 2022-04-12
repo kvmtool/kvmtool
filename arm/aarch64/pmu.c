@@ -7,30 +7,31 @@
 
 #include "asm/pmu.h"
 
-static int set_pmu_attr(struct kvm *kvm, int vcpu_idx,
-			struct kvm_device_attr *attr)
+static void set_pmu_attr(struct kvm_cpu *vcpu, void *addr, u64 attr)
 {
-	int ret, fd;
+	struct kvm_device_attr pmu_attr = {
+		.group	= KVM_ARM_VCPU_PMU_V3_CTRL,
+		.addr	= (u64)addr,
+		.attr	= attr,
+	};
+	int ret;
 
-	fd = kvm->cpus[vcpu_idx]->vcpu_fd;
-
-	ret = ioctl(fd, KVM_HAS_DEVICE_ATTR, attr);
+	ret = ioctl(vcpu->vcpu_fd, KVM_HAS_DEVICE_ATTR, &pmu_attr);
 	if (!ret) {
-		ret = ioctl(fd, KVM_SET_DEVICE_ATTR, attr);
+		ret = ioctl(vcpu->vcpu_fd, KVM_SET_DEVICE_ATTR, &pmu_attr);
 		if (ret)
-			perror("PMU KVM_SET_DEVICE_ATTR failed");
+			die_perror("PMU KVM_SET_DEVICE_ATTR");
 	} else {
-		pr_err("Unsupported PMU on vcpu%d\n", vcpu_idx);
+		die_perror("PMU KVM_HAS_DEVICE_ATTR");
 	}
-
-	return ret;
 }
 
 void pmu__generate_fdt_nodes(void *fdt, struct kvm *kvm)
 {
 	const char compatible[] = "arm,armv8-pmuv3";
 	int irq = KVM_ARM_PMUv3_PPI;
-	int i, ret;
+	struct kvm_cpu *vcpu;
+	int i;
 
 	u32 cpu_mask = (((1 << kvm->nrcpus) - 1) << GIC_FDT_IRQ_PPI_CPU_SHIFT) \
 		       & GIC_FDT_IRQ_PPI_CPU_MASK;
@@ -44,26 +45,9 @@ void pmu__generate_fdt_nodes(void *fdt, struct kvm *kvm)
 		return;
 
 	for (i = 0; i < kvm->nrcpus; i++) {
-		struct kvm_device_attr pmu_attr;
-
-		pmu_attr = (struct kvm_device_attr){
-			.group	= KVM_ARM_VCPU_PMU_V3_CTRL,
-			.addr	= (u64)(unsigned long)&irq,
-			.attr	= KVM_ARM_VCPU_PMU_V3_IRQ,
-		};
-
-		ret = set_pmu_attr(kvm, i, &pmu_attr);
-		if (ret)
-			return;
-
-		pmu_attr = (struct kvm_device_attr){
-			.group	= KVM_ARM_VCPU_PMU_V3_CTRL,
-			.attr	= KVM_ARM_VCPU_PMU_V3_INIT,
-		};
-
-		ret = set_pmu_attr(kvm, i, &pmu_attr);
-		if (ret)
-			return;
+		vcpu = kvm->cpus[i];
+		set_pmu_attr(vcpu, &irq, KVM_ARM_VCPU_PMU_V3_IRQ);
+		set_pmu_attr(vcpu, NULL, KVM_ARM_VCPU_PMU_V3_INIT);
 	}
 
 	_FDT(fdt_begin_node(fdt, "pmu"));
