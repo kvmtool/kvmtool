@@ -32,6 +32,10 @@ static struct mmio_mapping *mmio_search(struct rb_root *root, u64 addr, u64 len)
 {
 	struct rb_int_node *node;
 
+	/* If len is zero or if there's an overflow, the MMIO op is invalid. */
+	if (addr + len <= addr)
+		return NULL;
+
 	node = rb_int_search_range(root, addr, addr + len);
 	if (node == NULL)
 		return NULL;
