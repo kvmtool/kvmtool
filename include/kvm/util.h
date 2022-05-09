@@ -82,6 +82,16 @@ do {								\
 	__ret_warn_on;						\
 })
 
+#define WARN_ONCE(condition, format, args...) ({	\
+	static int __warned;							\
+	int __ret_warn_on = !!(condition);				\
+	if (!__warned && __ret_warn_on) {				\
+		__warned = 1;								\
+		pr_warning(format, args);					\
+	}												\
+	__ret_warn_on;									\
+})
+
 #define MSECS_TO_USECS(s) ((s) * 1000)
 
 /* Millisecond sleep */
