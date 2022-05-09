@@ -116,7 +116,7 @@ static inline bool virtio_pci__msix_enabled(struct virtio_pci *vpci)
 }
 
 static bool virtio_pci__specific_data_in(struct kvm *kvm, struct virtio_device *vdev,
-					 void *data, int size, unsigned long offset)
+					 void *data, u32 size, unsigned long offset)
 {
 	u32 config_offset;
 	struct virtio_pci *vpci = vdev->virtio;
@@ -146,7 +146,7 @@ static bool virtio_pci__specific_data_in(struct kvm *kvm, struct virtio_device *
 }
 
 static bool virtio_pci__data_in(struct kvm_cpu *vcpu, struct virtio_device *vdev,
-				unsigned long offset, void *data, int size)
+				unsigned long offset, void *data, u32 size)
 {
 	bool ret = true;
 	struct virtio_pci *vpci;
@@ -211,7 +211,7 @@ static void update_msix_map(struct virtio_pci *vpci,
 }
 
 static bool virtio_pci__specific_data_out(struct kvm *kvm, struct virtio_device *vdev,
-					  void *data, int size, unsigned long offset)
+					  void *data, u32 size, unsigned long offset)
 {
 	struct virtio_pci *vpci = vdev->virtio;
 	u32 config_offset, vec;
@@ -285,7 +285,7 @@ static bool virtio_pci__specific_data_out(struct kvm *kvm, struct virtio_device 
 }
 
 static bool virtio_pci__data_out(struct kvm_cpu *vcpu, struct virtio_device *vdev,
-				 unsigned long offset, void *data, int size)
+				 unsigned long offset, void *data, u32 size)
 {
 	bool ret = true;
 	struct virtio_pci *vpci;
