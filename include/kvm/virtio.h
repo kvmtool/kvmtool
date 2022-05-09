@@ -187,7 +187,7 @@ struct virtio_ops {
 	size_t (*get_config_size)(struct kvm *kvm, void *dev);
 	u32 (*get_host_features)(struct kvm *kvm, void *dev);
 	void (*set_guest_features)(struct kvm *kvm, void *dev, u32 features);
-	int (*get_vq_count)(struct kvm *kvm, void *dev);
+	unsigned int (*get_vq_count)(struct kvm *kvm, void *dev);
 	int (*init_vq)(struct kvm *kvm, void *dev, u32 vq, u32 page_size,
 		       u32 align, u32 pfn);
 	void (*exit_vq)(struct kvm *kvm, void *dev, u32 vq);

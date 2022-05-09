@@ -169,13 +169,22 @@ static void virtio_mmio_config_out(struct kvm_cpu *vcpu,
 {
 	struct virtio_mmio *vmmio = vdev->virtio;
 	struct kvm *kvm = vmmio->kvm;
+	unsigned int vq_count = vdev->ops->get_vq_count(kvm, vmmio->dev);
 	u32 val = 0;
 
 	switch (addr) {
 	case VIRTIO_MMIO_HOST_FEATURES_SEL:
 	case VIRTIO_MMIO_GUEST_FEATURES_SEL:
+		val = ioport__read32(data);
+		*(u32 *)(((void *)&vmmio->hdr) + addr) = val;
+		break;
 	case VIRTIO_MMIO_QUEUE_SEL:
 		val = ioport__read32(data);
+		if (val >= vq_count) {
+			WARN_ONCE(1, "QUEUE_SEL value (%u) is larger than VQ count (%u)\n",
+				val, vq_count);
+			break;
+		}
 		*(u32 *)(((void *)&vmmio->hdr) + addr) = val;
 		break;
 	case VIRTIO_MMIO_STATUS:
@@ -221,6 +230,11 @@ static void virtio_mmio_config_out(struct kvm_cpu *vcpu,
 		break;
 	case VIRTIO_MMIO_QUEUE_NOTIFY:
 		val = ioport__read32(data);
+		if (val >= vq_count) {
+			WARN_ONCE(1, "QUEUE_NOTIFY value (%u) is larger than VQ count (%u)\n",
+				val, vq_count);
+			break;
+		}
 		vdev->ops->notify_vq(vmmio->kvm, vmmio->dev, val);
 		break;
 	case VIRTIO_MMIO_INTERRUPT_ACK:
@@ -340,7 +354,7 @@ int virtio_mmio_init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 
 int virtio_mmio_reset(struct kvm *kvm, struct virtio_device *vdev)
 {
-	int vq;
+	unsigned int vq;
 	struct virtio_mmio *vmmio = vdev->virtio;
 
 	for (vq = 0; vq < vdev->ops->get_vq_count(kvm, vmmio->dev); vq++)

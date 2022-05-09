@@ -1469,7 +1469,7 @@ static int set_size_vq(struct kvm *kvm, void *dev, u32 vq, int size)
 	return size;
 }
 
-static int get_vq_count(struct kvm *kvm, void *dev)
+static unsigned int get_vq_count(struct kvm *kvm, void *dev)
 {
 	return NUM_VIRT_QUEUES;
 }

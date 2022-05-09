@@ -204,7 +204,7 @@ static void notify_vq_gsi(struct kvm *kvm, void *dev, u32 vq, u32 gsi)
 		die_perror("VHOST_SET_VRING_CALL failed");
 }
 
-static int get_vq_count(struct kvm *kvm, void *dev)
+static unsigned int get_vq_count(struct kvm *kvm, void *dev)
 {
 	return VSOCK_VQ_MAX;
 }

@@ -320,9 +320,11 @@ static bool virtio_pci__data_out(struct kvm_cpu *vcpu, struct virtio_device *vde
 	struct virtio_pci *vpci;
 	struct kvm *kvm;
 	u32 val;
+	unsigned int vq_count;
 
 	kvm = vcpu->kvm;
 	vpci = vdev->virtio;
+	vq_count = vdev->ops->get_vq_count(kvm, vpci->dev);
 
 	switch (offset) {
 	case VIRTIO_PCI_GUEST_FEATURES:
@@ -342,10 +344,21 @@ static bool virtio_pci__data_out(struct kvm_cpu *vcpu, struct virtio_device *vde
 		}
 		break;
 	case VIRTIO_PCI_QUEUE_SEL:
-		vpci->queue_selector = ioport__read16(data);
+		val = ioport__read16(data);
+		if (val >= vq_count) {
+			WARN_ONCE(1, "QUEUE_SEL value (%u) is larger than VQ count (%u)\n",
+				val, vq_count);
+			return false;
+		}
+		vpci->queue_selector = val;
 		break;
 	case VIRTIO_PCI_QUEUE_NOTIFY:
 		val = ioport__read16(data);
+		if (val >= vq_count) {
+			WARN_ONCE(1, "QUEUE_SEL value (%u) is larger than VQ count (%u)\n",
+				val, vq_count);
+			return false;
+		}
 		vdev->ops->notify_vq(kvm, vpci->dev, val);
 		break;
 	case VIRTIO_PCI_STATUS:
@@ -638,7 +651,7 @@ int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 
 int virtio_pci__reset(struct kvm *kvm, struct virtio_device *vdev)
 {
-	int vq;
+	unsigned int vq;
 	struct virtio_pci *vpci = vdev->virtio;
 
 	for (vq = 0; vq < vdev->ops->get_vq_count(kvm, vpci->dev); vq++)
