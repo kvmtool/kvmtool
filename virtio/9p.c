@@ -1375,6 +1375,13 @@ static u8 *get_config(struct kvm *kvm, void *dev)
 	return ((u8 *)(p9dev->config));
 }
 
+static size_t get_config_size(struct kvm *kvm, void *dev)
+{
+	struct p9_dev *p9dev = dev;
+
+	return p9dev->config_size;
+}
+
 static u32 get_host_features(struct kvm *kvm, void *dev)
 {
 	return 1 << VIRTIO_9P_MOUNT_TAG;
@@ -1469,6 +1476,7 @@ static int get_vq_count(struct kvm *kvm, void *dev)
 
 struct virtio_ops p9_dev_virtio_ops = {
 	.get_config		= get_config,
+	.get_config_size	= get_config_size,
 	.get_host_features	= get_host_features,
 	.set_guest_features	= set_guest_features,
 	.init_vq		= init_vq,
@@ -1568,7 +1576,9 @@ virtio_dev_init(virtio_9p__init);
 int virtio_9p__register(struct kvm *kvm, const char *root, const char *tag_name)
 {
 	struct p9_dev *p9dev;
-	int err = 0;
+	size_t tag_length;
+	size_t config_size;
+	int err;
 
 	p9dev = calloc(1, sizeof(*p9dev));
 	if (!p9dev)
@@ -1577,29 +1587,34 @@ int virtio_9p__register(struct kvm *kvm, const char *root, const char *tag_name)
 	if (!tag_name)
 		tag_name = VIRTIO_9P_DEFAULT_TAG;
 
-	p9dev->config = calloc(1, sizeof(*p9dev->config) + strlen(tag_name));
+	tag_length = strlen(tag_name);
+	/* The tag_name zero byte is intentionally excluded */
+	config_size = sizeof(*p9dev->config) + tag_length;
+
+	p9dev->config = calloc(1, config_size);
 	if (p9dev->config == NULL) {
 		err = -ENOMEM;
 		goto free_p9dev;
 	}
+	p9dev->config_size = config_size;
 
 	strncpy(p9dev->root_dir, root, sizeof(p9dev->root_dir));
 	p9dev->root_dir[sizeof(p9dev->root_dir)-1] = '\x00';
 
-	p9dev->config->tag_len = strlen(tag_name);
+	p9dev->config->tag_len = tag_length;
 	if (p9dev->config->tag_len > MAX_TAG_LEN) {
 		err = -EINVAL;
 		goto free_p9dev_config;
 	}
 
-	memcpy(&p9dev->config->tag, tag_name, strlen(tag_name));
+	memcpy(&p9dev->config->tag, tag_name, tag_length);
 
 	list_add(&p9dev->list, &devs);
 
 	if (compat_id == -1)
 		compat_id = virtio_compat_add_message("virtio-9p", "CONFIG_NET_9P_VIRTIO");
 
-	return err;
+	return 0;
 
 free_p9dev_config:
 	free(p9dev->config);

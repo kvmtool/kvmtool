@@ -121,6 +121,13 @@ static u8 *get_config(struct kvm *kvm, void *dev)
 	return ((u8 *)(&cdev->config));
 }
 
+static size_t get_config_size(struct kvm *kvm, void *dev)
+{
+	struct con_dev *cdev = dev;
+
+	return sizeof(cdev->config);
+}
+
 static u32 get_host_features(struct kvm *kvm, void *dev)
 {
 	return 0;
@@ -216,6 +223,7 @@ static int get_vq_count(struct kvm *kvm, void *dev)
 
 static struct virtio_ops con_dev_virtio_ops = {
 	.get_config		= get_config,
+	.get_config_size	= get_config_size,
 	.get_host_features	= get_host_features,
 	.set_guest_features	= set_guest_features,
 	.get_vq_count		= get_vq_count,

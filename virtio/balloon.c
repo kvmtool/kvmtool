@@ -186,6 +186,13 @@ static u8 *get_config(struct kvm *kvm, void *dev)
 	return ((u8 *)(&bdev->config));
 }
 
+static size_t get_config_size(struct kvm *kvm, void *dev)
+{
+	struct bln_dev *bdev = dev;
+
+	return sizeof(bdev->config);
+}
+
 static u32 get_host_features(struct kvm *kvm, void *dev)
 {
 	return 1 << VIRTIO_BALLOON_F_STATS_VQ;
@@ -256,6 +263,7 @@ static int get_vq_count(struct kvm *kvm, void *dev)
 
 struct virtio_ops bln_dev_virtio_ops = {
 	.get_config		= get_config,
+	.get_config_size	= get_config_size,
 	.get_host_features	= get_host_features,
 	.set_guest_features	= set_guest_features,
 	.init_vq		= init_vq,

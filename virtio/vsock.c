@@ -41,6 +41,13 @@ static u8 *get_config(struct kvm *kvm, void *dev)
 	return ((u8 *)(&vdev->config));
 }
 
+static size_t get_config_size(struct kvm *kvm, void *dev)
+{
+	struct vsock_dev *vdev = dev;
+
+	return sizeof(vdev->config);
+}
+
 static u32 get_host_features(struct kvm *kvm, void *dev)
 {
 	return 1UL << VIRTIO_RING_F_EVENT_IDX
@@ -204,6 +211,7 @@ static int get_vq_count(struct kvm *kvm, void *dev)
 
 static struct virtio_ops vsock_dev_virtio_ops = {
 	.get_config		= get_config,
+	.get_config_size	= get_config_size,
 	.get_host_features	= get_host_features,
 	.set_guest_features	= set_guest_features,
 	.init_vq		= init_vq,

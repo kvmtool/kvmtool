@@ -103,15 +103,25 @@ static void virtio_mmio_device_specific(struct kvm_cpu *vcpu,
 					u8 is_write, struct virtio_device *vdev)
 {
 	struct virtio_mmio *vmmio = vdev->virtio;
+	u8 *config;
+	size_t config_size;
 	u32 i;
+
+	config = vdev->ops->get_config(vmmio->kvm, vmmio->dev);
+	config_size = vdev->ops->get_config_size(vmmio->kvm, vmmio->dev);
+
+	/* Prevent invalid accesses which go beyond the config */
+	if (config_size < addr + len) {
+		WARN_ONCE(1, "Offset (%llu) Length (%u) goes beyond config size (%zu).\n",
+			addr, len, config_size);
+		return;
+	}
 
 	for (i = 0; i < len; i++) {
 		if (is_write)
-			vdev->ops->get_config(vmmio->kvm, vmmio->dev)[addr + i] =
-					      *(u8 *)data + i;
+			config[addr + i] = *(u8 *)data + i;
 		else
-			data[i] = vdev->ops->get_config(vmmio->kvm,
-							vmmio->dev)[addr + i];
+			data[i] = config[addr + i];
 	}
 }
 

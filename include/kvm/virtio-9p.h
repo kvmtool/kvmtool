@@ -44,6 +44,7 @@ struct p9_dev {
 	struct virtio_device	vdev;
 	struct rb_root		fids;
 
+	size_t config_size;
 	struct virtio_9p_config	*config;
 	u32			features;
 
