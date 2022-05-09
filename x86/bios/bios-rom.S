@@ -10,3 +10,8 @@
 GLOBAL(bios_rom)
 	.incbin "x86/bios/bios.bin"
 END(bios_rom)
+
+/*
+ * Add this section to ensure final binary has a non-executable stack.
+ */
+.section .note.GNU-stack,"",@progbits

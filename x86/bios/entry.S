@@ -90,3 +90,8 @@ GLOBAL(__locals)
 #include "local.S"
 
 END(__locals)
+
+/*
+ * Add this section to ensure final binary has a non-executable stack.
+ */
+.section .note.GNU-stack,"",@progbits
