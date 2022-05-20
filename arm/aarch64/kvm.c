@@ -120,6 +120,11 @@ void kvm__arch_enable_mte(struct kvm *kvm)
 		.cap = KVM_CAP_ARM_MTE,
 	};
 
+	if (kvm->cfg.arch.aarch32_guest) {
+		pr_debug("MTE is incompatible with AArch32");
+		return;
+	}
+
 	if (kvm->cfg.arch.mte_disabled) {
 		pr_debug("MTE disabled by user");
 		return;
