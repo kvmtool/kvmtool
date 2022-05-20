@@ -1577,7 +1577,7 @@ int virtio_9p__register(struct kvm *kvm, const char *root, const char *tag_name)
 	if (!tag_name)
 		tag_name = VIRTIO_9P_DEFAULT_TAG;
 
-	p9dev->config = calloc(1, sizeof(*p9dev->config) + strlen(tag_name) + 1);
+	p9dev->config = calloc(1, sizeof(*p9dev->config) + strlen(tag_name));
 	if (p9dev->config == NULL) {
 		err = -ENOMEM;
 		goto free_p9dev;
