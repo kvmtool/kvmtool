@@ -83,11 +83,26 @@ static int do_memstat(const char *name, int sock)
 		case VIRTIO_BALLOON_S_MINFLT:
 			printf("The number of minor page faults that have occurred:");
 			break;
+		case VIRTIO_BALLOON_S_HTLB_PGALLOC:
+			printf("The number of successful HugeTLB allocations:");
+			break;
+		case VIRTIO_BALLOON_S_HTLB_PGFAIL:
+			printf("The number of failed HugeTLB allocations:");
+			break;
 		case VIRTIO_BALLOON_S_MEMFREE:
 			printf("The amount of memory not being used for any purpose (in bytes):");
 			break;
 		case VIRTIO_BALLOON_S_MEMTOT:
-			printf("The total amount of memory available (in bytes):");
+			printf("The total amount of memory (in bytes):");
+			break;
+		case VIRTIO_BALLOON_S_AVAIL:
+			printf("The estimated available memory (in bytes):");
+			break;
+		case VIRTIO_BALLOON_S_CACHES:
+			printf("The amount of memory in use for file caching (in bytes):");
+			break;
+		default:
+			printf("Unknown memory statistic (ID %u): ", stats[i].tag);
 			break;
 		}
 		printf("%llu\n", (unsigned long long)stats[i].val);
