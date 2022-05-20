@@ -126,9 +126,14 @@ static void virtio_bln_do_io(struct kvm *kvm, void *param)
 
 static int virtio_bln__collect_stats(struct kvm *kvm)
 {
+	struct virt_queue *vq = &bdev.vqs[VIRTIO_BLN_STATS];
 	u64 tmp;
 
-	virt_queue__set_used_elem(&bdev.vqs[VIRTIO_BLN_STATS], bdev.cur_stat_head,
+	/* Exit if the queue is not set up. */
+	if (!vq->pfn)
+		return -ENODEV;
+
+	virt_queue__set_used_elem(vq, bdev.cur_stat_head,
 				  sizeof(struct virtio_balloon_stat));
 	bdev.vdev.ops->signal_vq(kvm, &bdev.vdev, VIRTIO_BLN_STATS);
 
