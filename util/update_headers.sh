@@ -9,6 +9,11 @@
 
 set -ue
 
+VIRTIO_LIST="virtio_9p.h virtio_balloon.h virtio_blk.h virtio_config.h \
+	     virtio_console.h virtio_ids.h virtio_mmio.h virtio_net.h \
+	     virtio_pci.h virtio_ring.h virtio_rng.h virtio_scsi.h \
+	     virtio_vsock.h"
+
 if [ "$#" -ge 1 ]
 then
 	LINUX_ROOT="$1"
@@ -24,6 +29,11 @@ then
 fi
 
 cp -- "$LINUX_ROOT/include/uapi/linux/kvm.h" include/linux
+
+for header in $VIRTIO_LIST
+do
+	cp -- "$LINUX_ROOT/include/uapi/linux/$header" include/linux
+done
 
 unset KVMTOOL_PATH
 
