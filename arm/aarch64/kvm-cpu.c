@@ -88,16 +88,7 @@ static void reset_vcpu_aarch64(struct kvm_cpu *vcpu)
 {
 	struct kvm *kvm = vcpu->kvm;
 	struct kvm_one_reg reg;
-	cpu_set_t *affinity;
 	u64 data;
-	int ret;
-
-	affinity = kvm->arch.vcpu_affinity_cpuset;
-	if (affinity) {
-		ret = sched_setaffinity(0, sizeof(cpu_set_t), affinity);
-		if (ret == -1)
-			die_perror("sched_setaffinity");
-	}
 
 	reg.addr = (u64)&data;
 
@@ -179,7 +170,18 @@ int kvm_cpu__configure_features(struct kvm_cpu *vcpu)
 
 void kvm_cpu__reset_vcpu(struct kvm_cpu *vcpu)
 {
-	if (vcpu->kvm->cfg.arch.aarch32_guest)
+	struct kvm *kvm = vcpu->kvm;
+	cpu_set_t *affinity;
+	int ret;
+
+	affinity = kvm->arch.vcpu_affinity_cpuset;
+	if (affinity) {
+		ret = sched_setaffinity(0, sizeof(cpu_set_t), affinity);
+		if (ret == -1)
+			die_perror("sched_setaffinity");
+	}
+
+	if (kvm->cfg.arch.aarch32_guest)
 		return reset_vcpu_aarch32(vcpu);
 	else
 		return reset_vcpu_aarch64(vcpu);
