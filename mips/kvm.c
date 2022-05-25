@@ -1,3 +1,4 @@
+#include "kvm/8250-serial.h"
 #include "kvm/kvm.h"
 #include "kvm/ioport.h"
 #include "kvm/virtio-console.h"
@@ -357,5 +358,9 @@ bool kvm__arch_load_kernel_image(struct kvm *kvm, int fd_kernel, int fd_initrd,
 }
 
 void ioport__map_irq(u8 *irq)
+{
+}
+
+void serial8250__inject_sysrq(struct kvm *kvm, char sysrq)
 {
 }

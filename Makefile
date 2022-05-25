@@ -56,7 +56,6 @@ OBJS	+= disk/core.o
 OBJS	+= framebuffer.o
 OBJS	+= guest_compat.o
 OBJS	+= hw/rtc.o
-OBJS	+= hw/serial.o
 OBJS	+= irq.o
 OBJS	+= kvm-cpu.o
 OBJS	+= kvm.o
@@ -127,6 +126,7 @@ endif
 ifeq ($(ARCH),x86)
 	DEFINES += -DCONFIG_X86
 	OBJS	+= hw/i8042.o
+	OBJS	+= hw/serial.o
 	OBJS	+= x86/boot.o
 	OBJS	+= x86/cpuid.o
 	OBJS	+= x86/interrupt.o
@@ -144,6 +144,7 @@ endif
 # POWER/ppc:  Actually only support ppc64 currently.
 ifeq ($(ARCH), powerpc)
 	DEFINES += -DCONFIG_PPC
+	OBJS	+= hw/serial.o
 	OBJS	+= powerpc/boot.o
 	OBJS	+= powerpc/ioport.o
 	OBJS	+= powerpc/kvm.o
@@ -161,7 +162,8 @@ endif
 
 # ARM
 OBJS_ARM_COMMON		:= arm/fdt.o arm/gic.o arm/gicv2m.o arm/ioport.o \
-			   arm/kvm.o arm/kvm-cpu.o arm/pci.o arm/timer.o
+			   arm/kvm.o arm/kvm-cpu.o arm/pci.o arm/timer.o \
+			   hw/serial.o
 HDRS_ARM_COMMON		:= arm/include
 ifeq ($(ARCH), arm)
 	DEFINES		+= -DCONFIG_ARM
@@ -203,6 +205,7 @@ endif
 ifeq ($(ARCH),riscv)
 	DEFINES		+= -DCONFIG_RISCV
 	ARCH_INCLUDE	:= riscv/include
+	OBJS		+= hw/serial.o
 	OBJS		+= riscv/fdt.o
 	OBJS		+= riscv/ioport.o
 	OBJS		+= riscv/irq.o
