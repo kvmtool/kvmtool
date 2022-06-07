@@ -282,6 +282,44 @@ void virtio_notify_status(struct kvm *kvm, struct virtio_device *vdev,
 		vdev->ops->notify_status(kvm, dev, ext_status);
 }
 
+bool virtio_access_config(struct kvm *kvm, struct virtio_device *vdev,
+			  void *dev, unsigned long offset, void *data,
+			  size_t size, bool is_write)
+{
+	void *in, *out, *config;
+	size_t config_size = vdev->ops->get_config_size(kvm, dev);
+
+	if (WARN_ONCE(offset + size > config_size,
+		      "Config access offset (%lu) is beyond config size (%zu)\n",
+		      offset, config_size))
+		return false;
+
+	config = vdev->ops->get_config(kvm, dev) + offset;
+
+	in = is_write ? data : config;
+	out = is_write ? config : data;
+
+	switch (size) {
+	case 1:
+		*(u8 *)out = *(u8 *)in;
+		break;
+	case 2:
+		*(u16 *)out = *(u16 *)in;
+		break;
+	case 4:
+		*(u32 *)out = *(u32 *)in;
+		break;
+	case 8:
+		*(u64 *)out = *(u64 *)in;
+		break;
+	default:
+		WARN_ONCE(1, "%s: invalid access size\n", __func__);
+		return false;
+	}
+
+	return true;
+}
+
 int virtio_init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 		struct virtio_ops *ops, enum virtio_trans trans,
 		int device_id, int subsys_id, int class)

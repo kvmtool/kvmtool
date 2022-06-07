@@ -236,6 +236,9 @@ void virtio_init_device_vq(struct kvm *kvm, struct virtio_device *vdev,
 			   struct virt_queue *vq, size_t nr_descs);
 void virtio_exit_vq(struct kvm *kvm, struct virtio_device *vdev, void *dev,
 		    int num);
+bool virtio_access_config(struct kvm *kvm, struct virtio_device *vdev, void *dev,
+			  unsigned long offset, void *data, size_t size,
+			  bool is_write);
 void virtio_set_guest_features(struct kvm *kvm, struct virtio_device *vdev,
 			       void *dev, u32 features);
 void virtio_notify_status(struct kvm *kvm, struct virtio_device *vdev,

@@ -98,33 +98,6 @@ int virtio_mmio_signal_config(struct kvm *kvm, struct virtio_device *vdev)
 	return 0;
 }
 
-static void virtio_mmio_device_specific(struct kvm_cpu *vcpu,
-					u64 addr, u8 *data, u32 len,
-					u8 is_write, struct virtio_device *vdev)
-{
-	struct virtio_mmio *vmmio = vdev->virtio;
-	u8 *config;
-	size_t config_size;
-	u32 i;
-
-	config = vdev->ops->get_config(vmmio->kvm, vmmio->dev);
-	config_size = vdev->ops->get_config_size(vmmio->kvm, vmmio->dev);
-
-	/* Prevent invalid accesses which go beyond the config */
-	if (config_size < addr + len) {
-		WARN_ONCE(1, "Offset (%llu) Length (%u) goes beyond config size (%zu).\n",
-			addr, len, config_size);
-		return;
-	}
-
-	for (i = 0; i < len; i++) {
-		if (is_write)
-			config[addr + i] = *(u8 *)data + i;
-		else
-			data[i] = config[addr + i];
-	}
-}
-
 #define vmmio_selected_vq(vdev, vmmio) \
 	(vdev)->ops->get_vq((vmmio)->kvm, (vmmio)->dev, (vmmio)->hdr.queue_sel)
 
@@ -263,7 +236,8 @@ static void virtio_mmio_mmio_callback(struct kvm_cpu *vcpu,
 
 	if (offset >= VIRTIO_MMIO_CONFIG) {
 		offset -= VIRTIO_MMIO_CONFIG;
-		virtio_mmio_device_specific(vcpu, offset, data, len, is_write, ptr);
+		virtio_access_config(vmmio->kvm, vdev, vmmio->dev, offset, data,
+				     len, is_write);
 		return;
 	}
 

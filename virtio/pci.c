@@ -135,25 +135,8 @@ static bool virtio_pci__specific_data_in(struct kvm *kvm, struct virtio_device *
 
 		return true;
 	} else if (type == VIRTIO_PCI_O_CONFIG) {
-		u8 cfg;
-		size_t config_size;
-
-		config_size = vdev->ops->get_config_size(kvm, vpci->dev);
-		if (config_offset + size > config_size) {
-			/* Access goes beyond the config size, so return failure. */
-			WARN_ONCE(1, "Config access offset (%u) is beyond config size (%zu)\n",
-				config_offset, config_size);
-			return false;
-		}
-
-		/* TODO: Handle access lengths beyond one byte */
-		if (size != 1) {
-			WARN_ONCE(1, "Size (%u) not supported\n", size);
-			return false;
-		}
-		cfg = vdev->ops->get_config(kvm, vpci->dev)[config_offset];
-		ioport__write8(data, cfg);
-		return true;
+		return virtio_access_config(kvm, vdev, vpci->dev, config_offset,
+					    data, size, false);
 	}
 
 	return false;
@@ -290,24 +273,8 @@ static bool virtio_pci__specific_data_out(struct kvm *kvm, struct virtio_device 
 
 		return true;
 	} else if (type == VIRTIO_PCI_O_CONFIG) {
-		size_t config_size;
-
-		config_size = vdev->ops->get_config_size(kvm, vpci->dev);
-		if (config_offset + size > config_size) {
-			/* Access goes beyond the config size, so return failure. */
-			WARN_ONCE(1, "Config access offset (%u) is beyond config size (%zu)\n",
-				config_offset, config_size);
-			return false;
-		}
-
-		/* TODO: Handle access lengths beyond one byte */
-		if (size != 1) {
-			WARN_ONCE(1, "Size (%u) not supported\n", size);
-			return false;
-		}
-		vdev->ops->get_config(kvm, vpci->dev)[config_offset] = *(u8 *)data;
-
-		return true;
+		return virtio_access_config(kvm, vdev, vpci->dev, config_offset,
+					    data, size, true);
 	}
 
 	return false;
