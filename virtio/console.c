@@ -42,14 +42,7 @@ struct con_dev {
 
 static struct con_dev cdev = {
 	.mutex				= MUTEX_INITIALIZER,
-
 	.vq_ready			= 0,
-
-	.config = {
-		.cols			= 80,
-		.rows			= 24,
-		.max_nr_ports		= 1,
-	},
 };
 
 static int compat_id = -1;
@@ -135,16 +128,19 @@ static u32 get_host_features(struct kvm *kvm, void *dev)
 
 static void set_guest_features(struct kvm *kvm, void *dev, u32 features)
 {
-	struct con_dev *cdev = dev;
-	struct virtio_console_config *conf = &cdev->config;
-
-	conf->cols = virtio_host_to_guest_u16(&cdev->vdev, conf->cols);
-	conf->rows = virtio_host_to_guest_u16(&cdev->vdev, conf->rows);
-	conf->max_nr_ports = virtio_host_to_guest_u32(&cdev->vdev, conf->max_nr_ports);
 }
 
 static void notify_status(struct kvm *kvm, void *dev, u32 status)
 {
+	struct con_dev *cdev = dev;
+	struct virtio_console_config *conf = &cdev->config;
+
+	if (!(status & VIRTIO__STATUS_CONFIG))
+		return;
+
+	conf->cols = virtio_host_to_guest_u16(&cdev->vdev, 80);
+	conf->rows = virtio_host_to_guest_u16(&cdev->vdev, 24);
+	conf->max_nr_ports = virtio_host_to_guest_u32(&cdev->vdev, 1);
 }
 
 static int init_vq(struct kvm *kvm, void *dev, u32 vq)

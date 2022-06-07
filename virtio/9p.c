@@ -1390,16 +1390,18 @@ static u32 get_host_features(struct kvm *kvm, void *dev)
 static void set_guest_features(struct kvm *kvm, void *dev, u32 features)
 {
 	struct p9_dev *p9dev = dev;
-	struct virtio_9p_config *conf = p9dev->config;
 
 	p9dev->features = features;
-	conf->tag_len = virtio_host_to_guest_u16(&p9dev->vdev, conf->tag_len);
 }
 
 static void notify_status(struct kvm *kvm, void *dev, u32 status)
 {
 	struct p9_dev *p9dev = dev;
 	struct p9_fid *pfid, *next;
+
+	if (status & VIRTIO__STATUS_CONFIG)
+		p9dev->config->tag_len = virtio_host_to_guest_u16(&p9dev->vdev,
+								  p9dev->tag_len);
 
 	if (!(status & VIRTIO__STATUS_STOP))
 		return;
@@ -1596,8 +1598,8 @@ int virtio_9p__register(struct kvm *kvm, const char *root, const char *tag_name)
 	strncpy(p9dev->root_dir, root, sizeof(p9dev->root_dir));
 	p9dev->root_dir[sizeof(p9dev->root_dir)-1] = '\x00';
 
-	p9dev->config->tag_len = tag_length;
-	if (p9dev->config->tag_len > MAX_TAG_LEN) {
+	p9dev->tag_len = tag_length;
+	if (p9dev->tag_len > MAX_TAG_LEN) {
 		err = -EINVAL;
 		goto free_p9dev_config;
 	}

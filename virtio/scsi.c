@@ -60,6 +60,24 @@ static void set_guest_features(struct kvm *kvm, void *dev, u32 features)
 
 static void notify_status(struct kvm *kvm, void *dev, u32 status)
 {
+	struct scsi_dev *sdev = dev;
+	struct virtio_device *vdev = &sdev->vdev;
+	struct virtio_scsi_config *conf = &sdev->config;
+
+	if (!(status & VIRTIO__STATUS_CONFIG))
+		return;
+
+	/* Avoid warning when endianness helpers are compiled out */
+	vdev = vdev;
+
+	conf->num_queues = virtio_host_to_guest_u32(vdev, NUM_VIRT_QUEUES - 2);
+	conf->seg_max = virtio_host_to_guest_u32(vdev, VIRTIO_SCSI_CDB_SIZE - 2);
+	conf->max_sectors = virtio_host_to_guest_u32(vdev, 65535);
+	conf->cmd_per_lun = virtio_host_to_guest_u32(vdev, 128);
+	conf->sense_size = virtio_host_to_guest_u32(vdev, VIRTIO_SCSI_SENSE_SIZE);
+	conf->cdb_size = virtio_host_to_guest_u32(vdev, VIRTIO_SCSI_CDB_SIZE);
+	conf->max_lun = virtio_host_to_guest_u32(vdev, 16383);
+	conf->event_info_size = virtio_host_to_guest_u32(vdev, sizeof(struct virtio_scsi_event));
 }
 
 static int init_vq(struct kvm *kvm, void *dev, u32 vq)
@@ -247,18 +265,6 @@ static int virtio_scsi_init_one(struct kvm *kvm, struct disk_image *disk)
 		return -ENOMEM;
 
 	*sdev = (struct scsi_dev) {
-		.config	= (struct virtio_scsi_config) {
-			.num_queues	= NUM_VIRT_QUEUES - 2,
-			.seg_max	= VIRTIO_SCSI_CDB_SIZE - 2,
-			.max_sectors	= 65535,
-			.cmd_per_lun	= 128,
-			.sense_size	= VIRTIO_SCSI_SENSE_SIZE,
-			.cdb_size	= VIRTIO_SCSI_CDB_SIZE,
-			.max_channel	= 0,
-			.max_target	= 0,
-			.max_lun	= 16383,
-			.event_info_size = sizeof(struct virtio_scsi_event),
-		},
 		.kvm			= kvm,
 	};
 	strlcpy((char *)&sdev->target.vhost_wwpn, disk->wwpn, sizeof(sdev->target.vhost_wwpn));

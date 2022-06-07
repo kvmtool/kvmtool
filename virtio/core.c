@@ -277,6 +277,8 @@ void virtio_notify_status(struct kvm *kvm, struct virtio_device *vdev,
 		 */
 		vdev->ops->reset(kvm, vdev);
 	}
+	if (!status)
+		ext_status |= VIRTIO__STATUS_CONFIG;
 
 	if (vdev->ops->notify_status)
 		vdev->ops->notify_status(kvm, dev, ext_status);

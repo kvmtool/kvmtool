@@ -7,6 +7,7 @@
 #include "kvm/virtio-pci.h"
 #include "kvm/virtio.h"
 
+#include <linux/byteorder.h>
 #include <linux/kernel.h>
 #include <linux/virtio_vsock.h>
 #include <linux/vhost.h>
@@ -26,6 +27,7 @@ enum {
 struct vsock_dev {
 	struct virt_queue		vqs[VSOCK_VQ_MAX];
 	struct virtio_vsock_config	config;
+	u64				guest_cid;
 	u32				features;
 	int				vhost_fd;
 	struct virtio_device		vdev;
@@ -132,6 +134,9 @@ static void notify_status(struct kvm *kvm, void *dev, u32 status)
 {
 	struct vsock_dev *vdev = dev;
 	int r, start;
+
+	if (status & VIRTIO__STATUS_CONFIG)
+		vdev->config.guest_cid = cpu_to_le64(vdev->guest_cid);
 
 	if (status & VIRTIO__STATUS_START)
 		start = 1;
@@ -261,7 +266,7 @@ static void virtio_vhost_vsock_init(struct kvm *kvm, struct vsock_dev *vdev)
 	if (r != 0)
 		die_perror("VHOST_SET_FEATURES failed");
 
-	r = ioctl(vdev->vhost_fd, VHOST_VSOCK_SET_GUEST_CID, &vdev->config.guest_cid);
+	r = ioctl(vdev->vhost_fd, VHOST_VSOCK_SET_GUEST_CID, &vdev->guest_cid);
 	if (r != 0)
 		die_perror("VHOST_VSOCK_SET_GUEST_CID failed");
 
@@ -280,9 +285,7 @@ static int virtio_vsock_init_one(struct kvm *kvm, u64 guest_cid)
 		return -ENOMEM;
 
 	*vdev = (struct vsock_dev) {
-		.config	= (struct virtio_vsock_config) {
-			.guest_cid	= guest_cid,
-		},
+		.guest_cid		= guest_cid,
 		.vhost_fd		= -1,
 		.kvm			= kvm,
 	};

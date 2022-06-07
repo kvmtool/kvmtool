@@ -13,6 +13,7 @@
 #include <linux/virtio_ring.h>
 #include <linux/virtio_balloon.h>
 
+#include <linux/byteorder.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <fcntl.h>
@@ -56,22 +57,25 @@ static bool virtio_bln_do_io_request(struct kvm *kvm, struct bln_dev *bdev, stru
 	unsigned int len = 0;
 	u16 out, in, head;
 	u32 *ptrs, i;
+	u32 actual;
 
 	head	= virt_queue__get_iov(queue, iov, &out, &in, kvm);
 	ptrs	= iov[0].iov_base;
 	len	= iov[0].iov_len / sizeof(u32);
 
+	actual = le32_to_cpu(bdev->config.actual);
 	for (i = 0 ; i < len ; i++) {
 		void *guest_ptr;
 
 		guest_ptr = guest_flat_to_host(kvm, (u64)ptrs[i] << VIRTIO_BALLOON_PFN_SHIFT);
 		if (queue == &bdev->vqs[VIRTIO_BLN_INFLATE]) {
 			madvise(guest_ptr, 1 << VIRTIO_BALLOON_PFN_SHIFT, MADV_DONTNEED);
-			bdev->config.actual++;
+			actual++;
 		} else if (queue == &bdev->vqs[VIRTIO_BLN_DEFLATE]) {
-			bdev->config.actual--;
+			actual--;
 		}
 	}
+	bdev->config.actual = cpu_to_le32(actual);
 
 	virt_queue__set_used_elem(queue, head, len);
 
@@ -161,19 +165,24 @@ static void virtio_bln__print_stats(struct kvm *kvm, int fd, u32 type, u32 len, 
 static void handle_mem(struct kvm *kvm, int fd, u32 type, u32 len, u8 *msg)
 {
 	int mem;
+	u32 num_pages;
 
 	if (WARN_ON(type != KVM_IPC_BALLOON || len != sizeof(int)))
 		return;
 
 	mem = *(int *)msg;
+	num_pages = le32_to_cpu(bdev.config.num_pages);
+
 	if (mem > 0) {
-		bdev.config.num_pages += 256 * mem;
+		num_pages += 256 * mem;
 	} else if (mem < 0) {
-		if (bdev.config.num_pages < (u32)(256 * (-mem)))
+		if (num_pages < (u32)(256 * (-mem)))
 			return;
 
-		bdev.config.num_pages += 256 * mem;
+		num_pages += 256 * mem;
 	}
+
+	bdev.config.num_pages = cpu_to_le32(num_pages);
 
 	/* Notify that the configuration space has changed */
 	bdev.vdev.ops->signal_config(kvm, &bdev.vdev);

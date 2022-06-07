@@ -534,13 +534,8 @@ static int virtio_net__vhost_set_features(struct net_dev *ndev)
 static void set_guest_features(struct kvm *kvm, void *dev, u32 features)
 {
 	struct net_dev *ndev = dev;
-	struct virtio_net_config *conf = &ndev->config;
 
 	ndev->features = features;
-
-	conf->status = virtio_host_to_guest_u16(&ndev->vdev, conf->status);
-	conf->max_virtqueue_pairs = virtio_host_to_guest_u16(&ndev->vdev,
-							     conf->max_virtqueue_pairs);
 }
 
 static void virtio_net_start(struct net_dev *ndev)
@@ -569,8 +564,23 @@ static void virtio_net_stop(struct net_dev *ndev)
 		uip_exit(&ndev->info);
 }
 
+static void virtio_net_update_endian(struct net_dev *ndev)
+{
+	struct virtio_net_config *conf = &ndev->config;
+
+	conf->status = virtio_host_to_guest_u16(&ndev->vdev,
+						VIRTIO_NET_S_LINK_UP);
+	conf->max_virtqueue_pairs = virtio_host_to_guest_u16(&ndev->vdev,
+							     ndev->queue_pairs);
+}
+
 static void notify_status(struct kvm *kvm, void *dev, u32 status)
 {
+	struct net_dev *ndev = dev;
+
+	if (status & VIRTIO__STATUS_CONFIG)
+		virtio_net_update_endian(ndev);
+
 	if (status & VIRTIO__STATUS_START)
 		virtio_net_start(dev);
 	else if (status & VIRTIO__STATUS_STOP)
@@ -932,9 +942,6 @@ static int virtio_net__init_one(struct virtio_net_params *params)
 
 	mutex_init(&ndev->mutex);
 	ndev->queue_pairs = max(1, min(VIRTIO_NET_NUM_QUEUES, params->mq));
-	ndev->config.status = VIRTIO_NET_S_LINK_UP;
-	if (ndev->queue_pairs > 1)
-		ndev->config.max_virtqueue_pairs = ndev->queue_pairs;
 
 	for (i = 0 ; i < 6 ; i++) {
 		ndev->config.mac[i]		= params->guest_mac[i];

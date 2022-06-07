@@ -43,6 +43,8 @@
 #define VIRTIO__STATUS_START		(1 << 8)
 /* Stop the device */
 #define VIRTIO__STATUS_STOP		(1 << 9)
+/* Initialize the config */
+#define VIRTIO__STATUS_CONFIG		(1 << 10)
 
 struct vring_addr {
 	bool			legacy;

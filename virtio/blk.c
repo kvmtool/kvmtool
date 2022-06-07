@@ -43,6 +43,7 @@ struct blk_dev {
 
 	struct virtio_device		vdev;
 	struct virtio_blk_config	blk_config;
+	u64				capacity;
 	struct disk_image		*disk;
 	u32				features;
 
@@ -167,25 +168,20 @@ static u32 get_host_features(struct kvm *kvm, void *dev)
 static void set_guest_features(struct kvm *kvm, void *dev, u32 features)
 {
 	struct blk_dev *bdev = dev;
-	struct virtio_blk_config *conf = &bdev->blk_config;
 
 	bdev->features = features;
-
-	conf->capacity = virtio_host_to_guest_u64(&bdev->vdev, conf->capacity);
-	conf->size_max = virtio_host_to_guest_u32(&bdev->vdev, conf->size_max);
-	conf->seg_max = virtio_host_to_guest_u32(&bdev->vdev, conf->seg_max);
-
-	/* Geometry */
-	conf->geometry.cylinders = virtio_host_to_guest_u16(&bdev->vdev,
-						conf->geometry.cylinders);
-
-	conf->blk_size = virtio_host_to_guest_u32(&bdev->vdev, conf->blk_size);
-	conf->min_io_size = virtio_host_to_guest_u16(&bdev->vdev, conf->min_io_size);
-	conf->opt_io_size = virtio_host_to_guest_u32(&bdev->vdev, conf->opt_io_size);
 }
 
 static void notify_status(struct kvm *kvm, void *dev, u32 status)
 {
+	struct blk_dev *bdev = dev;
+	struct virtio_blk_config *conf = &bdev->blk_config;
+
+	if (!(status & VIRTIO__STATUS_CONFIG))
+		return;
+
+	conf->capacity = virtio_host_to_guest_u64(&bdev->vdev, bdev->capacity);
+	conf->seg_max = virtio_host_to_guest_u32(&bdev->vdev, DISK_SEG_MAX);
 }
 
 static void *virtio_blk_thread(void *dev)
@@ -318,10 +314,7 @@ static int virtio_blk__init_one(struct kvm *kvm, struct disk_image *disk)
 
 	*bdev = (struct blk_dev) {
 		.disk			= disk,
-		.blk_config		= (struct virtio_blk_config) {
-			.capacity	= disk->size / SECTOR_SIZE,
-			.seg_max	= DISK_SEG_MAX,
-		},
+		.capacity		= disk->size / SECTOR_SIZE,
 		.kvm			= kvm,
 	};
 
