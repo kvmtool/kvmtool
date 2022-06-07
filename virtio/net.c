@@ -582,8 +582,7 @@ static bool is_ctrl_vq(struct net_dev *ndev, u32 vq)
 	return vq == (u32)(ndev->queue_pairs * 2);
 }
 
-static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 page_size, u32 align,
-		   u32 pfn)
+static int init_vq(struct kvm *kvm, void *dev, u32 vq)
 {
 	struct vhost_vring_state state = { .index = vq };
 	struct net_dev_queue *net_queue;
@@ -598,8 +597,7 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 page_size, u32 align,
 	net_queue->id	= vq;
 	net_queue->ndev	= ndev;
 	queue		= &net_queue->vq;
-	virtio_init_device_vq(kvm, &ndev->vdev, queue, VIRTIO_NET_QUEUE_SIZE,
-			      page_size, align, pfn);
+	virtio_init_device_vq(kvm, &ndev->vdev, queue, VIRTIO_NET_QUEUE_SIZE);
 
 	mutex_init(&net_queue->lock);
 	pthread_cond_init(&net_queue->cond, NULL);

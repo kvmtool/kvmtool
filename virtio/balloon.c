@@ -130,7 +130,7 @@ static int virtio_bln__collect_stats(struct kvm *kvm)
 	u64 tmp;
 
 	/* Exit if the queue is not set up. */
-	if (!vq->pfn)
+	if (!vq->enabled)
 		return -ENODEV;
 
 	virt_queue__set_used_elem(vq, bdev.cur_stat_head,
@@ -209,8 +209,7 @@ static void notify_status(struct kvm *kvm, void *dev, u32 status)
 {
 }
 
-static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 page_size, u32 align,
-		   u32 pfn)
+static int init_vq(struct kvm *kvm, void *dev, u32 vq)
 {
 	struct bln_dev *bdev = dev;
 	struct virt_queue *queue;
@@ -219,8 +218,7 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 page_size, u32 align,
 
 	queue		= &bdev->vqs[vq];
 
-	virtio_init_device_vq(kvm, &bdev->vdev, queue, VIRTIO_BLN_QUEUE_SIZE,
-			      page_size, align, pfn);
+	virtio_init_device_vq(kvm, &bdev->vdev, queue, VIRTIO_BLN_QUEUE_SIZE);
 
 	thread_pool__init_job(&bdev->jobs[vq], kvm, virtio_bln_do_io, queue);
 

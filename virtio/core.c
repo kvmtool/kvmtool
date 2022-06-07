@@ -160,17 +160,31 @@ u16 virt_queue__get_inout_iov(struct kvm *kvm, struct virt_queue *queue,
 }
 
 void virtio_init_device_vq(struct kvm *kvm, struct virtio_device *vdev,
-			   struct virt_queue *vq, size_t nr_descs,
-			   u32 page_size, u32 align, u32 pfn)
+			   struct virt_queue *vq, size_t nr_descs)
 {
-	void *p = guest_flat_to_host(kvm, (u64)pfn * page_size);
+	struct vring_addr *addr = &vq->vring_addr;
 
 	vq->endian		= vdev->endian;
-	vq->pfn			= pfn;
 	vq->use_event_idx	= (vdev->features & VIRTIO_RING_F_EVENT_IDX);
 	vq->enabled		= true;
 
-	vring_init(&vq->vring, nr_descs, p, align);
+	if (addr->legacy) {
+		unsigned long base = (u64)addr->pfn * addr->pgsize;
+		void *p = guest_flat_to_host(kvm, base);
+
+		vring_init(&vq->vring, nr_descs, p, addr->align);
+	} else {
+		u64 desc = (u64)addr->desc_hi << 32 | addr->desc_lo;
+		u64 avail = (u64)addr->avail_hi << 32 | addr->avail_lo;
+		u64 used = (u64)addr->used_hi << 32 | addr->used_lo;
+
+		vq->vring = (struct vring) {
+			.desc	= guest_flat_to_host(kvm, desc),
+			.used	= guest_flat_to_host(kvm, used),
+			.avail	= guest_flat_to_host(kvm, avail),
+			.num	= nr_descs,
+		};
+	}
 }
 
 void virtio_exit_vq(struct kvm *kvm, struct virtio_device *vdev,

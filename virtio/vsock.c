@@ -65,8 +65,7 @@ static bool is_event_vq(u32 vq)
 	return vq == VSOCK_VQ_EVENT;
 }
 
-static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 page_size, u32 align,
-		   u32 pfn)
+static int init_vq(struct kvm *kvm, void *dev, u32 vq)
 {
 	struct vhost_vring_state state = { .index = vq };
 	struct vhost_vring_addr addr;
@@ -77,8 +76,7 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 page_size, u32 align,
 	compat__remove_message(compat_id);
 
 	queue		= &vdev->vqs[vq];
-	virtio_init_device_vq(kvm, &vdev->vdev, queue, VIRTIO_VSOCK_QUEUE_SIZE,
-			      page_size, align, pfn);
+	virtio_init_device_vq(kvm, &vdev->vdev, queue, VIRTIO_VSOCK_QUEUE_SIZE);
 
 	if (vdev->vhost_fd == -1)
 		return 0;

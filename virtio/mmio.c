@@ -125,6 +125,9 @@ static void virtio_mmio_device_specific(struct kvm_cpu *vcpu,
 	}
 }
 
+#define vmmio_selected_vq(vdev, vmmio) \
+	(vdev)->ops->get_vq((vmmio)->kvm, (vmmio)->dev, (vmmio)->hdr.queue_sel)
+
 static void virtio_mmio_config_in(struct kvm_cpu *vcpu,
 				  u64 addr, void *data, u32 len,
 				  struct virtio_device *vdev)
@@ -149,9 +152,8 @@ static void virtio_mmio_config_in(struct kvm_cpu *vcpu,
 		ioport__write32(data, val);
 		break;
 	case VIRTIO_MMIO_QUEUE_PFN:
-		vq = vdev->ops->get_vq(vmmio->kvm, vmmio->dev,
-				       vmmio->hdr.queue_sel);
-		ioport__write32(data, vq->pfn);
+		vq = vmmio_selected_vq(vdev, vmmio);
+		ioport__write32(data, vq->vring_addr.pfn);
 		break;
 	case VIRTIO_MMIO_QUEUE_NUM_MAX:
 		val = vdev->ops->get_size_vq(vmmio->kvm, vmmio->dev,
@@ -170,6 +172,7 @@ static void virtio_mmio_config_out(struct kvm_cpu *vcpu,
 	struct virtio_mmio *vmmio = vdev->virtio;
 	struct kvm *kvm = vmmio->kvm;
 	unsigned int vq_count = vdev->ops->get_vq_count(kvm, vmmio->dev);
+	struct virt_queue *vq;
 	u32 val = 0;
 
 	switch (addr) {
@@ -217,13 +220,17 @@ static void virtio_mmio_config_out(struct kvm_cpu *vcpu,
 	case VIRTIO_MMIO_QUEUE_PFN:
 		val = ioport__read32(data);
 		if (val) {
+			vq = vmmio_selected_vq(vdev, vmmio);
+			vq->vring_addr = (struct vring_addr) {
+				.legacy	= true,
+				.pfn	= val,
+				.align	= vmmio->hdr.queue_align,
+				.pgsize	= vmmio->hdr.guest_page_size,
+			};
 			virtio_mmio_init_ioeventfd(vmmio->kvm, vdev,
 						   vmmio->hdr.queue_sel);
 			vdev->ops->init_vq(vmmio->kvm, vmmio->dev,
-					   vmmio->hdr.queue_sel,
-					   vmmio->hdr.guest_page_size,
-					   vmmio->hdr.queue_align,
-					   val);
+					   vmmio->hdr.queue_sel);
 		} else {
 			virtio_mmio_exit_vq(kvm, vdev, vmmio->hdr.queue_sel);
 		}

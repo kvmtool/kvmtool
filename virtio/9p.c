@@ -1408,8 +1408,7 @@ static void notify_status(struct kvm *kvm, void *dev, u32 status)
 		close_fid(p9dev, pfid->fid);
 }
 
-static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 page_size, u32 align,
-		   u32 pfn)
+static int init_vq(struct kvm *kvm, void *dev, u32 vq)
 {
 	struct p9_dev *p9dev = dev;
 	struct p9_dev_job *job;
@@ -1420,8 +1419,7 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 page_size, u32 align,
 	queue		= &p9dev->vqs[vq];
 	job		= &p9dev->jobs[vq];
 
-	virtio_init_device_vq(kvm, &p9dev->vdev, queue, VIRTQUEUE_NUM,
-			      page_size, align, pfn);
+	virtio_init_device_vq(kvm, &p9dev->vdev, queue, VIRTQUEUE_NUM);
 
 	*job		= (struct p9_dev_job) {
 		.vq		= queue,

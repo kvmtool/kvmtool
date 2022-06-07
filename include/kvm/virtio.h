@@ -44,9 +44,30 @@
 /* Stop the device */
 #define VIRTIO__STATUS_STOP		(1 << 9)
 
+struct vring_addr {
+	bool			legacy;
+	union {
+		/* Legacy description */
+		struct {
+			u32	pfn;
+			u32	align;
+			u32	pgsize;
+		};
+		/* Modern description */
+		struct {
+			u32	desc_lo;
+			u32	desc_hi;
+			u32	avail_lo;
+			u32	avail_hi;
+			u32	used_lo;
+			u32	used_hi;
+		};
+	};
+};
+
 struct virt_queue {
 	struct vring	vring;
-	u32		pfn;
+	struct vring_addr vring_addr;
 	/* The last_avail_idx field is an index to ->ring of struct vring_avail.
 	   It's where we assume the next request index is at.  */
 	u16		last_avail_idx;
@@ -189,8 +210,7 @@ struct virtio_ops {
 	u32 (*get_host_features)(struct kvm *kvm, void *dev);
 	void (*set_guest_features)(struct kvm *kvm, void *dev, u32 features);
 	unsigned int (*get_vq_count)(struct kvm *kvm, void *dev);
-	int (*init_vq)(struct kvm *kvm, void *dev, u32 vq, u32 page_size,
-		       u32 align, u32 pfn);
+	int (*init_vq)(struct kvm *kvm, void *dev, u32 vq);
 	void (*exit_vq)(struct kvm *kvm, void *dev, u32 vq);
 	int (*notify_vq)(struct kvm *kvm, void *dev, u32 vq);
 	struct virt_queue *(*get_vq)(struct kvm *kvm, void *dev, u32 vq);
@@ -213,8 +233,7 @@ int __must_check virtio_init(struct kvm *kvm, void *dev, struct virtio_device *v
 int virtio_compat_add_message(const char *device, const char *config);
 const char* virtio_trans_name(enum virtio_trans trans);
 void virtio_init_device_vq(struct kvm *kvm, struct virtio_device *vdev,
-			   struct virt_queue *vq, size_t nr_descs,
-			   u32 page_size, u32 align, u32 pfn);
+			   struct virt_queue *vq, size_t nr_descs);
 void virtio_exit_vq(struct kvm *kvm, struct virtio_device *vdev, void *dev,
 		    int num);
 void virtio_set_guest_features(struct kvm *kvm, struct virtio_device *vdev,

@@ -62,8 +62,7 @@ static void notify_status(struct kvm *kvm, void *dev, u32 status)
 {
 }
 
-static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 page_size, u32 align,
-		   u32 pfn)
+static int init_vq(struct kvm *kvm, void *dev, u32 vq)
 {
 	struct vhost_vring_state state = { .index = vq };
 	struct vhost_vring_addr addr;
@@ -75,8 +74,7 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 page_size, u32 align,
 
 	queue		= &sdev->vqs[vq];
 
-	virtio_init_device_vq(kvm, &sdev->vdev, queue, VIRTIO_SCSI_QUEUE_SIZE,
-			      page_size, align, pfn);
+	virtio_init_device_vq(kvm, &sdev->vdev, queue, VIRTIO_SCSI_QUEUE_SIZE);
 
 	if (sdev->vhost_fd == 0)
 		return 0;

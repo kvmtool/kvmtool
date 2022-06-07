@@ -207,8 +207,7 @@ static void *virtio_blk_thread(void *dev)
 	return NULL;
 }
 
-static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 page_size, u32 align,
-		   u32 pfn)
+static int init_vq(struct kvm *kvm, void *dev, u32 vq)
 {
 	unsigned int i;
 	struct blk_dev *bdev = dev;
@@ -216,7 +215,7 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 page_size, u32 align,
 	compat__remove_message(compat_id);
 
 	virtio_init_device_vq(kvm, &bdev->vdev, &bdev->vqs[vq],
-			      VIRTIO_BLK_QUEUE_SIZE, page_size, align, pfn);
+			      VIRTIO_BLK_QUEUE_SIZE);
 
 	if (vq != 0)
 		return 0;

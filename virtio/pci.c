@@ -178,7 +178,7 @@ static bool virtio_pci__data_in(struct kvm_cpu *vcpu, struct virtio_device *vdev
 		break;
 	case VIRTIO_PCI_QUEUE_PFN:
 		vq = vdev->ops->get_vq(kvm, vpci->dev, vpci->queue_selector);
-		ioport__write32(data, vq->pfn);
+		ioport__write32(data, vq->vring_addr.pfn);
 		break;
 	case VIRTIO_PCI_QUEUE_NUM:
 		val = vdev->ops->get_size_vq(kvm, vpci->dev, vpci->queue_selector);
@@ -318,6 +318,7 @@ static bool virtio_pci__data_out(struct kvm_cpu *vcpu, struct virtio_device *vde
 {
 	bool ret = true;
 	struct virtio_pci *vpci;
+	struct virt_queue *vq;
 	struct kvm *kvm;
 	u32 val;
 	unsigned int vq_count;
@@ -334,11 +335,18 @@ static bool virtio_pci__data_out(struct kvm_cpu *vcpu, struct virtio_device *vde
 	case VIRTIO_PCI_QUEUE_PFN:
 		val = ioport__read32(data);
 		if (val) {
+			vq = vdev->ops->get_vq(kvm, vpci->dev,
+					       vpci->queue_selector);
+			vq->vring_addr = (struct vring_addr) {
+				.legacy	= true,
+				.pfn	= val,
+				.align	= VIRTIO_PCI_VRING_ALIGN,
+				.pgsize	= 1 << VIRTIO_PCI_QUEUE_ADDR_SHIFT,
+			};
 			virtio_pci__init_ioeventfd(kvm, vdev,
 						   vpci->queue_selector);
-			vdev->ops->init_vq(kvm, vpci->dev, vpci->queue_selector,
-					   1 << VIRTIO_PCI_QUEUE_ADDR_SHIFT,
-					   VIRTIO_PCI_VRING_ALIGN, val);
+			vdev->ops->init_vq(kvm, vpci->dev,
+					   vpci->queue_selector);
 		} else {
 			virtio_pci_exit_vq(kvm, vdev, vpci->queue_selector);
 		}
