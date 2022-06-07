@@ -45,7 +45,6 @@ struct blk_dev {
 	struct virtio_blk_config	blk_config;
 	u64				capacity;
 	struct disk_image		*disk;
-	u32				features;
 
 	struct virt_queue		vqs[NUM_VIRT_QUEUES];
 	struct blk_dev_req		reqs[VIRTIO_BLK_QUEUE_SIZE];
@@ -165,13 +164,6 @@ static u32 get_host_features(struct kvm *kvm, void *dev)
 		| (bdev->disk->readonly ? 1UL << VIRTIO_BLK_F_RO : 0);
 }
 
-static void set_guest_features(struct kvm *kvm, void *dev, u32 features)
-{
-	struct blk_dev *bdev = dev;
-
-	bdev->features = features;
-}
-
 static void notify_status(struct kvm *kvm, void *dev, u32 status)
 {
 	struct blk_dev *bdev = dev;
@@ -289,7 +281,6 @@ static struct virtio_ops blk_dev_virtio_ops = {
 	.get_config		= get_config,
 	.get_config_size	= get_config_size,
 	.get_host_features	= get_host_features,
-	.set_guest_features	= set_guest_features,
 	.get_vq_count		= get_vq_count,
 	.init_vq		= init_vq,
 	.exit_vq		= exit_vq,

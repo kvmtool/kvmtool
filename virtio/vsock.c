@@ -55,13 +55,6 @@ static u32 get_host_features(struct kvm *kvm, void *dev)
 		| 1UL << VIRTIO_RING_F_INDIRECT_DESC;
 }
 
-static void set_guest_features(struct kvm *kvm, void *dev, u32 features)
-{
-	struct vsock_dev *vdev = dev;
-
-	vdev->features = features;
-}
-
 static bool is_event_vq(u32 vq)
 {
 	return vq == VSOCK_VQ_EVENT;
@@ -212,7 +205,6 @@ static struct virtio_ops vsock_dev_virtio_ops = {
 	.get_config		= get_config,
 	.get_config_size	= get_config_size,
 	.get_host_features	= get_host_features,
-	.set_guest_features	= set_guest_features,
 	.init_vq		= init_vq,
 	.get_vq			= get_vq,
 	.get_size_vq		= get_size_vq,

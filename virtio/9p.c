@@ -1387,13 +1387,6 @@ static u32 get_host_features(struct kvm *kvm, void *dev)
 	return 1 << VIRTIO_9P_MOUNT_TAG;
 }
 
-static void set_guest_features(struct kvm *kvm, void *dev, u32 features)
-{
-	struct p9_dev *p9dev = dev;
-
-	p9dev->features = features;
-}
-
 static void notify_status(struct kvm *kvm, void *dev, u32 status)
 {
 	struct p9_dev *p9dev = dev;
@@ -1475,7 +1468,6 @@ struct virtio_ops p9_dev_virtio_ops = {
 	.get_config		= get_config,
 	.get_config_size	= get_config_size,
 	.get_host_features	= get_host_features,
-	.set_guest_features	= set_guest_features,
 	.init_vq		= init_vq,
 	.exit_vq		= exit_vq,
 	.notify_status		= notify_status,

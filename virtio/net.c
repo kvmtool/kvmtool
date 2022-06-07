@@ -55,7 +55,7 @@ struct net_dev {
 
 	struct net_dev_queue		queues[VIRTIO_NET_NUM_QUEUES * 2 + 1];
 	struct virtio_net_config	config;
-	u32				features, queue_pairs;
+	u32				queue_pairs;
 
 	int				vhost_fd;
 	int				tap_fd;
@@ -78,7 +78,7 @@ static int compat_id = -1;
 
 static bool has_virtio_feature(struct net_dev *ndev, u32 feature)
 {
-	return ndev->features & (1 << feature);
+	return ndev->vdev.features & (1 << feature);
 }
 
 static void virtio_net_fix_tx_hdr(struct virtio_net_hdr *hdr, struct net_dev *ndev)
@@ -531,13 +531,6 @@ static int virtio_net__vhost_set_features(struct net_dev *ndev)
 	return ioctl(ndev->vhost_fd, VHOST_SET_FEATURES, &features);
 }
 
-static void set_guest_features(struct kvm *kvm, void *dev, u32 features)
-{
-	struct net_dev *ndev = dev;
-
-	ndev->features = features;
-}
-
 static void virtio_net_start(struct net_dev *ndev)
 {
 	if (ndev->mode == NET_MODE_TAP) {
@@ -770,7 +763,6 @@ static struct virtio_ops net_dev_virtio_ops = {
 	.get_config		= get_config,
 	.get_config_size	= get_config_size,
 	.get_host_features	= get_host_features,
-	.set_guest_features	= set_guest_features,
 	.get_vq_count		= get_vq_count,
 	.init_vq		= init_vq,
 	.exit_vq		= exit_vq,

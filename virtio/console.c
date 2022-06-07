@@ -34,7 +34,6 @@ struct con_dev {
 	struct virtio_device		vdev;
 	struct virt_queue		vqs[VIRTIO_CONSOLE_NUM_QUEUES];
 	struct virtio_console_config	config;
-	u32				features;
 	int				vq_ready;
 
 	struct thread_pool__job		jobs[VIRTIO_CONSOLE_NUM_QUEUES];
@@ -126,10 +125,6 @@ static u32 get_host_features(struct kvm *kvm, void *dev)
 	return 0;
 }
 
-static void set_guest_features(struct kvm *kvm, void *dev, u32 features)
-{
-}
-
 static void notify_status(struct kvm *kvm, void *dev, u32 status)
 {
 	struct con_dev *cdev = dev;
@@ -216,7 +211,6 @@ static struct virtio_ops con_dev_virtio_ops = {
 	.get_config		= get_config,
 	.get_config_size	= get_config_size,
 	.get_host_features	= get_host_features,
-	.set_guest_features	= set_guest_features,
 	.get_vq_count		= get_vq_count,
 	.init_vq		= init_vq,
 	.exit_vq		= exit_vq,

@@ -33,8 +33,6 @@ struct bln_dev {
 	struct list_head	list;
 	struct virtio_device	vdev;
 
-	u32			features;
-
 	/* virtio queue */
 	struct virt_queue	vqs[NUM_VIRT_QUEUES];
 	struct thread_pool__job	jobs[NUM_VIRT_QUEUES];
@@ -207,13 +205,6 @@ static u32 get_host_features(struct kvm *kvm, void *dev)
 	return 1 << VIRTIO_BALLOON_F_STATS_VQ;
 }
 
-static void set_guest_features(struct kvm *kvm, void *dev, u32 features)
-{
-	struct bln_dev *bdev = dev;
-
-	bdev->features = features;
-}
-
 static int init_vq(struct kvm *kvm, void *dev, u32 vq)
 {
 	struct bln_dev *bdev = dev;
@@ -266,7 +257,6 @@ struct virtio_ops bln_dev_virtio_ops = {
 	.get_config		= get_config,
 	.get_config_size	= get_config_size,
 	.get_host_features	= get_host_features,
-	.set_guest_features	= set_guest_features,
 	.init_vq		= init_vq,
 	.notify_vq		= notify_vq,
 	.get_vq			= get_vq,

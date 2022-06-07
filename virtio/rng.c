@@ -58,11 +58,6 @@ static u32 get_host_features(struct kvm *kvm, void *dev)
 	return 0;
 }
 
-static void set_guest_features(struct kvm *kvm, void *dev, u32 features)
-{
-	/* Unused */
-}
-
 static bool virtio_rng_do_io_request(struct kvm *kvm, struct rng_dev *rdev, struct virt_queue *queue)
 {
 	struct iovec iov[VIRTIO_RNG_QUEUE_SIZE];
@@ -151,7 +146,6 @@ static struct virtio_ops rng_dev_virtio_ops = {
 	.get_config		= get_config,
 	.get_config_size	= get_config_size,
 	.get_host_features	= get_host_features,
-	.set_guest_features	= set_guest_features,
 	.init_vq		= init_vq,
 	.notify_vq		= notify_vq,
 	.get_vq			= get_vq,

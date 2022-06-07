@@ -24,7 +24,6 @@ struct scsi_dev {
 	struct virt_queue		vqs[NUM_VIRT_QUEUES];
 	struct virtio_scsi_config	config;
 	struct vhost_scsi_target	target;
-	u32				features;
 	int				vhost_fd;
 	struct virtio_device		vdev;
 	struct list_head		list;
@@ -49,13 +48,6 @@ static u32 get_host_features(struct kvm *kvm, void *dev)
 {
 	return	1UL << VIRTIO_RING_F_EVENT_IDX |
 		1UL << VIRTIO_RING_F_INDIRECT_DESC;
-}
-
-static void set_guest_features(struct kvm *kvm, void *dev, u32 features)
-{
-	struct scsi_dev *sdev = dev;
-
-	sdev->features = features;
 }
 
 static void notify_status(struct kvm *kvm, void *dev, u32 status)
@@ -198,7 +190,6 @@ static struct virtio_ops scsi_dev_virtio_ops = {
 	.get_config		= get_config,
 	.get_config_size	= get_config_size,
 	.get_host_features	= get_host_features,
-	.set_guest_features	= set_guest_features,
 	.init_vq		= init_vq,
 	.get_vq			= get_vq,
 	.get_size_vq		= get_size_vq,

@@ -46,7 +46,6 @@ struct p9_dev {
 
 	size_t config_size;
 	struct virtio_9p_config	*config;
-	u32			features;
 	u16			tag_len;
 
 	/* virtio queue */

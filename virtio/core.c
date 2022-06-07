@@ -250,7 +250,6 @@ void virtio_set_guest_features(struct kvm *kvm, struct virtio_device *vdev,
 	/* TODO: fail negotiation if features & ~host_features */
 
 	vdev->features = features;
-	vdev->ops->set_guest_features(kvm, dev, features);
 }
 
 void virtio_notify_status(struct kvm *kvm, struct virtio_device *vdev,
