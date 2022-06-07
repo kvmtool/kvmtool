@@ -7,6 +7,8 @@ extern int memcpy_fromiovecend(unsigned char *kdata, const struct iovec *iov,
 extern int memcpy_toiovec(struct iovec *v, unsigned char *kdata, int len);
 extern int memcpy_toiovecend(const struct iovec *v, unsigned char *kdata,
 				size_t offset, int len);
+ssize_t memcpy_fromiovec_safe(void *buf, struct iovec **iov, size_t len,
+			      size_t *iovcount);
 
 static inline size_t iov_size(const struct iovec *iovec, size_t len)
 {

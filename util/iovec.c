@@ -94,6 +94,37 @@ int memcpy_fromiovec(unsigned char *kdata, struct iovec *iov, int len)
 }
 
 /*
+ *	Copy at most @len bytes from iovec to buffer.
+ *	Returns the remaining len.
+ *
+ *	Note: this modifies the original iovec, the iov pointer, and the
+ *	iovcount to describe the remaining buffer.
+ */
+ssize_t memcpy_fromiovec_safe(void *buf, struct iovec **iov, size_t len,
+			      size_t *iovcount)
+{
+	size_t copy;
+
+	while (len && *iovcount) {
+		copy = min(len, (*iov)->iov_len);
+		memcpy(buf, (*iov)->iov_base, copy);
+		buf += copy;
+		len -= copy;
+
+		/* Move iov cursor */
+		(*iov)->iov_base += copy;
+		(*iov)->iov_len -= copy;
+
+		if (!(*iov)->iov_len) {
+			(*iov)++;
+			(*iovcount)--;
+		}
+	}
+
+	return len;
+}
+
+/*
  *	Copy iovec from kernel. Returns -EFAULT on error.
  */
 
