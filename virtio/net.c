@@ -81,22 +81,6 @@ static bool has_virtio_feature(struct net_dev *ndev, u32 feature)
 	return ndev->vdev.features & (1 << feature);
 }
 
-static void virtio_net_fix_tx_hdr(struct virtio_net_hdr *hdr, struct net_dev *ndev)
-{
-	hdr->hdr_len		= virtio_guest_to_host_u16(&ndev->vdev, hdr->hdr_len);
-	hdr->gso_size		= virtio_guest_to_host_u16(&ndev->vdev, hdr->gso_size);
-	hdr->csum_start		= virtio_guest_to_host_u16(&ndev->vdev, hdr->csum_start);
-	hdr->csum_offset	= virtio_guest_to_host_u16(&ndev->vdev, hdr->csum_offset);
-}
-
-static void virtio_net_fix_rx_hdr(struct virtio_net_hdr *hdr, struct net_dev *ndev)
-{
-	hdr->hdr_len		= virtio_host_to_guest_u16(&ndev->vdev, hdr->hdr_len);
-	hdr->gso_size		= virtio_host_to_guest_u16(&ndev->vdev, hdr->gso_size);
-	hdr->csum_start		= virtio_host_to_guest_u16(&ndev->vdev, hdr->csum_start);
-	hdr->csum_offset	= virtio_host_to_guest_u16(&ndev->vdev, hdr->csum_offset);
-}
-
 static void *virtio_net_rx_thread(void *p)
 {
 	struct iovec iov[VIRTIO_NET_QUEUE_SIZE];
@@ -149,7 +133,6 @@ static void *virtio_net_rx_thread(void *p)
 				head = virt_queue__get_iov(vq, iov, &out, &in, kvm);
 			}
 
-			virtio_net_fix_rx_hdr(&hdr->hdr, ndev);
 			if (has_virtio_feature(ndev, VIRTIO_NET_F_MRG_RXBUF))
 				hdr->num_buffers = virtio_host_to_guest_u16(vq, num_buffers);
 
@@ -189,10 +172,7 @@ static void *virtio_net_tx_thread(void *p)
 		mutex_unlock(&queue->lock);
 
 		while (virt_queue__available(vq)) {
-			struct virtio_net_hdr *hdr;
 			head = virt_queue__get_iov(vq, iov, &out, &in, kvm);
-			hdr = iov[0].iov_base;
-			virtio_net_fix_tx_hdr(hdr, ndev);
 			len = ndev->ops->tx(iov, out, ndev);
 			if (len < 0) {
 				pr_warning("%s: tx on vq %u failed (%d)\n",
@@ -565,6 +545,25 @@ static void virtio_net_update_endian(struct net_dev *ndev)
 						VIRTIO_NET_S_LINK_UP);
 	conf->max_virtqueue_pairs = virtio_host_to_guest_u16(&ndev->vdev,
 							     ndev->queue_pairs);
+
+	/* Let TAP know about vnet header endianness */
+	if (ndev->mode == NET_MODE_TAP &&
+	    ndev->vdev.endian != VIRTIO_ENDIAN_HOST) {
+		int enable_val = 1, disable_val = 0;
+		int enable_req, disable_req;
+
+		if (ndev->vdev.endian == VIRTIO_ENDIAN_LE) {
+			enable_req = TUNSETVNETLE;
+			disable_req = TUNSETVNETBE;
+		} else {
+			enable_req = TUNSETVNETBE;
+			disable_req = TUNSETVNETLE;
+		}
+
+		ioctl(ndev->tap_fd, disable_req, &disable_val);
+		if (ioctl(ndev->tap_fd, enable_req, &enable_val) < 0)
+			pr_err("Config tap device TUNSETVNETLE/BE error");
+	}
 }
 
 static void notify_status(struct kvm *kvm, void *dev, u32 status)
