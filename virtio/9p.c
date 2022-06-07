@@ -1414,17 +1414,14 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 page_size, u32 align,
 	struct p9_dev *p9dev = dev;
 	struct p9_dev_job *job;
 	struct virt_queue *queue;
-	void *p;
 
 	compat__remove_message(compat_id);
 
 	queue		= &p9dev->vqs[vq];
-	queue->pfn	= pfn;
-	p		= virtio_get_vq(kvm, queue->pfn, page_size);
 	job		= &p9dev->jobs[vq];
 
-	vring_init(&queue->vring, VIRTQUEUE_NUM, p, align);
-	virtio_init_device_vq(&p9dev->vdev, queue);
+	virtio_init_device_vq(kvm, &p9dev->vdev, queue, VIRTQUEUE_NUM,
+			      page_size, align, pfn);
 
 	*job		= (struct p9_dev_job) {
 		.vq		= queue,

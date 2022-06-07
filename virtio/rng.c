@@ -97,18 +97,15 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 page_size, u32 align,
 	struct rng_dev *rdev = dev;
 	struct virt_queue *queue;
 	struct rng_dev_job *job;
-	void *p;
 
 	compat__remove_message(compat_id);
 
 	queue		= &rdev->vqs[vq];
-	queue->pfn	= pfn;
-	p		= virtio_get_vq(kvm, queue->pfn, page_size);
 
 	job = &rdev->jobs[vq];
 
-	vring_init(&queue->vring, VIRTIO_RNG_QUEUE_SIZE, p, align);
-	virtio_init_device_vq(&rdev->vdev, queue);
+	virtio_init_device_vq(kvm, &rdev->vdev, queue, VIRTIO_RNG_QUEUE_SIZE,
+			      page_size, align, pfn);
 
 	*job = (struct rng_dev_job) {
 		.vq	= queue,

@@ -212,20 +212,9 @@ int __must_check virtio_init(struct kvm *kvm, void *dev, struct virtio_device *v
 			     int device_id, int subsys_id, int class);
 int virtio_compat_add_message(const char *device, const char *config);
 const char* virtio_trans_name(enum virtio_trans trans);
-
-static inline void *virtio_get_vq(struct kvm *kvm, u32 pfn, u32 page_size)
-{
-	return guest_flat_to_host(kvm, (u64)pfn * page_size);
-}
-
-static inline void virtio_init_device_vq(struct virtio_device *vdev,
-					 struct virt_queue *vq)
-{
-	vq->endian = vdev->endian;
-	vq->use_event_idx = (vdev->features & VIRTIO_RING_F_EVENT_IDX);
-	vq->enabled = true;
-}
-
+void virtio_init_device_vq(struct kvm *kvm, struct virtio_device *vdev,
+			   struct virt_queue *vq, size_t nr_descs,
+			   u32 page_size, u32 align, u32 pfn);
 void virtio_exit_vq(struct kvm *kvm, struct virtio_device *vdev, void *dev,
 		    int num);
 void virtio_set_guest_features(struct kvm *kvm, struct virtio_device *vdev,

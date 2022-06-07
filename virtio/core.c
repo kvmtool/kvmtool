@@ -159,6 +159,20 @@ u16 virt_queue__get_inout_iov(struct kvm *kvm, struct virt_queue *queue,
 	return head;
 }
 
+void virtio_init_device_vq(struct kvm *kvm, struct virtio_device *vdev,
+			   struct virt_queue *vq, size_t nr_descs,
+			   u32 page_size, u32 align, u32 pfn)
+{
+	void *p = guest_flat_to_host(kvm, (u64)pfn * page_size);
+
+	vq->endian		= vdev->endian;
+	vq->pfn			= pfn;
+	vq->use_event_idx	= (vdev->features & VIRTIO_RING_F_EVENT_IDX);
+	vq->enabled		= true;
+
+	vring_init(&vq->vring, nr_descs, p, align);
+}
+
 void virtio_exit_vq(struct kvm *kvm, struct virtio_device *vdev,
 			   void *dev, int num)
 {

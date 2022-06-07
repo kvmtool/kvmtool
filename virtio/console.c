@@ -151,18 +151,15 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 page_size, u32 align,
 		   u32 pfn)
 {
 	struct virt_queue *queue;
-	void *p;
 
 	BUG_ON(vq >= VIRTIO_CONSOLE_NUM_QUEUES);
 
 	compat__remove_message(compat_id);
 
 	queue		= &cdev.vqs[vq];
-	queue->pfn	= pfn;
-	p		= virtio_get_vq(kvm, queue->pfn, page_size);
 
-	vring_init(&queue->vring, VIRTIO_CONSOLE_QUEUE_SIZE, p, align);
-	virtio_init_device_vq(&cdev.vdev, queue);
+	virtio_init_device_vq(kvm, &cdev.vdev, queue, VIRTIO_CONSOLE_QUEUE_SIZE,
+			      page_size, align, pfn);
 
 	if (vq == VIRTIO_CONSOLE_TX_QUEUE) {
 		thread_pool__init_job(&cdev.jobs[vq], kvm, virtio_console_handle_callback, queue);

@@ -214,17 +214,15 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 page_size, u32 align,
 {
 	struct bln_dev *bdev = dev;
 	struct virt_queue *queue;
-	void *p;
 
 	compat__remove_message(compat_id);
 
 	queue		= &bdev->vqs[vq];
-	queue->pfn	= pfn;
-	p		= virtio_get_vq(kvm, queue->pfn, page_size);
+
+	virtio_init_device_vq(kvm, &bdev->vdev, queue, VIRTIO_BLN_QUEUE_SIZE,
+			      page_size, align, pfn);
 
 	thread_pool__init_job(&bdev->jobs[vq], kvm, virtio_bln_do_io, queue);
-	vring_init(&queue->vring, VIRTIO_BLN_QUEUE_SIZE, p, align);
-	virtio_init_device_vq(&bdev->vdev, queue);
 
 	return 0;
 }

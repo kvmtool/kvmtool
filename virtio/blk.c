@@ -212,17 +212,11 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 page_size, u32 align,
 {
 	unsigned int i;
 	struct blk_dev *bdev = dev;
-	struct virt_queue *queue;
-	void *p;
 
 	compat__remove_message(compat_id);
 
-	queue		= &bdev->vqs[vq];
-	queue->pfn	= pfn;
-	p		= virtio_get_vq(kvm, queue->pfn, page_size);
-
-	vring_init(&queue->vring, VIRTIO_BLK_QUEUE_SIZE, p, align);
-	virtio_init_device_vq(&bdev->vdev, queue);
+	virtio_init_device_vq(kvm, &bdev->vdev, &bdev->vqs[vq],
+			      VIRTIO_BLK_QUEUE_SIZE, page_size, align, pfn);
 
 	if (vq != 0)
 		return 0;

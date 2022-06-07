@@ -69,17 +69,14 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq, u32 page_size, u32 align,
 	struct vhost_vring_addr addr;
 	struct scsi_dev *sdev = dev;
 	struct virt_queue *queue;
-	void *p;
 	int r;
 
 	compat__remove_message(compat_id);
 
 	queue		= &sdev->vqs[vq];
-	queue->pfn	= pfn;
-	p		= virtio_get_vq(kvm, queue->pfn, page_size);
 
-	vring_init(&queue->vring, VIRTIO_SCSI_QUEUE_SIZE, p, align);
-	virtio_init_device_vq(&sdev->vdev, queue);
+	virtio_init_device_vq(kvm, &sdev->vdev, queue, VIRTIO_SCSI_QUEUE_SIZE,
+			      page_size, align, pfn);
 
 	if (sdev->vhost_fd == 0)
 		return 0;
