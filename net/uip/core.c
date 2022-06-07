@@ -9,40 +9,56 @@
 int uip_tx(struct iovec *iov, u16 out, struct uip_info *info)
 {
 	void *vnet;
+	ssize_t len;
 	struct uip_tx_arg arg;
-	int eth_len, vnet_len;
+	size_t eth_len, vnet_len;
 	struct uip_eth *eth;
-	u8 *buf = NULL;
+	void *vnet_buf = NULL;
+	void *eth_buf = NULL;
+	size_t iovcount = out;
+
 	u16 proto;
-	int i;
 
 	/*
 	 * Buffer from guest to device
 	 */
-	vnet_len = iov[0].iov_len;
+	vnet_len = info->vnet_hdr_len;
 	vnet	 = iov[0].iov_base;
 
-	eth_len	 = iov[1].iov_len;
-	eth	 = iov[1].iov_base;
+	len = iov_size(iov, iovcount);
+	if (len <= (ssize_t)vnet_len)
+		return -EINVAL;
 
-	/*
-	 * In case, ethernet frame is in more than one iov entry.
-	 * Copy iov buffer into one linear buffer.
-	 */
-	if (out > 2) {
-		eth_len = 0;
-		for (i = 1; i < out; i++)
-			eth_len += iov[i].iov_len;
+	/* Try to avoid memcpy if possible */
+	if (iov[0].iov_len == vnet_len && out == 2) {
+		/* Legacy layout: first descriptor for vnet header */
+		eth	= iov[1].iov_base;
+		eth_len	= iov[1].iov_len;
 
-		buf = malloc(eth_len);
-		if (!buf)
+	} else if (out == 1) {
+		/* Single descriptor */
+		eth	= (void *)vnet + vnet_len;
+		eth_len	= iov[0].iov_len - vnet_len;
+
+	} else {
+		/* Any layout */
+		len = vnet_len;
+		vnet = vnet_buf = malloc(len);
+		if (!vnet)
 			return -ENOMEM;
 
-		eth = (struct uip_eth *)buf;
-		for (i = 1; i < out; i++) {
-			memcpy(buf, iov[i].iov_base, iov[i].iov_len);
-			buf += iov[i].iov_len;
-		}
+		len = memcpy_fromiovec_safe(vnet_buf, &iov, len, &iovcount);
+		if (len)
+			goto out_free_buf;
+
+		len = eth_len = iov_size(iov, iovcount);
+		eth = eth_buf = malloc(len);
+		if (!eth)
+			goto out_free_buf;
+
+		len = memcpy_fromiovec_safe(eth_buf, &iov, len, &iovcount);
+		if (len)
+			goto out_free_buf;
 	}
 
 	memset(&arg, 0, sizeof(arg));
@@ -65,14 +81,17 @@ int uip_tx(struct iovec *iov, u16 out, struct uip_info *info)
 	case UIP_ETH_P_IP:
 		uip_tx_do_ipv4(&arg);
 		break;
-	default:
-		break;
 	}
 
-	if (out > 2 && buf)
-		free(eth);
+	free(vnet_buf);
+	free(eth_buf);
 
 	return vnet_len + eth_len;
+
+out_free_buf:
+	free(vnet_buf);
+	free(eth_buf);
+	return -EINVAL;
 }
 
 int uip_rx(struct iovec *iov, u16 in, struct uip_info *info)

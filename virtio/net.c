@@ -221,8 +221,9 @@ static void *virtio_net_ctrl_thread(void *p)
 	struct net_dev *ndev = queue->ndev;
 	u16 out, in, head;
 	struct kvm *kvm = ndev->kvm;
-	struct virtio_net_ctrl_hdr *ctrl;
-	virtio_net_ctrl_ack *ack;
+	struct virtio_net_ctrl_hdr ctrl;
+	virtio_net_ctrl_ack ack;
+	size_t len;
 
 	kvm__set_thread_name("virtio-net-ctrl");
 
@@ -234,18 +235,19 @@ static void *virtio_net_ctrl_thread(void *p)
 
 		while (virt_queue__available(vq)) {
 			head = virt_queue__get_iov(vq, iov, &out, &in, kvm);
-			ctrl = iov[0].iov_base;
-			ack = iov[out].iov_base;
+			len = min(iov_size(iov, in), sizeof(ctrl));
+			memcpy_fromiovec((void *)&ctrl, iov, len);
 
-			switch (ctrl->class) {
+			switch (ctrl.class) {
 			case VIRTIO_NET_CTRL_MQ:
-				*ack = virtio_net_handle_mq(kvm, ndev, ctrl);
+				ack = virtio_net_handle_mq(kvm, ndev, &ctrl);
 				break;
 			default:
-				*ack = VIRTIO_NET_ERR;
+				ack = VIRTIO_NET_ERR;
 				break;
 			}
-			virt_queue__set_used_elem(vq, head, iov[out].iov_len);
+			memcpy_toiovec(iov + in, &ack, sizeof(ack));
+			virt_queue__set_used_elem(vq, head, sizeof(ack));
 		}
 
 		if (virtio_queue__should_signal(vq))
@@ -495,7 +497,8 @@ static u32 get_host_features(struct kvm *kvm, void *dev)
 		| 1UL << VIRTIO_RING_F_INDIRECT_DESC
 		| 1UL << VIRTIO_NET_F_CTRL_VQ
 		| 1UL << VIRTIO_NET_F_MRG_RXBUF
-		| 1UL << (ndev->queue_pairs > 1 ? VIRTIO_NET_F_MQ : 0);
+		| 1UL << (ndev->queue_pairs > 1 ? VIRTIO_NET_F_MQ : 0)
+		| 1UL << VIRTIO_F_ANY_LAYOUT;
 
 	/*
 	 * The UFO feature for host and guest only can be enabled when the
