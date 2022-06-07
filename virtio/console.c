@@ -122,7 +122,7 @@ static size_t get_config_size(struct kvm *kvm, void *dev)
 
 static u32 get_host_features(struct kvm *kvm, void *dev)
 {
-	return 0;
+	return 1 << VIRTIO_F_ANY_LAYOUT;
 }
 
 static void notify_status(struct kvm *kvm, void *dev, u32 status)
