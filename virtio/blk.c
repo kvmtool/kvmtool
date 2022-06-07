@@ -2,6 +2,7 @@
 
 #include "kvm/virtio-pci-dev.h"
 #include "kvm/disk-image.h"
+#include "kvm/iovec.h"
 #include "kvm/mutex.h"
 #include "kvm/util.h"
 #include "kvm/kvm.h"
@@ -33,6 +34,7 @@ struct blk_dev_req {
 	struct blk_dev			*bdev;
 	struct iovec			iov[VIRTIO_BLK_QUEUE_SIZE];
 	u16				out, in, head;
+	u8				*status;
 	struct kvm			*kvm;
 };
 
@@ -66,7 +68,7 @@ void virtio_blk_complete(void *param, long len)
 	u8 *status;
 
 	/* status */
-	status	= req->iov[req->out + req->in - 1].iov_base;
+	status = req->status;
 	*status	= (len < 0) ? VIRTIO_BLK_S_IOERR : VIRTIO_BLK_S_OK;
 
 	mutex_lock(&bdev->mutex);
@@ -79,46 +81,60 @@ void virtio_blk_complete(void *param, long len)
 
 static void virtio_blk_do_io_request(struct kvm *kvm, struct virt_queue *vq, struct blk_dev_req *req)
 {
-	struct virtio_blk_outhdr *req_hdr;
-	ssize_t block_cnt;
+	struct virtio_blk_outhdr req_hdr;
+	size_t iovcount, last_iov;
 	struct blk_dev *bdev;
 	struct iovec *iov;
-	u16 out, in;
+	ssize_t len;
 	u32 type;
 	u64 sector;
 
-	block_cnt	= -1;
 	bdev		= req->bdev;
 	iov		= req->iov;
-	out		= req->out;
-	in		= req->in;
-	req_hdr		= iov[0].iov_base;
 
-	type = virtio_guest_to_host_u32(vq, req_hdr->type);
-	sector = virtio_guest_to_host_u64(vq, req_hdr->sector);
+	iovcount = req->out;
+	len = memcpy_fromiovec_safe(&req_hdr, &iov, sizeof(req_hdr), &iovcount);
+	if (len) {
+		pr_warning("Failed to get header");
+		return;
+	}
+
+	type = virtio_guest_to_host_u32(vq, req_hdr.type);
+	sector = virtio_guest_to_host_u64(vq, req_hdr.sector);
+
+	iovcount += req->in;
+	if (!iov_size(iov, iovcount)) {
+		pr_warning("Invalid IOV");
+		return;
+	}
+
+	/* Extract status byte from iovec */
+	last_iov = iovcount - 1;
+	while (!iov[last_iov].iov_len)
+		last_iov--;
+	iov[last_iov].iov_len--;
+	req->status = iov[last_iov].iov_base + iov[last_iov].iov_len;
+	if (!iov[last_iov].iov_len)
+		iovcount--;
 
 	switch (type) {
 	case VIRTIO_BLK_T_IN:
-		block_cnt = disk_image__read(bdev->disk, sector,
-				iov + 1, in + out - 2, req);
+		disk_image__read(bdev->disk, sector, iov, iovcount, req);
 		break;
 	case VIRTIO_BLK_T_OUT:
-		block_cnt = disk_image__write(bdev->disk, sector,
-				iov + 1, in + out - 2, req);
+		disk_image__write(bdev->disk, sector, iov, iovcount, req);
 		break;
 	case VIRTIO_BLK_T_FLUSH:
-		block_cnt = disk_image__flush(bdev->disk);
-		virtio_blk_complete(req, block_cnt);
+		len = disk_image__flush(bdev->disk);
+		virtio_blk_complete(req, len);
 		break;
 	case VIRTIO_BLK_T_GET_ID:
-		block_cnt = VIRTIO_BLK_ID_BYTES;
-		disk_image__get_serial(bdev->disk,
-				(iov + 1)->iov_base, &block_cnt);
-		virtio_blk_complete(req, block_cnt);
+		len = disk_image__get_serial(bdev->disk, iov, iovcount,
+					     VIRTIO_BLK_ID_BYTES);
+		virtio_blk_complete(req, len);
 		break;
 	default:
 		pr_warning("request type %d", type);
-		block_cnt	= -1;
 		break;
 	}
 }
@@ -161,6 +177,7 @@ static u32 get_host_features(struct kvm *kvm, void *dev)
 		| 1UL << VIRTIO_BLK_F_FLUSH
 		| 1UL << VIRTIO_RING_F_EVENT_IDX
 		| 1UL << VIRTIO_RING_F_INDIRECT_DESC
+		| 1UL << VIRTIO_F_ANY_LAYOUT
 		| (bdev->disk->readonly ? 1UL << VIRTIO_BLK_F_RO : 0);
 }
 

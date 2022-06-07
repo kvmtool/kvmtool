@@ -2,6 +2,7 @@
 #include "kvm/qcow.h"
 #include "kvm/virtio-blk.h"
 #include "kvm/kvm.h"
+#include "kvm/iovec.h"
 
 #include <linux/err.h>
 #include <poll.h>
@@ -304,20 +305,33 @@ ssize_t disk_image__write(struct disk_image *disk, u64 sector,
 	return total;
 }
 
-ssize_t disk_image__get_serial(struct disk_image *disk, void *buffer, ssize_t *len)
+ssize_t disk_image__get_serial(struct disk_image *disk, struct iovec *iov,
+			       int iovcount, ssize_t len)
 {
 	struct stat st;
+	void *buf;
 	int r;
 
 	r = fstat(disk->fd, &st);
 	if (r)
 		return r;
 
-	*len = snprintf(buffer, *len, "%llu%llu%llu",
-			(unsigned long long)st.st_dev,
-			(unsigned long long)st.st_rdev,
-			(unsigned long long)st.st_ino);
-	return *len;
+	buf = malloc(len);
+	if (!buf)
+		return -ENOMEM;
+
+	len = snprintf(buf, len, "%llu%llu%llu",
+		       (unsigned long long)st.st_dev,
+		       (unsigned long long)st.st_rdev,
+		       (unsigned long long)st.st_ino);
+	if (len < 0 || (size_t)len > iov_size(iov, iovcount)) {
+		free(buf);
+		return -ENOMEM;
+	}
+
+	memcpy_toiovec(iov, buf, len);
+	free(buf);
+	return len;
 }
 
 void disk_image__set_callback(struct disk_image *disk,
