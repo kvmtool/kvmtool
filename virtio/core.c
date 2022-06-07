@@ -247,8 +247,7 @@ void virtio_notify_status(struct kvm *kvm, struct virtio_device *vdev,
 		 * Reset virtqueues and stop all traffic now, so that the device
 		 * can safely reset the backend in notify_status().
 		 */
-		if (ext_status & VIRTIO__STATUS_STOP)
-			vdev->ops->reset(kvm, vdev);
+		vdev->ops->reset(kvm, vdev);
 	}
 
 	if (vdev->ops->notify_status)
