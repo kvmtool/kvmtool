@@ -31,7 +31,6 @@ struct vsock_dev {
 	struct virtio_device		vdev;
 	struct list_head		list;
 	struct kvm			*kvm;
-	bool				started;
 };
 
 static u8 *get_config(struct kvm *kvm, void *dev)
@@ -140,15 +139,16 @@ static void notify_status(struct kvm *kvm, void *dev, u32 status)
 	struct vsock_dev *vdev = dev;
 	int r, start;
 
-	start = !!(status & VIRTIO_CONFIG_S_DRIVER_OK);
-	if (vdev->started == start)
+	if (status & VIRTIO__STATUS_START)
+		start = 1;
+	else if (status & VIRTIO__STATUS_STOP)
+		start = 0;
+	else
 		return;
 
 	r = ioctl(vdev->vhost_fd, VHOST_VSOCK_SET_RUNNING, &start);
 	if (r != 0)
 		die("VHOST_VSOCK_SET_RUNNING failed %d", errno);
-
-	vdev->started = start;
 }
 
 static int notify_vq(struct kvm *kvm, void *dev, u32 vq)
