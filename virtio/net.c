@@ -81,6 +81,15 @@ static bool has_virtio_feature(struct net_dev *ndev, u32 feature)
 	return ndev->vdev.features & (1 << feature);
 }
 
+static int virtio_net_hdr_len(struct net_dev *ndev)
+{
+	if (has_virtio_feature(ndev, VIRTIO_NET_F_MRG_RXBUF) ||
+	    !ndev->vdev.legacy)
+		return sizeof(struct virtio_net_hdr_mrg_rxbuf);
+
+	return sizeof(struct virtio_net_hdr);
+}
+
 static void *virtio_net_rx_thread(void *p)
 {
 	struct iovec iov[VIRTIO_NET_QUEUE_SIZE];
@@ -133,7 +142,13 @@ static void *virtio_net_rx_thread(void *p)
 				head = virt_queue__get_iov(vq, iov, &out, &in, kvm);
 			}
 
-			if (has_virtio_feature(ndev, VIRTIO_NET_F_MRG_RXBUF))
+			/*
+			 * The device MUST set num_buffers, except in the case
+			 * where the legacy driver did not negotiate
+			 * VIRTIO_NET_F_MRG_RXBUF and the field does not exist.
+			 */
+			if (has_virtio_feature(ndev, VIRTIO_NET_F_MRG_RXBUF) ||
+			    !ndev->vdev.legacy)
 				hdr->num_buffers = virtio_host_to_guest_u16(vq, num_buffers);
 
 			virt_queue__used_idx_advance(vq, num_buffers);
@@ -301,9 +316,7 @@ static bool virtio_net__tap_init(struct net_dev *ndev)
 	const struct virtio_net_params *params = ndev->params;
 	bool skipconf = !!params->tapif;
 
-	hdr_len = has_virtio_feature(ndev, VIRTIO_NET_F_MRG_RXBUF) ?
-			sizeof(struct virtio_net_hdr_mrg_rxbuf) :
-			sizeof(struct virtio_net_hdr);
+	hdr_len = virtio_net_hdr_len(ndev);
 	if (ioctl(ndev->tap_fd, TUNSETVNETHDRSZ, &hdr_len) < 0)
 		pr_warning("Config tap device TUNSETVNETHDRSZ error");
 
@@ -521,9 +534,7 @@ static void virtio_net_start(struct net_dev *ndev)
 				virtio_net__vhost_set_features(ndev) != 0)
 			die_perror("VHOST_SET_FEATURES failed");
 	} else {
-		ndev->info.vnet_hdr_len = has_virtio_feature(ndev, VIRTIO_NET_F_MRG_RXBUF) ?
-						sizeof(struct virtio_net_hdr_mrg_rxbuf) :
-						sizeof(struct virtio_net_hdr);
+		ndev->info.vnet_hdr_len = virtio_net_hdr_len(ndev);
 		uip_init(&ndev->info);
 	}
 }

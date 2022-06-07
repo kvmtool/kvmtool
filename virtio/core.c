@@ -330,6 +330,7 @@ int virtio_init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 
 	switch (trans) {
 	case VIRTIO_PCI:
+		vdev->legacy			= true;
 		virtio = calloc(sizeof(struct virtio_pci), 1);
 		if (!virtio)
 			return -ENOMEM;
@@ -343,6 +344,7 @@ int virtio_init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 		r = vdev->ops->init(kvm, dev, vdev, device_id, subsys_id, class);
 		break;
 	case VIRTIO_MMIO:
+		vdev->legacy			= true;
 		virtio = calloc(sizeof(struct virtio_mmio), 1);
 		if (!virtio)
 			return -ENOMEM;
