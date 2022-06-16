@@ -49,9 +49,11 @@
 #include <ctype.h>
 #include <stdio.h>
 
-#define MB_SHIFT		(20)
 #define KB_SHIFT		(10)
+#define MB_SHIFT		(20)
 #define GB_SHIFT		(30)
+#define TB_SHIFT		(40)
+#define PB_SHIFT		(50)
 
 __thread struct kvm_cpu *current_kvm_cpu;
 
@@ -87,6 +89,54 @@ void kvm_run_set_wrapper_sandbox(void)
 	kvm_run_wrapper = KVM_RUN_SANDBOX;
 }
 
+static int parse_mem_unit(char **next)
+{
+	switch (**next) {
+	case 'B': case 'b': (*next)++; return 0;
+	case 'K': case 'k': (*next)++; return KB_SHIFT;
+	case 'M': case 'm': (*next)++; return MB_SHIFT;
+	case 'G': case 'g': (*next)++; return GB_SHIFT;
+	case 'T': case 't': (*next)++; return TB_SHIFT;
+	case 'P': case 'p': (*next)++; return PB_SHIFT;
+	}
+
+	return MB_SHIFT;
+}
+
+static u64 parse_mem_option(const char *nptr, char **next)
+{
+	u64 shift;
+	u64 val;
+
+	errno = 0;
+	val = strtoull(nptr, next, 10);
+	if (errno == ERANGE)
+		die("Memory too large: %s", nptr);
+	if (*next == nptr)
+		die("Invalid memory specifier: %s", nptr);
+
+	shift = parse_mem_unit(next);
+	if ((val << shift) < val)
+		die("Memory too large: %s", nptr);
+
+	return val << shift;
+}
+
+static int mem_parser(const struct option *opt, const char *arg, int unset)
+{
+	struct kvm *kvm = opt->ptr;
+	char *next;
+
+	kvm->cfg.ram_size = parse_mem_option(arg, &next);
+	if (kvm->cfg.ram_size == 0)
+		die("Invalid RAM size: %s", arg);
+
+	if (*next != '\0')
+		die("Invalid memory specifier: %s", arg);
+
+	return 0;
+}
+
 #ifndef OPT_ARCH_RUN
 #define OPT_ARCH_RUN(...)
 #endif
@@ -97,8 +147,9 @@ void kvm_run_set_wrapper_sandbox(void)
 	OPT_STRING('\0', "name", &(cfg)->guest_name, "guest name",	\
 			"A name for the guest"),			\
 	OPT_INTEGER('c', "cpus", &(cfg)->nrcpus, "Number of CPUs"),	\
-	OPT_U64('m', "mem", &(cfg)->ram_size, "Virtual machine memory"	\
-		" size in MB."),					\
+	OPT_CALLBACK('m', "mem", NULL, "size[BKMGTP]",			\
+		     "Virtual machine memory size, by default measured"	\
+		     " in megabytes (M)", mem_parser, kvm),		\
 	OPT_CALLBACK('d', "disk", kvm, "image or rootfs_dir", "Disk "	\
 			" image or rootfs directory", img_name_parser,	\
 			kvm),						\
@@ -522,8 +573,6 @@ static void kvm_run_validate_cfg(struct kvm *kvm)
 		pr_warning("Ignoring initrd file when loading a firmware image");
 
 	if (kvm->cfg.ram_size) {
-		/* User specifies RAM size in megabytes. */
-		kvm->cfg.ram_size <<= MB_SHIFT;
 		available_ram = host_ram_size();
 		if (available_ram && kvm->cfg.ram_size > available_ram) {
 			pr_warning("Guest memory size %lluMB exceeds host physical RAM size %lluMB",
