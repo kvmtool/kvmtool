@@ -37,6 +37,10 @@ int vcpu_affinity_parser(const struct option *opt, const char *arg, int unset)
 	return 0;
 }
 
+void kvm__arch_validate_cfg(struct kvm *kvm)
+{
+}
+
 /*
  * Return the TEXT_OFFSET value that the guest kernel expects. Note
  * that pre-3.17 kernels expose this value using the native endianness

@@ -48,6 +48,10 @@ struct kvm_ext kvm_req_ext[] = {
 	{ 0, 0 }
 };
 
+void kvm__arch_validate_cfg(struct kvm *kvm)
+{
+}
+
 static uint32_t mfpvr(void)
 {
 	uint32_t r;

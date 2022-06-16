@@ -531,6 +531,8 @@ static void kvm_run_validate_cfg(struct kvm *kvm)
 				(unsigned long long)available_ram >> MB_SHIFT);
 		}
 	}
+
+	kvm__arch_validate_cfg(kvm);
 }
 
 static struct kvm *kvm_cmd_run_init(int argc, const char **argv)

@@ -13,6 +13,10 @@ struct kvm_ext kvm_req_ext[] = {
 	{ 0, 0 }
 };
 
+void kvm__arch_validate_cfg(struct kvm *kvm)
+{
+}
+
 void kvm__arch_read_term(struct kvm *kvm)
 {
 	virtio_console__inject_interrupt(kvm);

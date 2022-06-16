@@ -35,6 +35,10 @@ struct kvm_ext kvm_req_ext[] = {
 	{ 0, 0 }
 };
 
+void kvm__arch_validate_cfg(struct kvm *kvm)
+{
+}
+
 bool kvm__arch_cpu_supports_vm(void)
 {
 	struct cpuid_regs regs;
