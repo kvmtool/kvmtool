@@ -39,6 +39,11 @@ int vcpu_affinity_parser(const struct option *opt, const char *arg, int unset)
 
 void kvm__arch_validate_cfg(struct kvm *kvm)
 {
+	if (kvm->cfg.arch.aarch32_guest &&
+	    kvm->cfg.ram_size > ARM_LOMAP_MAX_MEMORY) {
+		die("RAM size 0x%llx exceeds maximum allowed 0x%llx",
+		    kvm->cfg.ram_size, ARM_LOMAP_MAX_MEMORY);
+	}
 }
 
 /*
