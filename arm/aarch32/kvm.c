@@ -7,3 +7,8 @@ void kvm__arch_validate_cfg(struct kvm *kvm)
 		    kvm->cfg.ram_size, ARM_LOMAP_MAX_MEMORY);
 	}
 }
+
+u64 kvm__arch_default_ram_address(void)
+{
+	return ARM_MEMORY_AREA;
+}

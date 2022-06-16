@@ -13,6 +13,11 @@ struct kvm_ext kvm_req_ext[] = {
 	{ 0, 0 },
 };
 
+u64 kvm__arch_default_ram_address(void)
+{
+	return RISCV_RAM;
+}
+
 void kvm__arch_validate_cfg(struct kvm *kvm)
 {
 }

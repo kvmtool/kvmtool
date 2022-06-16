@@ -46,6 +46,11 @@ void kvm__arch_validate_cfg(struct kvm *kvm)
 	}
 }
 
+u64 kvm__arch_default_ram_address(void)
+{
+	return ARM_MEMORY_AREA;
+}
+
 /*
  * Return the TEXT_OFFSET value that the guest kernel expects. Note
  * that pre-3.17 kernels expose this value using the native endianness
