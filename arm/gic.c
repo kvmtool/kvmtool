@@ -399,6 +399,19 @@ void gic__generate_fdt_nodes(void *fdt, enum irqchip_type type)
 	_FDT(fdt_end_node(fdt));
 }
 
+u32 gic__get_fdt_irq_cpumask(struct kvm *kvm)
+{
+	/* Only for GICv2 */
+	if (kvm->cfg.arch.irqchip == IRQCHIP_GICV3 ||
+	    kvm->cfg.arch.irqchip == IRQCHIP_GICV3_ITS)
+		return 0;
+
+	if (kvm->nrcpus > 8)
+		return GIC_FDT_IRQ_PPI_CPU_MASK;
+
+	return ((1U << kvm->nrcpus) - 1) << GIC_FDT_IRQ_PPI_CPU_SHIFT;
+}
+
 #define KVM_IRQCHIP_IRQ(x) (KVM_ARM_IRQ_TYPE_SPI << KVM_ARM_IRQ_TYPE_SHIFT) |\
 			   ((x) & KVM_ARM_IRQ_NUM_MASK)
 

@@ -9,9 +9,7 @@
 void timer__generate_fdt_nodes(void *fdt, struct kvm *kvm, int *irqs)
 {
 	const char compatible[] = "arm,armv8-timer\0arm,armv7-timer";
-
-	u32 cpu_mask = (((1 << kvm->nrcpus) - 1) << GIC_FDT_IRQ_PPI_CPU_SHIFT) \
-		       & GIC_FDT_IRQ_PPI_CPU_MASK;
+	u32 cpu_mask = gic__get_fdt_irq_cpumask(kvm);
 	u32 irq_prop[] = {
 		cpu_to_fdt32(GIC_FDT_IRQ_TYPE_PPI),
 		cpu_to_fdt32(irqs[0]),

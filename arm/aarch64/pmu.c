@@ -199,8 +199,7 @@ void pmu__generate_fdt_nodes(void *fdt, struct kvm *kvm)
 	int pmu_id = -ENXIO;
 	int i;
 
-	u32 cpu_mask = (((1 << kvm->nrcpus) - 1) << GIC_FDT_IRQ_PPI_CPU_SHIFT) \
-		       & GIC_FDT_IRQ_PPI_CPU_MASK;
+	u32 cpu_mask = gic__get_fdt_irq_cpumask(kvm);
 	u32 irq_prop[] = {
 		cpu_to_fdt32(GIC_FDT_IRQ_TYPE_PPI),
 		cpu_to_fdt32(irq - 16),
