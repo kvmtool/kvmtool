@@ -62,12 +62,13 @@ void kvm__arch_set_cmdline(char *cmdline, bool video)
 }
 
 /* Architecture-specific KVM init */
-void kvm__arch_init(struct kvm *kvm, const char *hugetlbfs_path, u64 ram_size)
+void kvm__arch_init(struct kvm *kvm)
 {
 	int ret;
 
-	kvm->ram_start = mmap_anon_or_hugetlbfs(kvm, hugetlbfs_path, ram_size);
-	kvm->ram_size = ram_size;
+	kvm->ram_size = kvm->cfg.ram_size;
+	kvm->ram_start = mmap_anon_or_hugetlbfs(kvm, kvm->cfg.hugetlbfs_path,
+						kvm->ram_size);
 
 	if (kvm->ram_start == MAP_FAILED)
 		die("out of memory");

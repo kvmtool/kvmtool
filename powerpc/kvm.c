@@ -92,12 +92,13 @@ void kvm__arch_set_cmdline(char *cmdline, bool video)
 }
 
 /* Architecture-specific KVM init */
-void kvm__arch_init(struct kvm *kvm, const char *hugetlbfs_path, u64 ram_size)
+void kvm__arch_init(struct kvm *kvm)
 {
+	const char *hugetlbfs_path = kvm->cfg.hugetlbfs_path;
 	int cap_ppc_rma;
 	unsigned long hpt;
 
-	kvm->ram_size		= ram_size;
+	kvm->ram_size		= kvm->cfg.ram_size;
 
 	/* Map "default" hugetblfs path to the standard 16M mount point */
 	if (hugetlbfs_path && !strcmp(hugetlbfs_path, "default"))
