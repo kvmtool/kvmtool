@@ -36,6 +36,7 @@
 
 #include <linux/types.h>
 #include <linux/err.h>
+#include <linux/sizes.h>
 
 #include <sys/utsname.h>
 #include <sys/types.h>
@@ -264,7 +265,7 @@ static u64 host_ram_size(void)
 		return 0;
 	}
 
-	return (nr_pages * page_size) >> MB_SHIFT;
+	return (u64)nr_pages * page_size;
 }
 
 /*
@@ -278,11 +279,11 @@ static u64 get_ram_size(int nr_cpus)
 	u64 available;
 	u64 ram_size;
 
-	ram_size	= 64 * (nr_cpus + 3);
+	ram_size	= (u64)SZ_64M * (nr_cpus + 3);
 
 	available	= host_ram_size() * RAM_SIZE_RATIO;
 	if (!available)
-		available = MIN_RAM_SIZE_MB;
+		available = MIN_RAM_SIZE;
 
 	if (ram_size > available)
 		ram_size	= available;
@@ -595,13 +596,13 @@ static struct kvm *kvm_cmd_run_init(int argc, const char **argv)
 
 	if (!kvm->cfg.ram_size)
 		kvm->cfg.ram_size = get_ram_size(kvm->cfg.nrcpus);
+	else
+		kvm->cfg.ram_size <<= MB_SHIFT;
 
 	if (kvm->cfg.ram_size > host_ram_size())
 		pr_warning("Guest memory size %lluMB exceeds host physical RAM size %lluMB",
-			(unsigned long long)kvm->cfg.ram_size,
-			(unsigned long long)host_ram_size());
-
-	kvm->cfg.ram_size <<= MB_SHIFT;
+			(unsigned long long)kvm->cfg.ram_size >> MB_SHIFT,
+			(unsigned long long)host_ram_size() >> MB_SHIFT);
 
 	if (!kvm->cfg.dev)
 		kvm->cfg.dev = DEFAULT_KVM_DEV;
@@ -676,12 +677,12 @@ static struct kvm *kvm_cmd_run_init(int argc, const char **argv)
 	if (kvm->cfg.kernel_filename) {
 		printf("  # %s run -k %s -m %Lu -c %d --name %s\n", KVM_BINARY_NAME,
 		       kvm->cfg.kernel_filename,
-		       (unsigned long long)kvm->cfg.ram_size / 1024 / 1024,
+		       (unsigned long long)kvm->cfg.ram_size >> MB_SHIFT,
 		       kvm->cfg.nrcpus, kvm->cfg.guest_name);
 	} else if (kvm->cfg.firmware_filename) {
 		printf("  # %s run --firmware %s -m %Lu -c %d --name %s\n", KVM_BINARY_NAME,
 		       kvm->cfg.firmware_filename,
-		       (unsigned long long)kvm->cfg.ram_size / 1024 / 1024,
+		       (unsigned long long)kvm->cfg.ram_size >> MB_SHIFT,
 		       kvm->cfg.nrcpus, kvm->cfg.guest_name);
 	}
 

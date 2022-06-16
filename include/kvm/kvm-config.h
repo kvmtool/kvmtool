@@ -5,6 +5,8 @@
 #include "kvm/vfio.h"
 #include "kvm/kvm-config-arch.h"
 
+#include <linux/sizes.h>
+
 #define DEFAULT_KVM_DEV		"/dev/kvm"
 #define DEFAULT_CONSOLE		"serial"
 #define DEFAULT_NETWORK		"user"
@@ -15,14 +17,13 @@
 #define DEFAULT_SCRIPT		"none"
 #define DEFAULT_SANDBOX_FILENAME "guest/sandbox.sh"
 
-#define MIN_RAM_SIZE_MB		(64ULL)
-#define MIN_RAM_SIZE_BYTE	(MIN_RAM_SIZE_MB << MB_SHIFT)
+#define MIN_RAM_SIZE		SZ_64M
 
 struct kvm_config {
 	struct kvm_config_arch arch;
 	struct disk_image_params disk_image[MAX_DISK_IMAGES];
 	struct vfio_device_params *vfio_devices;
-	u64 ram_size;
+	u64 ram_size;		/* Guest memory size, in bytes */
 	u8 num_net_devices;
 	u8 num_vfio_devices;
 	u64 vsock_cid;
