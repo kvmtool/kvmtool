@@ -8,8 +8,6 @@
 struct kvm;
 static inline void kvm__arch_enable_mte(struct kvm *kvm) {}
 
-#define ARM_MAX_MEMORY(...)	ARM_LOMAP_MAX_MEMORY
-
 #define MAX_PAGE_SIZE	SZ_4K
 
 #include "arm-common/kvm-arch.h"
