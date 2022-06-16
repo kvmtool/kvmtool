@@ -55,7 +55,7 @@ void kvm__init_ram(struct kvm *kvm)
 	madvise(kvm->arch.ram_alloc_start, kvm->arch.ram_alloc_size,
 		MADV_HUGEPAGE);
 
-	phys_start	= ARM_MEMORY_AREA;
+	phys_start	= kvm->cfg.ram_addr;
 	phys_size	= kvm->ram_size;
 	host_mem	= kvm->ram_start;
 
@@ -65,6 +65,9 @@ void kvm__init_ram(struct kvm *kvm)
 		    "address 0x%llx [err %d]", phys_size, phys_start, err);
 
 	kvm->arch.memory_guest_start = phys_start;
+
+	pr_debug("RAM created at 0x%llx - 0x%llx",
+		 phys_start, phys_start + phys_size - 1);
 }
 
 void kvm__arch_delete_ram(struct kvm *kvm)
@@ -201,7 +204,7 @@ bool kvm__load_firmware(struct kvm *kvm, const char *firmware_filename)
 
 	/* For default firmware address, lets load it at the begining of RAM */
 	if (fw_addr == 0)
-		fw_addr = ARM_MEMORY_AREA;
+		fw_addr = kvm->arch.memory_guest_start;
 
 	if (!validate_fw_addr(kvm, fw_addr))
 		die("Bad firmware destination: 0x%016llx", fw_addr);

@@ -4,6 +4,7 @@
 
 #include <linux/byteorder.h>
 #include <linux/cpumask.h>
+#include <linux/sizes.h>
 
 #include <kvm/util.h>
 
@@ -39,10 +40,15 @@ int vcpu_affinity_parser(const struct option *opt, const char *arg, int unset)
 
 void kvm__arch_validate_cfg(struct kvm *kvm)
 {
+
+	if (kvm->cfg.ram_addr < ARM_MEMORY_AREA) {
+		die("RAM address is below the I/O region ending at %luGB",
+		    ARM_MEMORY_AREA >> 30);
+	}
+
 	if (kvm->cfg.arch.aarch32_guest &&
-	    kvm->cfg.ram_size > ARM_LOMAP_MAX_MEMORY) {
-		die("RAM size 0x%llx exceeds maximum allowed 0x%llx",
-		    kvm->cfg.ram_size, ARM_LOMAP_MAX_MEMORY);
+	    kvm->cfg.ram_addr + kvm->cfg.ram_size > SZ_4G) {
+		die("RAM extends above 4GB");
 	}
 }
 
@@ -117,7 +123,7 @@ int kvm__get_vm_type(struct kvm *kvm)
 		return 0;
 
 	/* Otherwise, compute the minimal required IPA size */
-	max_ipa = ARM_MEMORY_AREA + kvm->cfg.ram_size - 1;
+	max_ipa = kvm->cfg.ram_addr + kvm->cfg.ram_size - 1;
 	ipa_bits = max(32, fls_long(max_ipa));
 	pr_debug("max_ipa %lx ipa_bits %d max_ipa_bits %d",
 		 max_ipa, ipa_bits, max_ipa_bits);

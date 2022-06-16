@@ -125,11 +125,20 @@ static u64 parse_mem_option(const char *nptr, char **next)
 static int mem_parser(const struct option *opt, const char *arg, int unset)
 {
 	struct kvm *kvm = opt->ptr;
-	char *next;
+	char *next, *nptr;
 
 	kvm->cfg.ram_size = parse_mem_option(arg, &next);
 	if (kvm->cfg.ram_size == 0)
 		die("Invalid RAM size: %s", arg);
+
+	if (kvm__arch_has_cfg_ram_address() && *next == '@') {
+		next++;
+		if (*next == '\0')
+			die("Missing memory address: %s", arg);
+
+		nptr = next;
+		kvm->cfg.ram_addr = parse_mem_option(nptr, &next);
+	}
 
 	if (*next != '\0')
 		die("Invalid memory specifier: %s", arg);
@@ -141,15 +150,26 @@ static int mem_parser(const struct option *opt, const char *arg, int unset)
 #define OPT_ARCH_RUN(...)
 #endif
 
+#ifdef ARCH_HAS_CFG_RAM_ADDRESS
+#define MEM_OPT_HELP_SHORT	"size[BKMGTP][@addr[BKMGTP]]"
+#define MEM_OPT_HELP_LONG						\
+	"Virtual machine memory size and optional base address, both"	\
+	" measured by default in megabytes (M)"
+#else
+#define MEM_OPT_HELP_SHORT	"size[BKMGTP]"
+#define MEM_OPT_HELP_LONG						\
+	"Virtual machine memory size, by default measured in"		\
+	" in megabytes (M)"
+#endif
+
 #define BUILD_OPTIONS(name, cfg, kvm)					\
 	struct option name[] = {					\
 	OPT_GROUP("Basic options:"),					\
 	OPT_STRING('\0', "name", &(cfg)->guest_name, "guest name",	\
 			"A name for the guest"),			\
 	OPT_INTEGER('c', "cpus", &(cfg)->nrcpus, "Number of CPUs"),	\
-	OPT_CALLBACK('m', "mem", NULL, "size[BKMGTP]",			\
-		     "Virtual machine memory size, by default measured"	\
-		     " in megabytes (M)", mem_parser, kvm),		\
+	OPT_CALLBACK('m', "mem", NULL, MEM_OPT_HELP_SHORT,		\
+		     MEM_OPT_HELP_LONG, mem_parser, kvm),		\
 	OPT_CALLBACK('d', "disk", kvm, "image or rootfs_dir", "Disk "	\
 			" image or rootfs directory", img_name_parser,	\
 			kvm),						\
@@ -595,6 +615,14 @@ static struct kvm *kvm_cmd_run_init(int argc, const char **argv)
 
 	nr_online_cpus = sysconf(_SC_NPROCESSORS_ONLN);
 	kvm->cfg.custom_rootfs_name = "default";
+	/*
+	 * An architecture can allow the user to set the RAM base address to
+	 * zero. Initialize the address before parsing the command line
+	 * arguments, otherwise it will be impossible to distinguish between the
+	 * user setting the base address to zero or letting it unset and using
+	 * the default value.
+	 */
+	kvm->cfg.ram_addr = kvm__arch_default_ram_address();
 
 	while (argc != 0) {
 		BUILD_OPTIONS(options, &kvm->cfg, kvm);

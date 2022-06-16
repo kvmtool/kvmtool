@@ -10,6 +10,8 @@ void kvm__arch_enable_mte(struct kvm *kvm);
 
 #define MAX_PAGE_SIZE	SZ_64K
 
+#define ARCH_HAS_CFG_RAM_ADDRESS	1
+
 #include "arm-common/kvm-arch.h"
 
 #endif /* KVM__KVM_ARCH_H */
