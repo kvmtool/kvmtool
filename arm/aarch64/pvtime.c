@@ -14,15 +14,15 @@ static int pvtime__alloc_region(struct kvm *kvm)
 	char *mem;
 	int ret = 0;
 
-	mem = mmap(NULL, ARM_PVTIME_BASE, PROT_RW,
+	mem = mmap(NULL, ARM_PVTIME_SIZE, PROT_RW,
 		   MAP_ANON_NORESERVE, -1, 0);
 	if (mem == MAP_FAILED)
 		return -errno;
 
 	ret = kvm__register_ram(kvm, ARM_PVTIME_BASE,
-				ARM_PVTIME_BASE, mem);
+				ARM_PVTIME_SIZE, mem);
 	if (ret) {
-		munmap(mem, ARM_PVTIME_BASE);
+		munmap(mem, ARM_PVTIME_SIZE);
 		return ret;
 	}
 
@@ -36,8 +36,8 @@ static int pvtime__teardown_region(struct kvm *kvm)
 		return 0;
 
 	kvm__destroy_mem(kvm, ARM_PVTIME_BASE,
-			 ARM_PVTIME_BASE, usr_mem);
-	munmap(usr_mem, ARM_PVTIME_BASE);
+			 ARM_PVTIME_SIZE, usr_mem);
+	munmap(usr_mem, ARM_PVTIME_SIZE);
 	usr_mem = NULL;
 	return 0;
 }
