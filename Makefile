@@ -74,6 +74,7 @@ OBJS	+= virtio/rng.o
 OBJS    += virtio/balloon.o
 OBJS	+= virtio/pci.o
 OBJS	+= virtio/vsock.o
+OBJS	+= virtio/pci-legacy.o
 OBJS	+= disk/blk.o
 OBJS	+= disk/qcow.o
 OBJS	+= disk/raw.o

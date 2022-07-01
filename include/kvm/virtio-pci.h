@@ -4,12 +4,15 @@
 #include "kvm/devices.h"
 #include "kvm/pci.h"
 
+#include <stdbool.h>
+#include <linux/byteorder.h>
 #include <linux/types.h>
 
 #define VIRTIO_PCI_MAX_VQ	32
 #define VIRTIO_PCI_MAX_CONFIG	1
 
 struct kvm;
+struct kvm_cpu;
 
 struct virtio_pci_ioevent_param {
 	struct virtio_device	*vdev;
@@ -17,6 +20,13 @@ struct virtio_pci_ioevent_param {
 };
 
 #define VIRTIO_PCI_F_SIGNAL_MSI (1 << 0)
+
+#define ALIGN_UP(x, s)		ALIGN((x) + (s) - 1, (s))
+#define VIRTIO_NR_MSIX		(VIRTIO_PCI_MAX_VQ + VIRTIO_PCI_MAX_CONFIG)
+#define VIRTIO_MSIX_TABLE_SIZE	(VIRTIO_NR_MSIX * 16)
+#define VIRTIO_MSIX_PBA_SIZE	(ALIGN_UP(VIRTIO_MSIX_TABLE_SIZE, 64) / 8)
+#define VIRTIO_MSIX_BAR_SIZE	(1UL << fls_long(VIRTIO_MSIX_TABLE_SIZE + \
+						 VIRTIO_MSIX_PBA_SIZE))
 
 struct virtio_pci {
 	struct pci_device_header pci_hdr;
@@ -56,5 +66,34 @@ int virtio_pci__exit(struct kvm *kvm, struct virtio_device *vdev);
 int virtio_pci__reset(struct kvm *kvm, struct virtio_device *vdev);
 int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 		     int device_id, int subsys_id, int class);
+
+static inline bool virtio_pci__msix_enabled(struct virtio_pci *vpci)
+{
+	return vpci->pci_hdr.msix.ctrl & cpu_to_le16(PCI_MSIX_FLAGS_ENABLE);
+}
+
+static inline u16 virtio_pci__port_addr(struct virtio_pci *vpci)
+{
+	return pci__bar_address(&vpci->pci_hdr, 0);
+}
+
+static inline u32 virtio_pci__mmio_addr(struct virtio_pci *vpci)
+{
+	return pci__bar_address(&vpci->pci_hdr, 1);
+}
+
+static inline u32 virtio_pci__msix_io_addr(struct virtio_pci *vpci)
+{
+	return pci__bar_address(&vpci->pci_hdr, 2);
+}
+
+int virtio_pci__add_msix_route(struct virtio_pci *vpci, u32 vec);
+int virtio_pci__init_ioeventfd(struct kvm *kvm, struct virtio_device *vdev,
+			       u32 vq);
+int virtio_pci_init_vq(struct kvm *kvm, struct virtio_device *vdev, int vq);
+void virtio_pci_exit_vq(struct kvm *kvm, struct virtio_device *vdev, int vq);
+
+void virtio_pci_legacy__io_mmio_callback(struct kvm_cpu *vcpu, u64 addr, u8 *data,
+				  u32 len, u8 is_write, void *ptr);
 
 #endif
