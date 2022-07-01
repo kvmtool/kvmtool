@@ -24,6 +24,7 @@ struct virtio_pci {
 	void			*dev;
 	struct kvm		*kvm;
 
+	u32			doorbell_offset;
 	u8			status;
 	u8			isr;
 	u32			features;

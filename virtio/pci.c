@@ -81,6 +81,7 @@ static int virtio_pci__init_ioeventfd(struct kvm *kvm, struct virtio_device *vde
 	struct virtio_pci *vpci = vdev->virtio;
 	u32 mmio_addr = virtio_pci__mmio_addr(vpci);
 	u16 port_addr = virtio_pci__port_addr(vpci);
+	off_t offset = vpci->doorbell_offset;
 	int r, flags = 0;
 	int fd;
 
@@ -104,7 +105,7 @@ static int virtio_pci__init_ioeventfd(struct kvm *kvm, struct virtio_device *vde
 		flags |= IOEVENTFD_FLAG_USER_POLL;
 
 	/* ioport */
-	ioevent.io_addr	= port_addr + VIRTIO_PCI_QUEUE_NOTIFY;
+	ioevent.io_addr	= port_addr + offset;
 	ioevent.io_len	= sizeof(u16);
 	ioevent.fd	= fd = eventfd(0, 0);
 	r = ioeventfd__add_event(&ioevent, flags | IOEVENTFD_FLAG_PIO);
@@ -112,7 +113,7 @@ static int virtio_pci__init_ioeventfd(struct kvm *kvm, struct virtio_device *vde
 		return r;
 
 	/* mmio */
-	ioevent.io_addr	= mmio_addr + VIRTIO_PCI_QUEUE_NOTIFY;
+	ioevent.io_addr	= mmio_addr + offset;
 	ioevent.io_len	= sizeof(u16);
 	ioevent.fd	= eventfd(0, 0);
 	r = ioeventfd__add_event(&ioevent, flags);
@@ -124,7 +125,7 @@ static int virtio_pci__init_ioeventfd(struct kvm *kvm, struct virtio_device *vde
 	return 0;
 
 free_ioport_evt:
-	ioeventfd__del_event(port_addr + VIRTIO_PCI_QUEUE_NOTIFY, vq);
+	ioeventfd__del_event(port_addr + offset, vq);
 	return r;
 }
 
@@ -148,12 +149,13 @@ static void virtio_pci_exit_vq(struct kvm *kvm, struct virtio_device *vdev,
 	struct virtio_pci *vpci = vdev->virtio;
 	u32 mmio_addr = virtio_pci__mmio_addr(vpci);
 	u16 port_addr = virtio_pci__port_addr(vpci);
+	off_t offset = vpci->doorbell_offset;
 
 	virtio_pci__del_msix_route(vpci, vpci->gsis[vq]);
 	vpci->gsis[vq] = 0;
 	vpci->vq_vector[vq] = VIRTIO_MSI_NO_VECTOR;
-	ioeventfd__del_event(mmio_addr + VIRTIO_PCI_QUEUE_NOTIFY, vq);
-	ioeventfd__del_event(port_addr + VIRTIO_PCI_QUEUE_NOTIFY, vq);
+	ioeventfd__del_event(mmio_addr + offset, vq);
+	ioeventfd__del_event(port_addr + offset, vq);
 	virtio_exit_vq(kvm, vdev, vpci->dev, vq);
 }
 
@@ -570,6 +572,8 @@ int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 	port_addr = pci_get_io_port_block(PCI_IO_SIZE);
 	mmio_addr = pci_get_mmio_block(PCI_IO_SIZE);
 	msix_io_block = pci_get_mmio_block(VIRTIO_MSIX_BAR_SIZE);
+
+	vpci->doorbell_offset = VIRTIO_PCI_QUEUE_NOTIFY;
 
 	vpci->pci_hdr = (struct pci_device_header) {
 		.vendor_id		= cpu_to_le16(PCI_VENDOR_ID_REDHAT_QUMRANET),
