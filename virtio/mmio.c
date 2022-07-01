@@ -79,6 +79,20 @@ int virtio_mmio_signal_vq(struct kvm *kvm, struct virtio_device *vdev, u32 vq)
 	return 0;
 }
 
+static int virtio_mmio_init_vq(struct kvm *kvm, struct virtio_device *vdev,
+			       int vq)
+{
+	int ret;
+	struct virtio_mmio *vmmio = vdev->virtio;
+
+	ret = virtio_mmio_init_ioeventfd(vmmio->kvm, vdev, vq);
+	if (ret) {
+		pr_err("couldn't add ioeventfd for vq %d: %d", vq, ret);
+		return ret;
+	}
+	return vdev->ops->init_vq(vmmio->kvm, vmmio->dev, vq);
+}
+
 static void virtio_mmio_exit_vq(struct kvm *kvm, struct virtio_device *vdev,
 				int vq)
 {
@@ -200,10 +214,7 @@ static void virtio_mmio_config_out(struct kvm_cpu *vcpu,
 				.align	= vmmio->hdr.queue_align,
 				.pgsize	= vmmio->hdr.guest_page_size,
 			};
-			virtio_mmio_init_ioeventfd(vmmio->kvm, vdev,
-						   vmmio->hdr.queue_sel);
-			vdev->ops->init_vq(vmmio->kvm, vmmio->dev,
-					   vmmio->hdr.queue_sel);
+			virtio_mmio_init_vq(kvm, vdev, vmmio->hdr.queue_sel);
 		} else {
 			virtio_mmio_exit_vq(kvm, vdev, vmmio->hdr.queue_sel);
 		}

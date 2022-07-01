@@ -128,6 +128,20 @@ free_ioport_evt:
 	return r;
 }
 
+static int virtio_pci_init_vq(struct kvm *kvm, struct virtio_device *vdev,
+			      int vq)
+{
+	int ret;
+	struct virtio_pci *vpci = vdev->virtio;
+
+	ret = virtio_pci__init_ioeventfd(kvm, vdev, vq);
+	if (ret) {
+		pr_err("couldn't add ioeventfd for vq %d: %d", vq, ret);
+		return ret;
+	}
+	return vdev->ops->init_vq(kvm, vpci->dev, vq);
+}
+
 static void virtio_pci_exit_vq(struct kvm *kvm, struct virtio_device *vdev,
 			       int vq)
 {
@@ -314,10 +328,7 @@ static bool virtio_pci__data_out(struct kvm_cpu *vcpu, struct virtio_device *vde
 				.align	= VIRTIO_PCI_VRING_ALIGN,
 				.pgsize	= 1 << VIRTIO_PCI_QUEUE_ADDR_SHIFT,
 			};
-			virtio_pci__init_ioeventfd(kvm, vdev,
-						   vpci->queue_selector);
-			vdev->ops->init_vq(kvm, vpci->dev,
-					   vpci->queue_selector);
+			virtio_pci_init_vq(kvm, vdev, vpci->queue_selector);
 		} else {
 			virtio_pci_exit_vq(kvm, vdev, vpci->queue_selector);
 		}
