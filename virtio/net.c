@@ -601,6 +601,7 @@ static bool is_ctrl_vq(struct net_dev *ndev, u32 vq)
 static int init_vq(struct kvm *kvm, void *dev, u32 vq)
 {
 	struct vhost_vring_state state = { .index = vq };
+	struct vhost_vring_file file = { .index = vq };
 	struct net_dev_queue *net_queue;
 	struct vhost_vring_addr addr;
 	struct net_dev *ndev = dev;
@@ -655,6 +656,11 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq)
 	r = ioctl(ndev->vhost_fd, VHOST_SET_VRING_ADDR, &addr);
 	if (r < 0)
 		die_perror("VHOST_SET_VRING_ADDR failed");
+
+	file.fd = ndev->tap_fd;
+	r = ioctl(ndev->vhost_fd, VHOST_NET_SET_BACKEND, &file);
+	if (r < 0)
+		die_perror("VHOST_NET_SET_BACKEND failed");
 
 	return 0;
 }
@@ -713,11 +719,6 @@ static void notify_vq_gsi(struct kvm *kvm, void *dev, u32 vq, u32 gsi)
 	r = ioctl(ndev->vhost_fd, VHOST_SET_VRING_CALL, &file);
 	if (r < 0)
 		die_perror("VHOST_SET_VRING_CALL failed");
-	file.fd = ndev->tap_fd;
-	r = ioctl(ndev->vhost_fd, VHOST_NET_SET_BACKEND, &file);
-	if (r != 0)
-		die("VHOST_NET_SET_BACKEND failed %d", errno);
-
 }
 
 static void notify_vq_eventfd(struct kvm *kvm, void *dev, u32 vq, u32 efd)
