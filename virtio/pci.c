@@ -404,7 +404,9 @@ int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 	/* Both table and PBA are mapped to the same BAR (2) */
 	vpci->pci_hdr.msix.table_offset = cpu_to_le32(2);
 	vpci->pci_hdr.msix.pba_offset = cpu_to_le32(2 | VIRTIO_MSIX_TABLE_SIZE);
-	vpci->config_vector = 0;
+	vpci->config_vector = VIRTIO_MSI_NO_VECTOR;
+	/* Initialize all vq vectors to NO_VECTOR */
+	memset(vpci->vq_vector, 0xff, sizeof(vpci->vq_vector));
 
 	if (irq__can_signal_msi(kvm))
 		vpci->features |= VIRTIO_PCI_F_SIGNAL_MSI;

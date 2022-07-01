@@ -53,7 +53,7 @@ struct virtio_pci {
 	/* MSI-X */
 	u16			config_vector;
 	u32			config_gsi;
-	u32			vq_vector[VIRTIO_PCI_MAX_VQ];
+	u16			vq_vector[VIRTIO_PCI_MAX_VQ];
 	u32			gsis[VIRTIO_PCI_MAX_VQ];
 	u64			msix_pba;
 	struct msix_table	msix_table[VIRTIO_PCI_MAX_VQ + VIRTIO_PCI_MAX_CONFIG];
