@@ -60,6 +60,13 @@ static int virtio_pci__add_msix_route(struct virtio_pci *vpci, u32 vec)
 	return gsi;
 }
 
+static void virtio_pci__del_msix_route(struct virtio_pci *vpci, u32 gsi)
+{
+	struct msi_msg msg = { 0 };
+
+	irq__update_msix_route(vpci->kvm, gsi, &msg);
+}
+
 static void virtio_pci__ioevent_callback(struct kvm *kvm, void *param)
 {
 	struct virtio_pci_ioevent_param *ioeventfd = param;
@@ -128,6 +135,9 @@ static void virtio_pci_exit_vq(struct kvm *kvm, struct virtio_device *vdev,
 	u32 mmio_addr = virtio_pci__mmio_addr(vpci);
 	u16 port_addr = virtio_pci__port_addr(vpci);
 
+	virtio_pci__del_msix_route(vpci, vpci->gsis[vq]);
+	vpci->gsis[vq] = 0;
+	vpci->vq_vector[vq] = VIRTIO_MSI_NO_VECTOR;
 	ioeventfd__del_event(mmio_addr + VIRTIO_PCI_QUEUE_NOTIFY, vq);
 	ioeventfd__del_event(port_addr + VIRTIO_PCI_QUEUE_NOTIFY, vq);
 	virtio_exit_vq(kvm, vdev, vpci->dev, vq);
@@ -622,6 +632,10 @@ int virtio_pci__reset(struct kvm *kvm, struct virtio_device *vdev)
 {
 	unsigned int vq;
 	struct virtio_pci *vpci = vdev->virtio;
+
+	virtio_pci__del_msix_route(vpci, vpci->config_gsi);
+	vpci->config_gsi = 0;
+	vpci->config_vector = VIRTIO_MSI_NO_VECTOR;
 
 	for (vq = 0; vq < vdev->ops->get_vq_count(kvm, vpci->dev); vq++)
 		virtio_pci_exit_vq(kvm, vdev, vq);
