@@ -4,6 +4,8 @@
 #include <linux/types.h>
 #include <linux/virtio_mmio.h>
 
+#include <kvm/kvm-cpu.h>
+
 #define VIRTIO_MMIO_MAX_VQ	32
 #define VIRTIO_MMIO_MAX_CONFIG	1
 #define VIRTIO_MMIO_IO_SIZE	0x200
@@ -57,4 +59,11 @@ int virtio_mmio_exit(struct kvm *kvm, struct virtio_device *vdev);
 int virtio_mmio_reset(struct kvm *kvm, struct virtio_device *vdev);
 int virtio_mmio_init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 		      int device_id, int subsys_id, int class);
+int virtio_mmio_init_ioeventfd(struct kvm *kvm, struct virtio_device *vdev,
+			       u32 vq);
+
+void virtio_mmio_legacy_callback(struct kvm_cpu *vcpu, u64 addr, u8 *data,
+				 u32 len, u8 is_write, void *ptr);
+int virtio_mmio_init_vq(struct kvm *kvm, struct virtio_device *vdev, int vq);
+void virtio_mmio_exit_vq(struct kvm *kvm, struct virtio_device *vdev, int vq);
 #endif
