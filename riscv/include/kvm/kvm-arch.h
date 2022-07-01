@@ -46,7 +46,8 @@
 
 #define KVM_VM_TYPE		0
 
-#define VIRTIO_DEFAULT_TRANS(kvm)	VIRTIO_MMIO
+#define VIRTIO_DEFAULT_TRANS(kvm) \
+	((kvm)->cfg.virtio_legacy ? VIRTIO_MMIO_LEGACY : VIRTIO_MMIO)
 
 #define VIRTIO_RING_ENDIAN	VIRTIO_ENDIAN_LE
 

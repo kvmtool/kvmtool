@@ -16,7 +16,7 @@ const char* virtio_trans_name(enum virtio_trans trans)
 {
 	if (trans == VIRTIO_PCI || trans == VIRTIO_PCI_LEGACY)
 		return "pci";
-	else if (trans == VIRTIO_MMIO)
+	else if (trans == VIRTIO_MMIO || trans == VIRTIO_MMIO_LEGACY)
 		return "mmio";
 	return "unknown";
 }
@@ -345,8 +345,10 @@ int virtio_init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 		vdev->ops->reset		= virtio_pci__reset;
 		r = vdev->ops->init(kvm, dev, vdev, device_id, subsys_id, class);
 		break;
-	case VIRTIO_MMIO:
+	case VIRTIO_MMIO_LEGACY:
 		vdev->legacy			= true;
+		/* fall through */
+	case VIRTIO_MMIO:
 		virtio = calloc(sizeof(struct virtio_mmio), 1);
 		if (!virtio)
 			return -ENOMEM;

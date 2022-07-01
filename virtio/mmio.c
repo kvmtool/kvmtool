@@ -149,6 +149,7 @@ static void generate_virtio_mmio_fdt_node(void *fdt,
 int virtio_mmio_init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 		     int device_id, int subsys_id, int class)
 {
+	bool legacy = vdev->legacy;
 	struct virtio_mmio *vmmio = vdev->virtio;
 	int r;
 
@@ -156,14 +157,19 @@ int virtio_mmio_init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 	vmmio->kvm	= kvm;
 	vmmio->dev	= dev;
 
-	r = kvm__register_mmio(kvm, vmmio->addr, VIRTIO_MMIO_IO_SIZE,
-			       false, virtio_mmio_legacy_callback, vdev);
+	if (!legacy)
+		vdev->endian = VIRTIO_ENDIAN_LE;
+
+	r = kvm__register_mmio(kvm, vmmio->addr, VIRTIO_MMIO_IO_SIZE, false,
+			       legacy ? virtio_mmio_legacy_callback :
+					virtio_mmio_modern_callback,
+			       vdev);
 	if (r < 0)
 		return r;
 
 	vmmio->hdr = (struct virtio_mmio_hdr) {
 		.magic		= {'v', 'i', 'r', 't'},
-		.version	= 1,
+		.version	= legacy ? 1 : 2,
 		.device_id	= subsys_id,
 		.vendor_id	= 0x4d564b4c , /* 'LKVM' */
 		.queue_num_max	= 256,

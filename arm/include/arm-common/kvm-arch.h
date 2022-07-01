@@ -83,7 +83,7 @@
 #define VIRTIO_DEFAULT_TRANS(kvm)					\
 	((kvm)->cfg.arch.virtio_trans_pci ?				\
 	 ((kvm)->cfg.virtio_legacy ? VIRTIO_PCI_LEGACY : VIRTIO_PCI) :	\
-	 VIRTIO_MMIO)
+	 ((kvm)->cfg.virtio_legacy ? VIRTIO_MMIO_LEGACY : VIRTIO_MMIO))
 
 #define VIRTIO_RING_ENDIAN	(VIRTIO_ENDIAN_LE | VIRTIO_ENDIAN_BE)
 

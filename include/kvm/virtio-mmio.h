@@ -27,20 +27,30 @@ struct virtio_mmio_hdr {
 	u32	reserved_1[2];
 	u32	guest_features;
 	u32	guest_features_sel;
-	u32	guest_page_size;
+	u32	guest_page_size;	/* legacy */
 	u32	reserved_2;
 	u32	queue_sel;
 	u32	queue_num_max;
 	u32	queue_num;
-	u32	queue_align;
-	u32	queue_pfn;
-	u32	reserved_3[3];
+	u32	queue_align;		/* legacy */
+	u32	queue_pfn;		/* legacy */
+	u32	queue_ready;		/* modern */
+	u32	reserved_3[2];
 	u32	queue_notify;
 	u32	reserved_4[3];
 	u32	interrupt_state;
 	u32	interrupt_ack;
 	u32	reserved_5[2];
 	u32	status;
+	u32	reserved_7[3];
+	u32	queue_desc_low;		/* modern */
+	u32	queue_desc_high;
+	u32	reserved_8[2];
+	u32	queue_avail_low;
+	u32	queue_avail_high;
+	u32	reserved_9[2];
+	u32	queue_used_low;
+	u32	queue_used_high;
 } __attribute__((packed));
 
 struct virtio_mmio {
@@ -63,6 +73,8 @@ int virtio_mmio_init_ioeventfd(struct kvm *kvm, struct virtio_device *vdev,
 			       u32 vq);
 
 void virtio_mmio_legacy_callback(struct kvm_cpu *vcpu, u64 addr, u8 *data,
+				 u32 len, u8 is_write, void *ptr);
+void virtio_mmio_modern_callback(struct kvm_cpu *vcpu, u64 addr, u8 *data,
 				 u32 len, u8 is_write, void *ptr);
 int virtio_mmio_init_vq(struct kvm *kvm, struct virtio_device *vdev, int vq);
 void virtio_mmio_exit_vq(struct kvm *kvm, struct virtio_device *vdev, int vq);

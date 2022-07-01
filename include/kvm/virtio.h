@@ -196,6 +196,7 @@ enum virtio_trans {
 	VIRTIO_PCI,
 	VIRTIO_PCI_LEGACY,
 	VIRTIO_MMIO,
+	VIRTIO_MMIO_LEGACY,
 };
 
 struct virtio_device {
