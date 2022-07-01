@@ -20,8 +20,6 @@ struct virtio_pci_ioevent_param {
 	u32			vq;
 };
 
-#define VIRTIO_PCI_F_SIGNAL_MSI (1 << 0)
-
 #define ALIGN_UP(x, s)		ALIGN((x) + (s) - 1, (s))
 #define VIRTIO_NR_MSIX		(VIRTIO_PCI_MAX_VQ + VIRTIO_PCI_MAX_CONFIG)
 #define VIRTIO_MSIX_TABLE_SIZE	(VIRTIO_NR_MSIX * 16)
@@ -36,11 +34,11 @@ struct virtio_pci {
 	struct kvm		*kvm;
 
 	u32			doorbell_offset;
+	bool			signal_msi;
 	u8			status;
 	u8			isr;
 	u32			device_features_sel;
 	u32			driver_features_sel;
-	u32			features;
 
 	/*
 	 * We cannot rely on the INTERRUPT_LINE byte in the config space once

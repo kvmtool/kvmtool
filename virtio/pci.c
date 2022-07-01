@@ -28,7 +28,7 @@ int virtio_pci__add_msix_route(struct virtio_pci *vpci, u32 vec)
 	 * We don't need IRQ routing if we can use
 	 * MSI injection via the KVM_SIGNAL_MSI ioctl.
 	 */
-	if (gsi == -ENXIO && vpci->features & VIRTIO_PCI_F_SIGNAL_MSI)
+	if (gsi == -ENXIO && vpci->signal_msi)
 		return gsi;
 
 	if (gsi < 0)
@@ -234,7 +234,7 @@ int virtio_pci__signal_vq(struct kvm *kvm, struct virtio_device *vdev, u32 vq)
 			return 0;
 		}
 
-		if (vpci->features & VIRTIO_PCI_F_SIGNAL_MSI)
+		if (vpci->signal_msi)
 			virtio_pci__signal_msi(kvm, vpci, vpci->vq_vector[vq]);
 		else
 			kvm__irq_trigger(kvm, vpci->gsis[vq]);
@@ -258,7 +258,7 @@ int virtio_pci__signal_config(struct kvm *kvm, struct virtio_device *vdev)
 			return 0;
 		}
 
-		if (vpci->features & VIRTIO_PCI_F_SIGNAL_MSI)
+		if (vpci->signal_msi)
 			virtio_pci__signal_msi(kvm, vpci, tbl);
 		else
 			kvm__irq_trigger(kvm, vpci->config_gsi);
@@ -409,7 +409,7 @@ int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 	memset(vpci->vq_vector, 0xff, sizeof(vpci->vq_vector));
 
 	if (irq__can_signal_msi(kvm))
-		vpci->features |= VIRTIO_PCI_F_SIGNAL_MSI;
+		vpci->signal_msi = true;
 
 	vpci->legacy_irq_line = pci__assign_irq(&vpci->pci_hdr);
 
