@@ -83,7 +83,7 @@ static int virtio_pci__init_ioeventfd(struct kvm *kvm, struct virtio_device *vde
 	u16 port_addr = virtio_pci__port_addr(vpci);
 	off_t offset = vpci->doorbell_offset;
 	int r, flags = 0;
-	int fd;
+	int pio_fd, mmio_fd;
 
 	vpci->ioeventfds[vq] = (struct virtio_pci_ioevent_param) {
 		.vdev		= vdev,
@@ -107,7 +107,7 @@ static int virtio_pci__init_ioeventfd(struct kvm *kvm, struct virtio_device *vde
 	/* ioport */
 	ioevent.io_addr	= port_addr + offset;
 	ioevent.io_len	= sizeof(u16);
-	ioevent.fd	= fd = eventfd(0, 0);
+	ioevent.fd	= pio_fd = eventfd(0, 0);
 	r = ioeventfd__add_event(&ioevent, flags | IOEVENTFD_FLAG_PIO);
 	if (r)
 		return r;
@@ -115,13 +115,14 @@ static int virtio_pci__init_ioeventfd(struct kvm *kvm, struct virtio_device *vde
 	/* mmio */
 	ioevent.io_addr	= mmio_addr + offset;
 	ioevent.io_len	= sizeof(u16);
-	ioevent.fd	= eventfd(0, 0);
+	ioevent.fd	= mmio_fd = eventfd(0, 0);
 	r = ioeventfd__add_event(&ioevent, flags);
 	if (r)
 		goto free_ioport_evt;
 
 	if (vdev->ops->notify_vq_eventfd)
-		vdev->ops->notify_vq_eventfd(kvm, vpci->dev, vq, fd);
+		vdev->ops->notify_vq_eventfd(kvm, vpci->dev, vq,
+					     vdev->legacy ? pio_fd : mmio_fd);
 	return 0;
 
 free_ioport_evt:
