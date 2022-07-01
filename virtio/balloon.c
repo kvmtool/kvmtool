@@ -200,7 +200,7 @@ static size_t get_config_size(struct kvm *kvm, void *dev)
 	return sizeof(bdev->config);
 }
 
-static u32 get_host_features(struct kvm *kvm, void *dev)
+static u64 get_host_features(struct kvm *kvm, void *dev)
 {
 	return 1 << VIRTIO_BALLOON_F_STATS_VQ;
 }

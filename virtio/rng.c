@@ -52,7 +52,7 @@ static size_t get_config_size(struct kvm *kvm, void *dev)
 	return 0;
 }
 
-static u32 get_host_features(struct kvm *kvm, void *dev)
+static u64 get_host_features(struct kvm *kvm, void *dev)
 {
 	/* Unused */
 	return 0;

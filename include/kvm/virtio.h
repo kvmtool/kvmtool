@@ -203,14 +203,14 @@ struct virtio_device {
 	void			*virtio;
 	struct virtio_ops	*ops;
 	u16			endian;
-	u32			features;
+	u64			features;
 	u32			status;
 };
 
 struct virtio_ops {
 	u8 *(*get_config)(struct kvm *kvm, void *dev);
 	size_t (*get_config_size)(struct kvm *kvm, void *dev);
-	u32 (*get_host_features)(struct kvm *kvm, void *dev);
+	u64 (*get_host_features)(struct kvm *kvm, void *dev);
 	unsigned int (*get_vq_count)(struct kvm *kvm, void *dev);
 	int (*init_vq)(struct kvm *kvm, void *dev, u32 vq);
 	void (*exit_vq)(struct kvm *kvm, void *dev, u32 vq);
@@ -242,7 +242,7 @@ bool virtio_access_config(struct kvm *kvm, struct virtio_device *vdev, void *dev
 			  unsigned long offset, void *data, size_t size,
 			  bool is_write);
 void virtio_set_guest_features(struct kvm *kvm, struct virtio_device *vdev,
-			       void *dev, u32 features);
+			       void *dev, u64 features);
 void virtio_notify_status(struct kvm *kvm, struct virtio_device *vdev,
 			  void *dev, u8 status);
 

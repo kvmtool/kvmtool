@@ -482,9 +482,9 @@ static size_t get_config_size(struct kvm *kvm, void *dev)
 	return sizeof(ndev->config);
 }
 
-static u32 get_host_features(struct kvm *kvm, void *dev)
+static u64 get_host_features(struct kvm *kvm, void *dev)
 {
-	u32 features;
+	u64 features;
 	struct net_dev *ndev = dev;
 
 	features = 1UL << VIRTIO_NET_F_MAC

@@ -245,11 +245,11 @@ bool virtio_queue__should_signal(struct virt_queue *vq)
 }
 
 void virtio_set_guest_features(struct kvm *kvm, struct virtio_device *vdev,
-			       void *dev, u32 features)
+			       void *dev, u64 features)
 {
 	/* TODO: fail negotiation if features & ~host_features */
 
-	vdev->features = features;
+	vdev->features |= features;
 }
 
 void virtio_notify_status(struct kvm *kvm, struct virtio_device *vdev,

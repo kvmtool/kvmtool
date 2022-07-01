@@ -44,7 +44,7 @@ static size_t get_config_size(struct kvm *kvm, void *dev)
 	return sizeof(sdev->config);
 }
 
-static u32 get_host_features(struct kvm *kvm, void *dev)
+static u64 get_host_features(struct kvm *kvm, void *dev)
 {
 	return	1UL << VIRTIO_RING_F_EVENT_IDX |
 		1UL << VIRTIO_RING_F_INDIRECT_DESC;
