@@ -35,8 +35,6 @@
 
 #define KVM_IOEVENTFD_HAS_PIO	0
 
-#define VIRTIO_DEFAULT_TRANS(kvm)	VIRTIO_PCI
-
 #define MAX_PAGE_SIZE		SZ_64K
 
 #include <stdbool.h>

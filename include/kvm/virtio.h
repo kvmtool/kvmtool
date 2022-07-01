@@ -194,6 +194,7 @@ int virtio__get_dev_specific_field(int offset, bool msix, u32 *config_off);
 
 enum virtio_trans {
 	VIRTIO_PCI,
+	VIRTIO_PCI_LEGACY,
 	VIRTIO_MMIO,
 };
 

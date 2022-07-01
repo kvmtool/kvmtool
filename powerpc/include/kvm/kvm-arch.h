@@ -51,8 +51,6 @@
 
 #define MAX_PAGE_SIZE			SZ_256K
 
-#define VIRTIO_DEFAULT_TRANS(kvm)	VIRTIO_PCI
-
 struct spapr_phb;
 
 struct kvm_arch {

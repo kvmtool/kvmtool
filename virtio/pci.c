@@ -275,8 +275,14 @@ static int virtio_pci__bar_activate(struct kvm *kvm,
 				    int bar_num, void *data)
 {
 	struct virtio_device *vdev = data;
+	mmio_handler_fn mmio_fn;
 	u32 bar_addr, bar_size;
 	int r = -EINVAL;
+
+	if (vdev->legacy)
+		mmio_fn = &virtio_pci_legacy__io_mmio_callback;
+	else
+		mmio_fn = &virtio_pci_modern__io_mmio_callback;
 
 	assert(bar_num <= 2);
 
@@ -285,13 +291,10 @@ static int virtio_pci__bar_activate(struct kvm *kvm,
 
 	switch (bar_num) {
 	case 0:
-		r = kvm__register_pio(kvm, bar_addr, bar_size,
-				      virtio_pci_legacy__io_mmio_callback,
-				      vdev);
+		r = kvm__register_pio(kvm, bar_addr, bar_size, mmio_fn, vdev);
 		break;
 	case 1:
-		r =  kvm__register_mmio(kvm, bar_addr, bar_size, false,
-					virtio_pci_legacy__io_mmio_callback,
+		r =  kvm__register_mmio(kvm, bar_addr, bar_size, false, mmio_fn,
 					vdev);
 		break;
 	case 2:
@@ -347,14 +350,12 @@ int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 	mmio_addr = pci_get_mmio_block(PCI_IO_SIZE);
 	msix_io_block = pci_get_mmio_block(VIRTIO_MSIX_BAR_SIZE);
 
-	vpci->doorbell_offset = VIRTIO_PCI_QUEUE_NOTIFY;
-
 	vpci->pci_hdr = (struct pci_device_header) {
 		.vendor_id		= cpu_to_le16(PCI_VENDOR_ID_REDHAT_QUMRANET),
 		.device_id		= cpu_to_le16(device_id),
 		.command		= PCI_COMMAND_IO | PCI_COMMAND_MEMORY,
 		.header_type		= PCI_HEADER_TYPE_NORMAL,
-		.revision_id		= 0,
+		.revision_id		= vdev->legacy ? 0 : 1,
 		.class[0]		= class & 0xff,
 		.class[1]		= (class >> 8) & 0xff,
 		.class[2]		= (class >> 16) & 0xff,
@@ -367,7 +368,7 @@ int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 		.bar[2]			= cpu_to_le32(msix_io_block
 							| PCI_BASE_ADDRESS_SPACE_MEMORY),
 		.status			= cpu_to_le16(PCI_STATUS_CAP_LIST),
-		.capabilities		= (void *)&vpci->pci_hdr.msix - (void *)&vpci->pci_hdr,
+		.capabilities		= PCI_CAP_OFF(&vpci->pci_hdr, msix),
 		.bar_size[0]		= cpu_to_le32(PCI_IO_SIZE),
 		.bar_size[1]		= cpu_to_le32(PCI_IO_SIZE),
 		.bar_size[2]		= cpu_to_le32(VIRTIO_MSIX_BAR_SIZE),
@@ -413,6 +414,11 @@ int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 	r = device__register(&vpci->dev_hdr);
 	if (r < 0)
 		return r;
+
+	if (vdev->legacy)
+		vpci->doorbell_offset = VIRTIO_PCI_QUEUE_NOTIFY;
+	else
+		return virtio_pci_modern_init(vdev);
 
 	return 0;
 }

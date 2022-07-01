@@ -4,6 +4,7 @@
 #include <linux/types.h>
 #include <linux/kvm.h>
 #include <linux/pci_regs.h>
+#include <linux/virtio_pci.h>
 #include <endian.h>
 #include <stdbool.h>
 
@@ -142,6 +143,14 @@ struct msi_cap_32 {
 	u32 pend_bits;
 };
 
+struct virtio_caps {
+	struct virtio_pci_cap		common;
+	struct virtio_pci_notify_cap	notify;
+	struct virtio_pci_cap		isr;
+	struct virtio_pci_cap		device;
+	struct virtio_pci_cfg_cap	pci;
+};
+
 struct pci_cap_hdr {
 	u8	type;
 	u8	next;
@@ -212,6 +221,7 @@ struct pci_device_header {
 			struct msix_cap msix;
 			/* Used only by architectures which support PCIE */
 			struct pci_exp_cap pci_exp;
+			struct virtio_caps virtio;
 		} __attribute__((packed));
 		/* Pad to PCI config space size */
 		u8	__pad[PCI_DEV_CFG_SIZE];
@@ -232,6 +242,7 @@ struct pci_device_header {
 };
 
 #define PCI_CAP(pci_hdr, pos) ((void *)(pci_hdr) + (pos))
+#define PCI_CAP_OFF(pci_hdr, cap) ((void *)&(pci_hdr)->cap - (void *)(pci_hdr))
 
 #define pci_for_each_cap(pos, cap, hdr)				\
 	for ((pos) = (hdr)->capabilities & ~3;			\

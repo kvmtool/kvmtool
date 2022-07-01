@@ -3,6 +3,7 @@
 
 #include "kvm/devices.h"
 #include "kvm/pci.h"
+#include "kvm/virtio.h"
 
 #include <stdbool.h>
 #include <linux/byteorder.h>
@@ -37,6 +38,8 @@ struct virtio_pci {
 	u32			doorbell_offset;
 	u8			status;
 	u8			isr;
+	u32			device_features_sel;
+	u32			driver_features_sel;
 	u32			features;
 
 	/*
@@ -66,6 +69,7 @@ int virtio_pci__exit(struct kvm *kvm, struct virtio_device *vdev);
 int virtio_pci__reset(struct kvm *kvm, struct virtio_device *vdev);
 int virtio_pci__init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 		     int device_id, int subsys_id, int class);
+int virtio_pci_modern_init(struct virtio_device *vdev);
 
 static inline bool virtio_pci__msix_enabled(struct virtio_pci *vpci)
 {
@@ -95,5 +99,7 @@ void virtio_pci_exit_vq(struct kvm *kvm, struct virtio_device *vdev, int vq);
 
 void virtio_pci_legacy__io_mmio_callback(struct kvm_cpu *vcpu, u64 addr, u8 *data,
 				  u32 len, u8 is_write, void *ptr);
+void virtio_pci_modern__io_mmio_callback(struct kvm_cpu *vcpu, u64 addr, u8 *data,
+					 u32 len, u8 is_write, void *ptr);
 
 #endif
