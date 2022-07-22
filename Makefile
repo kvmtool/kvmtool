@@ -115,11 +115,11 @@ ARCH ?= $(shell uname -m | sed -e s/i.86/i386/ -e s/ppc.*/powerpc/ \
 	  -e s/riscv64/riscv/ -e s/riscv32/riscv/)
 
 ifeq ($(ARCH),i386)
-	ARCH         := x86
+	override ARCH = x86
 	DEFINES      += -DCONFIG_X86_32
 endif
 ifeq ($(ARCH),x86_64)
-	ARCH         := x86
+	override ARCH = x86
 	DEFINES      += -DCONFIG_X86_64
 	ARCH_PRE_INIT = x86/init.S
 endif
