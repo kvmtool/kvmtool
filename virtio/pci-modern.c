@@ -245,10 +245,7 @@ static bool virtio_pci__isr_read(struct virtio_device *vdev,
 		return false;
 
 	ioport__write8(data, vpci->isr);
-	/*
-	 * Interrupts are edge triggered (yes, going against the PCI and virtio
-	 * specs), so no need to deassert the IRQ line.
-	 */
+	kvm__irq_line(vpci->kvm, vpci->legacy_irq_line, VIRTIO_IRQ_LOW);
 	vpci->isr = 0;
 
 	return 0;
