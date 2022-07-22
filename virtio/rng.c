@@ -162,7 +162,7 @@ int virtio_rng__init(struct kvm *kvm)
 	if (!kvm->cfg.virtio_rng)
 		return 0;
 
-	rdev = malloc(sizeof(*rdev));
+	rdev = calloc(1, sizeof(*rdev));
 	if (rdev == NULL)
 		return -ENOMEM;
 
