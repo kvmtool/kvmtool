@@ -383,7 +383,7 @@ comma = ,
 # The dependency file for the current target
 depfile = $(subst $(comma),_,$(dir $@).$(notdir $@).d)
 
-DEPS	:= $(foreach obj,$(OBJS),\
+DEPS	:= $(foreach obj,$(OBJS) $(OBJS_DYNOPT) $(OTHEROBJS) $(GUEST_OBJS),\
 		$(subst $(comma),_,$(dir $(obj)).$(notdir $(obj)).d))
 
 DEFINES	+= -D_FILE_OFFSET_BITS=64
@@ -590,6 +590,7 @@ cscope:
 # Escape redundant work on cleaning up
 ifneq ($(MAKECMDGOALS),clean)
 -include $(DEPS)
+-include $(STATIC_DEPS)
 
 KVMTOOLS-VERSION-FILE:
 	@$(SHELL_PATH) util/KVMTOOLS-VERSION-GEN $(OUTPUT)
