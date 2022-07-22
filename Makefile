@@ -353,13 +353,28 @@ $(warning No static libc found. Skipping guest init)
 endif
 
 ifeq (y,$(ARCH_WANT_LIBFDT))
-	ifneq ($(call try-build,$(SOURCE_LIBFDT),$(CFLAGS),-lfdt),y)
-          $(error No libfdt found. Please install libfdt-dev package)
-	else
+	ifneq ($(LIBFDT_DIR),)
+		ifeq ($(wildcard $(LIBFDT_DIR)),)
+                        $(error LIBFDT_DIR not found)
+		endif
+
+		LIBFDT_STATIC	:= $(LIBFDT_DIR)/libfdt.a
+
+		ifeq ($(wildcard $(LIBFDT_STATIC)),)
+                        $(error libfdt.a not found)
+		endif
+
+		CFLAGS_DYNOPT	+= -DCONFIG_HAS_LIBFDT
+		CFLAGS_STATOPT	+= -DCONFIG_HAS_LIBFDT
+		CFLAGS		+= -I $(LIBFDT_DIR)
+	else ifeq ($(call try-build,$(SOURCE_LIBFDT),$(CFLAGS),-lfdt),y)
+		LIBFDT_STATIC	:=
 		CFLAGS_DYNOPT	+= -DCONFIG_HAS_LIBFDT
 		CFLAGS_STATOPT	+= -DCONFIG_HAS_LIBFDT
 		LIBS_DYNOPT	+= -lfdt
 		LIBS_STATOPT	+= -lfdt
+	else
+                $(error No libfdt found. Please install libfdt-dev package or set LIBFDT_DIR)
 	endif
 endif
 
@@ -433,13 +448,13 @@ STATIC_OBJS = $(patsubst %.o,%.static.o,$(OBJS) $(OBJS_STATOPT))
 STATIC_DEPS	:= $(foreach obj,$(STATIC_OBJS),\
 		$(subst $(comma),_,$(dir $(obj)).$(notdir $(obj)).d))
 
-$(PROGRAM)-static:  $(STATIC_OBJS) $(OTHEROBJS) $(GUEST_OBJS)
+$(PROGRAM)-static:  $(STATIC_OBJS) $(OTHEROBJS) $(GUEST_OBJS) $(LIBFDT_STATIC)
 	$(E) "  LINK    " $@
-	$(Q) $(CC) -static $(CFLAGS) $(STATIC_OBJS) $(OTHEROBJS) $(GUEST_OBJS) $(LDFLAGS) $(LIBS) $(LIBS_STATOPT) -o $@
+	$(Q) $(CC) -static $(CFLAGS) $(STATIC_OBJS) $(OTHEROBJS) $(GUEST_OBJS) $(LDFLAGS) $(LIBS) $(LIBS_STATOPT) $(LIBFDT_STATIC) -o $@
 
-$(PROGRAM): $(OBJS) $(OBJS_DYNOPT) $(OTHEROBJS) $(GUEST_OBJS)
+$(PROGRAM): $(OBJS) $(OBJS_DYNOPT) $(OTHEROBJS) $(GUEST_OBJS) $(LIBFDT_STATIC)
 	$(E) "  LINK    " $@
-	$(Q) $(CC) $(CFLAGS) $(OBJS) $(OBJS_DYNOPT) $(OTHEROBJS) $(GUEST_OBJS) $(LDFLAGS) $(LIBS) $(LIBS_DYNOPT) -o $@
+	$(Q) $(CC) $(CFLAGS) $(OBJS) $(OBJS_DYNOPT) $(OTHEROBJS) $(GUEST_OBJS) $(LDFLAGS) $(LIBS) $(LIBS_DYNOPT) $(LIBFDT_STATIC) -o $@
 
 $(PROGRAM_ALIAS): $(PROGRAM)
 	$(E) "  LN      " $@

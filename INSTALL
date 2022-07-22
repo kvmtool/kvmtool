@@ -91,10 +91,20 @@ can cross-compile the libfdt library yourself:
 $ git clone git://git.kernel.org/pub/scm/utils/dtc/dtc.git
 $ cd dtc
 $ export CC=${CROSS_COMPILE}gcc
+$ make libfdt
+
+After compiling libfdt, the library can be installed system-wide:
+
 $ TRIPLET=$($CC -dumpmachine)
 $ SYSROOT=$($CC -print-sysroot)
-$ make libfdt
 $ sudo make DESTDIR=$SYSROOT PREFIX=/usr LIBDIR=/usr/lib/$TRIPLET install-lib install-includes
 
 This assumes a multiarch-enabled system, if there is no per-arch directory for
 libraries, replace the LIBDIR paths above with LIBDIR=/usr/lib or /usr/lib64.
+
+Alternatively, if installing the shared library is not desirable or possible,
+you can instruct kvmtool to use the static library when compiling by using the
+variable LIBFDT_DIR. LIBFDT_DIR should point to the dtc/libfdt directory.
+kvmtool will include the static library LIBFDT_DIR/libfdt.a in the executable,
+removing the need for the shared library to be present on the system.
+LIBFDT_DIR, when set, takes precedence over the system library.
