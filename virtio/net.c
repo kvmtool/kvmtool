@@ -295,7 +295,7 @@ static int virtio_net_exec_script(const char* script, const char *tap_name)
 	pid_t pid;
 	int status;
 
-	pid = fork();
+	pid = vfork();
 	if (pid == 0) {
 		execl(script, script, tap_name, NULL);
 		_exit(1);
