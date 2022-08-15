@@ -17,6 +17,7 @@ struct isa_ext_info {
 };
 
 struct isa_ext_info isa_info_arr[] = {
+	{"svpbmt", KVM_RISCV_ISA_EXT_SVPBMT},
 };
 
 static void dump_fdt(const char *dtb_file, void *fdt)
