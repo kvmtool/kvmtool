@@ -9,6 +9,16 @@
 #include <linux/kernel.h>
 #include <linux/sizes.h>
 
+#define RISCV_ISA_EXT_REG(id)	__kvm_reg_id(KVM_REG_RISCV_ISA_EXT, \
+					     id, KVM_REG_SIZE_ULONG)
+struct isa_ext_info {
+	const char *name;
+	unsigned long ext_id;
+};
+
+struct isa_ext_info isa_info_arr[] = {
+};
+
 static void dump_fdt(const char *dtb_file, void *fdt)
 {
 	int count, fd;
@@ -31,6 +41,7 @@ static void generate_cpu_nodes(void *fdt, struct kvm *kvm)
 {
 	int cpu, pos, i, index, valid_isa_len;
 	const char *valid_isa_order = "IEMAFDQCLBJTPVNSUHKORWXYZG";
+	int arr_sz = ARRAY_SIZE(isa_info_arr);
 
 	_FDT(fdt_begin_node(fdt, "cpus"));
 	_FDT(fdt_property_cell(fdt, "#address-cells", 0x1));
@@ -42,6 +53,8 @@ static void generate_cpu_nodes(void *fdt, struct kvm *kvm)
 		char cpu_name[CPU_NAME_MAX_LEN];
 		char cpu_isa[CPU_ISA_MAX_LEN];
 		struct kvm_cpu *vcpu = kvm->cpus[cpu];
+		struct kvm_one_reg reg;
+		unsigned long isa_ext_out = 0;
 
 		snprintf(cpu_name, CPU_NAME_MAX_LEN, "cpu@%x", cpu);
 
@@ -52,6 +65,23 @@ static void generate_cpu_nodes(void *fdt, struct kvm *kvm)
 			index = valid_isa_order[i] - 'A';
 			if (vcpu->riscv_isa & (1 << (index)))
 				cpu_isa[pos++] = 'a' + index;
+		}
+
+		for (i = 0; i < arr_sz; i++) {
+			reg.id = RISCV_ISA_EXT_REG(isa_info_arr[i].ext_id);
+			reg.addr = (unsigned long)&isa_ext_out;
+			if (ioctl(vcpu->vcpu_fd, KVM_GET_ONE_REG, &reg) < 0)
+				continue;
+			if (!isa_ext_out)
+				/* This extension is not available in hardware */
+				continue;
+
+			if ((strlen(isa_info_arr[i].name) + pos + 1) >= CPU_ISA_MAX_LEN) {
+				pr_warning("Insufficient space to append ISA exension\n");
+				break;
+			}
+			pos += snprintf(cpu_isa + pos, CPU_ISA_MAX_LEN, "_%s",
+					isa_info_arr[i].name);
 		}
 		cpu_isa[pos] = '\0';
 
