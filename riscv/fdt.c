@@ -122,6 +122,7 @@ static int setup_fdt(struct kvm *kvm)
 		cpu_to_fdt64(kvm->arch.memory_guest_start),
 		cpu_to_fdt64(kvm->ram_size),
 	};
+	char *str;
 	void *fdt		= staging_fdt;
 	void *fdt_dest		= guest_flat_to_host(kvm,
 						     kvm->arch.dtb_guest_start);
@@ -205,12 +206,15 @@ static int setup_fdt(struct kvm *kvm)
 	_FDT(fdt_end_node(fdt));
 
 	if (fdt_stdout_path) {
-		_FDT(fdt_begin_node(fdt, "aliases"));
-		_FDT(fdt_property_string(fdt, "serial0", fdt_stdout_path));
-		_FDT(fdt_end_node(fdt));
-
+		str = malloc(strlen(fdt_stdout_path) + strlen("/smb") + 1);
+		sprintf(str, "/smb%s", fdt_stdout_path);
 		free(fdt_stdout_path);
 		fdt_stdout_path = NULL;
+
+		_FDT(fdt_begin_node(fdt, "aliases"));
+		_FDT(fdt_property_string(fdt, "serial0", str));
+		_FDT(fdt_end_node(fdt));
+		free(str);
 	}
 
 	/* Finalise. */
