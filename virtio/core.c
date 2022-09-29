@@ -165,7 +165,7 @@ void virtio_init_device_vq(struct kvm *kvm, struct virtio_device *vdev,
 	struct vring_addr *addr = &vq->vring_addr;
 
 	vq->endian		= vdev->endian;
-	vq->use_event_idx	= (vdev->features & VIRTIO_RING_F_EVENT_IDX);
+	vq->use_event_idx	= (vdev->features & (1UL << VIRTIO_RING_F_EVENT_IDX));
 	vq->enabled		= true;
 
 	if (addr->legacy) {
