@@ -9,8 +9,6 @@
 #include <linux/kernel.h>
 #include <linux/sizes.h>
 
-#define RISCV_ISA_EXT_REG(id)	__kvm_reg_id(KVM_REG_RISCV_ISA_EXT, \
-					     id, KVM_REG_SIZE_ULONG)
 struct isa_ext_info {
 	const char *name;
 	unsigned long ext_id;
