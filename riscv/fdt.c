@@ -80,6 +80,14 @@ static void generate_cpu_nodes(void *fdt, struct kvm *kvm)
 				/* This extension is not available in hardware */
 				continue;
 
+			if (kvm->cfg.arch.ext_disabled[isa_info_arr[i].ext_id]) {
+				isa_ext_out = 0;
+				if (ioctl(vcpu->vcpu_fd, KVM_SET_ONE_REG, &reg) < 0)
+					pr_warning("Failed to disable %s ISA exension\n",
+						   isa_info_arr[i].name);
+				continue;
+			}
+
 			if (isa_info_arr[i].ext_id == KVM_RISCV_ISA_EXT_ZICBOM && !cbom_blksz) {
 				reg.id = RISCV_CONFIG_REG(zicbom_block_size);
 				reg.addr = (unsigned long)&cbom_blksz;
