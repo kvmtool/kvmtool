@@ -117,15 +117,15 @@ static void pci_config_data_mmio(struct kvm_cpu *vcpu, u64 addr, u8 *data,
 {
 	union pci_config_address pci_config_address;
 
-	if (len > 4)
-		len = 4;
-
 	pci_config_address.w = ioport__read32(&pci_config_address_bits);
 	/*
 	 * If someone accesses PCI configuration space offsets that are not
 	 * aligned to 4 bytes, it uses ioports to signify that.
 	 */
 	pci_config_address.reg_offset = addr - PCI_CONFIG_DATA;
+
+	/* Ensure the access does not cross a 4-byte boundary */
+	len = min(len, 4U - pci_config_address.reg_offset);
 
 	if (is_write)
 		pci__config_wr(vcpu->kvm, pci_config_address, data, len);
@@ -350,6 +350,24 @@ static void pci_config_bar_wr(struct kvm *kvm,
 	pci_activate_bar_regions(kvm, old_addr, bar_size);
 }
 
+/*
+ * Bits that are writable in the config space header.
+ * Write-1-to-clear Status bits are missing since we never set them.
+ */
+static const u8 pci_config_writable[PCI_STD_HEADER_SIZEOF] = {
+	[PCI_COMMAND] =
+		PCI_COMMAND_IO |
+		PCI_COMMAND_MEMORY |
+		PCI_COMMAND_MASTER |
+		PCI_COMMAND_PARITY,
+	[PCI_COMMAND + 1] =
+		(PCI_COMMAND_SERR |
+		 PCI_COMMAND_INTX_DISABLE) >> 8,
+	[PCI_INTERRUPT_LINE] = 0xff,
+	[PCI_BASE_ADDRESS_0 ... PCI_BASE_ADDRESS_5 + 3] = 0xff,
+	[PCI_CACHE_LINE_SIZE] = 0xff,
+};
+
 void pci__config_wr(struct kvm *kvm, union pci_config_address addr, void *data, int size)
 {
 	void *base;
@@ -357,7 +375,7 @@ void pci__config_wr(struct kvm *kvm, union pci_config_address addr, void *data, 
 	u16 offset;
 	struct pci_device_header *pci_hdr;
 	u8 dev_num = addr.device_number;
-	u32 value = 0;
+	u32 value = 0, mask = 0;
 
 	if (!pci_device_exists(addr.bus_number, dev_num, 0))
 		return;
@@ -365,19 +383,19 @@ void pci__config_wr(struct kvm *kvm, union pci_config_address addr, void *data, 
 	offset = addr.w & PCI_DEV_CFG_MASK;
 	base = pci_hdr = device__find_dev(DEVICE_BUS_PCI, dev_num)->data;
 
+	/* We don't sanity-check capabilities for the moment */
+	if (offset < PCI_STD_HEADER_SIZEOF) {
+		memcpy(&mask, pci_config_writable + offset, size);
+		if (!mask)
+			return;
+	}
+
 	if (pci_hdr->cfg_ops.write)
 		pci_hdr->cfg_ops.write(kvm, pci_hdr, offset, data, size);
 
-	/*
-	 * legacy hack: ignore writes to uninitialized regions (e.g. ROM BAR).
-	 * Not very nice but has been working so far.
-	 */
-	if (*(u32 *)(base + offset) == 0)
-		return;
-
 	if (offset == PCI_COMMAND) {
 		memcpy(&value, data, size);
-		pci_config_command_wr(kvm, pci_hdr, (u16)value);
+		pci_config_command_wr(kvm, pci_hdr, (u16)value & mask);
 		return;
 	}
 
@@ -419,8 +437,16 @@ static void pci_config_mmio_access(struct kvm_cpu *vcpu, u64 addr, u8 *data,
 	cfg_addr.w		= (u32)addr;
 	cfg_addr.enable_bit	= 1;
 
-	if (len > 4)
-		len = 4;
+	/*
+	 * To prevent some overflows, reject accesses that cross a 4-byte
+	 * boundary. The PCIe specification says:
+	 *
+	 *  "Root Complex implementations are not required to support the
+	 *  generation of Configuration Requests from accesses that cross DW
+	 *  [4 bytes] boundaries."
+	 */
+	if ((addr & 3) + len > 4)
+		return;
 
 	if (is_write)
 		pci__config_wr(kvm, cfg_addr, data, len);
