@@ -17,6 +17,10 @@
 #define serial_iobase(nr)	(ARM_UART_MMIO_BASE + (nr) * 0x1000)
 #define serial_irq(nr)		(32 + (nr))
 #define SERIAL8250_BUS_TYPE	DEVICE_BUS_MMIO
+#elif defined(CONFIG_RISCV)
+#define serial_iobase(nr)	(RISCV_UART_MMIO_BASE + (nr) * 0x1000)
+#define serial_irq(nr)		(1 + (nr))
+#define SERIAL8250_BUS_TYPE	DEVICE_BUS_MMIO
 #else
 #define serial_iobase_0		(KVM_IOPORT_AREA + 0x3f8)
 #define serial_iobase_1		(KVM_IOPORT_AREA + 0x2f8)
