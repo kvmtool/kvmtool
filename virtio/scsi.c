@@ -264,7 +264,7 @@ static int virtio_scsi_init_one(struct kvm *kvm, struct disk_image *disk)
 	list_add_tail(&sdev->list, &sdevs);
 
 	r = virtio_init(kvm, sdev, &sdev->vdev, &scsi_dev_virtio_ops,
-			VIRTIO_DEFAULT_TRANS(kvm), PCI_DEVICE_ID_VIRTIO_SCSI,
+			kvm->cfg.virtio_transport, PCI_DEVICE_ID_VIRTIO_SCSI,
 			VIRTIO_ID_SCSI, PCI_CLASS_BLK);
 	if (r < 0)
 		return r;

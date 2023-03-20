@@ -279,7 +279,7 @@ int virtio_bln__init(struct kvm *kvm)
 	memset(&bdev.config, 0, sizeof(struct virtio_balloon_config));
 
 	r = virtio_init(kvm, &bdev, &bdev.vdev, &bln_dev_virtio_ops,
-			VIRTIO_DEFAULT_TRANS(kvm), PCI_DEVICE_ID_VIRTIO_BLN,
+			kvm->cfg.virtio_transport, PCI_DEVICE_ID_VIRTIO_BLN,
 			VIRTIO_ID_BALLOON, PCI_CLASS_BLN);
 	if (r < 0)
 		return r;

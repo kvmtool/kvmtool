@@ -285,7 +285,7 @@ static int virtio_vsock_init_one(struct kvm *kvm, u64 guest_cid)
 	list_add_tail(&vdev->list, &vdevs);
 
 	r = virtio_init(kvm, vdev, &vdev->vdev, &vsock_dev_virtio_ops,
-		    VIRTIO_DEFAULT_TRANS(kvm), PCI_DEVICE_ID_VIRTIO_VSOCK,
+		    kvm->cfg.virtio_transport, PCI_DEVICE_ID_VIRTIO_VSOCK,
 		    VIRTIO_ID_VSOCK, PCI_CLASS_VSOCK);
 	if (r < 0)
 	    return r;

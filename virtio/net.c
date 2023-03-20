@@ -928,10 +928,10 @@ done:
 
 static int virtio_net__init_one(struct virtio_net_params *params)
 {
-	int i, r;
+	enum virtio_trans trans = params->kvm->cfg.virtio_transport;
 	struct net_dev *ndev;
 	struct virtio_ops *ops;
-	enum virtio_trans trans = VIRTIO_DEFAULT_TRANS(params->kvm);
+	int i, r;
 
 	ndev = calloc(1, sizeof(struct net_dev));
 	if (ndev == NULL)
