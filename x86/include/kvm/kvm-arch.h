@@ -38,6 +38,7 @@ struct kvm_arch {
 	u16			boot_ip;
 	u16			boot_sp;
 
+	struct kvm_pic		*vpic;
 	struct interrupt_table	interrupt_table;
 };
 

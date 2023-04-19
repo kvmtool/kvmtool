@@ -172,9 +172,11 @@ void kvm__arch_init(struct kvm *kvm)
 
 	madvise(kvm->ram_start, kvm->ram_size, MADV_MERGEABLE);
 
-	ret = ioctl(kvm->vm_fd, KVM_CREATE_IRQCHIP);
-	if (ret < 0)
-		die_perror("KVM_CREATE_IRQCHIP ioctl");
+	if (!irqchip_split(kvm)) {
+		ret = ioctl(kvm->vm_fd, KVM_CREATE_IRQCHIP);
+		if (ret < 0)
+			die_perror("KVM_CREATE_IRQCHIP ioctl");
+	}
 }
 
 void kvm__arch_delete_ram(struct kvm *kvm)
@@ -185,6 +187,11 @@ void kvm__arch_delete_ram(struct kvm *kvm)
 void kvm__irq_line(struct kvm *kvm, int irq, int level)
 {
 	struct kvm_irq_level irq_level;
+
+	if (irqchip_split(kvm)) {
+		kvm_pic_set_irq(kvm->arch.vpic, irq, level);
+		return;
+	}
 
 	irq_level	= (struct kvm_irq_level) {
 		{
