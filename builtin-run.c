@@ -162,6 +162,15 @@ static int mem_parser(const struct option *opt, const char *arg, int unset)
 	" in megabytes (M)"
 #endif
 
+#ifdef CONFIG_X86
+#define OPT_BOOLEAN_IRQCHIP_SPLIT(name, cfg, kvm)			\
+	OPT_BOOLEAN('\0', "irqchip-split", &(cfg)->irqchip_split, 	\
+		    "Use IRQCHIP_SPLIT mode instead of default "	\
+		    "IRQCHIP_KERNEL mode"),
+#else
+#define OPT_BOOLEAN_IRQCHIP_SPLIT(name, cfg, kvm)
+#endif
+
 #define BUILD_OPTIONS(name, cfg, kvm)					\
 	struct option name[] = {					\
 	OPT_GROUP("Basic options:"),					\
@@ -202,6 +211,7 @@ static int mem_parser(const struct option *opt, const char *arg, int unset)
 			"Hugetlbfs path"),				\
 	OPT_BOOLEAN('\0', "virtio-legacy", &(cfg)->virtio_legacy,	\
 		    "Use legacy virtio transport"),			\
+	OPT_BOOLEAN_IRQCHIP_SPLIT(name, cfg, kvm)			\
 									\
 	OPT_GROUP("Kernel options:"),					\
 	OPT_STRING('k', "kernel", &(cfg)->kernel_filename, "kernel",	\
@@ -722,7 +732,7 @@ static struct kvm *kvm_cmd_run_init(int argc, const char **argv)
 		kvm->cfg.script = DEFAULT_SCRIPT;
 
 	if (!kvm->cfg.network)
-                kvm->cfg.network = DEFAULT_NETWORK;
+		kvm->cfg.network = DEFAULT_NETWORK;
 
 	if (!kvm->cfg.guest_name) {
 		if (kvm->cfg.custom_rootfs) {
