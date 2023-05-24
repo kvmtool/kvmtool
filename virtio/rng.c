@@ -61,13 +61,25 @@ static u64 get_host_features(struct kvm *kvm, void *dev)
 static bool virtio_rng_do_io_request(struct kvm *kvm, struct rng_dev *rdev, struct virt_queue *queue)
 {
 	struct iovec iov[VIRTIO_RNG_QUEUE_SIZE];
-	ssize_t len = 0;
+	ssize_t len;
 	u16 out, in, head;
 
 	head	= virt_queue__get_iov(queue, iov, &out, &in, kvm);
 	len	= readv(rdev->fd, iov, in);
-	if (len < 0 && errno == EAGAIN)
-		len = 0;
+	if (len < 0 && (errno == EAGAIN || errno == EINTR)) {
+		/*
+		 * The virtio 1.0 spec demands at least one byte of entropy,
+		 * so we cannot just return with 0 if something goes wrong.
+		 * The urandom(4) manpage mentions that a read from /dev/urandom
+		 * should always return at least 256 bytes of randomness, so
+		 * just retry here, with the requested size clamped to that
+		 * maximum, in case we were interrupted by a signal.
+		 */
+		iov[0].iov_len = min(iov[0].iov_len, 256UL);
+		len = readv(rdev->fd, iov, 1);
+		if (len < 1)
+			return false;
+	}
 
 	virt_queue__set_used_elem(queue, head, len);
 
