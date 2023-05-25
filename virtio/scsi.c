@@ -55,21 +55,19 @@ static void notify_status(struct kvm *kvm, void *dev, u32 status)
 	struct scsi_dev *sdev = dev;
 	struct virtio_device *vdev = &sdev->vdev;
 	struct virtio_scsi_config *conf = &sdev->config;
+	u16 endian = vdev->endian;
 
 	if (!(status & VIRTIO__STATUS_CONFIG))
 		return;
 
-	/* Avoid warning when endianness helpers are compiled out */
-	vdev = vdev;
-
-	conf->num_queues = virtio_host_to_guest_u32(vdev, NUM_VIRT_QUEUES - 2);
-	conf->seg_max = virtio_host_to_guest_u32(vdev, VIRTIO_SCSI_CDB_SIZE - 2);
-	conf->max_sectors = virtio_host_to_guest_u32(vdev, 65535);
-	conf->cmd_per_lun = virtio_host_to_guest_u32(vdev, 128);
-	conf->sense_size = virtio_host_to_guest_u32(vdev, VIRTIO_SCSI_SENSE_SIZE);
-	conf->cdb_size = virtio_host_to_guest_u32(vdev, VIRTIO_SCSI_CDB_SIZE);
-	conf->max_lun = virtio_host_to_guest_u32(vdev, 16383);
-	conf->event_info_size = virtio_host_to_guest_u32(vdev, sizeof(struct virtio_scsi_event));
+	conf->num_queues = virtio_host_to_guest_u32(endian, NUM_VIRT_QUEUES - 2);
+	conf->seg_max = virtio_host_to_guest_u32(endian, VIRTIO_SCSI_CDB_SIZE - 2);
+	conf->max_sectors = virtio_host_to_guest_u32(endian, 65535);
+	conf->cmd_per_lun = virtio_host_to_guest_u32(endian, 128);
+	conf->sense_size = virtio_host_to_guest_u32(endian, VIRTIO_SCSI_SENSE_SIZE);
+	conf->cdb_size = virtio_host_to_guest_u32(endian, VIRTIO_SCSI_CDB_SIZE);
+	conf->max_lun = virtio_host_to_guest_u32(endian, 16383);
+	conf->event_info_size = virtio_host_to_guest_u32(endian, sizeof(struct virtio_scsi_event));
 }
 
 static int init_vq(struct kvm *kvm, void *dev, u32 vq)

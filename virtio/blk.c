@@ -99,8 +99,8 @@ static void virtio_blk_do_io_request(struct kvm *kvm, struct virt_queue *vq, str
 		return;
 	}
 
-	type = virtio_guest_to_host_u32(vq, req_hdr.type);
-	sector = virtio_guest_to_host_u64(vq, req_hdr.sector);
+	type = virtio_guest_to_host_u32(vq->endian, req_hdr.type);
+	sector = virtio_guest_to_host_u64(vq->endian, req_hdr.sector);
 
 	iovcount += req->in;
 	if (!iov_size(iov, iovcount)) {
@@ -189,8 +189,8 @@ static void notify_status(struct kvm *kvm, void *dev, u32 status)
 	if (!(status & VIRTIO__STATUS_CONFIG))
 		return;
 
-	conf->capacity = virtio_host_to_guest_u64(&bdev->vdev, bdev->capacity);
-	conf->seg_max = virtio_host_to_guest_u32(&bdev->vdev, DISK_SEG_MAX);
+	conf->capacity = virtio_host_to_guest_u64(bdev->vdev.endian, bdev->capacity);
+	conf->seg_max = virtio_host_to_guest_u32(bdev->vdev.endian, DISK_SEG_MAX);
 }
 
 static void *virtio_blk_thread(void *dev)

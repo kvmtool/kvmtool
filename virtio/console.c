@@ -133,9 +133,9 @@ static void notify_status(struct kvm *kvm, void *dev, u32 status)
 	if (!(status & VIRTIO__STATUS_CONFIG))
 		return;
 
-	conf->cols = virtio_host_to_guest_u16(&cdev->vdev, 80);
-	conf->rows = virtio_host_to_guest_u16(&cdev->vdev, 24);
-	conf->max_nr_ports = virtio_host_to_guest_u32(&cdev->vdev, 1);
+	conf->cols = virtio_host_to_guest_u16(cdev->vdev.endian, 80);
+	conf->rows = virtio_host_to_guest_u16(cdev->vdev.endian, 24);
+	conf->max_nr_ports = virtio_host_to_guest_u32(cdev->vdev.endian, 1);
 }
 
 static int init_vq(struct kvm *kvm, void *dev, u32 vq)

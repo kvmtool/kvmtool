@@ -149,7 +149,7 @@ static void *virtio_net_rx_thread(void *p)
 			 */
 			if (has_virtio_feature(ndev, VIRTIO_NET_F_MRG_RXBUF) ||
 			    !ndev->vdev.legacy)
-				hdr->num_buffers = virtio_host_to_guest_u16(vq, num_buffers);
+				hdr->num_buffers = virtio_host_to_guest_u16(vq->endian, num_buffers);
 
 			virt_queue__used_idx_advance(vq, num_buffers);
 
@@ -555,9 +555,9 @@ static void virtio_net_update_endian(struct net_dev *ndev)
 {
 	struct virtio_net_config *conf = &ndev->config;
 
-	conf->status = virtio_host_to_guest_u16(&ndev->vdev,
+	conf->status = virtio_host_to_guest_u16(ndev->vdev.endian,
 						VIRTIO_NET_S_LINK_UP);
-	conf->max_virtqueue_pairs = virtio_host_to_guest_u16(&ndev->vdev,
+	conf->max_virtqueue_pairs = virtio_host_to_guest_u16(ndev->vdev.endian,
 							     ndev->queue_pairs);
 
 	/* Let TAP know about vnet header endianness */

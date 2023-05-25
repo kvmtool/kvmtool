@@ -1393,7 +1393,7 @@ static void notify_status(struct kvm *kvm, void *dev, u32 status)
 	struct p9_fid *pfid, *next;
 
 	if (status & VIRTIO__STATUS_CONFIG)
-		p9dev->config->tag_len = virtio_host_to_guest_u16(&p9dev->vdev,
+		p9dev->config->tag_len = virtio_host_to_guest_u16(p9dev->vdev.endian,
 								  p9dev->tag_len);
 
 	if (!(status & VIRTIO__STATUS_STOP))
