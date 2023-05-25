@@ -207,7 +207,7 @@ static int mem_parser(const struct option *opt, const char *arg, int unset)
 	OPT_STRING('\0', "hugetlbfs", &(cfg)->hugetlbfs_path, "path",	\
 			"Hugetlbfs path"),				\
 	OPT_CALLBACK_NOOPT('\0', "virtio-legacy",			\
-			   &(cfg)->virtio_transport, '\0',		\
+			   &(cfg)->virtio_transport, "",		\
 			   "Use legacy virtio transport (Deprecated:"	\
 			   " Use --virtio-transport option instead)",	\
 			   virtio_transport_parser, NULL),		\

@@ -132,7 +132,8 @@ struct option {
 	.type = OPTION_STRING,              \
 	.short_name = (s),                  \
 	.long_name = (l),                   \
-	.value = check_vtype(v, const char **), (a), \
+	.value = check_vtype(v, const char **), \
+	.argh = (a),                        \
 	.help = (h)                         \
 }
 
@@ -166,7 +167,7 @@ struct option {
 	.short_name = (s),		    \
 	.long_name = (l),		    \
 	.value = (v),			    \
-	(a),				    \
+	.argh = (a),			    \
 	.help = (h),			    \
 	.callback = (f),		    \
 	.ptr = (p),			    \
@@ -178,7 +179,7 @@ struct option {
 	.short_name = (s),		    \
 	.long_name = (l),		    \
 	.value = (v),			    \
-	(a),				    \
+	.argh = (a),			    \
 	.help = (h),			    \
 	.callback = (f),		    \
 	.flags = PARSE_OPT_NOARG,	    \
