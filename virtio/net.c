@@ -505,21 +505,23 @@ static u64 get_host_features(struct kvm *kvm, void *dev)
 		features |= (1UL << VIRTIO_NET_F_HOST_UFO
 				| 1UL << VIRTIO_NET_F_GUEST_UFO);
 
+	if (ndev->vhost_fd) {
+		u64 vhost_features;
+
+		if (ioctl(ndev->vhost_fd, VHOST_GET_FEATURES, &vhost_features) != 0)
+			die_perror("VHOST_GET_FEATURES failed");
+
+		features &= vhost_features;
+	}
+
 	return features;
 }
 
 static int virtio_net__vhost_set_features(struct net_dev *ndev)
 {
-	u64 features = 1UL << VIRTIO_RING_F_EVENT_IDX;
-	u64 vhost_features;
-
-	if (ioctl(ndev->vhost_fd, VHOST_GET_FEATURES, &vhost_features) != 0)
-		die_perror("VHOST_GET_FEATURES failed");
-
-	/* make sure both side support mergable rx buffers */
-	if (vhost_features & 1UL << VIRTIO_NET_F_MRG_RXBUF &&
-			has_virtio_feature(ndev, VIRTIO_NET_F_MRG_RXBUF))
-		features |= 1UL << VIRTIO_NET_F_MRG_RXBUF;
+	/* VHOST_NET_F_VIRTIO_NET_HDR clashes with VIRTIO_F_ANY_LAYOUT! */
+	u64 features = ndev->vdev.features &
+			~(1UL << VHOST_NET_F_VIRTIO_NET_HDR);
 
 	return ioctl(ndev->vhost_fd, VHOST_SET_FEATURES, &features);
 }
