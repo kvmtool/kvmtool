@@ -77,6 +77,10 @@ struct virt_queue {
 	u16		endian;
 	bool		use_event_idx;
 	bool		enabled;
+
+	/* vhost IRQ handling */
+	int		gsi;
+	int		irqfd;
 };
 
 /*
@@ -263,6 +267,10 @@ void virtio_vhost_set_vring(struct kvm *kvm, int vhost_fd, u32 index,
 			    struct virt_queue *queue);
 void virtio_vhost_set_vring_kick(struct kvm *kvm, int vhost_fd,
 				 u32 index, int event_fd);
+void virtio_vhost_set_vring_call(struct kvm *kvm, int vhost_fd, u32 index,
+				 u32 gsi, struct virt_queue *queue);
+void virtio_vhost_reset_vring(struct kvm *kvm, int vhost_fd, u32 index,
+			      struct virt_queue *queue);
 
 int virtio_transport_parser(const struct option *opt, const char *arg, int unset);
 

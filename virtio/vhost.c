@@ -1,8 +1,11 @@
+#include "kvm/irq.h"
 #include "kvm/virtio.h"
 
 #include <linux/kvm.h>
 #include <linux/vhost.h>
 #include <linux/list.h>
+
+#include <sys/eventfd.h>
 
 void virtio_vhost_init(struct kvm *kvm, int vhost_fd)
 {
@@ -78,4 +81,36 @@ void virtio_vhost_set_vring_kick(struct kvm *kvm, int vhost_fd,
 	r = ioctl(vhost_fd, VHOST_SET_VRING_KICK, &file);
 	if (r < 0)
 		die_perror("VHOST_SET_VRING_KICK failed");
+}
+
+void virtio_vhost_set_vring_call(struct kvm *kvm, int vhost_fd, u32 index,
+				 u32 gsi, struct virt_queue *queue)
+{
+	int r;
+	struct vhost_vring_file file = {
+		.index	= index,
+		.fd	= eventfd(0, 0),
+	};
+
+	r = irq__add_irqfd(kvm, gsi, file.fd, -1);
+	if (r < 0)
+		die_perror("KVM_IRQFD failed");
+
+	r = ioctl(vhost_fd, VHOST_SET_VRING_CALL, &file);
+	if (r < 0)
+		die_perror("VHOST_SET_VRING_CALL failed");
+
+	queue->irqfd = file.fd;
+	queue->gsi = gsi;
+}
+
+void virtio_vhost_reset_vring(struct kvm *kvm, int vhost_fd, u32 index,
+			      struct virt_queue *queue)
+
+{
+	if (queue->gsi) {
+		irq__del_irqfd(kvm, queue->gsi, queue->irqfd);
+		close(queue->irqfd);
+		queue->gsi = queue->irqfd = 0;
+	}
 }

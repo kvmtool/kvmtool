@@ -4,12 +4,12 @@
 #include "kvm/mutex.h"
 #include "kvm/util.h"
 #include "kvm/kvm.h"
-#include "kvm/irq.h"
 #include "kvm/uip.h"
 #include "kvm/guest_compat.h"
 #include "kvm/iovec.h"
 #include "kvm/strbuf.h"
 
+#include <linux/list.h>
 #include <linux/vhost.h>
 #include <linux/virtio_net.h>
 #include <linux/if_tun.h>
@@ -25,7 +25,6 @@
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <sys/eventfd.h>
 
 #define VIRTIO_NET_QUEUE_SIZE		256
 #define VIRTIO_NET_NUM_QUEUES		8
@@ -44,8 +43,6 @@ struct net_dev_queue {
 	pthread_t			thread;
 	struct mutex			lock;
 	pthread_cond_t			cond;
-	int				gsi;
-	int				irqfd;
 };
 
 struct net_dev {
@@ -647,11 +644,7 @@ static void exit_vq(struct kvm *kvm, void *dev, u32 vq)
 	struct net_dev *ndev = dev;
 	struct net_dev_queue *queue = &ndev->queues[vq];
 
-	if (!is_ctrl_vq(ndev, vq) && queue->gsi) {
-		irq__del_irqfd(kvm, queue->gsi, queue->irqfd);
-		close(queue->irqfd);
-		queue->gsi = queue->irqfd = 0;
-	}
+	virtio_vhost_reset_vring(kvm, ndev->vhost_fd, vq, &queue->vq);
 
 	/*
 	 * TODO: vhost reset owner. It's the only way to cleanly stop vhost, but
@@ -675,27 +668,12 @@ static void notify_vq_gsi(struct kvm *kvm, void *dev, u32 vq, u32 gsi)
 {
 	struct net_dev *ndev = dev;
 	struct net_dev_queue *queue = &ndev->queues[vq];
-	struct vhost_vring_file file;
-	int r;
 
-	if (ndev->vhost_fd == 0)
+	if (ndev->vhost_fd == 0 || is_ctrl_vq(ndev, vq))
 		return;
 
-	file = (struct vhost_vring_file) {
-		.index	= vq,
-		.fd	= eventfd(0, 0),
-	};
-
-	r = irq__add_irqfd(kvm, gsi, file.fd, -1);
-	if (r < 0)
-		die_perror("KVM_IRQFD failed");
-
-	queue->irqfd = file.fd;
-	queue->gsi = gsi;
-
-	r = ioctl(ndev->vhost_fd, VHOST_SET_VRING_CALL, &file);
-	if (r < 0)
-		die_perror("VHOST_SET_VRING_CALL failed");
+	virtio_vhost_set_vring_call(kvm, ndev->vhost_fd, vq, gsi,
+				    &queue->vq);
 }
 
 static void notify_vq_eventfd(struct kvm *kvm, void *dev, u32 vq, u32 efd)

@@ -131,33 +131,13 @@ static int set_size_vq(struct kvm *kvm, void *dev, u32 vq, int size)
 
 static void notify_vq_gsi(struct kvm *kvm, void *dev, u32 vq, u32 gsi)
 {
-	struct vhost_vring_file file;
 	struct vsock_dev *vdev = dev;
-	struct kvm_irqfd irq;
-	int r;
 
-	if (vdev->vhost_fd == -1)
+	if (vdev->vhost_fd == -1 || is_event_vq(vq))
 		return;
 
-	if (is_event_vq(vq))
-		return;
-
-	irq = (struct kvm_irqfd) {
-		.gsi	= gsi,
-		.fd	= eventfd(0, 0),
-	};
-	file = (struct vhost_vring_file) {
-		.index	= vq,
-		.fd	= irq.fd,
-	};
-
-	r = ioctl(kvm->vm_fd, KVM_IRQFD, &irq);
-	if (r < 0)
-		die_perror("KVM_IRQFD failed");
-
-	r = ioctl(vdev->vhost_fd, VHOST_SET_VRING_CALL, &file);
-	if (r < 0)
-		die_perror("VHOST_SET_VRING_CALL failed");
+	virtio_vhost_set_vring_call(kvm, vdev->vhost_fd, vq, gsi,
+				    &vdev->vqs[vq]);
 }
 
 static unsigned int get_vq_count(struct kvm *kvm, void *dev)
