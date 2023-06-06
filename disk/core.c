@@ -223,10 +223,10 @@ static int disk_image__close(struct disk_image *disk)
 
 	disk_aio_destroy(disk);
 
-	if (disk->ops->close)
+	if (disk->ops && disk->ops->close)
 		return disk->ops->close(disk);
 
-	if (close(disk->fd) < 0)
+	if (disk->fd && close(disk->fd) < 0)
 		pr_warning("close() failed");
 
 	free(disk);
