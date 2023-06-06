@@ -1,0 +1,141 @@
+This document describes how to test each device, which is required when
+modifying the common I/O infrastructure.
+
+
+9P
+--
+
+  CONFIG_NET_9P_VIRTIO
+
+Without a --disk parameter, kvmtool shares part of the host filesystem
+with the guest using 9p. Otherwise, use the `--9p <directory>,<tag>`
+parameter to share a directory with the guest, and mount it in the guest
+with:
+
+	$ mount -t 9p <tag> <mountpoint>
+
+
+BALLOON
+-------
+
+  CONFIG_VIRTIO_BALLOON
+
+	$ lkvm run ... --balloon
+
+Display memory statistics:
+
+	$ lkvm stat -a -m
+		*** Guest memory statistics ***
+		...
+
+Remove 20MB of memory from the guest:
+
+	$ lkvm balloon -n guest-$(pidof lkvm) -i 20
+
+
+BLOCK
+-----
+
+  CONFIG_VIRTIO_BLK
+
+	$ lkvm run ... --disk <raw or qcow2 image>
+
+
+CONSOLE
+-------
+
+	$ lkvm run ... --console virtio
+
+See also virtio-console.txt
+
+
+NET
+---
+
+  CONFIG_VIRTIO_NET	(guest)
+  CONFIG_VHOST_NET	(host)
+
+By default kvmtool instantiates a user network device. In order to test
+both tap and vhost, setup a tap interface on a local network.
+
+In the host:
+
+	# ip tuntap add tap0 mode tap user $USER
+	# ip link set tap0 up
+	# ip link add br0 type bridge
+	# ip link set tap0 master br0
+	# ip link set br0 up
+	# ip addr add 192.168.3.1/24 dev br0
+
+	$ lkvm run ... -n mode=tap,tapif=tap0,vhost=1
+
+In the guest:
+
+	# ip link set eth0 up
+	# ip addr add 192.168.3.12/24 dev eth0
+	$ ping -c 1 192.168.3.1
+	64 bytes from 192.168.3.1: seq=0 ttl=64 time=0.303 ms
+
+
+RNG
+---
+
+  CONFIG_HW_RANDOM_VIRTIO
+
+	$ lkvm run ... --rng
+
+In the guest:
+
+	$ cat /sys/devices/virtual/misc/hw_random/rng_available
+	virtio_rng.0
+
+
+SCSI
+----
+
+  CONFIG_SCSI_VIRTIO	(guest)
+  CONFIG_TCM_FILEIO	(host)
+  CONFIG_VHOST_SCSI	(host)
+
+In the host, create a fileio backstore and a target:
+
+	# targetcli (https://github.com/open-iscsi/targetcli-fb)
+	/> cd backstores/fileio
+	/backstores/fileio> create kvmtool_1 /srv/kvmtool_1 2M
+	Created fileio kvmtool_1 with size 2097152
+	/backstores/fileio> cd /vhost
+	/vhost> create
+	Created target naa.500140571c9308aa.
+	Created TPG 1.
+	/vhost> cd naa.500140571c9308aa/tpg1/luns
+	/vhost/naa.50...8aa/tpg1/luns> create /backstores/fileio/kvmtool_1
+	Created LUN 0.
+
+	$ lkvm run ... --disk scsi:naa.500140571c9308aa
+	[    0.479644] scsi host0: Virtio SCSI HBA
+	[    0.483009] scsi 0:0:1:0: Direct-Access     LIO-ORG  kvmtool_1        4.0  PQ: 0 ANSI: 6
+
+	[    1.242833] sd 0:0:1:0: [sda] 4096 512-byte logical blocks: (2.10 MB/2.00 MiB)
+
+
+VSOCK
+-----
+
+  CONFIG_VSOCKETS
+  CONFIG_VIRTIO_VSOCKETS	(guest)
+  CONFIG_VHOST_VSOCK		(host)
+
+In the host, start a vsock server:
+
+	$ socat - VSOCK-LISTEN:1234
+
+We pick 12 as the guest ID. 0 and 1 are reserved, and the host has default
+ID 2.
+
+	$ lkvm run ... --vsock 12
+
+In the guest, send a message to the host:
+
+	$ echo Hello | socat - VSOCK-CONNECT:2:1234
+
+The host server should display "Hello".
