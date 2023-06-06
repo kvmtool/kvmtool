@@ -75,7 +75,7 @@ static bool virtio_rng_do_io_request(struct kvm *kvm, struct rng_dev *rdev, stru
 		 * just retry here, with the requested size clamped to that
 		 * maximum, in case we were interrupted by a signal.
 		 */
-		iov[0].iov_len = min(iov[0].iov_len, 256UL);
+		iov[0].iov_len = min_t(size_t, iov[0].iov_len, 256UL);
 		len = readv(rdev->fd, iov, 1);
 		if (len < 1)
 			return false;
