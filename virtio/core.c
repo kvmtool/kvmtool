@@ -198,6 +198,7 @@ void virtio_init_device_vq(struct kvm *kvm, struct virtio_device *vdev,
 	vq->endian		= vdev->endian;
 	vq->use_event_idx	= (vdev->features & (1UL << VIRTIO_RING_F_EVENT_IDX));
 	vq->enabled		= true;
+	vq->vdev		= vdev;
 
 	if (addr->legacy) {
 		unsigned long base = (u64)addr->pfn * addr->pgsize;

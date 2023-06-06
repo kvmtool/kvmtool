@@ -151,8 +151,7 @@ static void notify_vq_gsi(struct kvm *kvm, void *dev, u32 vq, u32 gsi)
 	if (vdev->vhost_fd == -1 || is_event_vq(vq))
 		return;
 
-	virtio_vhost_set_vring_call(kvm, vdev->vhost_fd, vq, gsi,
-				    &vdev->vqs[vq]);
+	virtio_vhost_set_vring_irqfd(kvm, gsi, &vdev->vqs[vq]);
 }
 
 static unsigned int get_vq_count(struct kvm *kvm, void *dev)

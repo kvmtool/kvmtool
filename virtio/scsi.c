@@ -119,8 +119,7 @@ static void notify_vq_gsi(struct kvm *kvm, void *dev, u32 vq, u32 gsi)
 	if (sdev->vhost_fd == 0)
 		return;
 
-	virtio_vhost_set_vring_call(kvm, sdev->vhost_fd, vq, gsi,
-				    &sdev->vqs[vq]);
+	virtio_vhost_set_vring_irqfd(kvm, gsi, &sdev->vqs[vq]);
 }
 
 static void notify_vq_eventfd(struct kvm *kvm, void *dev, u32 vq, u32 efd)
