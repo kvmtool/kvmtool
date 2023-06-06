@@ -3,7 +3,7 @@
 #
 
 ifeq ($(strip $(V)),)
-	ifeq ($(findstring s,$(filter-out --%,$(MAKEFLAGS))),)
+	ifeq ($(findstring s,$(filter-out --%,$(firstword $(MAKEFLAGS)))),)
 		E = @echo
 	else
 		E = @\#
