@@ -741,6 +741,11 @@ static struct virtio_ops net_dev_virtio_ops = {
 
 static void virtio_net__vhost_init(struct kvm *kvm, struct net_dev *ndev)
 {
+	if (ndev->queue_pairs > 1) {
+		pr_warning("multiqueue is not supported with vhost yet");
+		return;
+	}
+
 	ndev->vhost_fd = open("/dev/vhost-net", O_RDWR);
 	if (ndev->vhost_fd < 0)
 		die_perror("Failed openning vhost-net device");
