@@ -57,6 +57,13 @@ static void notify_status(struct kvm *kvm, void *dev, u32 status)
 	struct virtio_scsi_config *conf = &sdev->config;
 	u16 endian = vdev->endian;
 
+	if (status & VIRTIO__STATUS_START) {
+		int r = ioctl(sdev->vhost_fd, VHOST_SCSI_SET_ENDPOINT,
+			      &sdev->target);
+		if (r != 0)
+			die("VHOST_SCSI_SET_ENDPOINT failed %d", errno);
+	}
+
 	if (!(status & VIRTIO__STATUS_CONFIG))
 		return;
 
@@ -91,20 +98,12 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq)
 static void notify_vq_gsi(struct kvm *kvm, void *dev, u32 vq, u32 gsi)
 {
 	struct scsi_dev *sdev = dev;
-	int r;
 
 	if (sdev->vhost_fd == 0)
 		return;
 
 	virtio_vhost_set_vring_call(kvm, sdev->vhost_fd, vq, gsi,
 				    &sdev->vqs[vq]);
-
-	if (vq > 0)
-		return;
-
-	r = ioctl(sdev->vhost_fd, VHOST_SCSI_SET_ENDPOINT, &sdev->target);
-	if (r != 0)
-		die("VHOST_SCSI_SET_ENDPOINT failed %d", errno);
 }
 
 static void notify_vq_eventfd(struct kvm *kvm, void *dev, u32 vq, u32 efd)
