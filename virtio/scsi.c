@@ -46,19 +46,35 @@ static size_t get_config_size(struct kvm *kvm, void *dev)
 
 static u64 get_host_features(struct kvm *kvm, void *dev)
 {
-	return	1UL << VIRTIO_RING_F_EVENT_IDX |
-		1UL << VIRTIO_RING_F_INDIRECT_DESC;
+	int r;
+	u64 features;
+	struct scsi_dev *sdev = dev;
+
+	r = ioctl(sdev->vhost_fd, VHOST_GET_FEATURES, &features);
+	if (r != 0)
+		die_perror("VHOST_GET_FEATURES failed");
+
+	return features &
+		(1ULL << VIRTIO_RING_F_EVENT_IDX |	\
+		 1ULL << VIRTIO_RING_F_INDIRECT_DESC |	\
+		 1ULL << VIRTIO_F_ANY_LAYOUT);
 }
 
 static void notify_status(struct kvm *kvm, void *dev, u32 status)
 {
+	int r;
 	struct scsi_dev *sdev = dev;
 	struct virtio_device *vdev = &sdev->vdev;
 	struct virtio_scsi_config *conf = &sdev->config;
 	u16 endian = vdev->endian;
 
 	if (status & VIRTIO__STATUS_START) {
-		int r = ioctl(sdev->vhost_fd, VHOST_SCSI_SET_ENDPOINT,
+		r = ioctl(sdev->vhost_fd, VHOST_SET_FEATURES,
+			  &sdev->vdev.features);
+		if (r != 0)
+			die_perror("VHOST_SET_FEATURES failed");
+
+		r = ioctl(sdev->vhost_fd, VHOST_SCSI_SET_ENDPOINT,
 			      &sdev->target);
 		if (r != 0)
 			die("VHOST_SCSI_SET_ENDPOINT failed %d", errno);
@@ -161,22 +177,11 @@ static struct virtio_ops scsi_dev_virtio_ops = {
 
 static void virtio_scsi_vhost_init(struct kvm *kvm, struct scsi_dev *sdev)
 {
-	u64 features;
-	int r;
-
 	sdev->vhost_fd = open("/dev/vhost-scsi", O_RDWR);
 	if (sdev->vhost_fd < 0)
 		die_perror("Failed openning vhost-scsi device");
 
 	virtio_vhost_init(kvm, sdev->vhost_fd);
-
-	r = ioctl(sdev->vhost_fd, VHOST_GET_FEATURES, &features);
-	if (r != 0)
-		die_perror("VHOST_GET_FEATURES failed");
-
-	r = ioctl(sdev->vhost_fd, VHOST_SET_FEATURES, &features);
-	if (r != 0)
-		die_perror("VHOST_SET_FEATURES failed");
 
 	sdev->vdev.use_vhost = true;
 }
