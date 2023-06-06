@@ -216,7 +216,7 @@ static int virtio_scsi_init_one(struct kvm *kvm, struct disk_image *disk)
 	virtio_scsi_vhost_init(kvm, sdev);
 
 	if (compat_id == -1)
-		compat_id = virtio_compat_add_message("virtio-scsi", "CONFIG_VIRTIO_SCSI");
+		compat_id = virtio_compat_add_message("virtio-scsi", "CONFIG_SCSI_VIRTIO");
 
 	return 0;
 }

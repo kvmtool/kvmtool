@@ -218,7 +218,7 @@ static int virtio_vsock_init_one(struct kvm *kvm, u64 guest_cid)
 	virtio_vhost_vsock_init(kvm, vdev);
 
 	if (compat_id == -1)
-		compat_id = virtio_compat_add_message("virtio-vsock", "CONFIG_VIRTIO_VSOCK");
+		compat_id = virtio_compat_add_message("virtio-vsock", "CONFIG_VIRTIO_VSOCKETS");
 
 	return 0;
 }
