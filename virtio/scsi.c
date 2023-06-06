@@ -201,7 +201,6 @@ static struct virtio_ops scsi_dev_virtio_ops = {
 
 static void virtio_scsi_vhost_init(struct kvm *kvm, struct scsi_dev *sdev)
 {
-	struct vhost_memory *mem;
 	u64 features;
 	int r;
 
@@ -209,20 +208,7 @@ static void virtio_scsi_vhost_init(struct kvm *kvm, struct scsi_dev *sdev)
 	if (sdev->vhost_fd < 0)
 		die_perror("Failed openning vhost-scsi device");
 
-	mem = calloc(1, sizeof(*mem) + sizeof(struct vhost_memory_region));
-	if (mem == NULL)
-		die("Failed allocating memory for vhost memory map");
-
-	mem->nregions = 1;
-	mem->regions[0] = (struct vhost_memory_region) {
-		.guest_phys_addr	= 0,
-		.memory_size		= kvm->ram_size,
-		.userspace_addr		= (unsigned long)kvm->ram_start,
-	};
-
-	r = ioctl(sdev->vhost_fd, VHOST_SET_OWNER);
-	if (r != 0)
-		die_perror("VHOST_SET_OWNER failed");
+	virtio_vhost_init(kvm, sdev->vhost_fd);
 
 	r = ioctl(sdev->vhost_fd, VHOST_GET_FEATURES, &features);
 	if (r != 0)
@@ -231,13 +217,8 @@ static void virtio_scsi_vhost_init(struct kvm *kvm, struct scsi_dev *sdev)
 	r = ioctl(sdev->vhost_fd, VHOST_SET_FEATURES, &features);
 	if (r != 0)
 		die_perror("VHOST_SET_FEATURES failed");
-	r = ioctl(sdev->vhost_fd, VHOST_SET_MEM_TABLE, mem);
-	if (r != 0)
-		die_perror("VHOST_SET_MEM_TABLE failed");
 
 	sdev->vdev.use_vhost = true;
-
-	free(mem);
 }
 
 

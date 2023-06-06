@@ -258,6 +258,7 @@ void virtio_set_guest_features(struct kvm *kvm, struct virtio_device *vdev,
 			       void *dev, u64 features);
 void virtio_notify_status(struct kvm *kvm, struct virtio_device *vdev,
 			  void *dev, u8 status);
+void virtio_vhost_init(struct kvm *kvm, int vhost_fd);
 
 int virtio_transport_parser(const struct option *opt, const char *arg, int unset);
 

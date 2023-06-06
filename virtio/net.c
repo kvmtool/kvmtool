@@ -791,40 +791,13 @@ static struct virtio_ops net_dev_virtio_ops = {
 
 static void virtio_net__vhost_init(struct kvm *kvm, struct net_dev *ndev)
 {
-	struct kvm_mem_bank *bank;
-	struct vhost_memory *mem;
-	int r, i;
-
 	ndev->vhost_fd = open("/dev/vhost-net", O_RDWR);
 	if (ndev->vhost_fd < 0)
 		die_perror("Failed openning vhost-net device");
 
-	mem = calloc(1, sizeof(*mem) + kvm->mem_slots * sizeof(struct vhost_memory_region));
-	if (mem == NULL)
-		die("Failed allocating memory for vhost memory map");
-
-	i = 0;
-	list_for_each_entry(bank, &kvm->mem_banks, list) {
-		mem->regions[i] = (struct vhost_memory_region) {
-			.guest_phys_addr = bank->guest_phys_addr,
-			.memory_size	 = bank->size,
-			.userspace_addr	 = (unsigned long)bank->host_addr,
-		};
-		i++;
-	}
-	mem->nregions = i;
-
-	r = ioctl(ndev->vhost_fd, VHOST_SET_OWNER);
-	if (r != 0)
-		die_perror("VHOST_SET_OWNER failed");
-
-	r = ioctl(ndev->vhost_fd, VHOST_SET_MEM_TABLE, mem);
-	if (r != 0)
-		die_perror("VHOST_SET_MEM_TABLE failed");
+	virtio_vhost_init(kvm, ndev->vhost_fd);
 
 	ndev->vdev.use_vhost = true;
-
-	free(mem);
 }
 
 static inline void str_to_mac(const char *str, char *mac)

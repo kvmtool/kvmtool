@@ -218,37 +218,14 @@ static struct virtio_ops vsock_dev_virtio_ops = {
 
 static void virtio_vhost_vsock_init(struct kvm *kvm, struct vsock_dev *vdev)
 {
-	struct kvm_mem_bank *bank;
-	struct vhost_memory *mem;
 	u64 features;
-	int r, i;
+	int r;
 
 	vdev->vhost_fd = open("/dev/vhost-vsock", O_RDWR);
 	if (vdev->vhost_fd < 0)
 		die_perror("Failed opening vhost-vsock device");
 
-	mem = calloc(1, sizeof(*mem) + sizeof(struct vhost_memory_region));
-	if (mem == NULL)
-		die("Failed allocating memory for vhost memory map");
-
-	i = 0;
-	list_for_each_entry(bank, &kvm->mem_banks, list) {
-		mem->regions[i] = (struct vhost_memory_region) {
-			.guest_phys_addr = bank->guest_phys_addr,
-			.memory_size	 = bank->size,
-			.userspace_addr	 = (unsigned long)bank->host_addr,
-		};
-		i++;
-	}
-	mem->nregions = i;
-
-	r = ioctl(vdev->vhost_fd, VHOST_SET_OWNER);
-	if (r != 0)
-		die_perror("VHOST_SET_OWNER failed");
-
-	r = ioctl(vdev->vhost_fd, VHOST_SET_MEM_TABLE, mem);
-	if (r != 0)
-		die_perror("VHOST_SET_MEM_TABLE failed");
+	virtio_vhost_init(kvm, vdev->vhost_fd);
 
 	r = ioctl(vdev->vhost_fd, VHOST_GET_FEATURES, &features);
 	if (r != 0)
@@ -263,8 +240,6 @@ static void virtio_vhost_vsock_init(struct kvm *kvm, struct vsock_dev *vdev)
 		die_perror("VHOST_VSOCK_SET_GUEST_CID failed");
 
 	vdev->vdev.use_vhost = true;
-
-	free(mem);
 }
 
 static int virtio_vsock_init_one(struct kvm *kvm, u64 guest_cid)
