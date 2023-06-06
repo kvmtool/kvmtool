@@ -51,8 +51,17 @@ static size_t get_config_size(struct kvm *kvm, void *dev)
 
 static u64 get_host_features(struct kvm *kvm, void *dev)
 {
-	return 1UL << VIRTIO_RING_F_EVENT_IDX
-		| 1UL << VIRTIO_RING_F_INDIRECT_DESC;
+	int r;
+	u64 features;
+	struct vsock_dev *vdev = dev;
+
+	r = ioctl(vdev->vhost_fd, VHOST_GET_FEATURES, &features);
+	if (r != 0)
+		die_perror("VHOST_GET_FEATURES failed");
+
+	return features &
+		(1ULL << VIRTIO_RING_F_EVENT_IDX |
+		 1ULL << VIRTIO_RING_F_INDIRECT_DESC);
 }
 
 static bool is_event_vq(u32 vq)
@@ -95,12 +104,18 @@ static void notify_status(struct kvm *kvm, void *dev, u32 status)
 	if (status & VIRTIO__STATUS_CONFIG)
 		vdev->config.guest_cid = cpu_to_le64(vdev->guest_cid);
 
-	if (status & VIRTIO__STATUS_START)
+	if (status & VIRTIO__STATUS_START) {
 		start = 1;
-	else if (status & VIRTIO__STATUS_STOP)
+
+		r = ioctl(vdev->vhost_fd, VHOST_SET_FEATURES,
+			  &vdev->vdev.features);
+		if (r != 0)
+			die_perror("VHOST_SET_FEATURES failed");
+	} else if (status & VIRTIO__STATUS_STOP) {
 		start = 0;
-	else
+	} else {
 		return;
+	}
 
 	r = ioctl(vdev->vhost_fd, VHOST_VSOCK_SET_RUNNING, &start);
 	if (r != 0)
@@ -162,7 +177,6 @@ static struct virtio_ops vsock_dev_virtio_ops = {
 
 static void virtio_vhost_vsock_init(struct kvm *kvm, struct vsock_dev *vdev)
 {
-	u64 features;
 	int r;
 
 	vdev->vhost_fd = open("/dev/vhost-vsock", O_RDWR);
@@ -170,14 +184,6 @@ static void virtio_vhost_vsock_init(struct kvm *kvm, struct vsock_dev *vdev)
 		die_perror("Failed opening vhost-vsock device");
 
 	virtio_vhost_init(kvm, vdev->vhost_fd);
-
-	r = ioctl(vdev->vhost_fd, VHOST_GET_FEATURES, &features);
-	if (r != 0)
-		die_perror("VHOST_GET_FEATURES failed");
-
-	r = ioctl(vdev->vhost_fd, VHOST_SET_FEATURES, &features);
-	if (r != 0)
-		die_perror("VHOST_SET_FEATURES failed");
 
 	r = ioctl(vdev->vhost_fd, VHOST_VSOCK_SET_GUEST_CID, &vdev->guest_cid);
 	if (r != 0)
