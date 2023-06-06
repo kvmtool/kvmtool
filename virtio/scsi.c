@@ -69,8 +69,7 @@ static void notify_status(struct kvm *kvm, void *dev, u32 status)
 	u16 endian = vdev->endian;
 
 	if (status & VIRTIO__STATUS_START) {
-		r = ioctl(sdev->vhost_fd, VHOST_SET_FEATURES,
-			  &sdev->vdev.features);
+		r = virtio_vhost_set_features(sdev->vhost_fd, sdev->vdev.features);
 		if (r != 0)
 			die_perror("VHOST_SET_FEATURES failed");
 

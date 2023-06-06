@@ -517,23 +517,17 @@ static u64 get_host_features(struct kvm *kvm, void *dev)
 	return features;
 }
 
-static int virtio_net__vhost_set_features(struct net_dev *ndev)
-{
-	/* VHOST_NET_F_VIRTIO_NET_HDR clashes with VIRTIO_F_ANY_LAYOUT! */
-	u64 features = ndev->vdev.features &
-			~(1UL << VHOST_NET_F_VIRTIO_NET_HDR);
-
-	return ioctl(ndev->vhost_fd, VHOST_SET_FEATURES, &features);
-}
-
 static void virtio_net_start(struct net_dev *ndev)
 {
+	/* VHOST_NET_F_VIRTIO_NET_HDR clashes with VIRTIO_F_ANY_LAYOUT! */
+	u64 features = ndev->vdev.features & ~(1UL << VHOST_NET_F_VIRTIO_NET_HDR);
+
 	if (ndev->mode == NET_MODE_TAP) {
 		if (!virtio_net__tap_init(ndev))
 			die_perror("TAP device initialized failed because");
 
-		if (ndev->vhost_fd &&
-				virtio_net__vhost_set_features(ndev) != 0)
+		if (ndev->vhost_fd && virtio_vhost_set_features(ndev->vhost_fd,
+								features))
 			die_perror("VHOST_SET_FEATURES failed");
 	} else {
 		ndev->info.vnet_hdr_len = virtio_net_hdr_len(ndev);

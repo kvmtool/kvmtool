@@ -107,8 +107,8 @@ static void notify_status(struct kvm *kvm, void *dev, u32 status)
 	if (status & VIRTIO__STATUS_START) {
 		start = 1;
 
-		r = ioctl(vdev->vhost_fd, VHOST_SET_FEATURES,
-			  &vdev->vdev.features);
+		r = virtio_vhost_set_features(vdev->vhost_fd,
+					      vdev->vdev.features);
 		if (r != 0)
 			die_perror("VHOST_SET_FEATURES failed");
 	} else if (status & VIRTIO__STATUS_STOP) {

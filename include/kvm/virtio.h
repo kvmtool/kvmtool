@@ -273,6 +273,7 @@ void virtio_vhost_set_vring_irqfd(struct kvm *kvm, u32 gsi,
 				  struct virt_queue *queue);
 void virtio_vhost_reset_vring(struct kvm *kvm, int vhost_fd, u32 index,
 			      struct virt_queue *queue);
+int virtio_vhost_set_features(int vhost_fd, u64 features);
 
 int virtio_transport_parser(const struct option *opt, const char *arg, int unset);
 

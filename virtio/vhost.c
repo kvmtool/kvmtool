@@ -196,3 +196,14 @@ void virtio_vhost_reset_vring(struct kvm *kvm, int vhost_fd, u32 index,
 	close(queue->irqfd);
 	queue->irqfd = 0;
 }
+
+int virtio_vhost_set_features(int vhost_fd, u64 features)
+{
+	/*
+	 * vhost interprets VIRTIO_F_ACCESS_PLATFORM as meaning there is an
+	 * iotlb. Since this is not the case for kvmtool, mask it.
+	 */
+	u64 masked_feat = features & ~(1ULL << VIRTIO_F_ACCESS_PLATFORM);
+
+	return ioctl(vhost_fd, VHOST_SET_FEATURES, &masked_feat);
+}
