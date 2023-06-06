@@ -73,6 +73,7 @@ static void notify_status(struct kvm *kvm, void *dev, u32 status)
 	conf->cmd_per_lun = virtio_host_to_guest_u32(endian, 128);
 	conf->sense_size = virtio_host_to_guest_u32(endian, VIRTIO_SCSI_SENSE_SIZE);
 	conf->cdb_size = virtio_host_to_guest_u32(endian, VIRTIO_SCSI_CDB_SIZE);
+	conf->max_target = virtio_host_to_guest_u16(endian, 255);
 	conf->max_lun = virtio_host_to_guest_u32(endian, 16383);
 	conf->event_info_size = virtio_host_to_guest_u32(endian, sizeof(struct virtio_scsi_event));
 }
