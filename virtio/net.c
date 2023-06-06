@@ -701,18 +701,11 @@ static void notify_vq_gsi(struct kvm *kvm, void *dev, u32 vq, u32 gsi)
 static void notify_vq_eventfd(struct kvm *kvm, void *dev, u32 vq, u32 efd)
 {
 	struct net_dev *ndev = dev;
-	struct vhost_vring_file file = {
-		.index	= vq,
-		.fd	= efd,
-	};
-	int r;
 
 	if (ndev->vhost_fd == 0 || is_ctrl_vq(ndev, vq))
 		return;
 
-	r = ioctl(ndev->vhost_fd, VHOST_SET_VRING_KICK, &file);
-	if (r < 0)
-		die_perror("VHOST_SET_VRING_KICK failed");
+	virtio_vhost_set_vring_kick(kvm, ndev->vhost_fd, vq, efd);
 }
 
 static int notify_vq(struct kvm *kvm, void *dev, u32 vq)

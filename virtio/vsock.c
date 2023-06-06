@@ -80,21 +80,11 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq)
 static void notify_vq_eventfd(struct kvm *kvm, void *dev, u32 vq, u32 efd)
 {
 	struct vsock_dev *vdev = dev;
-	struct vhost_vring_file file = {
-		.index	= vq,
-		.fd	= efd,
-	};
-	int r;
 
-	if (is_event_vq(vq))
+	if (vdev->vhost_fd == -1 || is_event_vq(vq))
 		return;
 
-	if (vdev->vhost_fd == -1)
-		return;
-
-	r = ioctl(vdev->vhost_fd, VHOST_SET_VRING_KICK, &file);
-	if (r < 0)
-		die_perror("VHOST_SET_VRING_KICK failed");
+	virtio_vhost_set_vring_kick(kvm, vdev->vhost_fd, vq, efd);
 }
 
 static void notify_status(struct kvm *kvm, void *dev, u32 status)

@@ -65,3 +65,17 @@ void virtio_vhost_set_vring(struct kvm *kvm, int vhost_fd, u32 index,
 	if (r < 0)
 		die_perror("VHOST_SET_VRING_ADDR failed");
 }
+
+void virtio_vhost_set_vring_kick(struct kvm *kvm, int vhost_fd,
+				 u32 index, int event_fd)
+{
+	int r;
+	struct vhost_vring_file file = {
+		.index	= index,
+		.fd	= event_fd,
+	};
+
+	r = ioctl(vhost_fd, VHOST_SET_VRING_KICK, &file);
+	if (r < 0)
+		die_perror("VHOST_SET_VRING_KICK failed");
+}

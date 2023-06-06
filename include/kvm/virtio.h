@@ -261,6 +261,8 @@ void virtio_notify_status(struct kvm *kvm, struct virtio_device *vdev,
 void virtio_vhost_init(struct kvm *kvm, int vhost_fd);
 void virtio_vhost_set_vring(struct kvm *kvm, int vhost_fd, u32 index,
 			    struct virt_queue *queue);
+void virtio_vhost_set_vring_kick(struct kvm *kvm, int vhost_fd,
+				 u32 index, int event_fd);
 
 int virtio_transport_parser(const struct option *opt, const char *arg, int unset);
 
