@@ -37,7 +37,7 @@ int kvm_cpu__register_kvm_arm_target(struct kvm_arm_target *target)
 
 struct kvm_cpu *kvm_cpu__arch_init(struct kvm *kvm, unsigned long cpu_id)
 {
-	struct kvm_arm_target *target;
+	struct kvm_arm_target *target = NULL;
 	struct kvm_cpu *vcpu;
 	int coalesced_offset, mmap_size, err = -1;
 	unsigned int i;
@@ -81,7 +81,6 @@ struct kvm_cpu *kvm_cpu__arch_init(struct kvm *kvm, unsigned long cpu_id)
 	err = ioctl(kvm->vm_fd, KVM_ARM_PREFERRED_TARGET, &preferred_init);
 	if (!err) {
 		/* Match preferred target CPU type. */
-		target = NULL;
 		for (i = 0; i < ARRAY_SIZE(kvm_arm_targets); ++i) {
 			if (!kvm_arm_targets[i])
 				continue;
