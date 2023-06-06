@@ -80,6 +80,7 @@ OBJS	+= virtio/vhost.o
 OBJS	+= disk/blk.o
 OBJS	+= disk/qcow.o
 OBJS	+= disk/raw.o
+OBJS	+= epoll.o
 OBJS	+= ioeventfd.o
 OBJS	+= net/uip/core.o
 OBJS	+= net/uip/arp.o

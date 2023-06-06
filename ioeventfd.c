@@ -9,113 +9,45 @@
 #include <linux/kvm.h>
 #include <linux/types.h>
 
+#include "kvm/epoll.h"
 #include "kvm/ioeventfd.h"
 #include "kvm/kvm.h"
 #include "kvm/util.h"
 
 #define IOEVENTFD_MAX_EVENTS	20
 
-static struct	epoll_event events[IOEVENTFD_MAX_EVENTS];
-static int	epoll_fd, epoll_stop_fd;
 static LIST_HEAD(used_ioevents);
 static bool	ioeventfd_avail;
+static struct kvm__epoll epoll;
 
-static void *ioeventfd__thread(void *param)
+static void ioeventfd__handle_event(struct kvm *kvm, struct epoll_event *ev)
 {
-	u64 tmp = 1;
+	u64 tmp;
+	struct ioevent *ioevent = ev->data.ptr;
 
-	kvm__set_thread_name("ioeventfd-worker");
+	if (read(ioevent->fd, &tmp, sizeof(tmp)) < 0)
+		die("Failed reading event");
 
-	for (;;) {
-		int nfds, i;
-
-		nfds = epoll_wait(epoll_fd, events, IOEVENTFD_MAX_EVENTS, -1);
-		for (i = 0; i < nfds; i++) {
-			struct ioevent *ioevent;
-
-			if (events[i].data.fd == epoll_stop_fd)
-				goto done;
-
-			ioevent = events[i].data.ptr;
-
-			if (read(ioevent->fd, &tmp, sizeof(tmp)) < 0)
-				die("Failed reading event");
-
-			ioevent->fn(ioevent->fn_kvm, ioevent->fn_ptr);
-		}
-	}
-
-done:
-	tmp = write(epoll_stop_fd, &tmp, sizeof(tmp));
-
-	return NULL;
-}
-
-static int ioeventfd__start(void)
-{
-	pthread_t thread;
-
-	if (!ioeventfd_avail)
-		return -ENOSYS;
-
-	return pthread_create(&thread, NULL, ioeventfd__thread, NULL);
+	ioevent->fn(ioevent->fn_kvm, ioevent->fn_ptr);
 }
 
 int ioeventfd__init(struct kvm *kvm)
 {
-	struct epoll_event epoll_event = {.events = EPOLLIN};
-	int r;
-
 	ioeventfd_avail = kvm__supports_extension(kvm, KVM_CAP_IOEVENTFD);
 	if (!ioeventfd_avail)
 		return 1; /* Not fatal, but let caller determine no-go. */
 
-	epoll_fd = epoll_create(IOEVENTFD_MAX_EVENTS);
-	if (epoll_fd < 0)
-		return -errno;
-
-	epoll_stop_fd = eventfd(0, 0);
-	epoll_event.data.fd = epoll_stop_fd;
-
-	r = epoll_ctl(epoll_fd, EPOLL_CTL_ADD, epoll_stop_fd, &epoll_event);
-	if (r < 0)
-		goto cleanup;
-
-	r = ioeventfd__start();
-	if (r < 0)
-		goto cleanup;
-
-	r = 0;
-
-	return r;
-
-cleanup:
-	close(epoll_stop_fd);
-	close(epoll_fd);
-
-	return r;
+	return epoll__init(kvm, &epoll, "ioeventfd-worker",
+			   ioeventfd__handle_event);
 }
 base_init(ioeventfd__init);
 
 int ioeventfd__exit(struct kvm *kvm)
 {
-	u64 tmp = 1;
-	int r;
-
 	if (!ioeventfd_avail)
 		return 0;
 
-	r = write(epoll_stop_fd, &tmp, sizeof(tmp));
-	if (r < 0)
-		return r;
-
-	r = read(epoll_stop_fd, &tmp, sizeof(tmp));
-	if (r < 0)
-		return r;
-
-	close(epoll_fd);
-	close(epoll_stop_fd);
-
+	epoll__exit(&epoll);
 	return 0;
 }
 base_exit(ioeventfd__exit);
@@ -165,7 +97,7 @@ int ioeventfd__add_event(struct ioevent *ioevent, int flags)
 			.data.ptr	= new_ioevent,
 		};
 
-		r = epoll_ctl(epoll_fd, EPOLL_CTL_ADD, event, &epoll_event);
+		r = epoll_ctl(epoll.fd, EPOLL_CTL_ADD, event, &epoll_event);
 		if (r) {
 			r = -errno;
 			goto cleanup;
@@ -213,7 +145,7 @@ int ioeventfd__del_event(u64 addr, u64 datamatch)
 
 	ioctl(ioevent->fn_kvm->vm_fd, KVM_IOEVENTFD, &kvm_ioevent);
 
-	epoll_ctl(epoll_fd, EPOLL_CTL_DEL, ioevent->fd, NULL);
+	epoll_ctl(epoll.fd, EPOLL_CTL_DEL, ioevent->fd, NULL);
 
 	list_del(&ioevent->list);
 

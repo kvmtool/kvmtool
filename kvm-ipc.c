@@ -2,9 +2,9 @@
 #include <sys/un.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <sys/eventfd.h>
 #include <dirent.h>
 
+#include "kvm/epoll.h"
 #include "kvm/kvm-ipc.h"
 #include "kvm/rwsem.h"
 #include "kvm/read-write.h"
@@ -28,8 +28,8 @@ struct kvm_ipc_head {
 extern __thread struct kvm_cpu *current_kvm_cpu;
 static void (*msgs[KVM_IPC_MAX_MSGS])(struct kvm *kvm, int fd, u32 type, u32 len, u8 *msg);
 static DECLARE_RWSEM(msgs_rwlock);
-static int epoll_fd, server_fd, stop_fd;
-static pthread_t thread;
+static int server_fd;
+static struct kvm__epoll epoll;
 
 static int kvm__create_socket(struct kvm *kvm)
 {
@@ -268,7 +268,7 @@ static int kvm_ipc__new_conn(int fd)
 
 	ev.events = EPOLLIN | EPOLLRDHUP;
 	ev.data.fd = client;
-	if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client, &ev) < 0) {
+	if (epoll_ctl(epoll.fd, EPOLL_CTL_ADD, client, &ev) < 0) {
 		close(client);
 		return -1;
 	}
@@ -278,7 +278,7 @@ static int kvm_ipc__new_conn(int fd)
 
 static void kvm_ipc__close_conn(int fd)
 {
-	epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
+	epoll_ctl(epoll.fd, EPOLL_CTL_DEL, fd, NULL);
 	close(fd);
 }
 
@@ -309,42 +309,26 @@ done:
 	return -1;
 }
 
-static void *kvm_ipc__thread(void *param)
+static void kvm_ipc__handle_event(struct kvm *kvm, struct epoll_event *ev)
 {
-	struct epoll_event event;
-	struct kvm *kvm = param;
+	int fd = ev->data.fd;
 
-	kvm__set_thread_name("kvm-ipc");
+	if (fd == server_fd) {
+		int client, r;
 
-	for (;;) {
-		int nfds;
+		client = kvm_ipc__new_conn(fd);
+		/*
+		 * Handle multiple IPC cmd at a time
+		 */
+		do {
+			r = kvm_ipc__receive(kvm, client);
+		} while	(r == 0);
 
-		nfds = epoll_wait(epoll_fd, &event, 1, -1);
-		if (nfds > 0) {
-			int fd = event.data.fd;
-
-			if (fd == stop_fd && event.events & EPOLLIN) {
-				break;
-			} else if (fd == server_fd) {
-				int client, r;
-
-				client = kvm_ipc__new_conn(fd);
-				/*
-				 * Handle multiple IPC cmd at a time
-				 */
-				do {
-					r = kvm_ipc__receive(kvm, client);
-				} while	(r == 0);
-
-			} else if (event.events & (EPOLLERR | EPOLLRDHUP | EPOLLHUP)) {
-				kvm_ipc__close_conn(fd);
-			} else {
-				kvm_ipc__receive(kvm, fd);
-			}
-		}
+	} else if (ev->events & (EPOLLERR | EPOLLRDHUP | EPOLLHUP)) {
+		kvm_ipc__close_conn(fd);
+	} else {
+		kvm_ipc__receive(kvm, fd);
 	}
-
-	return NULL;
 }
 
 static void kvm__pid(struct kvm *kvm, int fd, u32 type, u32 len, u8 *msg)
@@ -482,40 +466,19 @@ int kvm_ipc__init(struct kvm *kvm)
 
 	server_fd = sock;
 
-	epoll_fd = epoll_create(KVM_IPC_MAX_MSGS);
-	if (epoll_fd < 0) {
-		perror("epoll_create");
-		ret = epoll_fd;
+	ret = epoll__init(kvm, &epoll, "kvm-ipc",
+			  kvm_ipc__handle_event);
+	if (ret) {
+		pr_err("Failed starting IPC thread");
 		goto err;
 	}
 
 	ev.events = EPOLLIN | EPOLLET;
 	ev.data.fd = sock;
-	if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, sock, &ev) < 0) {
+	if (epoll_ctl(epoll.fd, EPOLL_CTL_ADD, sock, &ev) < 0) {
 		pr_err("Failed adding socket to epoll");
 		ret = -EFAULT;
 		goto err_epoll;
-	}
-
-	stop_fd = eventfd(0, 0);
-	if (stop_fd < 0) {
-		perror("eventfd");
-		ret = stop_fd;
-		goto err_epoll;
-	}
-
-	ev.events = EPOLLIN | EPOLLET;
-	ev.data.fd = stop_fd;
-	if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, stop_fd, &ev) < 0) {
-		pr_err("Failed adding stop event to epoll");
-		ret = -EFAULT;
-		goto err_stop;
-	}
-
-	if (pthread_create(&thread, NULL, kvm_ipc__thread, kvm) != 0) {
-		pr_err("Failed starting IPC thread");
-		ret = -EFAULT;
-		goto err_stop;
 	}
 
 	kvm_ipc__register_handler(KVM_IPC_PID, kvm__pid);
@@ -528,10 +491,9 @@ int kvm_ipc__init(struct kvm *kvm)
 
 	return 0;
 
-err_stop:
-	close(stop_fd);
 err_epoll:
-	close(epoll_fd);
+	epoll__exit(&epoll);
+	close(server_fd);
 err:
 	return ret;
 }
@@ -539,18 +501,11 @@ base_init(kvm_ipc__init);
 
 int kvm_ipc__exit(struct kvm *kvm)
 {
-	u64 val = 1;
-	int ret;
-
-	ret = write(stop_fd, &val, sizeof(val));
-	if (ret < 0)
-		return ret;
-
+	epoll__exit(&epoll);
 	close(server_fd);
-	close(epoll_fd);
 
 	kvm__remove_socket(kvm->cfg.guest_name);
 
-	return ret;
+	return 0;
 }
 base_exit(kvm_ipc__exit);
