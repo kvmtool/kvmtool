@@ -48,12 +48,8 @@ struct disk_image_operations {
 
 struct disk_image_params {
 	const char *filename;
-	/*
-	 * wwpn == World Wide Port Number
-	 * tpgt == Target Portal Group Tag
-	 */
+	/* wwpn == World Wide Port Number */
 	const char *wwpn;
-	const char *tpgt;
 	bool readonly;
 	bool direct;
 };
@@ -74,7 +70,6 @@ struct disk_image {
 	u64				aio_inflight;
 #endif /* CONFIG_HAS_AIO */
 	const char			*wwpn;
-	const char			*tpgt;
 	int				debug_iodelay;
 };
 

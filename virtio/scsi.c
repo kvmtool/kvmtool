@@ -197,7 +197,7 @@ static int virtio_scsi_init_one(struct kvm *kvm, struct disk_image *disk)
 		.kvm			= kvm,
 	};
 	strlcpy((char *)&sdev->target.vhost_wwpn, disk->wwpn, sizeof(sdev->target.vhost_wwpn));
-	sdev->target.vhost_tpgt = strtol(disk->tpgt, NULL, 0);
+	sdev->target.abi_version = VHOST_SCSI_ABI_VERSION;
 
 	list_add_tail(&sdev->list, &sdevs);
 
