@@ -62,44 +62,18 @@ static bool is_event_vq(u32 vq)
 
 static int init_vq(struct kvm *kvm, void *dev, u32 vq)
 {
-	struct vhost_vring_state state = { .index = vq };
-	struct vhost_vring_addr addr;
 	struct vsock_dev *vdev = dev;
 	struct virt_queue *queue;
-	int r;
 
 	compat__remove_message(compat_id);
 
 	queue		= &vdev->vqs[vq];
 	virtio_init_device_vq(kvm, &vdev->vdev, queue, VIRTIO_VSOCK_QUEUE_SIZE);
 
-	if (vdev->vhost_fd == -1)
+	if (vdev->vhost_fd == -1 || is_event_vq(vq))
 		return 0;
 
-	if (is_event_vq(vq))
-		return 0;
-
-	state.num = queue->vring.num;
-	r = ioctl(vdev->vhost_fd, VHOST_SET_VRING_NUM, &state);
-	if (r < 0)
-		die_perror("VHOST_SET_VRING_NUM failed");
-
-	state.num = 0;
-	r = ioctl(vdev->vhost_fd, VHOST_SET_VRING_BASE, &state);
-	if (r < 0)
-		die_perror("VHOST_SET_VRING_BASE failed");
-
-	addr = (struct vhost_vring_addr) {
-		.index = vq,
-		.desc_user_addr = (u64)(unsigned long)queue->vring.desc,
-		.avail_user_addr = (u64)(unsigned long)queue->vring.avail,
-		.used_user_addr = (u64)(unsigned long)queue->vring.used,
-	};
-
-	r = ioctl(vdev->vhost_fd, VHOST_SET_VRING_ADDR, &addr);
-	if (r < 0)
-		die_perror("VHOST_SET_VRING_ADDR failed");
-
+	virtio_vhost_set_vring(kvm, vdev->vhost_fd, vq, queue);
 	return 0;
 }
 

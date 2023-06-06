@@ -1,7 +1,8 @@
+#include "kvm/virtio.h"
+
 #include <linux/kvm.h>
 #include <linux/vhost.h>
 #include <linux/list.h>
-#include "kvm/virtio.h"
 
 void virtio_vhost_init(struct kvm *kvm, int vhost_fd)
 {
@@ -33,4 +34,34 @@ void virtio_vhost_init(struct kvm *kvm, int vhost_fd)
 		die_perror("VHOST_SET_MEM_TABLE failed");
 
 	free(mem);
+}
+
+void virtio_vhost_set_vring(struct kvm *kvm, int vhost_fd, u32 index,
+			    struct virt_queue *queue)
+{
+	int r;
+	struct vhost_vring_addr addr = {
+		.index = index,
+		.desc_user_addr = (u64)(unsigned long)queue->vring.desc,
+		.avail_user_addr = (u64)(unsigned long)queue->vring.avail,
+		.used_user_addr = (u64)(unsigned long)queue->vring.used,
+	};
+	struct vhost_vring_state state = { .index = index };
+
+	if (queue->endian != VIRTIO_ENDIAN_HOST)
+		die("VHOST requires the same endianness in guest and host");
+
+	state.num = queue->vring.num;
+	r = ioctl(vhost_fd, VHOST_SET_VRING_NUM, &state);
+	if (r < 0)
+		die_perror("VHOST_SET_VRING_NUM failed");
+
+	state.num = 0;
+	r = ioctl(vhost_fd, VHOST_SET_VRING_BASE, &state);
+	if (r < 0)
+		die_perror("VHOST_SET_VRING_BASE failed");
+
+	r = ioctl(vhost_fd, VHOST_SET_VRING_ADDR, &addr);
+	if (r < 0)
+		die_perror("VHOST_SET_VRING_ADDR failed");
 }

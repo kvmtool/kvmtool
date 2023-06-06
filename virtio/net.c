@@ -600,10 +600,8 @@ static bool is_ctrl_vq(struct net_dev *ndev, u32 vq)
 
 static int init_vq(struct kvm *kvm, void *dev, u32 vq)
 {
-	struct vhost_vring_state state = { .index = vq };
 	struct vhost_vring_file file = { .index = vq };
 	struct net_dev_queue *net_queue;
-	struct vhost_vring_addr addr;
 	struct net_dev *ndev = dev;
 	struct virt_queue *queue;
 	int r;
@@ -634,28 +632,7 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq)
 		return 0;
 	}
 
-	if (queue->endian != VIRTIO_ENDIAN_HOST)
-		die_perror("VHOST requires the same endianness in guest and host");
-
-	state.num = queue->vring.num;
-	r = ioctl(ndev->vhost_fd, VHOST_SET_VRING_NUM, &state);
-	if (r < 0)
-		die_perror("VHOST_SET_VRING_NUM failed");
-	state.num = 0;
-	r = ioctl(ndev->vhost_fd, VHOST_SET_VRING_BASE, &state);
-	if (r < 0)
-		die_perror("VHOST_SET_VRING_BASE failed");
-
-	addr = (struct vhost_vring_addr) {
-		.index = vq,
-		.desc_user_addr = (u64)(unsigned long)queue->vring.desc,
-		.avail_user_addr = (u64)(unsigned long)queue->vring.avail,
-		.used_user_addr = (u64)(unsigned long)queue->vring.used,
-	};
-
-	r = ioctl(ndev->vhost_fd, VHOST_SET_VRING_ADDR, &addr);
-	if (r < 0)
-		die_perror("VHOST_SET_VRING_ADDR failed");
+	virtio_vhost_set_vring(kvm, ndev->vhost_fd, vq, queue);
 
 	file.fd = ndev->tap_fd;
 	r = ioctl(ndev->vhost_fd, VHOST_NET_SET_BACKEND, &file);
