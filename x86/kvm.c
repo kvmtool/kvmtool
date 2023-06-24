@@ -176,6 +176,16 @@ void kvm__arch_init(struct kvm *kvm)
 		ret = ioctl(kvm->vm_fd, KVM_CREATE_IRQCHIP);
 		if (ret < 0)
 			die_perror("KVM_CREATE_IRQCHIP ioctl");
+	} else {
+		struct kvm_enable_cap cap = {
+			.cap = KVM_CAP_SPLIT_IRQCHIP,
+			.flags = 0,
+			.args[0] = KVM_IOAPIC_NUM_PINS,
+		};
+		ret = ioctl(kvm->vm_fd, KVM_ENABLE_CAP, &cap);
+		if (ret < 0) {
+			die_perror("Could not enable split irqchip mode");
+		}
 	}
 }
 
