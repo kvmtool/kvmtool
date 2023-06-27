@@ -6,6 +6,8 @@
 #include "kvm/util.h"
 #include "kvm/8250-serial.h"
 #include "kvm/virtio-console.h"
+#include "kvm/irq.h"
+#include "kvm/i8259.h"
 
 #include <asm/bootparam.h>
 #include <linux/kvm.h>

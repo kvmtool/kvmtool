@@ -1,4 +1,5 @@
 #include "kvm/ioport.h"
+#include "kvm/irq.h"
 
 #include <stdlib.h>
 #include <stdio.h>

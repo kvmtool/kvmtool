@@ -131,6 +131,7 @@ ifeq ($(ARCH),x86)
 	DEFINES += -DCONFIG_X86
 	OBJS	+= hw/i8042.o
 	OBJS	+= hw/serial.o
+	OBJS	+= hw/i8259.o
 	OBJS	+= x86/boot.o
 	OBJS	+= x86/cpuid.o
 	OBJS	+= x86/interrupt.o
