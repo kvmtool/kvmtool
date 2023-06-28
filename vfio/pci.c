@@ -1182,7 +1182,7 @@ static int vfio_pci_init_msis(struct kvm *kvm, struct vfio_device *vdev,
 		entry = &msis->entries[i];
 		entry->gsi = -1;
 		entry->eventfd = -1;
-		msi_set_masked(entry->virt_state, true);
+		msi_set_masked(entry->virt_state, false);
 		msi_set_masked(entry->phys_state, true);
 		eventfds[i] = -1;
 	}
