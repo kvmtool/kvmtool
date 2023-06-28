@@ -36,8 +36,8 @@ struct vfio_pci_msi_entry {
 	struct msix_table		config;
 	int				gsi;
 	int				eventfd;
-	u8				phys_state;
-	u8				virt_state;
+	u8				guest_state;
+	u8				host_state;
 };
 
 struct vfio_pci_msix_table {
@@ -57,8 +57,8 @@ struct vfio_pci_msix_pba {
 /* Common data for MSI and MSI-X */
 struct vfio_pci_msi_common {
 	off_t				pos;
-	u8				virt_state;
-	u8				phys_state;
+	u8				guest_state;
+	u8				host_state;
 	struct mutex			mutex;
 	struct vfio_irq_info		info;
 	struct vfio_irq_set		*irq_set;

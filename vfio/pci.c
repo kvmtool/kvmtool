@@ -28,8 +28,31 @@ static void set_vfio_irq_eventd_payload(union vfio_irq_eventfd *evfd, int fd)
 	memcpy(&evfd->irq.data, &fd, sizeof(fd));
 }
 
+/*
+ * To support MSI and MSI-X with common code, track the host and guest states of
+ * the MSI/MSI-X capability, and of individual vectors.
+ *
+ * Both MSI and MSI-X capabilities are enabled and disabled through registers.
+ * Vectors cannot be individually disabled.
+ */
 #define msi_is_enabled(state)		((state) & VFIO_PCI_MSI_STATE_ENABLED)
+
+/*
+ * MSI-X: the control register allows to mask all vectors, and the table allows
+ * to mask each vector individually.
+ *
+ * MSI: if the capability supports Per-Vector Masking then the Mask Bit register
+ * allows to mask each vector individually. Otherwise there is no masking for
+ * MSI.
+ */
 #define msi_is_masked(state)		((state) & VFIO_PCI_MSI_STATE_MASKED)
+
+/*
+ * A capability is empty when no vector has been registered with SET_IRQS
+ * yet. It's an optimization specific to kvmtool to avoid issuing lots of
+ * SET_IRQS ioctls when the guest configures the MSI-X table while the
+ * capability is masked.
+ */
 #define msi_is_empty(state)		((state) & VFIO_PCI_MSI_STATE_EMPTY)
 
 #define msi_update_state(state, val, bit)				\
@@ -62,7 +85,7 @@ static int vfio_pci_enable_msis(struct kvm *kvm, struct vfio_device *vdev,
 		},
 	};
 
-	if (!msi_is_enabled(msis->virt_state))
+	if (!msi_is_enabled(msis->guest_state))
 		return 0;
 
 	if (pdev->irq_modes & VFIO_PCI_IRQ_MODE_INTX)
@@ -78,9 +101,9 @@ static int vfio_pci_enable_msis(struct kvm *kvm, struct vfio_device *vdev,
 
 	/*
 	 * Initial registration of the full range. This enables the physical
-	 * MSI/MSI-X capability, which might have desired side effects. For
-	 * instance when assigning virtio legacy devices, enabling the MSI
-	 * capability modifies the config space layout!
+	 * MSI/MSI-X capability, which might have side effects. For instance
+	 * when assigning virtio legacy devices, enabling the MSI capability
+	 * modifies the config space layout!
 	 *
 	 * As an optimization, only update MSIs when guest unmasks the
 	 * capability. This greatly reduces the initialization time for Linux
@@ -88,13 +111,10 @@ static int vfio_pci_enable_msis(struct kvm *kvm, struct vfio_device *vdev,
 	 * masked, then fills individual vectors, then unmasks the whole
 	 * function. So we only do one VFIO ioctl when enabling for the first
 	 * time, and then one when unmasking.
-	 *
-	 * phys_state is empty when it is enabled but no vector has been
-	 * registered via SET_IRQS yet.
 	 */
-	if (!msi_is_enabled(msis->phys_state) ||
-	    (!msi_is_masked(msis->virt_state) &&
-	     msi_is_empty(msis->phys_state))) {
+	if (!msi_is_enabled(msis->host_state) ||
+	    (!msi_is_masked(msis->guest_state) &&
+	     msi_is_empty(msis->host_state))) {
 		bool empty = true;
 
 		for (i = 0; i < msis->nr_entries; i++) {
@@ -111,14 +131,14 @@ static int vfio_pci_enable_msis(struct kvm *kvm, struct vfio_device *vdev,
 			return ret;
 		}
 
-		msi_set_enabled(msis->phys_state, true);
-		msi_set_empty(msis->phys_state, empty);
+		msi_set_enabled(msis->host_state, true);
+		msi_set_empty(msis->host_state, empty);
 
 		return 0;
 	}
 
-	if (msi_is_masked(msis->virt_state)) {
-		/* TODO: if phys_state is not empty nor masked, mask all vectors */
+	if (msi_is_masked(msis->guest_state)) {
+		/* TODO: if host_state is not empty nor masked, mask all vectors */
 		return 0;
 	}
 
@@ -141,8 +161,8 @@ static int vfio_pci_enable_msis(struct kvm *kvm, struct vfio_device *vdev,
 
 		eventfds[i] = fd;
 
-		if (msi_is_empty(msis->phys_state) && fd >= 0)
-			msi_set_empty(msis->phys_state, false);
+		if (msi_is_empty(msis->host_state) && fd >= 0)
+			msi_set_empty(msis->host_state, false);
 	}
 
 	return ret;
@@ -162,7 +182,7 @@ static int vfio_pci_disable_msis(struct kvm *kvm, struct vfio_device *vdev,
 		.count	= 0,
 	};
 
-	if (!msi_is_enabled(msis->phys_state))
+	if (!msi_is_enabled(msis->host_state))
 		return 0;
 
 	ret = ioctl(vdev->fd, VFIO_DEVICE_SET_IRQS, &irq_set);
@@ -171,8 +191,8 @@ static int vfio_pci_disable_msis(struct kvm *kvm, struct vfio_device *vdev,
 		return ret;
 	}
 
-	msi_set_enabled(msis->phys_state, false);
-	msi_set_empty(msis->phys_state, true);
+	msi_set_enabled(msis->host_state, false);
+	msi_set_empty(msis->host_state, true);
 
 	/*
 	 * When MSI or MSIX is disabled, this might be called when
@@ -223,12 +243,12 @@ static int vfio_pci_update_msi_entry(struct kvm *kvm, struct vfio_device *vdev,
 	 *   the eventfd in a local handler, in order to serve Pending Bit reads
 	 *   to the guest.
 	 *
-	 * So entry->phys_state is masked when there is no active irqfd route.
+	 * So entry->host_state is masked when there is no active irqfd route.
 	 */
-	if (msi_is_masked(entry->virt_state) == msi_is_masked(entry->phys_state))
+	if (msi_is_masked(entry->guest_state) == msi_is_masked(entry->host_state))
 		return 0;
 
-	if (msi_is_masked(entry->phys_state)) {
+	if (msi_is_masked(entry->host_state)) {
 		ret = irq__add_irqfd(kvm, entry->gsi, entry->eventfd, -1);
 		if (ret < 0) {
 			vfio_dev_err(vdev, "cannot setup irqfd");
@@ -238,7 +258,7 @@ static int vfio_pci_update_msi_entry(struct kvm *kvm, struct vfio_device *vdev,
 		irq__del_irqfd(kvm, entry->gsi, entry->eventfd);
 	}
 
-	msi_set_masked(entry->phys_state, msi_is_masked(entry->virt_state));
+	msi_set_masked(entry->host_state, msi_is_masked(entry->guest_state));
 
 	return 0;
 }
@@ -311,7 +331,7 @@ static void vfio_pci_msix_table_access(struct kvm_cpu *vcpu, u64 addr, u8 *data,
 	if (field + len <= PCI_MSIX_ENTRY_VECTOR_CTRL)
 		goto out_unlock;
 
-	msi_set_masked(entry->virt_state, entry->config.ctrl &
+	msi_set_masked(entry->guest_state, entry->config.ctrl &
 		       PCI_MSIX_ENTRY_CTRL_MASKBIT);
 
 	if (vfio_pci_update_msi_entry(kvm, vdev, entry) < 0)
@@ -346,9 +366,9 @@ static void vfio_pci_msix_cap_write(struct kvm *kvm,
 
 	mutex_lock(&pdev->msix.mutex);
 
-	msi_set_masked(pdev->msix.virt_state, flags & PCI_MSIX_FLAGS_MASKALL);
+	msi_set_masked(pdev->msix.guest_state, flags & PCI_MSIX_FLAGS_MASKALL);
 	enable = flags & PCI_MSIX_FLAGS_ENABLE;
-	msi_set_enabled(pdev->msix.virt_state, enable);
+	msi_set_enabled(pdev->msix.guest_state, enable);
 
 	if (enable && vfio_pci_enable_msis(kvm, vdev, true))
 		vfio_dev_err(vdev, "cannot enable MSIX");
@@ -382,7 +402,7 @@ static int vfio_pci_msi_vector_write(struct kvm *kvm, struct vfio_device *vdev,
 	/* Set mask to current state */
 	for (i = 0; i < pdev->msi.nr_entries; i++) {
 		entry = &pdev->msi.entries[i];
-		mask |= !!msi_is_masked(entry->virt_state) << i;
+		mask |= !!msi_is_masked(entry->guest_state) << i;
 	}
 
 	/* Update mask following the intersection of access and register */
@@ -397,8 +417,8 @@ static int vfio_pci_msi_vector_write(struct kvm *kvm, struct vfio_device *vdev,
 		bool masked = mask & (1 << i);
 
 		entry = &pdev->msi.entries[i];
-		if (masked != msi_is_masked(entry->virt_state)) {
-			msi_set_masked(entry->virt_state, masked);
+		if (masked != msi_is_masked(entry->guest_state)) {
+			msi_set_masked(entry->guest_state, masked);
 			vfio_pci_update_msi_entry(kvm, vdev, entry);
 		}
 	}
@@ -430,9 +450,9 @@ static void vfio_pci_msi_cap_write(struct kvm *kvm, struct vfio_device *vdev,
 
 	ctrl = *(u8 *)(data + PCI_MSI_FLAGS - off);
 
-	msi_set_enabled(pdev->msi.virt_state, ctrl & PCI_MSI_FLAGS_ENABLE);
+	msi_set_enabled(pdev->msi.guest_state, ctrl & PCI_MSI_FLAGS_ENABLE);
 
-	if (!msi_is_enabled(pdev->msi.virt_state)) {
+	if (!msi_is_enabled(pdev->msi.guest_state)) {
 		vfio_pci_disable_msis(kvm, vdev, false);
 		goto out_unlock;
 	}
@@ -1182,8 +1202,8 @@ static int vfio_pci_init_msis(struct kvm *kvm, struct vfio_device *vdev,
 		entry = &msis->entries[i];
 		entry->gsi = -1;
 		entry->eventfd = -1;
-		msi_set_masked(entry->virt_state, false);
-		msi_set_masked(entry->phys_state, true);
+		msi_set_masked(entry->guest_state, false);
+		msi_set_masked(entry->host_state, true);
 		eventfds[i] = -1;
 	}
 
