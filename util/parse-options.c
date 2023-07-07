@@ -17,10 +17,13 @@
 static int opterror(const struct option *opt, const char *reason, int flags)
 {
 	if (flags & OPT_SHORT)
-		return pr_err("switch `%c' %s", opt->short_name, reason);
-	if (flags & OPT_UNSET)
-		return pr_err("option `no-%s' %s", opt->long_name, reason);
-	return pr_err("option `%s' %s", opt->long_name, reason);
+		pr_err("switch `%c' %s", opt->short_name, reason);
+	else if (flags & OPT_UNSET)
+		pr_err("option `no-%s' %s", opt->long_name, reason);
+	else
+		pr_err("option `%s' %s", opt->long_name, reason);
+
+	return -1;
 }
 
 static int get_arg(struct parse_opt_ctx_t *p, const struct option *opt,
@@ -429,14 +432,15 @@ is_abbreviated:
 		return get_value(p, options, flags);
 	}
 
-	if (ambiguous_option)
-		return pr_err("Ambiguous option: %s "
-				"(could be --%s%s or --%s%s)",
-				arg,
-				(ambiguous_flags & OPT_UNSET) ?  "no-" : "",
-				ambiguous_option->long_name,
-				(abbrev_flags & OPT_UNSET) ?  "no-" : "",
-				abbrev_option->long_name);
+	if (ambiguous_option) {
+		pr_err("Ambiguous option: %s (could be --%s%s or --%s%s)",
+			arg,
+			(ambiguous_flags & OPT_UNSET) ?  "no-" : "",
+			ambiguous_option->long_name,
+			(abbrev_flags & OPT_UNSET) ?  "no-" : "",
+			abbrev_option->long_name);
+		return -1;
+	}
 	if (abbrev_option)
 		return get_value(p, abbrev_option, abbrev_flags);
 	return -2;

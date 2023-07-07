@@ -47,14 +47,13 @@ void die(const char *err, ...)
 	va_end(params);
 }
 
-int pr_err(const char *err, ...)
+void pr_err(const char *err, ...)
 {
 	va_list params;
 
 	va_start(params, err);
 	error_builtin(err, params);
 	va_end(params);
-	return -1;
 }
 
 void pr_warning(const char *warn, ...)
