@@ -265,32 +265,32 @@ int kvm_cpu__init(struct kvm *kvm)
 	recommended_cpus = kvm__recommended_cpus(kvm);
 
 	if (kvm->cfg.nrcpus > max_cpus) {
-		printf("  # Limit the number of CPUs to %d\n", max_cpus);
+		pr_warning("Limiting the number of CPUs to %d", max_cpus);
 		kvm->cfg.nrcpus = max_cpus;
 	} else if (kvm->cfg.nrcpus > recommended_cpus) {
-		printf("  # Warning: The maximum recommended amount of VCPUs"
-			" is %d\n", recommended_cpus);
+		pr_warning("The maximum recommended amount of VCPUs is %d",
+			   recommended_cpus);
 	}
 
 	kvm->nrcpus = kvm->cfg.nrcpus;
 
 	task_eventfd = eventfd(0, 0);
 	if (task_eventfd < 0) {
-		pr_warning("Couldn't create task_eventfd");
+		pr_err("Couldn't create task_eventfd");
 		return task_eventfd;
 	}
 
 	/* Alloc one pointer too many, so array ends up 0-terminated */
 	kvm->cpus = calloc(kvm->nrcpus + 1, sizeof(void *));
 	if (!kvm->cpus) {
-		pr_warning("Couldn't allocate array for %d CPUs", kvm->nrcpus);
+		pr_err("Couldn't allocate array for %d CPUs", kvm->nrcpus);
 		return -ENOMEM;
 	}
 
 	for (i = 0; i < kvm->nrcpus; i++) {
 		kvm->cpus[i] = kvm_cpu__arch_init(kvm, i);
 		if (!kvm->cpus[i]) {
-			pr_warning("unable to initialize KVM VCPU");
+			pr_err("unable to initialize KVM VCPU");
 			goto fail_alloc;
 		}
 	}

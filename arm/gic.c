@@ -115,9 +115,8 @@ static int gic__create_its_frame(struct kvm *kvm, u64 its_frame_addr)
 
 	err = ioctl(kvm->vm_fd, KVM_CREATE_DEVICE, &its_device);
 	if (err) {
-		fprintf(stderr,
-			"GICv3 ITS requested, but kernel does not support it.\n");
-		fprintf(stderr, "Try --irqchip=gicv3 instead\n");
+		pr_err("GICv3 ITS requested, but kernel does not support it.");
+		pr_err("Try --irqchip=gicv3 instead");
 		return err;
 	}
 

@@ -271,12 +271,14 @@ static void *kvm_cpu_thread(void *arg)
 	return (void *) (intptr_t) 0;
 
 panic_kvm:
-	fprintf(stderr, "KVM exit reason: %u (\"%s\")\n",
+	pr_err("KVM exit reason: %u (\"%s\")",
 		current_kvm_cpu->kvm_run->exit_reason,
 		kvm_exit_reasons[current_kvm_cpu->kvm_run->exit_reason]);
-	if (current_kvm_cpu->kvm_run->exit_reason == KVM_EXIT_UNKNOWN)
-		fprintf(stderr, "KVM exit code: 0x%llu\n",
+
+	if (current_kvm_cpu->kvm_run->exit_reason == KVM_EXIT_UNKNOWN) {
+		pr_err("KVM exit code: %llu",
 			(unsigned long long)current_kvm_cpu->kvm_run->hw.hardware_exit_reason);
+	}
 
 	kvm_cpu__set_debug_fd(STDOUT_FILENO);
 	kvm_cpu__show_registers(current_kvm_cpu);
@@ -313,10 +315,10 @@ static void kernel_usage_with_options(void)
 	const char **k;
 	struct utsname uts;
 
-	fprintf(stderr, "Fatal: could not find default kernel image in:\n");
+	pr_err("Could not find default kernel image in:");
 	k = &default_kernels[0];
 	while (*k) {
-		fprintf(stderr, "\t%s\n", *k);
+		pr_err("\t%s", *k);
 		k++;
 	}
 
@@ -327,10 +329,10 @@ static void kernel_usage_with_options(void)
 	while (*k) {
 		if (snprintf(kernel, PATH_MAX, "%s-%s", *k, uts.release) < 0)
 			return;
-		fprintf(stderr, "\t%s\n", kernel);
+		pr_err("\t%s", kernel);
 		k++;
 	}
-	fprintf(stderr, "\nPlease see '%s run --help' for more options.\n\n",
+	pr_info("Please see '%s run --help' for more options.",
 		KVM_BINARY_NAME);
 }
 
@@ -656,8 +658,7 @@ static struct kvm *kvm_cmd_run_init(int argc, const char **argv)
 
 			if ((kvm_run_wrapper == KVM_RUN_DEFAULT && kvm->cfg.kernel_filename) ||
 				(kvm_run_wrapper == KVM_RUN_SANDBOX && kvm->cfg.sandbox)) {
-				fprintf(stderr, "Cannot handle parameter: "
-						"%s\n", argv[0]);
+				pr_err("Cannot handle parameter: %s", argv[0]);
 				usage_with_options(run_usage, options);
 				free(kvm);
 				return ERR_PTR(-EINVAL);
@@ -775,15 +776,15 @@ static struct kvm *kvm_cmd_run_init(int argc, const char **argv)
 		kvm_run_set_real_cmdline(kvm);
 
 	if (kvm->cfg.kernel_filename) {
-		printf("  # %s run -k %s -m %Lu -c %d --name %s\n", KVM_BINARY_NAME,
-		       kvm->cfg.kernel_filename,
-		       (unsigned long long)kvm->cfg.ram_size >> MB_SHIFT,
-		       kvm->cfg.nrcpus, kvm->cfg.guest_name);
+		pr_info("# %s run -k %s -m %Lu -c %d --name %s", KVM_BINARY_NAME,
+			kvm->cfg.kernel_filename,
+			(unsigned long long)kvm->cfg.ram_size >> MB_SHIFT,
+			kvm->cfg.nrcpus, kvm->cfg.guest_name);
 	} else if (kvm->cfg.firmware_filename) {
-		printf("  # %s run --firmware %s -m %Lu -c %d --name %s\n", KVM_BINARY_NAME,
-		       kvm->cfg.firmware_filename,
-		       (unsigned long long)kvm->cfg.ram_size >> MB_SHIFT,
-		       kvm->cfg.nrcpus, kvm->cfg.guest_name);
+		pr_info("# %s run --firmware %s -m %Lu -c %d --name %s", KVM_BINARY_NAME,
+			kvm->cfg.firmware_filename,
+			(unsigned long long)kvm->cfg.ram_size >> MB_SHIFT,
+			kvm->cfg.nrcpus, kvm->cfg.guest_name);
 	}
 
 	if (init_list__init(kvm) < 0)
@@ -815,7 +816,7 @@ static void kvm_cmd_run_exit(struct kvm *kvm, int guest_ret)
 	init_list__exit(kvm);
 
 	if (guest_ret == 0)
-		printf("\n  # KVM session ended normally.\n");
+		pr_info("KVM session ended normally.");
 }
 
 int kvm_cmd_run(int argc, const char **argv, const char *prefix)

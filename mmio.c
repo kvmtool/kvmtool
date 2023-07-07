@@ -203,7 +203,7 @@ bool kvm__emulate_mmio(struct kvm_cpu *vcpu, u64 phys_addr, u8 *data,
 	mmio = mmio_get(&mmio_tree, phys_addr, len);
 	if (!mmio) {
 		if (vcpu->kvm->cfg.mmio_debug)
-			fprintf(stderr,	"Warning: Ignoring MMIO %s at %016llx (length %u)\n",
+			fprintf(stderr,	"MMIO warning: Ignoring MMIO %s at %016llx (length %u)\n",
 				to_direction(is_write),
 				(unsigned long long)phys_addr, len);
 		goto out;

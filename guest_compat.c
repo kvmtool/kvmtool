@@ -86,7 +86,7 @@ int compat__print_all_messages(void)
 
 		msg = list_first_entry(&messages, struct compat_message, list);
 
-		printf("\n  # KVM compatibility warning.\n\t%s\n\t%s\n",
+		pr_warning("KVM compatibility warning.\n\t%s\n\t%s",
 			msg->title, msg->desc);
 
 		list_del(&msg->list);

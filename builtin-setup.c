@@ -271,15 +271,15 @@ int kvm_cmd_setup(int argc, const char **argv, const char *prefix)
 		kvm_setup_help();
 
 	r = do_setup(instance_name);
-	if (r == 0)
-		printf("A new rootfs '%s' has been created in '%s%s'.\n\n"
-			"You can now start it by running the following command:\n\n"
-			"  %s run -d %s\n",
-			instance_name, kvm__get_dir(), instance_name,
-			KVM_BINARY_NAME,instance_name);
-	else
-		printf("Unable to create rootfs in %s%s: %s\n",
+	if (r == 0) {
+		pr_info("A new rootfs '%s' has been created in '%s%s'.",
+			instance_name, kvm__get_dir(), instance_name);
+		pr_info("You can now start it by running the following command:");
+		pr_info("%s run -d %s", KVM_BINARY_NAME, instance_name);
+	} else {
+		pr_err("Unable to create rootfs in %s%s: %s",
 			kvm__get_dir(), instance_name, strerror(errno));
+	}
 
 	return r;
 }
