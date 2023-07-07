@@ -56,6 +56,9 @@ void pr_err(const char *err, ...)
 {
 	va_list params;
 
+	if (loglevel < LOGLEVEL_ERROR)
+		return;
+
 	va_start(params, err);
 	error_builtin(err, params);
 	va_end(params);
@@ -65,6 +68,9 @@ void pr_warning(const char *warn, ...)
 {
 	va_list params;
 
+	if (loglevel < LOGLEVEL_WARNING)
+		return;
+
 	va_start(params, warn);
 	warn_builtin(warn, params);
 	va_end(params);
@@ -73,6 +79,9 @@ void pr_warning(const char *warn, ...)
 void pr_info(const char *info, ...)
 {
 	va_list params;
+
+	if (loglevel < LOGLEVEL_INFO)
+		return;
 
 	va_start(params, info);
 	info_builtin(info, params);

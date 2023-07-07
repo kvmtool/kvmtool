@@ -58,8 +58,7 @@
 __thread struct kvm_cpu *current_kvm_cpu;
 
 static int  kvm_run_wrapper;
-
-bool do_debug_print = false;
+int loglevel = LOGLEVEL_INFO;
 
 static const char * const run_usage[] = {
 	"lkvm run [<options>] [<kernel image>]",
@@ -146,6 +145,27 @@ static int mem_parser(const struct option *opt, const char *arg, int unset)
 	return 0;
 }
 
+static int loglevel_parser(const struct option *opt, const char *arg, int unset)
+{
+	if (strcmp(opt->long_name, "debug") == 0) {
+		loglevel = LOGLEVEL_DEBUG;
+		return 0;
+	}
+
+	if (strcmp(arg, "debug") == 0)
+		loglevel = LOGLEVEL_DEBUG;
+	else if (strcmp(arg, "info") == 0)
+		loglevel = LOGLEVEL_INFO;
+	else if (strcmp(arg, "warning") == 0)
+		loglevel = LOGLEVEL_WARNING;
+	else if (strcmp(arg, "error") == 0)
+		loglevel = LOGLEVEL_ERROR;
+	else
+		die("Unknown loglevel: %s", arg);
+
+	return 0;
+}
+
 #ifndef OPT_ARCH_RUN
 #define OPT_ARCH_RUN(...)
 #endif
@@ -215,6 +235,8 @@ static int mem_parser(const struct option *opt, const char *arg, int unset)
 		     VIRTIO_TRANS_OPT_HELP_SHORT,		        \
 		     "Type of virtio transport",			\
 		     virtio_transport_parser, NULL),			\
+	OPT_CALLBACK('\0', "loglevel", NULL, "[error|warning|info|debug]",\
+			"Set the verbosity level", loglevel_parser, NULL),\
 									\
 	OPT_GROUP("Kernel options:"),					\
 	OPT_STRING('k', "kernel", &(cfg)->kernel_filename, "kernel",	\
@@ -241,8 +263,10 @@ static int mem_parser(const struct option *opt, const char *arg, int unset)
 		     vfio_device_parser, kvm),				\
 									\
 	OPT_GROUP("Debug options:"),					\
-	OPT_BOOLEAN('\0', "debug", &do_debug_print,			\
-			"Enable debug messages"),			\
+	OPT_CALLBACK_NOOPT('\0', "debug", kvm, NULL,			\
+			"Enable debug messages (deprecated, use "	\
+			"--loglevel=debug instead)",			\
+			loglevel_parser, NULL),				\
 	OPT_BOOLEAN('\0', "debug-single-step", &(cfg)->single_step,	\
 			"Enable single stepping"),			\
 	OPT_BOOLEAN('\0', "debug-ioport", &(cfg)->ioport_debug,		\
