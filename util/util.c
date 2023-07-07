@@ -38,6 +38,11 @@ static void info_builtin(const char *info, va_list params)
 	report(" Info: ", info, params);
 }
 
+static void debug_builtin(const char *debug, va_list params)
+{
+	report(" Debug: ", debug, params);
+}
+
 void die(const char *err, ...)
 {
 	va_list params;
@@ -71,6 +76,16 @@ void pr_info(const char *info, ...)
 
 	va_start(params, info);
 	info_builtin(info, params);
+	va_end(params);
+}
+
+/* Do not call directly; call pr_debug() instead. */
+void __pr_debug(const char *debug, ...)
+{
+	va_list params;
+
+	va_start(params, debug);
+	debug_builtin(debug, params);
 	va_end(params);
 }
 

@@ -42,12 +42,13 @@ extern void die_perror(const char *s) NORETURN;
 extern void pr_err(const char *err, ...) __attribute__((format (printf, 1, 2)));
 extern void pr_warning(const char *err, ...) __attribute__((format (printf, 1, 2)));
 extern void pr_info(const char *err, ...) __attribute__((format (printf, 1, 2)));
+extern void __pr_debug(const char *debug, ...) __attribute__((format (printf, 1, 2)));
 extern void set_die_routine(void (*routine)(const char *err, va_list params) NORETURN);
 
 #define pr_debug(fmt, ...)						\
 	do {								\
 		if (do_debug_print)					\
-			pr_info("(%s) %s:%d: " fmt, __FILE__,		\
+			__pr_debug("(%s) %s:%d: " fmt, __FILE__,	\
 				__func__, __LINE__, ##__VA_ARGS__);	\
 	} while (0)
 
