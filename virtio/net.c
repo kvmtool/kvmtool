@@ -847,7 +847,7 @@ done:
 	return 0;
 }
 
-static int virtio_net__init_one(struct virtio_net_params *params)
+static int virtio_net__init_one(struct virtio_net_params *params, bool suppress_compat)
 {
 	enum virtio_trans trans = params->kvm->cfg.virtio_transport;
 	struct net_dev *ndev;
@@ -913,7 +913,7 @@ static int virtio_net__init_one(struct virtio_net_params *params)
 	if (params->vhost)
 		virtio_net__vhost_init(params->kvm, ndev);
 
-	if (compat_id == -1)
+	if (compat_id == -1 && !suppress_compat)
 		compat_id = virtio_compat_add_message("virtio-net", "CONFIG_VIRTIO_NET");
 
 	return 0;
@@ -925,7 +925,7 @@ int virtio_net__init(struct kvm *kvm)
 
 	for (i = 0; i < kvm->cfg.num_net_devices; i++) {
 		kvm->cfg.net_params[i].kvm = kvm;
-		r = virtio_net__init_one(&kvm->cfg.net_params[i]);
+		r = virtio_net__init_one(&kvm->cfg.net_params[i], false);
 		if (r < 0)
 			goto cleanup;
 	}
@@ -943,7 +943,7 @@ int virtio_net__init(struct kvm *kvm)
 		str_to_mac(kvm->cfg.guest_mac, net_params.guest_mac);
 		str_to_mac(kvm->cfg.host_mac, net_params.host_mac);
 
-		r = virtio_net__init_one(&net_params);
+		r = virtio_net__init_one(&net_params, true);
 		if (r < 0)
 			goto cleanup;
 	}
