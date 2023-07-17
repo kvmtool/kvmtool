@@ -360,20 +360,26 @@ static void kernel_usage_with_options(void)
 		KVM_BINARY_NAME);
 }
 
+static long host_page_size(void)
+{
+	long page_size = sysconf(_SC_PAGE_SIZE);
+
+	if (page_size < 0) {
+		pr_warning("sysconf(_SC_PAGE_SIZE) failed");
+		return 0;
+	}
+
+	return page_size;
+}
+
 static u64 host_ram_size(void)
 {
-	long page_size;
+	long page_size = host_page_size();
 	long nr_pages;
 
 	nr_pages	= sysconf(_SC_PHYS_PAGES);
 	if (nr_pages < 0) {
 		pr_warning("sysconf(_SC_PHYS_PAGES) failed");
-		return 0;
-	}
-
-	page_size	= sysconf(_SC_PAGE_SIZE);
-	if (page_size < 0) {
-		pr_warning("sysconf(_SC_PAGE_SIZE) failed");
 		return 0;
 	}
 
