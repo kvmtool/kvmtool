@@ -372,16 +372,22 @@ static long host_page_size(void)
 	return page_size;
 }
 
-static u64 host_ram_size(void)
+static long host_ram_nrpages(void)
 {
-	long page_size = host_page_size();
-	long nr_pages;
+	long nr_pages = sysconf(_SC_PHYS_PAGES);
 
-	nr_pages	= sysconf(_SC_PHYS_PAGES);
 	if (nr_pages < 0) {
 		pr_warning("sysconf(_SC_PHYS_PAGES) failed");
 		return 0;
 	}
+
+	return nr_pages;
+}
+
+static u64 host_ram_size(void)
+{
+	long page_size = host_page_size();
+	long nr_pages = host_ram_nrpages();
 
 	return (u64)nr_pages * page_size;
 }
