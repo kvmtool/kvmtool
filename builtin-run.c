@@ -400,17 +400,15 @@ static u64 host_ram_size(void)
 
 static u64 get_ram_size(int nr_cpus)
 {
-	u64 available;
-	u64 ram_size;
+	long nr_pages_available = host_ram_nrpages() * RAM_SIZE_RATIO;
+	u64 ram_size = (u64)SZ_64M * (nr_cpus + 3);
+	u64 available = MIN_RAM_SIZE;
 
-	ram_size	= (u64)SZ_64M * (nr_cpus + 3);
-
-	available	= host_ram_size() * RAM_SIZE_RATIO;
-	if (!available)
-		available = MIN_RAM_SIZE;
+	if (nr_pages_available)
+		available = nr_pages_available * host_page_size();
 
 	if (ram_size > available)
-		ram_size	= available;
+		ram_size = available;
 
 	return ram_size;
 }
