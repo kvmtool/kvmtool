@@ -252,7 +252,8 @@ static int loglevel_parser(const struct option *opt, const char *arg, int unset)
 									\
 	OPT_GROUP("Networking options:"),				\
 	OPT_CALLBACK_DEFAULT('n', "network", NULL, "network params",	\
-		     "Create a new guest NIC",				\
+		     "Create a new guest NIC. Pass mode=none to disable"\
+		     " all network devices",				\
 		     netdev_parser, NULL, kvm),				\
 	OPT_BOOLEAN('\0', "no-dhcp", &(cfg)->no_dhcp, "Disable kernel"	\
 			" DHCP in rootfs mode"),			\
