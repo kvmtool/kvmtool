@@ -14,6 +14,9 @@
 #include <assert.h>
 #include <string.h>
 
+/* The bit of the ISR which indicates a queue change. */
+#define VIRTIO_PCI_ISR_QUEUE	0x1
+
 int virtio_pci__add_msix_route(struct virtio_pci *vpci, u32 vec)
 {
 	int gsi;
@@ -239,7 +242,7 @@ int virtio_pci__signal_vq(struct kvm *kvm, struct virtio_device *vdev, u32 vq)
 		else
 			kvm__irq_trigger(kvm, vpci->gsis[vq]);
 	} else {
-		vpci->isr |= VIRTIO_IRQ_HIGH;
+		vpci->isr |= VIRTIO_PCI_ISR_QUEUE;
 		kvm__irq_line(kvm, vpci->legacy_irq_line, VIRTIO_IRQ_HIGH);
 	}
 	return 0;
