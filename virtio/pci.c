@@ -264,7 +264,7 @@ int virtio_pci__signal_config(struct kvm *kvm, struct virtio_device *vdev)
 			kvm__irq_trigger(kvm, vpci->config_gsi);
 	} else {
 		vpci->isr = VIRTIO_PCI_ISR_CONFIG;
-		kvm__irq_trigger(kvm, vpci->legacy_irq_line);
+		kvm__irq_line(kvm, vpci->legacy_irq_line, VIRTIO_IRQ_HIGH);
 	}
 
 	return 0;
