@@ -239,7 +239,7 @@ int virtio_pci__signal_vq(struct kvm *kvm, struct virtio_device *vdev, u32 vq)
 		else
 			kvm__irq_trigger(kvm, vpci->gsis[vq]);
 	} else {
-		vpci->isr = VIRTIO_IRQ_HIGH;
+		vpci->isr |= VIRTIO_IRQ_HIGH;
 		kvm__irq_line(kvm, vpci->legacy_irq_line, VIRTIO_IRQ_HIGH);
 	}
 	return 0;
@@ -263,7 +263,7 @@ int virtio_pci__signal_config(struct kvm *kvm, struct virtio_device *vdev)
 		else
 			kvm__irq_trigger(kvm, vpci->config_gsi);
 	} else {
-		vpci->isr = VIRTIO_PCI_ISR_CONFIG;
+		vpci->isr |= VIRTIO_PCI_ISR_CONFIG;
 		kvm__irq_line(kvm, vpci->legacy_irq_line, VIRTIO_IRQ_HIGH);
 	}
 
