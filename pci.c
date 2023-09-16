@@ -532,6 +532,7 @@ int pci__exit(struct kvm *kvm)
 {
 	kvm__deregister_pio(kvm, PCI_CONFIG_DATA);
 	kvm__deregister_pio(kvm, PCI_CONFIG_ADDRESS);
+	kvm__deregister_mmio(kvm, KVM_PCI_CFG_AREA);
 
 	return 0;
 }
