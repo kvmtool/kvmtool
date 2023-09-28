@@ -1,6 +1,9 @@
 #include "kvm/i8259.h"
 #include "kvm/kvm.h"
 
+#define pr_pic_unimpl(fmt, ...)	\
+	pr_err("pic: " fmt, ## __VA_ARGS__)
+
 static void pic_irq_request(struct kvm *kvm, int level);
 
 static void pic_lock(struct kvm_pic *vpic)
@@ -232,11 +235,11 @@ static void pic_ioport_write(void *opaque, u32 addr, u32 val)
 	if (addr == 0) {
 		if (val & 0x10) {
 			s->init4 = val & 1;
-			// TODO:
-			// if (val & 0x02)
-			//         pr_pic_unimpl("single mode not supported");
-			// if (val & 0x08)
-			//         pr_pic_unimpl("level sensitive irq not supported");
+			if (val & 0x02)
+				pr_pic_unimpl("single mode not supported");
+			if (val & 0x08)
+				pr_pic_unimpl(
+						"level sensitive irq not supported");
 			kvm_pic_reset(s);
 		} else if (val & 0x08) {
 			if (val & 0x04)
@@ -378,8 +381,7 @@ static int picdev_write(struct kvm_pic *s,
 	unsigned char data = *(unsigned char *)val;
 
 	if (len != 1) {
-		// TODO: Log
-		// pr_pic_unimpl("non byte write\n");
+		pr_pic_unimpl("non byte write\n");
 		return 0;
 	}
 	switch (addr) {
@@ -414,8 +416,7 @@ static int picdev_read(struct kvm_pic *s,
 
 	if (len != 1) {
 		memset(val, 0, len);
-		// TODO: Log
-		// pr_pic_unimpl("non byte read\n");
+		pr_pic_unimpl("non byte read\n");
 		return 0;
 	}
 	switch (addr) {
