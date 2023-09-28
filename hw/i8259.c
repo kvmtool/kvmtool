@@ -485,17 +485,16 @@ int kvm_pic_init(struct kvm *kvm)
 	ret = device__register(&vpic->dev_hdr);
 	if (ret < 0)
 		goto fail_device;
-
-	ret = kvm__register_iotrap(kvm, 0x20, 2, kvm_pic_io_handler, vpic,
-					DEVICE_BUS_IOPORT);
+	// master
+	ret = kvm__register_pio(kvm, 0x20, 2, kvm_pic_io_handler, vpic);
 	if (ret < 0)
 		goto fail_reg;
-	ret = kvm__register_iotrap(kvm, 0xa0, 2, kvm_pic_io_handler, vpic,
-					DEVICE_BUS_IOPORT);
+	// slave
+	ret = kvm__register_pio(kvm, 0xa0, 2, kvm_pic_io_handler, vpic);
 	if (ret < 0)
 		goto fail_reg2;
-	ret = kvm__register_iotrap(kvm, 0x4d0, 2, kvm_pic_io_handler, vpic,
-					DEVICE_BUS_IOPORT);
+	// elcr
+	ret = kvm__register_pio(kvm, 0x4d0, 2, kvm_pic_io_handler, vpic);
 	if (ret < 0)
 		goto fail_reg3;
 
@@ -503,9 +502,9 @@ int kvm_pic_init(struct kvm *kvm)
 	return 0;
 
 fail_reg3:
-	kvm__deregister_iotrap(kvm, 0xa0, DEVICE_BUS_IOPORT);
+	kvm__deregister_pio(kvm, 0xa0);
 fail_reg2:
-	kvm__deregister_iotrap(kvm, 0x20, DEVICE_BUS_IOPORT);
+	kvm__deregister_pio(kvm, 0x20);
 fail_reg:
 	device__unregister(&vpic->dev_hdr);
 fail_device:
@@ -520,9 +519,9 @@ void kvm_pic_destroy(struct kvm *kvm)
 	if (!vpic)
 		return;
 
-	kvm__deregister_iotrap(kvm, 0x4d0, DEVICE_BUS_IOPORT);
-	kvm__deregister_iotrap(kvm, 0x20, DEVICE_BUS_IOPORT);
-	kvm__deregister_iotrap(kvm, 0xa0, DEVICE_BUS_IOPORT);
+	kvm__deregister_pio(kvm, 0x4d0);
+	kvm__deregister_pio(kvm, 0x20);
+	kvm__deregister_pio(kvm, 0xa0);
 	device__unregister(&vpic->dev_hdr);
 
 	kvm->arch.vpic = NULL;
