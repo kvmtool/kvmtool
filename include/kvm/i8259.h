@@ -41,7 +41,7 @@ struct kvm_pic {
 	struct kvm_kpic_state pics[2];
 	int output;
 	void (*ack_notifier)(void *opaque, int irq);
-	unsigned long irq_states[PIC_NUM_PINS];
+	// unsigned long irq_states[PIC_NUM_PINS];
 };
 
 int kvm_pic_init(struct kvm *kvm);
