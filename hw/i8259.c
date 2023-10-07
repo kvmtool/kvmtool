@@ -5,6 +5,7 @@
 	pr_err("pic: " fmt, ## __VA_ARGS__)
 
 static void pic_irq_request(struct kvm *kvm, int level);
+static int pic_read_irq(struct kvm *kvm);
 
 static void kvm_set_irq(struct kvm *kvm, int irq, int level)
 {
@@ -28,14 +29,15 @@ static void pic_lock(struct kvm_pic *vpic)
 
 static void pic_unlock(struct kvm_pic *vpic)
 {
-	// bool wakeup = vpic->wakeup_needed;
-	// struct kvm_vcpu *vcpu;
-	// int i;
+	bool wakeup = vpic->wakeup_needed;
+	struct kvm *kvm = vpic->kvm;
 
 	vpic->wakeup_needed = false;
-	mutex_unlock(&vpic->mutex);
 
-	// TODO: kick vcpu thread
+	mutex_unlock(&vpic->mutex);
+	if (wakeup) {
+		kvm_set_irq(kvm, pic_read_irq(kvm), vpic->output);
+	}
 }
 
 static void pic_clear_isr(struct kvm_kpic_state *s, int irq)
