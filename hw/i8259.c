@@ -172,7 +172,7 @@ static inline void pic_intack(struct kvm_kpic_state *s, int irq)
 
 }
 
-int kvm_pic_read_irq(struct kvm *kvm)
+static int pic_read_irq(struct kvm *kvm)
 {
 	int irq, irq2, intno;
 	struct kvm_pic *s = kvm->arch.vpic;

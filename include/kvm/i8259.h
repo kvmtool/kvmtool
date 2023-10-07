@@ -46,7 +46,6 @@ struct kvm_pic {
 
 int kvm_pic_init(struct kvm *kvm);
 void kvm_pic_destroy(struct kvm *kvm);
-int kvm_pic_read_irq(struct kvm *kvm);
 void kvm_pic_update_irq(struct kvm *kvm);
 int kvm_pic_set_irq(struct kvm_pic *vpic, int irq, int level);
 
