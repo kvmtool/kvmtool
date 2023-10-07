@@ -6,6 +6,21 @@
 
 static void pic_irq_request(struct kvm *kvm, int level);
 
+static void kvm_set_irq(struct kvm *kvm, int irq, int level)
+{
+	struct kvm_irq_level irq_level;
+
+	irq_level	= (struct kvm_irq_level) {
+		{
+			.irq		= irq,
+		},
+		.level		= level,
+	};
+
+	if (ioctl(kvm->vm_fd, KVM_IRQ_LINE, &irq_level) < 0)
+		die_perror("KVM_IRQ_LINE failed");
+}
+
 static void pic_lock(struct kvm_pic *vpic)
 {
 	mutex_lock(&vpic->mutex);
