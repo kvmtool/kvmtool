@@ -179,7 +179,7 @@ static int pic_read_irq(struct kvm *kvm)
 
 	s->output = 0;
 
-	pic_lock(s);
+	// pic_lock(s);
 	irq = pic_get_irq(&s->pics[0]);
 	if (irq >= 0) {
 		pic_intack(&s->pics[0], irq);
@@ -203,7 +203,7 @@ static int pic_read_irq(struct kvm *kvm)
 		intno = s->pics[0].irq_base + irq;
 	}
 	pic_update_irq(s);
-	pic_unlock(s);
+	// pic_unlock(s);
 
 	return intno;
 }
