@@ -182,7 +182,7 @@ void kvm__arch_init(struct kvm *kvm)
 		struct kvm_enable_cap cap = {
 			.cap = KVM_CAP_SPLIT_IRQCHIP,
 			.flags = 0,
-			.args[0] = KVM_IOAPIC_NUM_PINS,
+			.args[0] = PIC_NUM_PINS,
 		};
 		ret = ioctl(kvm->vm_fd, KVM_ENABLE_CAP, &cap);
 		if (ret < 0) {

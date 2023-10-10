@@ -389,6 +389,12 @@ static void handle_pause(struct kvm *kvm, int fd, u32 type, u32 len, u8 *msg)
 	is_paused = !is_paused;
 }
 
+static void handle_kick(int sig)
+{
+	struct kvm_cpu *cpu = current_kvm_cpu;
+	kvm__kick(cpu);
+}
+
 static void handle_vmstate(struct kvm *kvm, int fd, u32 type, u32 len, u8 *msg)
 {
 	int r = 0;
@@ -524,6 +530,7 @@ int kvm_ipc__init(struct kvm *kvm)
 	kvm_ipc__register_handler(KVM_IPC_RESUME, handle_pause);
 	kvm_ipc__register_handler(KVM_IPC_STOP, handle_stop);
 	kvm_ipc__register_handler(KVM_IPC_VMSTATE, handle_vmstate);
+	signal(SIGUSR2, handle_kick);
 	signal(SIGUSR1, handle_sigusr1);
 
 	return 0;

@@ -8,6 +8,8 @@
 #include <stdbool.h>
 #include <pthread.h>
 
+#define CPU_INTERRUPT_HARD        0x0002
+
 struct kvm;
 
 struct kvm_cpu {
@@ -29,7 +31,7 @@ struct kvm_cpu {
 	u8			is_running;
 	u8			paused;
 	u8			needs_nmi;
-
+	u8			interrupt_request;
 	struct kvm_coalesced_mmio_ring	*ring;
 };
 

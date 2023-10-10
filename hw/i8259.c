@@ -1,25 +1,28 @@
 #include "kvm/i8259.h"
 #include "kvm/kvm.h"
+#include "kvm/kvm-cpu-arch.h"
 
 #define pr_pic_unimpl(fmt, ...)	\
 	pr_err("pic: " fmt, ## __VA_ARGS__)
 
 static void pic_irq_request(struct kvm *kvm, int level);
-static int pic_read_irq(struct kvm *kvm);
 
-static void kvm_set_irq(struct kvm *kvm, int irq, int level)
+static void kvm_set_irq(struct kvm *kvm, int level)
 {
-	struct kvm_irq_level irq_level;
+	struct kvm_cpu *vcpu0 = kvm->cpus[0];
 
-	irq_level	= (struct kvm_irq_level) {
-		{
-			.irq		= irq,
-		},
-		.level		= level,
-	};
-
-	if (ioctl(kvm->vm_fd, KVM_IRQ_LINE, &irq_level) < 0)
-		die_perror("KVM_IRQ_LINE failed");
+	if (level) {
+		vcpu0->interrupt_request |= CPU_INTERRUPT_HARD;
+		if (!pthread_equal(pthread_self(), vcpu0->thread)) {        
+			int err = pthread_kill(vcpu0->thread, SIGUSR2);
+			if (err && err != ESRCH) {
+				fprintf(stderr, "send signal:%s: %s", __func__, strerror(err));
+				exit(1);
+			}
+		}
+	}else {
+		vcpu0->interrupt_request &= ~CPU_INTERRUPT_HARD;
+	}
 }
 
 static void pic_lock(struct kvm_pic *vpic)
@@ -36,7 +39,7 @@ static void pic_unlock(struct kvm_pic *vpic)
 
 	mutex_unlock(&vpic->mutex);
 	if (wakeup) {
-		kvm_set_irq(kvm, pic_read_irq(kvm), vpic->output);
+		kvm_set_irq(kvm, vpic->output);
 	}
 }
 
@@ -172,7 +175,7 @@ static inline void pic_intack(struct kvm_kpic_state *s, int irq)
 
 }
 
-static int pic_read_irq(struct kvm *kvm)
+int pic_read_irq(struct kvm *kvm)
 {
 	int irq, irq2, intno;
 	struct kvm_pic *s = kvm->arch.vpic;

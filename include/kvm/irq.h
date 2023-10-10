@@ -9,6 +9,9 @@
 
 #include "kvm/kvm-arch.h"
 #include "kvm/msi.h"
+#ifdef CONFIG_X86
+#include "kvm/i8259.h"
+#endif
 
 struct kvm;
 

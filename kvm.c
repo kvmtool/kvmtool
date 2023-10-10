@@ -30,6 +30,7 @@
 #include <sys/eventfd.h>
 #include <asm/unistd.h>
 #include <dirent.h>
+#include <assert.h>
 
 #define DEFINE_KVM_EXIT_REASON(reason) [reason] = #reason
 
@@ -64,6 +65,8 @@ extern struct kvm_ext kvm_req_ext[];
 static char kvm_dir[PATH_MAX];
 
 extern __thread struct kvm_cpu *current_kvm_cpu;
+
+bool kvm_immediate_exit;
 
 static int set_dir(const char *fmt, va_list args)
 {
@@ -499,6 +502,8 @@ int kvm__init(struct kvm *kvm)
 			die("kvm__arch_setup_firmware() failed with error %d\n", ret);
 	}
 
+	kvm_immediate_exit = (ioctl(kvm->sys_fd, KVM_CHECK_EXTENSION, KVM_CAP_IMMEDIATE_EXIT) > 0);
+
 	return 0;
 
 err_vm_fd:
@@ -559,6 +564,18 @@ void kvm__dump_mem(struct kvm *kvm, unsigned long addr, unsigned long size, int 
 		dprintf(debug_fd, " 0x%08lx: %02x %02x %02x %02x  %02x %02x %02x %02x\n",
 			addr + n, p[n + 0], p[n + 1], p[n + 2], p[n + 3],
 				  p[n + 4], p[n + 5], p[n + 6], p[n + 7]);
+	}
+}
+
+void kvm__kick(struct kvm_cpu *cpu)
+{
+	// /* Check if the guest is running */
+	// if (!kvm->cpus[0] || kvm->cpus[0]->thread == 0)
+	// 	return;
+
+	if (current_kvm_cpu) {
+		assert(kvm_immediate_exit);
+		__atomic_store_n(&current_kvm_cpu->kvm_run->immediate_exit, 1, __ATOMIC_RELAXED);
 	}
 }
 

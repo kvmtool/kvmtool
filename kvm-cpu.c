@@ -1,5 +1,6 @@
 #include "kvm/kvm-cpu.h"
 
+#include "include/kvm/irq.h"
 #include "kvm/symbol.h"
 #include "kvm/util.h"
 #include "kvm/kvm.h"
@@ -17,6 +18,7 @@
 #include <stdio.h>
 
 extern __thread struct kvm_cpu *current_kvm_cpu;
+extern bool kvm_immediate_exit;
 
 int __attribute__((weak)) kvm_cpu__get_endianness(struct kvm_cpu *vcpu)
 {
@@ -39,10 +41,24 @@ void kvm_cpu__run(struct kvm_cpu *vcpu)
 
 	if (!vcpu->is_running)
 		return;
+	
+	if (irqchip_split(vcpu->kvm) && vcpu->interrupt_request & CPU_INTERRUPT_HARD) {
+		struct kvm_interrupt irq_request;
+
+		irq_request.irq = pic_read_irq(vcpu->kvm);
+
+		if (ioctl(vcpu->vcpu_fd, KVM_INTERRUPT, &irq_request) < 0)
+			die_perror("KVM_INTERRUPT failed");
+	}
 
 	err = ioctl(vcpu->vcpu_fd, KVM_RUN, 0);
 	if (err < 0 && (errno != EINTR && errno != EAGAIN))
 		die_perror("KVM_RUN failed");
+	if (errno == EINTR) {
+		if (kvm_immediate_exit) {
+			__atomic_store_n(&current_kvm_cpu->kvm_run->immediate_exit, 0, __ATOMIC_RELAXED);
+		}
+	}
 }
 
 static void kvm_cpu_signal_handler(int signum)
