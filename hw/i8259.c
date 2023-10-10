@@ -210,37 +210,20 @@ static int pic_read_irq(struct kvm *kvm)
 
 static void kvm_pic_reset(struct kvm_kpic_state *s)
 {
-	int irq;
-	// unsigned long i;
-	// struct kvm_vcpu *vcpu;
-	u8 edge_irr = s->irr & ~s->elcr;
-	bool found = false;
-
 	s->last_irr = 0;
 	s->irr &= s->elcr;
 	s->imr = 0;
+	s->isr = 0;
 	s->priority_add = 0;
+	s->poll = 0;
 	s->special_mask = 0;
+	s->rotate_on_auto_eoi = 0;
 	s->read_reg_select = 0;
 	if (!s->init4) {
 		s->special_fully_nested_mode = 0;
 		s->auto_eoi = 0;
 	}
 	s->init_state = 1;
-
-	// TODO: Is there a vcpu allow ExtINT ?
-	// kvm_for_each_vcpu(i, vcpu, s->pics_state->kvm)
-	// if (kvm_apic_accept_pic_intr(vcpu)) {
-	// 	found = true;
-	//	break;
-	// }
-
-	if (!found)
-		return;
-
-	for (irq = 0; irq < PIC_NUM_PINS/2; irq++)
-		if (edge_irr & (1 << irq))
-			pic_clear_isr(s, irq);
 }
 
 static void pic_ioport_write(void *opaque, u32 addr, u32 val)
