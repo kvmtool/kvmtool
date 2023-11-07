@@ -264,6 +264,8 @@ int kvm_cpu__start(struct kvm_cpu *cpu)
 				goto exit_kvm;
 			};
 			break;
+		case KVM_EXIT_IRQ_WINDOW_OPEN:
+			break;
 		default: {
 			bool ret;
 
