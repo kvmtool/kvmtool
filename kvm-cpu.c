@@ -42,13 +42,23 @@ void kvm_cpu__run(struct kvm_cpu *vcpu)
 	if (!vcpu->is_running)
 		return;
 	
-	if (irqchip_split(vcpu->kvm) && vcpu->interrupt_request & CPU_INTERRUPT_HARD) {
-		struct kvm_interrupt irq_request;
+	if (irqchip_split(vcpu->kvm) && vcpu->kvm_run->ready_for_interrupt_injection && vcpu->interrupt_request & CPU_INTERRUPT_HARD) {
+		int irq;
+		
+		vcpu->interrupt_request &= ~CPU_INTERRUPT_HARD;
+		irq = pic_read_irq(vcpu->kvm);
+		if (irq >= 0) {
+			struct kvm_interrupt irq_request;
 
-		irq_request.irq = pic_read_irq(vcpu->kvm);
-
-		if (ioctl(vcpu->vcpu_fd, KVM_INTERRUPT, &irq_request) < 0)
-			die_perror("KVM_INTERRUPT failed");
+			irq_request.irq = irq;
+			if (ioctl(vcpu->vcpu_fd, KVM_INTERRUPT, &irq_request) < 0)
+				die_perror("KVM_INTERRUPT failed");
+		}
+	}
+	if ((vcpu->interrupt_request & CPU_INTERRUPT_HARD)) {
+		vcpu->kvm_run->request_interrupt_window = 1;
+	} else {
+		vcpu->kvm_run->request_interrupt_window = 0;
 	}
 
 	err = ioctl(vcpu->vcpu_fd, KVM_RUN, 0);
