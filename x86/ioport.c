@@ -85,12 +85,12 @@ static int ioport__setup_arch(struct kvm *kvm)
 		r = kvm__register_pio(kvm, 0x00A0, 2, dummy_io, NULL);
 		if (r < 0)
 			return r;
-	}
 
-	/* PORT 0040-005F - PIT - PROGRAMMABLE INTERVAL TIMER (8253, 8254) */
-	r = kvm__register_pio(kvm, 0x0040, 4, dummy_io, NULL);
-	if (r < 0)
-		return r;
+		/* PORT 0040-005F - PIT - PROGRAMMABLE INTERVAL TIMER (8253, 8254) */
+		r = kvm__register_pio(kvm, 0x0040, 4, dummy_io, NULL);
+		if (r < 0)
+			return r;
+	}
 
 	/* 0092 - PS/2 system control port A */
 	r = kvm__register_pio(kvm, 0x0092, 1, ps2_control_io, NULL);
