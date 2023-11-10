@@ -5,6 +5,8 @@
 #include "kvm/mutex.h"
 #include "kvm/kvm-cpu.h"
 #include "kvm/kvm-ipc.h"
+#include "kvm/timer.h"
+#include "kvm/irq.h"
 
 #include <linux/kernel.h>
 #include <linux/kvm.h>
@@ -602,6 +604,10 @@ void kvm__pause(struct kvm *kvm)
 	/* Check if the guest is running */
 	if (!kvm->cpus || !kvm->cpus[0] || kvm->cpus[0]->thread == 0)
 		return;
+
+	if (irqchip_split(kvm)) {
+		cpu_disable_ticks();
+	}
 
 	pause_event = eventfd(0, 0);
 	if (pause_event < 0)
