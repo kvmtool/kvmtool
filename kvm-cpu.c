@@ -1,6 +1,6 @@
 #include "kvm/kvm-cpu.h"
 
-#include "include/kvm/irq.h"
+#include "kvm/irq.h"
 #include "kvm/symbol.h"
 #include "kvm/util.h"
 #include "kvm/kvm.h"
