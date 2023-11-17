@@ -1562,6 +1562,20 @@ int virtio_9p__init(struct kvm *kvm)
 }
 virtio_dev_init(virtio_9p__init);
 
+int virtio_9p__exit(struct kvm *kvm)
+{
+	struct p9_dev *p9dev, *tmp;
+
+	list_for_each_entry_safe(p9dev, tmp, &devs, list) {
+		list_del(&p9dev->list);
+		virtio_exit(kvm, &p9dev->vdev);
+		free(p9dev);
+	}
+
+	return 0;
+}
+virtio_dev_exit(virtio_9p__exit);
+
 int virtio_9p__register(struct kvm *kvm, const char *root, const char *tag_name)
 {
 	struct p9_dev *p9dev;

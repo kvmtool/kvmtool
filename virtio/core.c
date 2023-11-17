@@ -400,6 +400,12 @@ int virtio_init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 	return r;
 }
 
+void virtio_exit(struct kvm *kvm, struct virtio_device *vdev)
+{
+	if (vdev->ops && vdev->ops->exit)
+		vdev->ops->exit(kvm, vdev);
+}
+
 int virtio_compat_add_message(const char *device, const char *config)
 {
 	int len = 1024;

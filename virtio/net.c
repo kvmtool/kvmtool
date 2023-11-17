@@ -969,10 +969,13 @@ int virtio_net__exit(struct kvm *kvm)
 		if (ndev->mode == NET_MODE_TAP &&
 		    strcmp(params->downscript, "none"))
 			virtio_net_exec_script(params->downscript, ndev->tap_name);
+		virtio_net_stop(ndev);
 
 		list_del(&ndev->list);
+		virtio_exit(kvm, &ndev->vdev);
 		free(ndev);
 	}
+
 	return 0;
 }
 virtio_dev_exit(virtio_net__exit);

@@ -251,6 +251,7 @@ struct virtio_ops {
 int __must_check virtio_init(struct kvm *kvm, void *dev, struct virtio_device *vdev,
 			     struct virtio_ops *ops, enum virtio_trans trans,
 			     int device_id, int subsys_id, int class);
+void virtio_exit(struct kvm *kvm, struct virtio_device *vdev);
 int virtio_compat_add_message(const char *device, const char *config);
 const char* virtio_trans_name(enum virtio_trans trans);
 void virtio_init_device_vq(struct kvm *kvm, struct virtio_device *vdev,

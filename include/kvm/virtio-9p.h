@@ -70,6 +70,7 @@ int virtio_9p_rootdir_parser(const struct option *opt, const char *arg, int unse
 int virtio_9p_img_name_parser(const struct option *opt, const char *arg, int unset);
 int virtio_9p__register(struct kvm *kvm, const char *root, const char *tag_name);
 int virtio_9p__init(struct kvm *kvm);
+int virtio_9p__exit(struct kvm *kvm);
 int virtio_p9_pdu_readf(struct p9_pdu *pdu, const char *fmt, ...);
 int virtio_p9_pdu_writef(struct p9_pdu *pdu, const char *fmt, ...);
 

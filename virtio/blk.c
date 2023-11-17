@@ -345,6 +345,7 @@ static int virtio_blk__init_one(struct kvm *kvm, struct disk_image *disk)
 static int virtio_blk__exit_one(struct kvm *kvm, struct blk_dev *bdev)
 {
 	list_del(&bdev->list);
+	virtio_exit(kvm, &bdev->vdev);
 	free(bdev);
 
 	return 0;

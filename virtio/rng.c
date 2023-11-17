@@ -122,6 +122,13 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq)
 	return 0;
 }
 
+static void exit_vq(struct kvm *kvm, void *dev, u32 vq)
+{
+	struct rng_dev *rdev = dev;
+
+	thread_pool__cancel_job(&rdev->jobs[vq].job_id);
+}
+
 static int notify_vq(struct kvm *kvm, void *dev, u32 vq)
 {
 	struct rng_dev *rdev = dev;
@@ -159,6 +166,7 @@ static struct virtio_ops rng_dev_virtio_ops = {
 	.get_config_size	= get_config_size,
 	.get_host_features	= get_host_features,
 	.init_vq		= init_vq,
+	.exit_vq		= exit_vq,
 	.notify_vq		= notify_vq,
 	.get_vq			= get_vq,
 	.get_size_vq		= get_size_vq,
@@ -209,7 +217,7 @@ int virtio_rng__exit(struct kvm *kvm)
 
 	list_for_each_entry_safe(rdev, tmp, &rdevs, list) {
 		list_del(&rdev->list);
-		rdev->vdev.ops->exit(kvm, &rdev->vdev);
+		virtio_exit(kvm, &rdev->vdev);
 		free(rdev);
 	}
 

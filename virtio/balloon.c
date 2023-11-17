@@ -221,6 +221,13 @@ static int init_vq(struct kvm *kvm, void *dev, u32 vq)
 	return 0;
 }
 
+static void exit_vq(struct kvm *kvm, void *dev, u32 vq)
+{
+	struct bln_dev *bdev = dev;
+
+	thread_pool__cancel_job(&bdev->jobs[vq]);
+}
+
 static int notify_vq(struct kvm *kvm, void *dev, u32 vq)
 {
 	struct bln_dev *bdev = dev;
@@ -258,6 +265,7 @@ struct virtio_ops bln_dev_virtio_ops = {
 	.get_config_size	= get_config_size,
 	.get_host_features	= get_host_features,
 	.init_vq		= init_vq,
+	.exit_vq		= exit_vq,
 	.notify_vq		= notify_vq,
 	.get_vq			= get_vq,
 	.get_size_vq		= get_size_vq,
@@ -293,6 +301,8 @@ virtio_dev_init(virtio_bln__init);
 
 int virtio_bln__exit(struct kvm *kvm)
 {
+	virtio_exit(kvm, &bdev.vdev);
+
 	return 0;
 }
 virtio_dev_exit(virtio_bln__exit);
