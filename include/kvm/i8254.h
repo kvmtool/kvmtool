@@ -56,4 +56,7 @@ struct kvm_pit {
 #define KVM_MAX_PIT_INTR_INTERVAL   HZ / 100
 #define KVM_PIT_CHANNEL_MASK	    0x3
 
+int pit_init(struct kvm *kvm);
+void pit_destroy(struct kvm *kvm);
+
 #endif
