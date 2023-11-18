@@ -118,7 +118,6 @@ struct plic_context {
 struct plic_state {
 	bool ready;
 	struct kvm *kvm;
-	struct device_header dev_hdr;
 
 	/* Static Configuration */
 	u32 num_irq;
@@ -204,7 +203,7 @@ static u32 __plic_context_irq_claim(struct plic_state *s,
 	return best_irq;
 }
 
-void plic__irq_trig(struct kvm *kvm, int irq, int level, bool edge)
+static void plic__irq_trig(struct kvm *kvm, int irq, int level, bool edge)
 {
 	bool irq_marked = false;
 	u8 i, irq_prio, irq_word;
@@ -425,7 +424,7 @@ static void plic__mmio_callback(struct kvm_cpu *vcpu,
 		die("plic: invalid len=%d", len);
 
 	addr &= ~0x3;
-	addr -= RISCV_PLIC;
+	addr -= RISCV_IRQCHIP;
 
 	if (is_write) {
 		if (PRIORITY_BASE <= addr && addr < ENABLE_BASE) {
@@ -464,34 +463,23 @@ static void plic__mmio_callback(struct kvm_cpu *vcpu,
 	}
 }
 
-void plic__generate_irq_prop(void *fdt, u8 irq, enum irq_type irq_type)
-{
-	u32 irq_prop[] = {
-		cpu_to_fdt32(irq)
-	};
-
-	_FDT(fdt_property(fdt, "interrupts", irq_prop, sizeof(irq_prop)));
-}
-
-static void plic__generate_fdt_node(void *fdt,
-				    struct device_header *dev_hdr,
-				    void (*generate_irq_prop)(void *fdt,
-							      u8 irq,
-							      enum irq_type))
+static void plic__generate_fdt_node(void *fdt, struct kvm *kvm)
 {
 	u32 i;
+	char name[64];
 	u32 reg_cells[4], *irq_cells;
 
 	reg_cells[0] = 0;
-	reg_cells[1] = cpu_to_fdt32(RISCV_PLIC);
+	reg_cells[1] = cpu_to_fdt32(RISCV_IRQCHIP);
 	reg_cells[2] = 0;
-	reg_cells[3] = cpu_to_fdt32(RISCV_PLIC_SIZE);
+	reg_cells[3] = cpu_to_fdt32(RISCV_IRQCHIP_SIZE);
 
 	irq_cells = calloc(plic.num_context * 2, sizeof(u32));
 	if (!irq_cells)
 		die("Failed to alloc irq_cells");
 
-	_FDT(fdt_begin_node(fdt, "interrupt-controller@0c000000"));
+	sprintf(name, "interrupt-controller@%08x", (u32)RISCV_IRQCHIP);
+	_FDT(fdt_begin_node(fdt, name));
 	_FDT(fdt_property_string(fdt, "compatible", "riscv,plic0"));
 	_FDT(fdt_property(fdt, "reg", reg_cells, sizeof(reg_cells)));
 	_FDT(fdt_property_cell(fdt, "#interrupt-cells", 1));
@@ -518,12 +506,10 @@ static int plic__init(struct kvm *kvm)
 	int ret;
 	struct plic_context *c;
 
-	plic.kvm = kvm;
-	plic.dev_hdr = (struct device_header) {
-		.bus_type	= DEVICE_BUS_MMIO,
-		.data		= plic__generate_fdt_node,
-	};
+	if (riscv_irqchip != IRQCHIP_PLIC)
+		return 0;
 
+	plic.kvm = kvm;
 	plic.num_irq = MAX_DEVICES;
 	plic.num_irq_word = plic.num_irq / 32;
 	if ((plic.num_irq_word * 32) < plic.num_irq)
@@ -544,12 +530,8 @@ static int plic__init(struct kvm *kvm)
 
 	mutex_init(&plic.irq_lock);
 
-	ret = kvm__register_mmio(kvm, RISCV_PLIC, RISCV_PLIC_SIZE,
+	ret = kvm__register_mmio(kvm, RISCV_IRQCHIP, RISCV_IRQCHIP_SIZE,
 				 false, plic__mmio_callback, &plic);
-	if (ret)
-		return ret;
-
-	ret = device__register(&plic.dev_hdr);
 	if (ret)
 		return ret;
 
@@ -562,10 +544,27 @@ dev_init(plic__init);
 
 static int plic__exit(struct kvm *kvm)
 {
+	if (riscv_irqchip != IRQCHIP_PLIC)
+		return 0;
+
 	plic.ready = false;
-	kvm__deregister_mmio(kvm, RISCV_PLIC);
+	kvm__deregister_mmio(kvm, RISCV_IRQCHIP);
 	free(plic.contexts);
 
 	return 0;
 }
 dev_exit(plic__exit);
+
+void plic__create(struct kvm *kvm)
+{
+	if (riscv_irqchip != IRQCHIP_UNKNOWN)
+		return;
+
+	riscv_irqchip = IRQCHIP_PLIC;
+	riscv_irqchip_inkernel = false;
+	riscv_irqchip_trigger = plic__irq_trig;
+	riscv_irqchip_generate_fdt_node = plic__generate_fdt_node;
+	riscv_irqchip_phandle = PHANDLE_PLIC;
+	riscv_irqchip_msi_phandle = PHANDLE_RESERVED;
+	riscv_irqchip_line_sensing = false;
+}

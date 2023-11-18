@@ -209,19 +209,26 @@ static int setup_fdt(struct kvm *kvm)
 	/* CPUs */
 	generate_cpu_nodes(fdt, kvm);
 
+	/* IRQCHIP */
+	if (!riscv_irqchip_generate_fdt_node)
+		die("No way to generate IRQCHIP FDT node\n");
+	riscv_irqchip_generate_fdt_node(fdt, kvm);
+
 	/* Simple Bus */
 	_FDT(fdt_begin_node(fdt, "smb"));
 	_FDT(fdt_property_string(fdt, "compatible", "simple-bus"));
 	_FDT(fdt_property_cell(fdt, "#address-cells", 0x2));
 	_FDT(fdt_property_cell(fdt, "#size-cells", 0x2));
-	_FDT(fdt_property_cell(fdt, "interrupt-parent", PHANDLE_PLIC));
+	_FDT(fdt_property_cell(fdt, "interrupt-parent",
+			       riscv_irqchip_phandle));
 	_FDT(fdt_property(fdt, "ranges", NULL, 0));
 
 	/* Virtio MMIO devices */
 	dev_hdr = device__first_dev(DEVICE_BUS_MMIO);
 	while (dev_hdr) {
 		generate_mmio_fdt_nodes = dev_hdr->data;
-		generate_mmio_fdt_nodes(fdt, dev_hdr, plic__generate_irq_prop);
+		generate_mmio_fdt_nodes(fdt, dev_hdr,
+					riscv__generate_irq_prop);
 		dev_hdr = device__next_dev(dev_hdr);
 	}
 
@@ -229,7 +236,8 @@ static int setup_fdt(struct kvm *kvm)
 	dev_hdr = device__first_dev(DEVICE_BUS_IOPORT);
 	while (dev_hdr) {
 		generate_mmio_fdt_nodes = dev_hdr->data;
-		generate_mmio_fdt_nodes(fdt, dev_hdr, plic__generate_irq_prop);
+		generate_mmio_fdt_nodes(fdt, dev_hdr,
+					riscv__generate_irq_prop);
 		dev_hdr = device__next_dev(dev_hdr);
 	}
 

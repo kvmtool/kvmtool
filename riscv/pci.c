@@ -7,20 +7,21 @@
 
 /*
  * An entry in the interrupt-map table looks like:
- * <pci unit address> <pci interrupt pin> <plic phandle> <plic interrupt>
+ * <pci unit address> <pci interrupt pin> <irqchip phandle> <irqchip line>
  */
 
 struct of_interrupt_map_entry {
 	struct of_pci_irq_mask		pci_irq_mask;
-	u32				plic_phandle;
-	u32				plic_irq;
+	u32				irqchip_phandle;
+	u32				irqchip_line;
+	u32				irqchip_sense;
 } __attribute__((packed));
 
 void pci__generate_fdt_nodes(void *fdt)
 {
 	struct device_header *dev_hdr;
 	struct of_interrupt_map_entry irq_map[OF_PCI_IRQ_MAP_MAX];
-	unsigned nentries = 0;
+	unsigned nentries = 0, nsize;
 	/* Bus range */
 	u32 bus_range[] = { cpu_to_fdt32(0), cpu_to_fdt32(1), };
 	/* Configuration Space */
@@ -48,6 +49,11 @@ void pci__generate_fdt_nodes(void *fdt)
 		},
 	};
 
+	/* Find size of each interrupt map entery */
+	nsize = sizeof(struct of_interrupt_map_entry);
+	if (!riscv_irqchip_line_sensing)
+		nsize -= sizeof(u32);
+
 	/* Boilerplate PCI properties */
 	_FDT(fdt_begin_node(fdt, "pci"));
 	_FDT(fdt_property_string(fdt, "device_type", "pci"));
@@ -64,12 +70,13 @@ void pci__generate_fdt_nodes(void *fdt)
 	/* Generate the interrupt map ... */
 	dev_hdr = device__first_dev(DEVICE_BUS_PCI);
 	while (dev_hdr && nentries < ARRAY_SIZE(irq_map)) {
-		struct of_interrupt_map_entry *entry = &irq_map[nentries];
+		struct of_interrupt_map_entry *entry;
 		struct pci_device_header *pci_hdr = dev_hdr->data;
 		u8 dev_num = dev_hdr->dev_num;
 		u8 pin = pci_hdr->irq_pin;
 		u8 irq = pci_hdr->irq_line;
 
+		entry = (void *)irq_map + nsize * nentries;
 		*entry = (struct of_interrupt_map_entry) {
 			.pci_irq_mask = {
 				.pci_addr = {
@@ -79,16 +86,18 @@ void pci__generate_fdt_nodes(void *fdt)
 				},
 				.pci_pin	= cpu_to_fdt32(pin),
 			},
-			.plic_phandle	= cpu_to_fdt32(PHANDLE_PLIC),
-			.plic_irq	= cpu_to_fdt32(irq),
+			.irqchip_phandle	= cpu_to_fdt32(riscv_irqchip_phandle),
+			.irqchip_line		= cpu_to_fdt32(irq),
 		};
+
+		if (riscv_irqchip_line_sensing)
+			entry->irqchip_sense = cpu_to_fdt32(IRQ_TYPE_LEVEL_HIGH);
 
 		nentries++;
 		dev_hdr = device__next_dev(dev_hdr);
 	}
 
-	_FDT(fdt_property(fdt, "interrupt-map", irq_map,
-			  sizeof(struct of_interrupt_map_entry) * nentries));
+	_FDT(fdt_property(fdt, "interrupt-map", irq_map, nsize * nentries));
 
 	/* ... and the corresponding mask. */
 	if (nentries) {
@@ -104,6 +113,11 @@ void pci__generate_fdt_nodes(void *fdt)
 		_FDT(fdt_property(fdt, "interrupt-map-mask", &irq_mask,
 				  sizeof(irq_mask)));
 	}
+
+	/* Set MSI parent if available */
+	if (riscv_irqchip_msi_phandle != PHANDLE_RESERVED)
+		_FDT(fdt_property_cell(fdt, "msi-parent",
+				       riscv_irqchip_msi_phandle));
 
 	_FDT(fdt_end_node(fdt));
 }

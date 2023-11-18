@@ -10,8 +10,8 @@
 
 #define RISCV_IOPORT		0x00000000ULL
 #define RISCV_IOPORT_SIZE	SZ_64K
-#define RISCV_PLIC		0x0c000000ULL
-#define RISCV_PLIC_SIZE		SZ_64M
+#define RISCV_IRQCHIP		0x08000000ULL
+#define RISCV_IRQCHIP_SIZE	SZ_128M
 #define RISCV_MMIO		0x10000000ULL
 #define RISCV_MMIO_SIZE		SZ_512M
 #define RISCV_PCI		0x30000000ULL
@@ -84,10 +84,27 @@ static inline bool riscv_addr_in_ioport_region(u64 phys_addr)
 
 enum irq_type;
 
-void plic__generate_irq_prop(void *fdt, u8 irq, enum irq_type irq_type);
+enum irqchip_type {
+	IRQCHIP_UNKNOWN = 0,
+	IRQCHIP_PLIC,
+	IRQCHIP_AIA
+};
 
-void plic__irq_trig(struct kvm *kvm, int irq, int level, bool edge);
+extern enum irqchip_type riscv_irqchip;
+extern bool riscv_irqchip_inkernel;
+extern void (*riscv_irqchip_trigger)(struct kvm *kvm, int irq,
+				     int level, bool edge);
+extern void (*riscv_irqchip_generate_fdt_node)(void *fdt, struct kvm *kvm);
+extern u32 riscv_irqchip_phandle;
+extern u32 riscv_irqchip_msi_phandle;
+extern bool riscv_irqchip_line_sensing;
+
+void plic__create(struct kvm *kvm);
 
 void pci__generate_fdt_nodes(void *fdt);
+
+void riscv__generate_irq_prop(void *fdt, u8 irq, enum irq_type irq_type);
+
+void riscv__irqchip_create(struct kvm *kvm);
 
 #endif /* KVM__KVM_ARCH_H */
