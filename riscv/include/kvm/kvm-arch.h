@@ -98,10 +98,21 @@ extern void (*riscv_irqchip_generate_fdt_node)(void *fdt, struct kvm *kvm);
 extern u32 riscv_irqchip_phandle;
 extern u32 riscv_irqchip_msi_phandle;
 extern bool riscv_irqchip_line_sensing;
+extern bool riscv_irqchip_irqfd_ready;
 
 void plic__create(struct kvm *kvm);
 
 void pci__generate_fdt_nodes(void *fdt);
+
+int riscv__add_irqfd(struct kvm *kvm, unsigned int gsi, int trigger_fd,
+		     int resample_fd);
+
+void riscv__del_irqfd(struct kvm *kvm, unsigned int gsi, int trigger_fd);
+
+#define irq__add_irqfd riscv__add_irqfd
+#define irq__del_irqfd riscv__del_irqfd
+
+int riscv__setup_irqfd_lines(struct kvm *kvm);
 
 void riscv__generate_irq_prop(void *fdt, u8 irq, enum irq_type irq_type);
 

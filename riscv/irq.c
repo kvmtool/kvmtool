@@ -12,6 +12,7 @@ void (*riscv_irqchip_generate_fdt_node)(void *fdt, struct kvm *kvm) = NULL;
 u32 riscv_irqchip_phandle = PHANDLE_RESERVED;
 u32 riscv_irqchip_msi_phandle = PHANDLE_RESERVED;
 bool riscv_irqchip_line_sensing;
+bool riscv_irqchip_irqfd_ready;
 
 void kvm__irq_line(struct kvm *kvm, int irq, int level)
 {
@@ -44,6 +45,78 @@ void kvm__irq_trigger(struct kvm *kvm, int irq)
 			pr_warning("%s: Can't trigger irq %d\n",
 				   __func__, irq);
 	}
+}
+
+struct riscv_irqfd_line {
+	unsigned int		gsi;
+	int			trigger_fd;
+	int			resample_fd;
+	struct list_head	list;
+};
+
+static LIST_HEAD(irqfd_lines);
+
+int riscv__add_irqfd(struct kvm *kvm, unsigned int gsi, int trigger_fd,
+		     int resample_fd)
+{
+	struct riscv_irqfd_line *line;
+
+	if (riscv_irqchip_irqfd_ready)
+		return irq__common_add_irqfd(kvm, gsi, trigger_fd,
+					     resample_fd);
+
+	/* Postpone the routing setup until irqchip is initialized */
+	line = malloc(sizeof(*line));
+	if (!line)
+		return -ENOMEM;
+
+	*line = (struct riscv_irqfd_line) {
+		.gsi		= gsi,
+		.trigger_fd	= trigger_fd,
+		.resample_fd	= resample_fd,
+	};
+	list_add(&line->list, &irqfd_lines);
+
+	return 0;
+}
+
+void riscv__del_irqfd(struct kvm *kvm, unsigned int gsi, int trigger_fd)
+{
+	struct riscv_irqfd_line *line;
+
+	if (riscv_irqchip_irqfd_ready) {
+		irq__common_del_irqfd(kvm, gsi, trigger_fd);
+		return;
+	}
+
+	list_for_each_entry(line, &irqfd_lines, list) {
+		if (line->gsi != gsi)
+			continue;
+
+		list_del(&line->list);
+		free(line);
+		break;
+	}
+}
+
+int riscv__setup_irqfd_lines(struct kvm *kvm)
+{
+	int ret;
+	struct riscv_irqfd_line *line, *tmp;
+
+	list_for_each_entry_safe(line, tmp, &irqfd_lines, list) {
+		ret = irq__common_add_irqfd(kvm, line->gsi, line->trigger_fd,
+					    line->resample_fd);
+		if (ret < 0) {
+			pr_err("Failed to register IRQFD");
+			return ret;
+		}
+
+		list_del(&line->list);
+		free(line);
+	}
+
+	return 0;
 }
 
 void riscv__generate_irq_prop(void *fdt, u8 irq, enum irq_type irq_type)
