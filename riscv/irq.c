@@ -133,12 +133,22 @@ void riscv__generate_irq_prop(void *fdt, u8 irq, enum irq_type irq_type)
 	_FDT(fdt_property(fdt, "interrupts", prop, size));
 }
 
+static void (*riscv__irqchip_create_funcs[])(struct kvm *kvm) = {
+	aia__create,
+	plic__create,
+};
+
 void riscv__irqchip_create(struct kvm *kvm)
 {
-	/* Try PLIC irqchip */
-	plic__create(kvm);
+	unsigned int i;
 
-	/* Fail if irqchip unknown */
-	if (riscv_irqchip == IRQCHIP_UNKNOWN)
-		die("No IRQCHIP found\n");
+	/* Try irqchip.create function one after another */
+	for (i = 0; i < ARRAY_SIZE(riscv__irqchip_create_funcs); i++) {
+		riscv__irqchip_create_funcs[i](kvm);
+		if (riscv_irqchip != IRQCHIP_UNKNOWN)
+			return;
+	}
+
+	/* Fail since irqchip is unknown */
+	die("No IRQCHIP found\n");
 }

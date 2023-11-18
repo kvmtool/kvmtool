@@ -220,6 +220,7 @@ ifeq ($(ARCH),riscv)
 	OBJS		+= riscv/kvm-cpu.o
 	OBJS		+= riscv/pci.o
 	OBJS		+= riscv/plic.o
+	OBJS		+= riscv/aia.o
 	ifeq ($(RISCV_XLEN),32)
 		CFLAGS	+= -mabi=ilp32d -march=rv32gc
 	endif
