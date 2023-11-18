@@ -34,6 +34,9 @@ struct kvm_config_arch {
 	OPT_BOOLEAN('\0', "disable-svinval",				\
 		    &(cfg)->ext_disabled[KVM_RISCV_ISA_EXT_SVINVAL],	\
 		    "Disable Svinval Extension"),			\
+	OPT_BOOLEAN('\0', "disable-svnapot",				\
+		    &(cfg)->ext_disabled[KVM_RISCV_ISA_EXT_SVNAPOT],	\
+		    "Disable Svnapot Extension"),			\
 	OPT_BOOLEAN('\0', "disable-svpbmt",				\
 		    &(cfg)->ext_disabled[KVM_RISCV_ISA_EXT_SVPBMT],	\
 		    "Disable Svpbmt Extension"),			\
