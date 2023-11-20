@@ -509,8 +509,10 @@ int pit_init(struct kvm *kvm) {
 	memset(pit, 0, sizeof(struct kvm_pit));
 
 	pit->irq_source_id = irq__alloc_line();
-	if (pit->irq_source_id < 0)
+	if (pit->irq_source_id < 0) {
+		ret = pit->irq_source_id;
 		goto fail_request;
+	}
 
 	mutex_init(&pit->pit_state.lock);
 
