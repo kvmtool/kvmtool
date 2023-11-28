@@ -44,7 +44,6 @@ static void dump_fdt(const char *dtb_file, void *fdt)
 }
 
 #define CPU_NAME_MAX_LEN 15
-#define CPU_ISA_MAX_LEN 128
 static void generate_cpu_nodes(void *fdt, struct kvm *kvm)
 {
 	int cpu, pos, i, index, valid_isa_len;
@@ -60,6 +59,7 @@ static void generate_cpu_nodes(void *fdt, struct kvm *kvm)
 
 	for (cpu = 0; cpu < kvm->nrcpus; ++cpu) {
 		char cpu_name[CPU_NAME_MAX_LEN];
+#define CPU_ISA_MAX_LEN (ARRAY_SIZE(isa_info_arr) * 16)
 		char cpu_isa[CPU_ISA_MAX_LEN];
 		struct kvm_cpu *vcpu = kvm->cpus[cpu];
 		struct kvm_one_reg reg;
