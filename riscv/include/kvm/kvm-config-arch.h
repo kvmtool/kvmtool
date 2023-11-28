@@ -61,6 +61,9 @@ struct kvm_config_arch {
 	OPT_BOOLEAN('\0', "disable-zicntr",				\
 		    &(cfg)->ext_disabled[KVM_RISCV_ISA_EXT_ZICNTR],	\
 		    "Disable Zicntr Extension"),			\
+	OPT_BOOLEAN('\0', "disable-zicond",				\
+		    &(cfg)->ext_disabled[KVM_RISCV_ISA_EXT_ZICOND],	\
+		    "Disable Zicond Extension"),			\
 	OPT_BOOLEAN('\0', "disable-zicsr",				\
 		    &(cfg)->ext_disabled[KVM_RISCV_ISA_EXT_ZICSR],	\
 		    "Disable Zicsr Extension"),				\
