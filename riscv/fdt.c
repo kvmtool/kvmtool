@@ -26,7 +26,9 @@ struct isa_ext_info isa_info_arr[] = {
 	{"zbs", KVM_RISCV_ISA_EXT_ZBS},
 	{"zicbom", KVM_RISCV_ISA_EXT_ZICBOM},
 	{"zicboz", KVM_RISCV_ISA_EXT_ZICBOZ},
+	{"zicntr", KVM_RISCV_ISA_EXT_ZICNTR},
 	{"zihintpause", KVM_RISCV_ISA_EXT_ZIHINTPAUSE},
+	{"zihpm", KVM_RISCV_ISA_EXT_ZIHPM},
 };
 
 static void dump_fdt(const char *dtb_file, void *fdt)

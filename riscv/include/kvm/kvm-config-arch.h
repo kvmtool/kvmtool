@@ -55,9 +55,15 @@ struct kvm_config_arch {
 	OPT_BOOLEAN('\0', "disable-zicboz",				\
 		    &(cfg)->ext_disabled[KVM_RISCV_ISA_EXT_ZICBOZ],	\
 		    "Disable Zicboz Extension"),			\
+	OPT_BOOLEAN('\0', "disable-zicntr",				\
+		    &(cfg)->ext_disabled[KVM_RISCV_ISA_EXT_ZICNTR],	\
+		    "Disable Zicntr Extension"),			\
 	OPT_BOOLEAN('\0', "disable-zihintpause",			\
 		    &(cfg)->ext_disabled[KVM_RISCV_ISA_EXT_ZIHINTPAUSE],\
 		    "Disable Zihintpause Extension"),			\
+	OPT_BOOLEAN('\0', "disable-zihpm",				\
+		    &(cfg)->ext_disabled[KVM_RISCV_ISA_EXT_ZIHPM],	\
+		    "Disable Zihpm Extension"),				\
 	OPT_BOOLEAN('\0', "disable-sbi-legacy",				\
 		    &(cfg)->sbi_ext_disabled[KVM_RISCV_SBI_EXT_V01],	\
 		    "Disable SBI Legacy Extensions"),			\
