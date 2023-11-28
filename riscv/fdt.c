@@ -108,7 +108,8 @@ static void generate_cpu_nodes(void *fdt, struct kvm *kvm)
 			}
 
 			if ((strlen(isa_info_arr[i].name) + pos + 1) >= CPU_ISA_MAX_LEN) {
-				pr_warning("Insufficient space to append ISA exension\n");
+				pr_warning("Insufficient space to append ISA exension %s\n",
+					   isa_info_arr[i].name);
 				break;
 			}
 			pos += snprintf(cpu_isa + pos, CPU_ISA_MAX_LEN, "_%s",
