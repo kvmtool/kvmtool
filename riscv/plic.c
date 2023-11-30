@@ -95,6 +95,8 @@
 
 #define REG_SIZE		0x1000000
 
+#define IRQCHIP_PLIC_NR		0
+
 struct plic_state;
 
 struct plic_context {
@@ -500,6 +502,33 @@ static void plic__generate_fdt_node(void *fdt, struct kvm *kvm)
 	free(irq_cells);
 }
 
+static int plic__irq_routing_init(struct kvm *kvm)
+{
+	int r;
+
+	/*
+	 * This describes the default routing that the kernel uses without
+	 * any routing explicitly set up via KVM_SET_GSI_ROUTING. So we
+	 * don't need to commit these setting right now. The first actual
+	 * user (MSI routing) will engage these mappings then.
+	 */
+	for (next_gsi = 0; next_gsi < MAX_DEVICES; next_gsi++) {
+		r = irq__allocate_routing_entry();
+		if (r)
+			return r;
+
+		irq_routing->entries[irq_routing->nr++] =
+			(struct kvm_irq_routing_entry) {
+				.gsi = next_gsi,
+				.type = KVM_IRQ_ROUTING_IRQCHIP,
+				.u.irqchip.irqchip = IRQCHIP_PLIC_NR,
+				.u.irqchip.pin = next_gsi,
+		};
+	}
+
+	return 0;
+}
+
 static int plic__init(struct kvm *kvm)
 {
 	u32 i;
@@ -534,6 +563,9 @@ static int plic__init(struct kvm *kvm)
 				 false, plic__mmio_callback, &plic);
 	if (ret)
 		return ret;
+
+	/* Setup default IRQ routing */
+	plic__irq_routing_init(kvm);
 
 	plic.ready = true;
 
