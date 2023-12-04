@@ -2,7 +2,6 @@
 #include "kvm/kvm.h"
 #include "kvm/util.h"
 #include "kvm/i8259.h"
-#include "kvm/i8254.h"
 
 #include <linux/types.h>
 #include <linux/rbtree.h>
@@ -71,29 +70,18 @@ static int irq__init_kernel(struct kvm *kvm)
 	return 0;
 }
 
-static int irq__init_split(struct kvm *kvm)
-{
-	return kvm_pic_init(kvm);
-}
-
 int irq__init(struct kvm *kvm)
 {
-	if (irqchip_split(kvm)){
-		int r;
-		r = irq__init_split(kvm);
-		if(r != 0)
-			return r;
-		return pit_init(kvm);
-	}
-	else
-		return irq__init_kernel(kvm);
+	if (irqchip_split(kvm))
+		return 0;
+	
+	return irq__init_kernel(kvm);
 }
 dev_base_init(irq__init);
 
 int irq__exit(struct kvm *kvm)
 {
 	if (irqchip_split(kvm)){
-		pit_destroy(kvm);
 		kvm_pic_destroy(kvm);
 	}
 	return 0;
