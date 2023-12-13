@@ -49,10 +49,23 @@ static int start_timer(struct kvm_kpit_channel_state *t)
 static void stop_timer(struct kvm_kpit_channel_state *t)
 {
 	timer_t host_timer = t->timer;
-
-	timer_delete(host_timer);
+	struct itimerspec timeout;
+	timeout.it_interval.tv_sec = 0;
+	timeout.it_interval.tv_nsec = 0;
+	timeout.it_value.tv_sec =  0;
+	timeout.it_value.tv_nsec = 0;
+	if (timer_settime(host_timer, 0 /* RELATIVE */, &timeout, NULL)) {
+		perror("settime");
+		fprintf(stderr, "Internal timer error: aborting\n");
+		exit(1);
+	}
 }
 
+static void destroy_timer(struct kvm_kpit_channel_state *t)
+{
+	timer_t host_timer = t->timer;
+	timer_delete(host_timer);
+}
 
 static void rearm_timer(struct kvm_kpit_channel_state *t,
 								 s64 nearest_delta_ns)
@@ -552,6 +565,7 @@ int pit_init(struct kvm *kvm) {
 	if (ret < 0)
 		goto fail_device;
 	ret = kvm__register_pio(kvm, KVM_PIT_BASE_ADDRESS, KVM_PIT_MEM_LENGTH, pit_io_handler, pit);
+
 	if (ret < 0)
 		goto fail_reg;
 
@@ -562,6 +576,7 @@ int pit_init(struct kvm *kvm) {
 fail_reg:
 	device__unregister(&pit->dev_hdr);
 fail_device:
+	destroy_timer(&pit_state->channels[0]);
 	// kvm_pit_set_reinject(pit, false);
 	// kthread_destroy_worker(pit->worker);
 fail_request:
@@ -580,7 +595,7 @@ void pit_destroy(struct kvm *kvm)
 	device__unregister(&pit->dev_hdr);
 	// kvm_pit_set_reinject(pit, false);
 	// hrtimer_cancel(&pit->pit_state.timer);
-	stop_timer(&pit->pit_state.channels[0]);
+	destroy_timer(&pit->pit_state.channels[0]);
 	// kthread_destroy_worker(pit->worker);
 	// kvm_free_irq_source_id(kvm, pit->irq_source_id);
 
