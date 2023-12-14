@@ -2,8 +2,6 @@
 #include "kvm/i8254.h"
 #include "kvm/timer.h"
 #include "kvm/irq.h"
-// #include <linux/kvm_host.h>
-// #include <linux/slab.h>
 
 #define RW_STATE_LSB 1
 #define RW_STATE_MSB 2
@@ -115,7 +113,6 @@ void cpu_enable_ticks(void)
 	struct kvm_pit *pit = current_pit;
 	struct kvm_kpit_channel_state *s = &pit->pit_state.channels[0];
 	if (!s->cpu_ticks_enabled) {
-		// s->cpu_ticks_offset -= cpu_get_host_ticks();
 		s->cpu_clock_offset -= get_clock();
 		s->cpu_ticks_enabled = 1;
 	}
@@ -132,7 +129,6 @@ void cpu_disable_ticks(void)
 	struct kvm_pit *pit = current_pit;
 	struct kvm_kpit_channel_state *s = &pit->pit_state.channels[0];
 	if (s->cpu_ticks_enabled) {
-		// s->cpu_ticks_offset += cpu_get_host_ticks();
 		s->cpu_clock_offset = cpu_get_clock(s);
 		s->cpu_ticks_enabled = 0;
 	}
@@ -198,7 +194,6 @@ static int pit_get_count(struct kvm_pit *pit, int channel)
 
 static int pit_get_out(struct kvm_kpit_channel_state *c, s64 current_time)
 {
-	// s64 d, t;
 	s64 d;
 	int out;
 
@@ -529,35 +524,17 @@ int pit_init(struct kvm *kvm) {
 
 	mutex_init(&pit->pit_state.lock);
 
-	// pid = get_pid(task_tgid(current));
-	// pid_nr = pid_vnr(pid);
-	// put_pid(pid);
-
-	// pit->worker = kthread_create_worker(0, "kvm-pit/%d", pid_nr);
-	// if (IS_ERR(pit->worker))
-	// 	goto fail_kthread;
-
-	// kthread_init_work(&pit->expired, pit_do_work);
-
 	pit->kvm = kvm;
 
 	pit_state = &pit->pit_state;
-	// hrtimer_init(&pit_state->timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
-	// pit_state->timer.function = pit_timer_fn;
-
-	// pit_state->irq_ack_notifier.gsi = 0;
-	// pit_state->irq_ack_notifier.irq_acked = kvm_pit_ack_irq;
-	// pit->mask_notifier.func = pit_mask_notifer;
 
 	for (i = 0; i < 3; i++) {
 		pit_state->channels[i].pit = pit;
 	}
 	/* the timer 0 is connected to an IRQ */
-	// pit_state->channels[0].irq_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, pit_irq_timer, s);
 	start_timer(&pit_state->channels[0]);
 	pit_reset(pit);
 
-	// kvm_pit_set_reinject(pit, true);
 
 	pit->dev_hdr.bus_type = DEVICE_BUS_IOPORT;
 	pit->dev_hdr.data = pit;
@@ -577,8 +554,6 @@ fail_reg:
 	device__unregister(&pit->dev_hdr);
 fail_device:
 	destroy_timer(&pit_state->channels[0]);
-	// kvm_pit_set_reinject(pit, false);
-	// kthread_destroy_worker(pit->worker);
 fail_request:
 	free(pit);
 	return ret;
@@ -593,11 +568,7 @@ void pit_destroy(struct kvm *kvm)
 
 	kvm__deregister_pio(kvm, KVM_PIT_BASE_ADDRESS);
 	device__unregister(&pit->dev_hdr);
-	// kvm_pit_set_reinject(pit, false);
-	// hrtimer_cancel(&pit->pit_state.timer);
 	destroy_timer(&pit->pit_state.channels[0]);
-	// kthread_destroy_worker(pit->worker);
-	// kvm_free_irq_source_id(kvm, pit->irq_source_id);
 
 	kvm->arch.pit = NULL;
 	free(pit);
