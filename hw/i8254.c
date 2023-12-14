@@ -196,13 +196,13 @@ static int pit_get_count(struct kvm_pit *pit, int channel)
 	return counter;
 }
 
-static int pit_get_out(struct kvm_kpit_channel_state *c)
+static int pit_get_out(struct kvm_kpit_channel_state *c, s64 current_time)
 {
 	// s64 d, t;
 	s64 d;
 	int out;
 
-	d = muldiv64(cpu_get_clock(c) - c->count_load_time, PIT_FREQ,
+	d = muldiv64(current_time - c->count_load_time, PIT_FREQ,
 				NANOSECONDS_PER_SECOND);
 
 	switch (c->mode) {
@@ -244,7 +244,7 @@ static void pit_latch_status(struct kvm_pit *pit, int channel)
 
 	if (!c->status_latched) {
 		/* TODO: Return NULL COUNT (bit 6). */
-		c->status = ((pit_get_out(c) << 7) |
+		c->status = ((pit_get_out(c, cpu_get_clock(c)) << 7) |
 				(c->rw_mode << 4) |
 				(c->mode << 1) |
 				c->bcd);
@@ -477,7 +477,7 @@ static void pit_irq_timer_update(struct kvm_kpit_channel_state *s, s64 current_t
 		return;
 	}
 	expire_time = pit_get_next_transition_time(s, current_time);
-	irq_level = pit_get_out(s);
+	irq_level = pit_get_out(s, current_time);
 	kvm__irq_line(s->pit->kvm, s->pit->irq_source_id, irq_level);
 #ifdef DEBUG_PIT
 	printf("irq_level=%d next_delay=%f\n",
