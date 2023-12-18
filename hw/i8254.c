@@ -548,6 +548,7 @@ int pit_init(struct kvm *kvm) {
 
 	kvm->arch.pit = pit;
 	current_pit = pit;
+	cpu_enable_ticks();
 	return 0;
 
 fail_reg:

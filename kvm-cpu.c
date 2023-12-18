@@ -44,7 +44,6 @@ void kvm_cpu__run(struct kvm_cpu *vcpu)
 		return;
 	
 	if (irqchip_split(vcpu->kvm)) {
-		cpu_enable_ticks();
 		if (vcpu->kvm_run->ready_for_interrupt_injection && vcpu->interrupt_request & CPU_INTERRUPT_HARD) {
 			int irq;
 			
