@@ -7,6 +7,7 @@
 
 #define HOST_BIG_ENDIAN (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
 #define NANOSECONDS_PER_SECOND 1000000000LL
+#define MIN_TIMER_REARM_NS 250000
 
 void cpu_enable_ticks(void);
 void cpu_disable_ticks(void);

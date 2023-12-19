@@ -13,6 +13,17 @@ static struct kvm_pit *current_pit;
 static void pit_irq_timer_update(struct kvm_kpit_channel_state *s, s64 current_time);
 static void pit_irq_timer(int signo);
 
+static s64 cpu_get_clock(struct kvm_kpit_channel_state *s)
+{
+	s64 time;
+	time = s->cpu_clock_offset;
+	if (s->cpu_ticks_enabled) {
+		time += get_clock();
+	}
+
+	return time;
+}
+
 static int start_timer(struct kvm_kpit_channel_state *t)
 {
 	struct sigevent ev;
@@ -66,12 +77,16 @@ static void destroy_timer(struct kvm_kpit_channel_state *t)
 }
 
 static void rearm_timer(struct kvm_kpit_channel_state *t,
-								 s64 nearest_delta_ns)
+								 s64 expire_time)
 {
+	s64 nearest_delta_ns = expire_time - cpu_get_clock(t);
 	timer_t host_timer = t->timer;
 	struct itimerspec timeout;
 	s64 current_ns;
 
+	if (nearest_delta_ns < MIN_TIMER_REARM_NS)
+		nearest_delta_ns = MIN_TIMER_REARM_NS;
+	
 	/* check whether a timer is already running */
 	if (timer_gettime(host_timer, &timeout)) {
 		perror("gettime");
@@ -91,17 +106,6 @@ static void rearm_timer(struct kvm_kpit_channel_state *t,
 		fprintf(stderr, "Internal timer error: aborting\n");
 		exit(1);
 	}
-}
-
-static s64 cpu_get_clock(struct kvm_kpit_channel_state *s)
-{
-	s64 time;
-	time = s->cpu_clock_offset;
-	if (s->cpu_ticks_enabled) {
-		time += get_clock();
-	}
-
-	return time;
 }
 
 /*
