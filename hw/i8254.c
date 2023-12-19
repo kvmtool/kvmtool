@@ -8,8 +8,6 @@
 #define RW_STATE_WORD0 3
 #define RW_STATE_WORD1 4
 
-static struct kvm_pit *current_pit;
-
 static void pit_irq_timer_update(struct kvm_kpit_channel_state *s, s64 current_time);
 static void pit_irq_timer(union sigval sv);
 
@@ -104,10 +102,10 @@ static void rearm_timer(struct kvm_kpit_channel_state *t,
 /*
  * enable cpu_get_ticks()
  */
-void cpu_enable_ticks(void)
+void cpu_enable_ticks(struct kvm *kvm)
 {
 	// mutex_lock(&s->vm_clock_lock);
-	struct kvm_pit *pit = current_pit;
+	struct kvm_pit *pit = kvm->arch.pit;
 	struct kvm_kpit_channel_state *s = &pit->pit_state.channels[0];
 	if (!s->cpu_ticks_enabled) {
 		s->cpu_clock_offset -= get_clock();
@@ -120,10 +118,10 @@ void cpu_enable_ticks(void)
  * disable cpu_get_ticks() : the clock is stopped. You must not call
  * cpu_get_ticks() after that.
  */
-void cpu_disable_ticks(void)
+void cpu_disable_ticks(struct kvm *kvm)
 {
 	// mutex_lock(&s->vm_clock_lock);
-	struct kvm_pit *pit = current_pit;
+	struct kvm_pit *pit = kvm->arch.pit;
 	struct kvm_kpit_channel_state *s = &pit->pit_state.channels[0];
 	if (s->cpu_ticks_enabled) {
 		s->cpu_clock_offset = cpu_get_clock(s);
@@ -544,8 +542,7 @@ int pit_init(struct kvm *kvm) {
 		goto fail_reg;
 
 	kvm->arch.pit = pit;
-	current_pit = pit;
-	cpu_enable_ticks();
+	cpu_enable_ticks(kvm);
 	return 0;
 
 fail_reg:

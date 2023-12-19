@@ -9,8 +9,8 @@
 #define NANOSECONDS_PER_SECOND 1000000000LL
 #define MIN_TIMER_REARM_NS 250000
 
-void cpu_enable_ticks(void);
-void cpu_disable_ticks(void);
+void cpu_enable_ticks(struct kvm *kvm);
+void cpu_disable_ticks(struct kvm *kvm);
 
 static inline u64 muldiv64_rounding(u64 a, u32 b, u32 c,
 								  bool round_up)
