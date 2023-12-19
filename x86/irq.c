@@ -2,6 +2,7 @@
 #include "kvm/kvm.h"
 #include "kvm/util.h"
 #include "kvm/i8259.h"
+#include "kvm/i8254.h"
 
 #include <linux/types.h>
 #include <linux/rbtree.h>
@@ -82,6 +83,7 @@ dev_base_init(irq__init);
 int irq__exit(struct kvm *kvm)
 {
 	if (irqchip_split(kvm)){
+		pit_destroy(kvm);
 		kvm_pic_destroy(kvm);
 	}
 	return 0;
