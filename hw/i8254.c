@@ -490,18 +490,18 @@ static void pit_irq_timer_update(struct kvm_kpit_channel_state *s, s64 current_t
 		stop_timer(s);
 }
 
-static void pit_reset(struct kvm_pit *pit)
-{
-	int i;
-	struct kvm_kpit_channel_state *c;
+// static void pit_reset(struct kvm_pit *pit)
+// {
+// 	int i;
+// 	struct kvm_kpit_channel_state *c;
 
-	for (i = 0; i < 3; i++) {
-		c = &pit->pit_state.channels[i];
-		c->mode = 0xff;
-		c->gate = (i != 2);
-		pit_load_count(pit, i, 0);
-	}
-}
+// 	for (i = 0; i < 3; i++) {
+// 		c = &pit->pit_state.channels[i];
+// 		c->mode = 0xff;
+// 		c->gate = (i != 2);
+// 		pit_load_count(pit, i, 0);
+// 	}
+// }
 
 static void pit_irq_timer(int signo)
 {
@@ -537,7 +537,7 @@ int pit_init(struct kvm *kvm) {
 	}
 	/* the timer 0 is connected to an IRQ */
 	start_timer(&pit_state->channels[0]);
-	pit_reset(pit);
+	// pit_reset(pit);
 
 
 	pit->dev_hdr.bus_type = DEVICE_BUS_IOPORT;
