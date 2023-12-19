@@ -11,7 +11,7 @@
 static struct kvm_pit *current_pit;
 
 static void pit_irq_timer_update(struct kvm_kpit_channel_state *s, s64 current_time);
-static void pit_irq_timer(int signo);
+static void pit_irq_timer(union sigval sv);
 
 static s64 cpu_get_clock(struct kvm_kpit_channel_state *s)
 {
@@ -28,22 +28,15 @@ static int start_timer(struct kvm_kpit_channel_state *t)
 {
 	struct sigevent ev;
 	timer_t host_timer;
-	struct sigaction act;
-
-	sigfillset(&act.sa_mask);
-	act.sa_flags = 0;
-	act.sa_handler = pit_irq_timer;
-
-	sigaction(SIGALRM, &act, NULL);
 
 	/* 
 	 * Initialize ev struct to 0 to avoid valgrind complaining
 	 * about uninitialized data in timer_create call
 	 */
 	memset(&ev, 0, sizeof(ev));
-	ev.sigev_value.sival_int = 0;
-	ev.sigev_notify = SIGEV_SIGNAL;
-	ev.sigev_signo = SIGALRM;
+	ev.sigev_value.sival_ptr = t;
+	ev.sigev_notify = SIGEV_THREAD;
+	ev.sigev_notify_function = pit_irq_timer;
 
 	if (timer_create(CLOCK_REALTIME, &ev, &host_timer)) {
 		perror("timer_create");
@@ -503,9 +496,9 @@ static void pit_irq_timer_update(struct kvm_kpit_channel_state *s, s64 current_t
 // 	}
 // }
 
-static void pit_irq_timer(int signo)
+static void pit_irq_timer(union sigval sv)
 {
-	struct kvm_kpit_channel_state *s = &current_pit->pit_state.channels[0];
+	struct kvm_kpit_channel_state *s = (struct kvm_kpit_channel_state *)sv.sival_ptr;
 	pit_irq_timer_update(s, s->next_transition_time);
 }
 
