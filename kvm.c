@@ -594,6 +594,7 @@ void kvm__continue(struct kvm *kvm)
 {
 	if (irqchip_split(kvm)) {
 		cpu_enable_ticks(kvm);
+		clock_enable(kvm, 1);
 	}
 	mutex_unlock(&pause_lock);
 }
@@ -610,6 +611,7 @@ void kvm__pause(struct kvm *kvm)
 
 	if (irqchip_split(kvm)) {
 		cpu_disable_ticks(kvm);
+		clock_enable(kvm, 0);
 	}
 
 	pause_event = eventfd(0, 0);

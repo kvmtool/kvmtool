@@ -11,6 +11,7 @@
 
 void cpu_enable_ticks(struct kvm *kvm);
 void cpu_disable_ticks(struct kvm *kvm);
+void clock_enable(struct kvm *kvm, int enabled);
 
 static inline u64 muldiv64_rounding(u64 a, u32 b, u32 c,
 								  bool round_up)

@@ -99,6 +99,27 @@ static void rearm_timer(struct kvm_kpit_channel_state *t,
 	}
 }
 
+void clock_enable(struct kvm *kvm, int enabled)
+{
+	struct kvm_pit *pit = kvm->arch.pit;
+	struct kvm_kpit_channel_state *s = &pit->pit_state.channels[0];
+	s->cpu_ticks_enabled = enabled;
+	struct itimerspec timeout;
+
+	if (enabled) {
+		rearm_timer(s, s->remaining_time);
+	} else {
+		/* check whether a timer is already running */
+		if (timer_gettime(s->timer, &timeout)) {
+			perror("gettime");
+			fprintf(stderr, "Internal timer error: aborting\n");
+			exit(1);
+		}
+		s->remaining_time = timeout.it_value.tv_sec * 1000000000LL + timeout.it_value.tv_nsec;
+		stop_timer(s);
+	}
+}
+
 /*
  * enable cpu_get_ticks()
  */

@@ -32,6 +32,7 @@ struct kvm_kpit_channel_state {
 	timer_t timer;
 	s64 cpu_clock_offset;
 	s16 cpu_ticks_enabled;
+	s64 remaining_time;
 };
 
 struct kvm_kpit_state {
