@@ -2,6 +2,7 @@
 
 #ifdef CONFIG_X86
 #include "kvm/irq.h"
+#include "kvm/timer.h"
 #endif
 
 #include "kvm/symbol.h"
@@ -286,6 +287,12 @@ int kvm_cpu__start(struct kvm_cpu *cpu)
 	}
 
 exit_kvm:
+#ifdef CONFIG_X86
+	if (irqchip_split(cpu->kvm)) {
+		cpu_disable_ticks(cpu->kvm);
+		clock_enable(cpu->kvm, 0);
+	}
+#endif
 	return 0;
 
 panic_kvm:
