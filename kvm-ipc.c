@@ -378,10 +378,18 @@ static void handle_pause(struct kvm *kvm, int fd, u32 type, u32 len, u8 *msg)
 	if (type == KVM_IPC_RESUME && is_paused) {
 		kvm->vm_state = KVM_VMSTATE_RUNNING;
 		kvm__continue(kvm);
+		if (irqchip_split(kvm)) {
+			cpu_enable_ticks(kvm);
+			clock_enable(kvm, 1);
+		}
 	} else if (type == KVM_IPC_PAUSE && !is_paused) {
 		kvm->vm_state = KVM_VMSTATE_PAUSED;
 		ioctl(kvm->vm_fd, KVM_KVMCLOCK_CTRL);
 		kvm__pause(kvm);
+		if (irqchip_split(kvm)) {
+			cpu_disable_ticks(kvm);
+			clock_enable(kvm, 0);
+		}
 	} else {
 		return;
 	}
