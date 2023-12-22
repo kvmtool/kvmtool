@@ -15,6 +15,11 @@
 #include "kvm/kvm-cpu.h"
 #include "kvm/8250-serial.h"
 
+#ifdef CONFIG_X86
+#include "kvm/irq.h"
+#include "kvm/timer.h"
+#endif
+
 struct kvm_ipc_head {
 	u32 type;
 	u32 len;
@@ -378,18 +383,22 @@ static void handle_pause(struct kvm *kvm, int fd, u32 type, u32 len, u8 *msg)
 	if (type == KVM_IPC_RESUME && is_paused) {
 		kvm->vm_state = KVM_VMSTATE_RUNNING;
 		kvm__continue(kvm);
+#ifdef CONFIG_X86
 		if (irqchip_split(kvm)) {
 			cpu_enable_ticks(kvm);
 			clock_enable(kvm, 1);
 		}
+#endif
 	} else if (type == KVM_IPC_PAUSE && !is_paused) {
 		kvm->vm_state = KVM_VMSTATE_PAUSED;
 		ioctl(kvm->vm_fd, KVM_KVMCLOCK_CTRL);
 		kvm__pause(kvm);
+#ifdef CONFIG_X86
 		if (irqchip_split(kvm)) {
 			cpu_disable_ticks(kvm);
 			clock_enable(kvm, 0);
 		}
+#endif
 	} else {
 		return;
 	}

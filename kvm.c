@@ -5,8 +5,11 @@
 #include "kvm/mutex.h"
 #include "kvm/kvm-cpu.h"
 #include "kvm/kvm-ipc.h"
+
+#ifdef CONFIG_X86
 #include "kvm/timer.h"
 #include "kvm/irq.h"
+#endif
 
 #include <linux/kernel.h>
 #include <linux/kvm.h>

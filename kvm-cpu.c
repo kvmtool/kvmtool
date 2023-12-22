@@ -1,13 +1,15 @@
 #include "kvm/kvm-cpu.h"
 
+#ifdef CONFIG_X86
 #include "kvm/irq.h"
+#endif
+
 #include "kvm/symbol.h"
 #include "kvm/util.h"
 #include "kvm/kvm.h"
 #include "kvm/virtio.h"
 #include "kvm/mutex.h"
 #include "kvm/barrier.h"
-#include "kvm/timer.h"
 
 #include <sys/ioctl.h>
 #include <sys/mman.h>
@@ -42,7 +44,8 @@ void kvm_cpu__run(struct kvm_cpu *vcpu)
 
 	if (!vcpu->is_running)
 		return;
-	
+
+#ifdef CONFIG_X86
 	if (irqchip_split(vcpu->kvm)) {
 		if (vcpu->kvm_run->ready_for_interrupt_injection && vcpu->interrupt_request & CPU_INTERRUPT_HARD) {
 			int irq;
@@ -63,6 +66,7 @@ void kvm_cpu__run(struct kvm_cpu *vcpu)
 			vcpu->kvm_run->request_interrupt_window = 0;
 		}
 	}
+#endif
 
 	err = ioctl(vcpu->vcpu_fd, KVM_RUN, 0);
 	if (err < 0 && (errno != EINTR && errno != EAGAIN))
