@@ -107,8 +107,10 @@ void clock_enable(struct kvm *kvm, int enabled)
 	struct itimerspec timeout;
 
 	if (enabled) {
+		s->irq_disabled = 0;
 		rearm_timer(s, s->remaining_time);
 	} else {
+		s->irq_disabled = 1;
 		/* check whether a timer is already running */
 		if (timer_gettime(s->timer, &timeout)) {
 			perror("gettime");
