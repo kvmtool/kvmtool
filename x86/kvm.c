@@ -153,16 +153,6 @@ void kvm__arch_init(struct kvm *kvm)
 	if (ret < 0)
 		die_perror("KVM_SET_TSS_ADDR ioctl");
 
-	if (!irqchip_split(kvm)) {
-		ret = ioctl(kvm->vm_fd, KVM_CREATE_PIT2, &pit_config);
-		if (ret < 0)
-			die_perror("KVM_CREATE_PIT2 ioctl");
-	} else {
-		ret = pit_init(kvm);
-		if (ret < 0)
-			die_perror("pit_init");
-	}
-
 	if (ram_size < KVM_32BIT_GAP_START) {
 		kvm->ram_size = ram_size;
 		kvm->ram_start = mmap_anon_or_hugetlbfs(kvm, hugetlbfs_path, ram_size);
@@ -196,6 +186,16 @@ void kvm__arch_init(struct kvm *kvm)
 			die_perror("Could not enable split irqchip mode");
 		}
 		kvm_pic_init(kvm);
+	}
+
+	if (!irqchip_split(kvm)) {
+		ret = ioctl(kvm->vm_fd, KVM_CREATE_PIT2, &pit_config);
+		if (ret < 0)
+			die_perror("KVM_CREATE_PIT2 ioctl");
+	} else {
+		ret = pit_init(kvm);
+		if (ret < 0)
+			die_perror("pit_init");
 	}
 }
 
