@@ -15,6 +15,11 @@
 #include "kvm/kvm-cpu.h"
 #include "kvm/8250-serial.h"
 
+#ifdef CONFIG_X86
+#include "kvm/irq.h"
+#include "kvm/timer.h"
+#endif
+
 struct kvm_ipc_head {
 	u32 type;
 	u32 len;
@@ -378,15 +383,33 @@ static void handle_pause(struct kvm *kvm, int fd, u32 type, u32 len, u8 *msg)
 	if (type == KVM_IPC_RESUME && is_paused) {
 		kvm->vm_state = KVM_VMSTATE_RUNNING;
 		kvm__continue(kvm);
+#ifdef CONFIG_X86
+		if (irqchip_split(kvm)) {
+			cpu_enable_ticks(kvm);
+			clock_enable(kvm, 1);
+		}
+#endif
 	} else if (type == KVM_IPC_PAUSE && !is_paused) {
 		kvm->vm_state = KVM_VMSTATE_PAUSED;
 		ioctl(kvm->vm_fd, KVM_KVMCLOCK_CTRL);
 		kvm__pause(kvm);
+#ifdef CONFIG_X86
+		if (irqchip_split(kvm)) {
+			cpu_disable_ticks(kvm);
+			clock_enable(kvm, 0);
+		}
+#endif
 	} else {
 		return;
 	}
 
 	is_paused = !is_paused;
+}
+
+static void handle_kick(int sig)
+{
+	struct kvm_cpu *cpu = current_kvm_cpu;
+	kvm__kick(cpu);
 }
 
 static void handle_vmstate(struct kvm *kvm, int fd, u32 type, u32 len, u8 *msg)
@@ -524,6 +547,7 @@ int kvm_ipc__init(struct kvm *kvm)
 	kvm_ipc__register_handler(KVM_IPC_RESUME, handle_pause);
 	kvm_ipc__register_handler(KVM_IPC_STOP, handle_stop);
 	kvm_ipc__register_handler(KVM_IPC_VMSTATE, handle_vmstate);
+	signal(SIGUSR2, handle_kick);
 	signal(SIGUSR1, handle_sigusr1);
 
 	return 0;

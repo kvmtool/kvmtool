@@ -185,6 +185,7 @@ static inline bool kvm__deregister_pio(struct kvm *kvm, u16 port)
 	return kvm__deregister_iotrap(kvm, port, DEVICE_BUS_IOPORT);
 }
 
+void kvm__kick(struct kvm_cpu *cpu);
 void kvm__reboot(struct kvm *kvm);
 void kvm__pause(struct kvm *kvm);
 void kvm__continue(struct kvm *kvm);

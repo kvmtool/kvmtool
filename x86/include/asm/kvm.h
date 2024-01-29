@@ -81,8 +81,7 @@ struct kvm_pic_state {
 	__u8 elcr_mask;
 };
 
-#define KVM_PIC_NUM_PINS	16
-#define KVM_IOAPIC_NUM_PINS	24
+#define KVM_IOAPIC_NUM_PINS  24
 struct kvm_ioapic_state {
 	__u64 base_address;
 	__u32 ioregsel;
@@ -107,10 +106,10 @@ struct kvm_ioapic_state {
 	} redirtbl[KVM_IOAPIC_NUM_PINS];
 };
 
-#define KVM_IRQCHIP_PIC_MASTER	0
-#define KVM_IRQCHIP_PIC_SLAVE	1
-#define KVM_IRQCHIP_IOAPIC	2
-#define KVM_NR_IRQCHIPS		3
+#define KVM_IRQCHIP_PIC_MASTER   0
+#define KVM_IRQCHIP_PIC_SLAVE    1
+#define KVM_IRQCHIP_IOAPIC       2
+#define KVM_NR_IRQCHIPS          3
 
 #define KVM_RUN_X86_SMM		 (1 << 0)
 #define KVM_RUN_X86_BUS_LOCK     (1 << 1)
