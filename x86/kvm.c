@@ -150,10 +150,6 @@ void kvm__arch_init(struct kvm *kvm)
 	if (ret < 0)
 		die_perror("KVM_SET_TSS_ADDR ioctl");
 
-	ret = ioctl(kvm->vm_fd, KVM_CREATE_PIT2, &pit_config);
-	if (ret < 0)
-		die_perror("KVM_CREATE_PIT2 ioctl");
-
 	if (ram_size < KVM_32BIT_GAP_START) {
 		kvm->ram_size = ram_size;
 		kvm->ram_start = mmap_anon_or_hugetlbfs(kvm, hugetlbfs_path, ram_size);
@@ -175,6 +171,10 @@ void kvm__arch_init(struct kvm *kvm)
 	ret = ioctl(kvm->vm_fd, KVM_CREATE_IRQCHIP);
 	if (ret < 0)
 		die_perror("KVM_CREATE_IRQCHIP ioctl");
+
+	ret = ioctl(kvm->vm_fd, KVM_CREATE_PIT2, &pit_config);
+	if (ret < 0)
+		die_perror("KVM_CREATE_PIT2 ioctl");
 }
 
 void kvm__arch_delete_ram(struct kvm *kvm)
