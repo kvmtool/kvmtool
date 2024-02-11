@@ -88,6 +88,13 @@ or
 		 --kernel ../../arch/x86/boot/bzImage \
 		 --network virtio
 
+6. Add argument --irqchip-split to enable irqchip-split mode for KVM, which
+   will enable userspace PIC and PIT:
+
+  sudo ./lkvm run --disk linux-0.2.img \
+		 --kernel ../../arch/x86/boot/bzImage \
+		 --irqchip-split
+
 The tool has been written by Pekka Enberg, Cyrill Gorcunov, Asias He,
 Sasha Levin and Prasad Joshi. Special thanks to Avi Kivity for his help
 on KVM internals and Ingo Molnar for all-around support and encouragement!
