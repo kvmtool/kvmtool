@@ -1,5 +1,10 @@
 #include "kvm/kvm-cpu.h"
 
+#ifdef CONFIG_X86
+#include "kvm/irq.h"
+#include "kvm/timer.h"
+#endif
+
 #include "kvm/symbol.h"
 #include "kvm/util.h"
 #include "kvm/kvm.h"
@@ -17,6 +22,7 @@
 #include <stdio.h>
 
 extern __thread struct kvm_cpu *current_kvm_cpu;
+extern bool kvm_immediate_exit;
 
 int __attribute__((weak)) kvm_cpu__get_endianness(struct kvm_cpu *vcpu)
 {
@@ -40,9 +46,37 @@ void kvm_cpu__run(struct kvm_cpu *vcpu)
 	if (!vcpu->is_running)
 		return;
 
+#ifdef CONFIG_X86
+	if (irqchip_split(vcpu->kvm)) {
+		if (vcpu->kvm_run->ready_for_interrupt_injection && vcpu->interrupt_request & CPU_INTERRUPT_HARD) {
+			int irq;
+			
+			vcpu->interrupt_request &= ~CPU_INTERRUPT_HARD;
+			irq = pic_read_irq(vcpu->kvm);
+			if (irq >= 0) {
+				struct kvm_interrupt irq_request;
+
+				irq_request.irq = irq;
+				if (ioctl(vcpu->vcpu_fd, KVM_INTERRUPT, &irq_request) < 0)
+					die_perror("KVM_INTERRUPT failed");
+			}
+		}
+		if ((vcpu->interrupt_request & CPU_INTERRUPT_HARD)) {
+			vcpu->kvm_run->request_interrupt_window = 1;
+		} else {
+			vcpu->kvm_run->request_interrupt_window = 0;
+		}
+	}
+#endif
+
 	err = ioctl(vcpu->vcpu_fd, KVM_RUN, 0);
 	if (err < 0 && (errno != EINTR && errno != EAGAIN))
 		die_perror("KVM_RUN failed");
+	if (errno == EINTR) {
+		if (kvm_immediate_exit) {
+			__atomic_store_n(&current_kvm_cpu->kvm_run->immediate_exit, 0, __ATOMIC_RELAXED);
+		}
+	}
 }
 
 static void kvm_cpu_signal_handler(int signum)
@@ -238,6 +272,8 @@ int kvm_cpu__start(struct kvm_cpu *cpu)
 				goto exit_kvm;
 			};
 			break;
+		case KVM_EXIT_IRQ_WINDOW_OPEN:
+			break;
 		default: {
 			bool ret;
 
@@ -251,6 +287,12 @@ int kvm_cpu__start(struct kvm_cpu *cpu)
 	}
 
 exit_kvm:
+#ifdef CONFIG_X86
+	if (irqchip_split(cpu->kvm)) {
+		cpu_disable_ticks(cpu->kvm);
+		clock_enable(cpu->kvm, 0);
+	}
+#endif
 	return 0;
 
 panic_kvm:

@@ -9,6 +9,9 @@
 
 #include "kvm/kvm-arch.h"
 #include "kvm/msi.h"
+#ifdef CONFIG_X86
+#include "kvm/i8259.h"
+#endif
 
 struct kvm;
 
@@ -43,6 +46,10 @@ int irq__signal_msi(struct kvm *kvm, struct kvm_msi *msi);
 int irq__common_add_irqfd(struct kvm *kvm, unsigned int gsi, int trigger_fd,
 			   int resample_fd);
 void irq__common_del_irqfd(struct kvm *kvm, unsigned int gsi, int trigger_fd);
+
+#ifdef CONFIG_X86
+bool irqchip_split(struct kvm *kvm);
+#endif
 
 #ifndef irq__add_irqfd
 #define irq__add_irqfd irq__common_add_irqfd

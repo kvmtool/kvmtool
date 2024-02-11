@@ -65,6 +65,9 @@ struct kvm_config {
 	bool ioport_debug;
 	bool mmio_debug;
 	bool virtio_legacy;
+#ifdef CONFIG_X86
+	bool irqchip_split;
+#endif
 };
 
 #endif

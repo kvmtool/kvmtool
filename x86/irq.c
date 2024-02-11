@@ -1,6 +1,8 @@
 #include "kvm/irq.h"
 #include "kvm/kvm.h"
 #include "kvm/util.h"
+#include "kvm/i8259.h"
+#include "kvm/i8254.h"
 
 #include <linux/types.h>
 #include <linux/rbtree.h>
@@ -14,6 +16,11 @@
 #define IRQCHIP_MASTER			0
 #define IRQCHIP_SLAVE			1
 #define IRQCHIP_IOAPIC			2
+
+bool irqchip_split(struct kvm *kvm)
+{
+	return kvm->cfg.irqchip_split;
+}
 
 static int irq__add_routing(u32 gsi, u32 type, u32 irqchip, u32 pin)
 {
@@ -32,7 +39,7 @@ static int irq__add_routing(u32 gsi, u32 type, u32 irqchip, u32 pin)
 	return 0;
 }
 
-int irq__init(struct kvm *kvm)
+static int irq__init_kernel(struct kvm *kvm)
 {
 	int i, r;
 
@@ -63,4 +70,22 @@ int irq__init(struct kvm *kvm)
 
 	return 0;
 }
+
+int irq__init(struct kvm *kvm)
+{
+	if (irqchip_split(kvm))
+		return 0;
+	
+	return irq__init_kernel(kvm);
+}
 dev_base_init(irq__init);
+
+int irq__exit(struct kvm *kvm)
+{
+	if (irqchip_split(kvm)){
+		pit_destroy(kvm);
+		kvm_pic_destroy(kvm);
+	}
+	return 0;
+}
+dev_base_exit(irq__exit);
