@@ -221,6 +221,15 @@ static bool is_dir(struct p9_fid *fid)
 	return S_ISDIR(st.st_mode);
 }
 
+static bool is_reg(struct p9_fid *fid)
+{
+	struct stat st;
+
+	stat(fid->abs_path, &st);
+
+	return S_ISREG(st.st_mode);
+}
+
 /* path is always absolute */
 static bool path_is_illegal(const char *path)
 {
@@ -295,11 +304,13 @@ static void virtio_p9_open(struct p9_dev *p9dev,
 		new_fid->dir = opendir(new_fid->abs_path);
 		if (!new_fid->dir)
 			goto err_out;
-	} else {
+	} else if (is_reg(new_fid)) {
 		new_fid->fd  = open(new_fid->abs_path,
 				    virtio_p9_openflags(flags));
 		if (new_fid->fd < 0)
 			goto err_out;
+	} else {
+		goto err_out;
 	}
 	/* FIXME!! need ot send proper iounit  */
 	virtio_p9_pdu_writef(pdu, "Qd", &qid, 0);
