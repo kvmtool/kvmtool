@@ -1,3 +1,4 @@
+#include "kvm/csr.h"
 #include "kvm/kvm-cpu.h"
 #include "kvm/kvm.h"
 #include "kvm/virtio.h"
@@ -222,11 +223,42 @@ static bool kvm_cpu_riscv_sbi(struct kvm_cpu *vcpu)
 	return ret;
 }
 
+static bool kvm_cpu_riscv_csr(struct kvm_cpu *vcpu)
+{
+	int dfd = kvm_cpu__get_debug_fd();
+	bool ret = true;
+
+	switch (vcpu->kvm_run->riscv_csr.csr_num) {
+	case CSR_SEED:
+		/*
+		 * We ignore the new_value and write_mask and simply
+		 * return a random value as SEED.
+		 */
+		vcpu->kvm_run->riscv_csr.ret_value = SEED_OPST_ES16;
+		vcpu->kvm_run->riscv_csr.ret_value |= rand() & SEED_ENTROPY_MASK;
+		break;
+	default:
+		dprintf(dfd, "Unhandled CSR access\n");
+		dprintf(dfd, "csr_num=0x%lx new_value=0x%lx\n",
+			vcpu->kvm_run->riscv_csr.csr_num,
+			vcpu->kvm_run->riscv_csr.new_value);
+		dprintf(dfd, "write_mask=0x%lx ret_value=0x%lx\n",
+			vcpu->kvm_run->riscv_csr.write_mask,
+			vcpu->kvm_run->riscv_csr.ret_value);
+		ret = false;
+		break;
+	}
+
+	return ret;
+}
+
 bool kvm_cpu__handle_exit(struct kvm_cpu *vcpu)
 {
 	switch (vcpu->kvm_run->exit_reason) {
 	case KVM_EXIT_RISCV_SBI:
 		return kvm_cpu_riscv_sbi(vcpu);
+	case KVM_EXIT_RISCV_CSR:
+		return kvm_cpu_riscv_csr(vcpu);
 	default:
 		break;
 	};
