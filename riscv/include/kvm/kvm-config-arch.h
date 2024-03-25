@@ -186,6 +186,9 @@ struct kvm_config_arch {
 		    "Disable SBI Vendor Extensions"),			\
 	OPT_BOOLEAN('\0', "disable-sbi-dbcn",				\
 		    &(cfg)->sbi_ext_disabled[KVM_RISCV_SBI_EXT_DBCN],	\
-		    "Disable SBI DBCN Extension"),
+		    "Disable SBI DBCN Extension"),			\
+	OPT_BOOLEAN('\0', "disable-sbi-sta",				\
+		    &(cfg)->sbi_ext_disabled[KVM_RISCV_SBI_EXT_STA],	\
+		    "Disable SBI STA Extension"),
 
 #endif /* KVM__KVM_CONFIG_ARCH_H */
