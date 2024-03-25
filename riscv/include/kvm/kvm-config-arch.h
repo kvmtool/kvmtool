@@ -109,6 +109,36 @@ struct kvm_config_arch {
 	OPT_BOOLEAN('\0', "disable-zkt",				\
 		    &(cfg)->ext_disabled[KVM_RISCV_ISA_EXT_ZKT],	\
 		    "Disable Zkt Extension"),				\
+	OPT_BOOLEAN('\0', "disable-zvbb",				\
+		    &(cfg)->ext_disabled[KVM_RISCV_ISA_EXT_ZVBB],	\
+		    "Disable Zvbb Extension"),				\
+	OPT_BOOLEAN('\0', "disable-zvbc",				\
+		    &(cfg)->ext_disabled[KVM_RISCV_ISA_EXT_ZVBC],	\
+		    "Disable Zvbc Extension"),				\
+	OPT_BOOLEAN('\0', "disable-zvkb",				\
+		    &(cfg)->ext_disabled[KVM_RISCV_ISA_EXT_ZVKB],	\
+		    "Disable Zvkb Extension"),				\
+	OPT_BOOLEAN('\0', "disable-zvkg",				\
+		    &(cfg)->ext_disabled[KVM_RISCV_ISA_EXT_ZVKG],	\
+		    "Disable Zvkg Extension"),				\
+	OPT_BOOLEAN('\0', "disable-zvkned",				\
+		    &(cfg)->ext_disabled[KVM_RISCV_ISA_EXT_ZVKNED],	\
+		    "Disable Zvkned Extension"),			\
+	OPT_BOOLEAN('\0', "disable-zvknha",				\
+		    &(cfg)->ext_disabled[KVM_RISCV_ISA_EXT_ZVKNHA],	\
+		    "Disable Zvknha Extension"),			\
+	OPT_BOOLEAN('\0', "disable-zvknhb",				\
+		    &(cfg)->ext_disabled[KVM_RISCV_ISA_EXT_ZVKNHB],	\
+		    "Disable Zvknhb Extension"),			\
+	OPT_BOOLEAN('\0', "disable-zvksed",				\
+		    &(cfg)->ext_disabled[KVM_RISCV_ISA_EXT_ZVKSED],	\
+		    "Disable Zvksed Extension"),			\
+	OPT_BOOLEAN('\0', "disable-zvksh",				\
+		    &(cfg)->ext_disabled[KVM_RISCV_ISA_EXT_ZVKSH],	\
+		    "Disable Zvksh Extension"),				\
+	OPT_BOOLEAN('\0', "disable-zvkt",				\
+		    &(cfg)->ext_disabled[KVM_RISCV_ISA_EXT_ZVKT],	\
+		    "Disable Zvkt Extension"),				\
 	OPT_BOOLEAN('\0', "disable-sbi-legacy",				\
 		    &(cfg)->sbi_ext_disabled[KVM_RISCV_SBI_EXT_V01],	\
 		    "Disable SBI Legacy Extensions"),			\

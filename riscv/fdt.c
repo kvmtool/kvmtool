@@ -44,6 +44,16 @@ struct isa_ext_info isa_info_arr[] = {
 	{"zksed", KVM_RISCV_ISA_EXT_ZKSED},
 	{"zksh", KVM_RISCV_ISA_EXT_ZKSH},
 	{"zkt", KVM_RISCV_ISA_EXT_ZKT},
+	{"zvbb", KVM_RISCV_ISA_EXT_ZVBB},
+	{"zvbc", KVM_RISCV_ISA_EXT_ZVBC},
+	{"zvkb", KVM_RISCV_ISA_EXT_ZVKB},
+	{"zvkg", KVM_RISCV_ISA_EXT_ZVKG},
+	{"zvkned", KVM_RISCV_ISA_EXT_ZVKNED},
+	{"zvknha", KVM_RISCV_ISA_EXT_ZVKNHA},
+	{"zvknhb", KVM_RISCV_ISA_EXT_ZVKNHB},
+	{"zvksed", KVM_RISCV_ISA_EXT_ZVKSED},
+	{"zvksh", KVM_RISCV_ISA_EXT_ZVKSH},
+	{"zvkt", KVM_RISCV_ISA_EXT_ZVKT},
 };
 
 static void dump_fdt(const char *dtb_file, void *fdt)
