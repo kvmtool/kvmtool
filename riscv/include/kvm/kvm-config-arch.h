@@ -88,6 +88,9 @@ struct kvm_config_arch {
 	OPT_BOOLEAN('\0', "disable-zifencei",				\
 		    &(cfg)->ext_disabled[KVM_RISCV_ISA_EXT_ZIFENCEI],	\
 		    "Disable Zifencei Extension"),			\
+	OPT_BOOLEAN('\0', "disable-zihintntl",				\
+		    &(cfg)->ext_disabled[KVM_RISCV_ISA_EXT_ZIHINTNTL],	\
+		    "Disable Zihintntl Extension"),			\
 	OPT_BOOLEAN('\0', "disable-zihintpause",			\
 		    &(cfg)->ext_disabled[KVM_RISCV_ISA_EXT_ZIHINTPAUSE],\
 		    "Disable Zihintpause Extension"),			\
