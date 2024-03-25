@@ -49,6 +49,8 @@ struct isa_ext_info isa_info_arr[] = {
 	{"zkt", KVM_RISCV_ISA_EXT_ZKT},
 	{"zvbb", KVM_RISCV_ISA_EXT_ZVBB},
 	{"zvbc", KVM_RISCV_ISA_EXT_ZVBC},
+	{"zvfh", KVM_RISCV_ISA_EXT_ZVFH},
+	{"zvfhmin", KVM_RISCV_ISA_EXT_ZVFHMIN},
 	{"zvkb", KVM_RISCV_ISA_EXT_ZVKB},
 	{"zvkg", KVM_RISCV_ISA_EXT_ZVKG},
 	{"zvkned", KVM_RISCV_ISA_EXT_ZVKNED},

@@ -124,6 +124,12 @@ struct kvm_config_arch {
 	OPT_BOOLEAN('\0', "disable-zvbc",				\
 		    &(cfg)->ext_disabled[KVM_RISCV_ISA_EXT_ZVBC],	\
 		    "Disable Zvbc Extension"),				\
+	OPT_BOOLEAN('\0', "disable-zvfh",				\
+		    &(cfg)->ext_disabled[KVM_RISCV_ISA_EXT_ZVFH],	\
+		    "Disable Zvfh Extension"),				\
+	OPT_BOOLEAN('\0', "disable-zvfhmin",				\
+		    &(cfg)->ext_disabled[KVM_RISCV_ISA_EXT_ZVFHMIN],	\
+		    "Disable Zvfhmin Extension"),			\
 	OPT_BOOLEAN('\0', "disable-zvkb",				\
 		    &(cfg)->ext_disabled[KVM_RISCV_ISA_EXT_ZVKB],	\
 		    "Disable Zvkb Extension"),				\
