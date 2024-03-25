@@ -64,6 +64,12 @@ struct kvm_config_arch {
 	OPT_BOOLEAN('\0', "disable-zbs",				\
 		    &(cfg)->ext_disabled[KVM_RISCV_ISA_EXT_ZBS],	\
 		    "Disable Zbs Extension"),				\
+	OPT_BOOLEAN('\0', "disable-zfh",				\
+		    &(cfg)->ext_disabled[KVM_RISCV_ISA_EXT_ZFH],	\
+		    "Disable Zfh Extension"),				\
+	OPT_BOOLEAN('\0', "disable-zfhmin",				\
+		    &(cfg)->ext_disabled[KVM_RISCV_ISA_EXT_ZFHMIN],	\
+		    "Disable Zfhmin Extension"),			\
 	OPT_BOOLEAN('\0', "disable-zicbom",				\
 		    &(cfg)->ext_disabled[KVM_RISCV_ISA_EXT_ZICBOM],	\
 		    "Disable Zicbom Extension"),			\
