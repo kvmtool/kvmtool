@@ -45,7 +45,7 @@ static void setup_irq_handler(struct kvm *kvm, struct irq_handler *handler)
 		.offset		= handler->address - MB_BIOS_BEGIN,
 	};
 
-	DIE_IF((handler->address - MB_BIOS_BEGIN) > 0xffffUL);
+	DIE_IF((handler->address - MB_BIOS_BEGIN + 1) > MB_BIOS_SIZE);
 
 	interrupt_table__set(&kvm->arch.interrupt_table, &intr_desc, handler->irq);
 }
@@ -75,7 +75,7 @@ static void e820_setup(struct kvm *kvm)
 	};
 	mem_map[i++]	= (struct e820entry) {
 		.addr		= MB_BIOS_BEGIN,
-		.size		= MB_BIOS_END - MB_BIOS_BEGIN,
+		.size		= MB_BIOS_SIZE,
 		.type		= E820_RESERVED,
 	};
 	if (kvm->ram_size < KVM_32BIT_GAP_START) {
@@ -132,16 +132,16 @@ void setup_bios(struct kvm *kvm)
 	 * we definitely don't want any trash here
 	 */
 	p = guest_flat_to_host(kvm, BDA_START);
-	memset(p, 0, BDA_END - BDA_START);
+	memset(p, 0, BDA_SIZE);
 
 	p = guest_flat_to_host(kvm, EBDA_START);
-	memset(p, 0, EBDA_END - EBDA_START);
+	memset(p, 0, EBDA_SIZE);
 
 	p = guest_flat_to_host(kvm, MB_BIOS_BEGIN);
-	memset(p, 0, MB_BIOS_END - MB_BIOS_BEGIN);
+	memset(p, 0, MB_BIOS_SIZE);
 
 	p = guest_flat_to_host(kvm, VGA_ROM_BEGIN);
-	memset(p, 0, VGA_ROM_END - VGA_ROM_BEGIN);
+	memset(p, 0, VGA_ROM_SIZE);
 
 	/* just copy the bios rom into the place */
 	p = guest_flat_to_host(kvm, MB_BIOS_BEGIN);

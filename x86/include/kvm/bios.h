@@ -21,9 +21,11 @@
 
 #define BDA_START			0x00000400
 #define BDA_END				0x000004ff
+#define BDA_SIZE			(BDA_END - BDA_START + 1)
 
 #define EBDA_START			0x0009fc00
 #define EBDA_END			0x0009ffff
+#define EBDA_SIZE			(EBDA_END - EBDA_START + 1)
 
 #define E820_MAP_START			EBDA_START
 
@@ -43,6 +45,7 @@
 #define VGA_ROM_MODES			(VGA_ROM_OEM_STRING + VGA_ROM_OEM_STRING_SIZE)
 #define VGA_ROM_MODES_SIZE		32
 #define VGA_ROM_END			0x000c7fff
+#define VGA_ROM_SIZE			(VGA_ROM_END - VGA_ROM_BEGIN + 1)
 
 /* we handle one page only */
 #define VGA_RAM_SEG			(VGA_RAM_BEGIN >> 4)
