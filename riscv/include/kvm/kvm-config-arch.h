@@ -121,6 +121,9 @@ struct kvm_config_arch {
 	OPT_BOOLEAN('\0', "disable-zkt",				\
 		    &(cfg)->ext_disabled[KVM_RISCV_ISA_EXT_ZKT],	\
 		    "Disable Zkt Extension"),				\
+	OPT_BOOLEAN('\0', "disable-ztso",				\
+		    &(cfg)->ext_disabled[KVM_RISCV_ISA_EXT_ZTSO],	\
+		    "Disable Ztso Extension"),				\
 	OPT_BOOLEAN('\0', "disable-zvbb",				\
 		    &(cfg)->ext_disabled[KVM_RISCV_ISA_EXT_ZVBB],	\
 		    "Disable Zvbb Extension"),				\
