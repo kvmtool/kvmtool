@@ -3,6 +3,7 @@
 #include "kvm/virtio.h"
 
 #include <asm/ptrace.h>
+#include <linux/bitops.h>
 
 #define COMPAT_PSR_F_BIT	0x00000040
 #define COMPAT_PSR_I_BIT	0x00000080
@@ -154,16 +155,66 @@ void kvm_cpu__select_features(struct kvm *kvm, struct kvm_vcpu_init *init)
 		init->features[0] |= 1UL << KVM_ARM_VCPU_SVE;
 }
 
+int sve_vl_parser(const struct option *opt, const char *arg, int unset)
+{
+	struct kvm *kvm = opt->ptr;
+	unsigned long val;
+	unsigned int vq;
+
+	errno = 0;
+	val = strtoull(arg, NULL, 10);
+	if (errno == ERANGE)
+		die("SVE vector length too large: %s", arg);
+
+	if (!val || (val & (val - 1)))
+		die("SVE vector length isn't power of 2: %s", arg);
+
+	vq = val / 128;
+	if (vq > KVM_ARM64_SVE_VQ_MAX || vq < KVM_ARM64_SVE_VQ_MIN)
+		die("SVE vector length out of range: %s", arg);
+
+	kvm->cfg.arch.sve_max_vq = vq;
+	return 0;
+}
+
+static int vcpu_configure_sve(struct kvm_cpu *vcpu)
+{
+	unsigned int max_vq = vcpu->kvm->cfg.arch.sve_max_vq;
+	int feature = KVM_ARM_VCPU_SVE;
+
+	if (max_vq) {
+		unsigned long vls[KVM_ARM64_SVE_VLS_WORDS];
+		struct kvm_one_reg reg = {
+			.id	= KVM_REG_ARM64_SVE_VLS,
+			.addr	= (u64)&vls,
+		};
+		unsigned int vq;
+
+		if (ioctl(vcpu->vcpu_fd, KVM_GET_ONE_REG, &reg))
+			die_perror("KVM_GET_ONE_REG failed (KVM_ARM64_SVE_VLS)");
+
+		if (!test_bit(max_vq - KVM_ARM64_SVE_VQ_MIN, vls))
+			die("SVE vector length (%u) not supported", max_vq * 128);
+
+		for (vq = KVM_ARM64_SVE_VQ_MAX; vq > max_vq; vq--)
+			clear_bit(vq - KVM_ARM64_SVE_VQ_MIN, vls);
+
+		if (ioctl(vcpu->vcpu_fd, KVM_SET_ONE_REG, &reg))
+			die_perror("KVM_SET_ONE_REG failed (KVM_ARM64_SVE_VLS)");
+	}
+
+	if (ioctl(vcpu->vcpu_fd, KVM_ARM_VCPU_FINALIZE, &feature)) {
+		pr_err("KVM_ARM_VCPU_FINALIZE: %s", strerror(errno));
+		return -1;
+	}
+
+	return 0;
+}
+
 int kvm_cpu__configure_features(struct kvm_cpu *vcpu)
 {
-	if (kvm__supports_extension(vcpu->kvm, KVM_CAP_ARM_SVE)) {
-		int feature = KVM_ARM_VCPU_SVE;
-
-		if (ioctl(vcpu->vcpu_fd, KVM_ARM_VCPU_FINALIZE, &feature)) {
-			pr_err("KVM_ARM_VCPU_FINALIZE: %s", strerror(errno));
-			return -1;
-		}
-	}
+	if (kvm__supports_extension(vcpu->kvm, KVM_CAP_ARM_SVE))
+		return vcpu_configure_sve(vcpu);
 
 	return 0;
 }
