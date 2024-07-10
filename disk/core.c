@@ -171,8 +171,10 @@ static struct disk_image **disk_image__open_all(struct kvm *kvm)
 
 		if (wwpn) {
 			disks[i] = malloc(sizeof(struct disk_image));
-			if (!disks[i])
-				return ERR_PTR(-ENOMEM);
+			if (!disks[i]) {
+				err = ERR_PTR(-ENOMEM);
+				goto error;
+			}
 			disks[i]->wwpn = wwpn;
 			continue;
 		}
@@ -191,10 +193,15 @@ static struct disk_image **disk_image__open_all(struct kvm *kvm)
 
 	return disks;
 error:
-	for (i = 0; i < count; i++)
-		if (!IS_ERR_OR_NULL(disks[i]))
-			disk_image__close(disks[i]);
+	for (i = 0; i < count; i++) {
+		if (IS_ERR_OR_NULL(disks[i]))
+			continue;
 
+		if (disks[i]->wwpn)
+			free(disks[i]);
+		else
+			disk_image__close(disks[i]);
+	}
 	free(disks);
 	return err;
 }
