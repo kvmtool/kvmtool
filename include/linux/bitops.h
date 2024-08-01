@@ -1,15 +1,13 @@
 #ifndef _KVM_LINUX_BITOPS_H_
 #define _KVM_LINUX_BITOPS_H_
 
-#include <bits/wordsize.h>
-
 #include <linux/kernel.h>
 #include <linux/compiler.h>
 #include <asm/hweight.h>
 
-#define BITS_PER_LONG __WORDSIZE
 #define BITS_PER_BYTE           8
-#define BITS_TO_LONGS(nr)       DIV_ROUND_UP(nr, BITS_PER_BYTE * sizeof(long))
+#define BITS_PER_LONG           (BITS_PER_BYTE * sizeof(long))
+#define BITS_TO_LONGS(nr)       DIV_ROUND_UP(nr, BITS_PER_LONG)
 
 #define BIT_WORD(nr)		((nr) / BITS_PER_LONG)
 
