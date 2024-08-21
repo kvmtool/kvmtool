@@ -162,6 +162,7 @@ static bool kvm_cpu_riscv_sbi(struct kvm_cpu *vcpu)
 		switch (vcpu->kvm_run->riscv_sbi.function_id) {
 		case SBI_EXT_DBCN_CONSOLE_WRITE:
 		case SBI_EXT_DBCN_CONSOLE_READ:
+			vcpu->kvm_run->riscv_sbi.ret[0] = SBI_SUCCESS;
 			addr = vcpu->kvm_run->riscv_sbi.args[1];
 #if __riscv_xlen == 32
 			addr |= (u64)vcpu->kvm_run->riscv_sbi.args[2] << 32;
