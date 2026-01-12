@@ -193,7 +193,7 @@ static u8 kbd_read_data(void)
 	} else {
 		i = state.kread - 1;
 		if (i < 0)
-			i = QUEUE_SIZE;
+			i = QUEUE_SIZE - 1;
 		ret = state.kq[i];
 	}
 	return ret;
