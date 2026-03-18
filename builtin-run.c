@@ -33,6 +33,7 @@
 #include "kvm/guest_compat.h"
 #include "kvm/kvm-ipc.h"
 #include "kvm/builtin-debug.h"
+#include "kvm/gdb.h"
 
 #include <linux/types.h>
 #include <linux/err.h>
@@ -276,6 +277,10 @@ static int loglevel_parser(const struct option *opt, const char *arg, int unset)
 			"Enable MMIO debugging"),			\
 	OPT_INTEGER('\0', "debug-iodelay", &(cfg)->debug_iodelay,	\
 			"Delay IO by millisecond"),			\
+	OPT_INTEGER('\0', "gdb", &(cfg)->gdb_port,			\
+			"Start GDB stub on given TCP port"),		\
+	OPT_BOOLEAN('\0', "gdb-wait", &(cfg)->gdb_wait,			\
+			"Wait for GDB connection before starting VM"),	\
 									\
 	OPT_ARCH(RUN, cfg)						\
 	OPT_END()							\
@@ -734,8 +739,12 @@ static struct kvm *kvm_cmd_run_init(int argc, const char **argv)
 		kvm->vmlinux = kvm->cfg.vmlinux_filename;
 	}
 
-	if (kvm->cfg.nrcpus == 0)
-		kvm->cfg.nrcpus = nr_online_cpus;
+	if (kvm->cfg.nrcpus == 0) {
+		if (kvm->cfg.gdb_port)
+			kvm->cfg.nrcpus = 1;
+		else
+			kvm->cfg.nrcpus = nr_online_cpus;
+	}
 
 	if (!kvm->cfg.ram_size)
 		kvm->cfg.ram_size = get_ram_size(kvm->cfg.nrcpus);

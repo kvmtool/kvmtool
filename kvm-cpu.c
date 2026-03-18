@@ -5,6 +5,7 @@
 #include "kvm/symbol.h"
 #include "kvm/util.h"
 #include "kvm/kvm.h"
+#include "kvm/gdb.h"
 #include "kvm/virtio.h"
 #include "kvm/mutex.h"
 #include "kvm/barrier.h"
@@ -174,8 +175,12 @@ int kvm_cpu__start(struct kvm_cpu *cpu)
 		case KVM_EXIT_UNKNOWN:
 			break;
 		case KVM_EXIT_DEBUG:
-			kvm_cpu__show_registers(cpu);
-			kvm_cpu__show_code(cpu);
+			if (kvm_gdb__active(cpu->kvm)) {
+				kvm_gdb__handle_debug(cpu);
+			} else {
+				kvm_cpu__show_registers(cpu);
+				kvm_cpu__show_code(cpu);
+			}
 			break;
 		case KVM_EXIT_IO: {
 			bool ret;

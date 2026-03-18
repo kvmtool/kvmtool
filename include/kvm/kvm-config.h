@@ -54,6 +54,8 @@ struct kvm_config {
 	const char *real_cmdline;
 	struct virtio_net_params *net_params;
 	bool single_step;
+	int  gdb_port;		/* GDB stub TCP port (0 = disabled) */
+	bool gdb_wait;		/* Wait for GDB connection before starting */
 	bool vnc;
 	bool gtk;
 	bool sdl;

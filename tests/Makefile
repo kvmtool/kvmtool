@@ -12,6 +12,10 @@ boot:
 	$(MAKE) -C boot
 .PHONY: boot
 
+gdb:
+	$(MAKE) -C gdb smoke
+.PHONY: gdb
+
 clean:
 	$(MAKE) -C kernel clean
 	$(MAKE) -C pit clean

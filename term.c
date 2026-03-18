@@ -26,6 +26,11 @@ static pthread_t term_poll_thread;
 /* ctrl-a is used for escape */
 #define term_escape_char	0x01
 
+static bool guest_has_started(struct kvm *kvm)
+{
+	return kvm->cpus && kvm->cpus[0] && kvm->cpus[0]->thread != 0;
+}
+
 int term_getc(struct kvm *kvm, int term)
 {
 	static bool term_got_escape = false;
@@ -36,10 +41,19 @@ int term_getc(struct kvm *kvm, int term)
 
 	if (term_got_escape) {
 		term_got_escape = false;
-		if (c == 'x')
-			kvm__reboot(kvm);
+		if (c == 'x') {
+			if (guest_has_started(kvm))
+				kvm__reboot(kvm);
+			else
+				raise(SIGTERM);
+		}
 		if (c == term_escape_char)
 			return c;
+	}
+
+	if (c == 0x03 && !guest_has_started(kvm)) {
+		raise(SIGTERM);
+		return -1;
 	}
 
 	if (c == term_escape_char) {
