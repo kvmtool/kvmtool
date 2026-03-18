@@ -16,7 +16,7 @@ struct kvm_gdb_hw_bp {
 	bool active;
 };
 
-#ifdef CONFIG_HAS_GDB_STUB
+#if defined(CONFIG_X86) || defined(CONFIG_ARM64)
 
 /*
  * Public GDB stub API

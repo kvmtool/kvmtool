@@ -131,7 +131,6 @@ endif
 #x86
 ifeq ($(ARCH),x86)
 	DEFINES += -DCONFIG_X86
-	DEFINES += -DCONFIG_HAS_GDB_STUB
 	OBJS	+= gdb.o
 	OBJS	+= hw/i8042.o
 	OBJS	+= hw/serial.o
@@ -185,7 +184,9 @@ ifeq ($(ARCH), arm64)
 	OBJS		+= arm64/pvtime.o
 	OBJS		+= arm64/pmu.o
 	OBJS		+= gdb.o
+	OBJS		+= arm64/gdb.o
 	ARCH_INCLUDE	:= arm64/include
+
 	ARCH_WANT_LIBFDT := y
 	ARCH_HAS_FLASH_MEM := y
 endif
