@@ -91,6 +91,12 @@ size_t kvm_gdb__arch_reg_pkt_size(void);
 int kvm_gdb__arch_signal(struct kvm_cpu *vcpu);
 
 /*
+ * Make a guest instruction patch visible to later instruction fetches.
+ * host points at the host virtual address backing the patched guest bytes.
+ */
+void kvm_gdb__arch_sync_guest_insn(void *host, size_t len);
+
+/*
  * Returns true if the KVM_EXIT_DEBUG exit was caused by a software
  * breakpoint (INT3 / #BP exception), as opposed to a hardware debug
  * trap (#DB, single-step, hardware breakpoint).
@@ -131,6 +137,10 @@ static inline void kvm_gdb__handle_debug(struct kvm_cpu *vcpu)
 static inline bool kvm_gdb__active(struct kvm *kvm)
 {
 	return false;
+}
+
+static inline void kvm_gdb__arch_sync_guest_insn(void *host, size_t len)
+{
 }
 
 #endif

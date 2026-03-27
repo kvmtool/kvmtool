@@ -203,6 +203,14 @@ size_t kvm_gdb__arch_reg_pkt_size(void)
 	return GDB_REGS_SIZE;
 }
 
+void kvm_gdb__arch_sync_guest_insn(void *host, size_t len)
+{
+	char *start = host;
+	char *end = start + len;
+
+	__builtin___clear_cache(start, end);
+}
+
 /* ------------------------------------------------------------------ */
 /* Helpers: which SP to expose as GDB register 31                     */
 /* ------------------------------------------------------------------ */
