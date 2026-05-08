@@ -88,6 +88,35 @@ or
 		 --kernel ../../arch/x86/boot/bzImage \
 		 --network virtio
 
+GDB remote debugging
+--------------------
+
+kvmtool now supports a built-in GDB stub on x86 and arm64.
+
+Start a guest with a GDB server on localhost port 1234:
+
+  ./lkvm run --gdb 1234 --kernel <guest-kernel> [other options]
+
+To wait for GDB to attach before running guest vCPUs:
+
+  ./lkvm run --gdb 1234 --gdb-wait --kernel <guest-kernel> [other options]
+
+From GDB:
+
+  (gdb) target remote :1234
+
+Recommended kernel-debug workflow:
+
+ - Use a single vCPU for stepping-sensitive sessions:
+
+     ./lkvm run --gdb 1234 --gdb-wait -c 1 --kernel <guest-kernel> ...
+
+ - Use nokaslr in the guest command line for stable symbol addresses.
+
+Quick validation command:
+
+  make -C tests/gdb smoke
+
 The tool has been written by Pekka Enberg, Cyrill Gorcunov, Asias He,
 Sasha Levin and Prasad Joshi. Special thanks to Avi Kivity for his help
 on KVM internals and Ingo Molnar for all-around support and encouragement!
